@@ -17,15 +17,10 @@ No Python parser is part of this harness.
 
 ## Commands
 
-Use an explicit Gerbil binary when it is not on `PATH`:
+Use the repository-local wrapper from the harness root. It sets the harness load path and invokes Gerbil:
 
 ```sh
-GERBIL_LOADPATH=$PWD/src /opt/homebrew/opt/gerbil-scheme/bin/gxi bin/gerbil-scheme-harness search prime --view seeds .
-GERBIL_LOADPATH=$PWD/src /opt/homebrew/opt/gerbil-scheme/bin/gxi bin/gerbil-scheme-harness search owner src/std/misc/uuid.ss --view seeds .
-GERBIL_LOADPATH=$PWD/src /opt/homebrew/opt/gerbil-scheme/bin/gxi bin/gerbil-scheme-harness search owner src/std/misc/uuid.ss items --query uuid --names-only .
-GERBIL_LOADPATH=$PWD/src /opt/homebrew/opt/gerbil-scheme/bin/gxi bin/gerbil-scheme-harness query src/std/misc/uuid.ss --term random-uuid --workspace . --code
-GERBIL_LOADPATH=$PWD/src /opt/homebrew/opt/gerbil-scheme/bin/gxi bin/gerbil-scheme-harness check --full .
-GERBIL_LOADPATH=$PWD/src /opt/homebrew/opt/gerbil-scheme/bin/gxi bin/gerbil-scheme-harness agent doctor --json .
+bin/gerbil-scheme-harness agent guide .
 ```
 
 After `gxpkg build`, the installed entrypoint is expected to be
