@@ -48,7 +48,9 @@ call arity differs from the expected arity in a function signature.
 argument name resolves through the native parameter type environment to a type
 that is incompatible with the callee's function signature. The same rule can
 also report direct literal arguments when the parser-owned literal type fact is
-incompatible with the callee parameter type.
+incompatible with the callee parameter type. Parser-owned simple =let= literal
+bindings can supply the same actual type facts without making the checker parse
+source text.
 
 =GERBIL-SCHEME-CHECKER-W001= reports an ordinary application whose callee is
 not project-local and is absent from the configured native call whitelist.

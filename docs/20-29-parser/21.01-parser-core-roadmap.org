@@ -97,6 +97,7 @@ and ~project-calls~. The first slice records ordinary application callee names
 and arity from native syntax datums. Call facts now also preserve argument
 datum strings, literal argument type names, and the enclosing definition name
 when the caller is known, so type-owned checks can resolve argument types
-through native parameter and literal facts. Selectors intentionally point at the
-enclosing top-level form until nested syntax spans are promoted into the parser
-model.
+through native parameter and literal facts. Simple =let= bindings whose values
+are direct literals also feed the call argument type facts for the enclosing
+body. Selectors intentionally point at the enclosing top-level form until nested
+syntax spans are promoted into the parser model.

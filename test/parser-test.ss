@@ -4,6 +4,11 @@
         :parser/facade)
 (export parser-test)
 
+(def (find-call-with-argument calls argument)
+  (find (lambda (call)
+          (equal? (call-fact-arguments call) [argument]))
+        calls))
+
 (def parser-test
   (test-suite "gerbil scheme harness parser"
     (test-case "native reader captures package and definitions"
