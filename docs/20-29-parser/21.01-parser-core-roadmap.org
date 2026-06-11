@@ -83,3 +83,8 @@ owned by the native Gerbil reader/expander boundary, not ad hoc text scans.
 The parser now preserves top-level body form facts with kind, head, path, source
 range, and selector. Module headers returned as native metadata remain separate
 from body forms, matching the Gerbil reader/expander boundary.
+
+The parser-owned data structures, native read functions, source collection, and
+project index now live in ~src/gerbil-scheme-language-project-harness/parser.ss~.
+The CLI imports that module and keeps command dispatch/rendering separate from
+parser fact ownership.

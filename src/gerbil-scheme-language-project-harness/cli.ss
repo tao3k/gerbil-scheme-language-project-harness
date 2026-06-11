@@ -498,19 +498,6 @@ Usage:
 (def (file-directory? path)
   (eq? (file-type path) 'directory))
 
-(def (relative-path root path)
-  (let* ((root* (path-normalize root))
-         (path* (path-normalize path))
-         (prefix (if (string-suffix? "/" root*) root* (string-append root* "/"))))
-    (if (string-prefix? prefix path*)
-      (substring path* (string-length prefix) (string-length path*))
-      path*)))
-
-(def (normalize-owner owner)
-  (if (string-prefix? "./" owner)
-    (substring owner 2 (string-length owner))
-    owner))
-
 (def (dedupe xs)
   (let lp ((rest xs) (seen '()) (out '()))
     (match rest

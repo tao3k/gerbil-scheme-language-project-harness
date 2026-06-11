@@ -1,6 +1,6 @@
 ;;; -*- Gerbil -*-
 (import :std/test
-        :gerbil-scheme-language-project-harness/cli)
+        :gerbil-scheme-language-project-harness/parser)
 (export parser-test)
 
 (def parser-test

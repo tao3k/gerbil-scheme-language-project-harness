@@ -160,7 +160,7 @@
 
 (def (read-lang-syntax-forms path)
   (let* ((lines (read-file-lines path))
-         (body-text (join (cdr lines) "\n"))
+         (body-text (join-lines (cdr lines)))
          (forms
           (call-with-input-string body-text
             (lambda (port)
@@ -268,6 +268,19 @@
          (lp more seen out)
          (lp more (cons item seen) (cons item out))))
       (else (reverse out)))))
+
+(def (take* items count)
+  (let lp ((rest items) (remaining count) (out '()))
+    (cond
+     ((or (null? rest) (fx<= remaining 0)) (reverse out))
+       (else (lp (cdr rest) (fx1- remaining) (cons (car rest) out))))))
+
+(def (join-lines lines)
+  (let lp ((rest lines) (out ""))
+    (match rest
+      ([] out)
+      ([line] (string-append out line))
+      ([line . more] (lp more (string-append out line "\n"))))))
 
 (def (flatten obj)
   (cond
