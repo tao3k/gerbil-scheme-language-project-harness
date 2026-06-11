@@ -3,6 +3,7 @@
 
 (import :checker
         :parser
+        :policy
         :types/env
         :types/findings)
 
@@ -21,7 +22,8 @@
   (append
    (apply append (map source-file-type-findings (project-index-files index)))
    (type-env-findings (build-type-env/signatures index signatures))
-   (run-checker-checks index signatures)))
+   (run-checker-checks index signatures)
+   (run-policy-checks index)))
 
 (def (source-file-type-findings file)
   (let (error (source-file-parse-error file))

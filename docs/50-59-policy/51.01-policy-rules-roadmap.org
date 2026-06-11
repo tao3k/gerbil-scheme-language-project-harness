@@ -1,0 +1,49 @@
+#+title: 51.01 Gerbil Policy Rules Roadmap
+
+* 51.01 Gerbil Policy Rules Roadmap
+
+** 51.01.1 Rust Harness Reference
+
+The Rust harness policy surface separates modularity rules, agent-facing source
+shape rules, and project/test layout rules. The Gerbil harness should follow
+that ownership model, but each rule must be backed by native Gerbil parser facts
+before it is enabled.
+
+The first implemented Gerbil policy pack mirrors the Rust rule intent without
+copying Rust-specific syntax:
+
+- =GERBIL-SCHEME-MOD-R001=: facade source files with sibling owner directories
+  must not contain implementation definitions.
+- =GERBIL-SCHEME-AGENT-R001=: facade source files must carry an
+  agent-readable intent comment near the file header.
+
+** 51.01.2 Native Inputs
+
+Policy rules consume =project-index=, =source-file=, =definition=, and file
+metadata derived by the native parser. They do not scan command output and do
+not own JSON rendering.
+
+Facade detection is structural: a file such as =src/foo.ss= is a facade when
+the project also contains owner files below =src/foo/=. This matches the current
+Gerbil harness layout where =src/parser.ss=, =src/types.ss=, =src/checker.ss=,
+and =src/policy.ss= act as stable facades.
+
+** 51.01.3 Check Integration
+
+=run-type-checks/signatures= now includes policy findings after reader, type
+environment, and checker findings. The default =check= command therefore uses
+the same report packet while allowing policy rules to participate in the full
+gate.
+
+The current repository is expected to pass these first policy rules. Positive
+coverage lives in =test/policy-test.ss= and builds temporary fixture projects
+under =.run= so failing policy fixtures do not pollute normal project scans.
+
+** 51.01.4 Next Rule Candidates
+
+The next policy slices should be added only when parser facts can support them:
+
+- generic facade or owner segment names
+- repeated public export names across unrelated owners
+- oversized source leaves after the parser records source line counts
+- test layout rules after project/test roots become first-class Gerbil facts

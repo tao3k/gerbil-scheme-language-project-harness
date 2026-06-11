@@ -2,6 +2,7 @@
 ;;; Stable checker facade for native Gerbil project checks.
 
 (import :checker/arity
+        :checker/core
         :checker/model)
 
 (export make-checker-rule
@@ -17,6 +18,3 @@
         run-checker-checks
         run-arity-checks
         call-arity-finding)
-
-(def (run-checker-checks index signatures)
-  (run-arity-checks index signatures))
