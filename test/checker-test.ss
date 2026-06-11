@@ -118,6 +118,19 @@
                => "GERBIL-SCHEME-CHECKER-T001")
         (check (type-finding-message finding)
                => "type mismatch for needs-string argument 0: expected string, got number")))
+    (test-case "type mismatch checker reports local alias binding mismatches"
+      (let* ((root ".run/checker-local-alias-type-mismatch")
+             (_ (write-local-alias-type-mismatch-project root))
+             (index (collect-project root))
+             (signatures (load-type-signatures
+                          ".run/checker-local-alias-type-mismatch/type-signatures.scm"))
+             (findings (run-type-mismatch-checks index signatures))
+             (finding (car findings)))
+        (check (length findings) => 1)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-CHECKER-T001")
+        (check (type-finding-message finding)
+               => "type mismatch for needs-string argument 0: expected string, got number")))
     (test-case "type check pipeline includes type mismatch findings"
       (let* ((root ".run/checker-type-mismatch-pipeline")
              (_ (write-type-mismatch-project root))
@@ -183,6 +196,18 @@
     (ensure-dir src)
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let)\n  (let ((value \"ok\") (bad 10))\n    (needs-string value)\n    (needs-string bad)))\n")
+    (write-text signature-path
+                "((needs-string . (function (string) string)))\n")))
+
+(def (write-local-alias-type-mismatch-project root)
+  (let* ((src (string-append root "/src"))
+         (source-path (string-append src "/sample.ss"))
+         (signature-path (string-append root "/type-signatures.scm")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (write-text source-path
+                ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let-star)\n  (let* ((value \"ok\")\n         (alias value)\n         (bad 10)\n         (bad-alias bad))\n    (needs-string alias)\n    (needs-string bad-alias)))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
 

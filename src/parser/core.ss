@@ -295,8 +295,8 @@
                       local-types))
    ((let-head? (car expr))
     (let* ((bindings (let-binding-datums expr))
-           (body-local-types (append (literal-binding-types bindings) local-types)))
-      (append (calls-from-let-bindings relpath start end bindings caller local-types)
+           (body-local-types (let-body-local-types (car expr) bindings local-types)))
+      (append (calls-from-let-bindings relpath start end (car expr) bindings caller local-types)
               (calls-from-exprs relpath start end (let-body-datums expr) caller body-local-types))))
    ((member (car expr) +non-call-heads+)
     (calls-from-exprs relpath start end (cdr expr) caller local-types))
@@ -356,35 +356,61 @@
       (safe-caddr expr))
      (else second))))
 
-(def (literal-binding-types bindings)
-  (if (pair? bindings)
-    (filter-map literal-binding-type (datum-list-items bindings))
-    '()))
+(def (let-body-local-types head bindings local-types)
+  (cond
+   ((not (pair? bindings)) local-types)
+   ((member head '(let* let*-values))
+    (sequential-binding-type-env bindings local-types))
+   (else
+    (append (binding-types bindings local-types) local-types))))
 
-(def (literal-binding-type binding)
+(def (binding-types bindings local-types)
+  (filter-map (cut binding-type <> local-types)
+              (datum-list-items bindings)))
+
+(def (sequential-binding-type-env bindings local-types)
+  (let lp ((rest (datum-list-items bindings))
+           (env local-types))
+    (match rest
+      ([binding . more]
+       (let (type-binding (binding-type binding env))
+         (lp more (if type-binding (cons type-binding env) env))))
+      (else env))))
+
+(def (binding-type binding local-types)
   (and (pair? binding)
        (symbol? (car binding))
        (pair? (cdr binding))
-       (let (type-name (literal-type-name (cadr binding)))
+       (let (type-name (argument-type-name (cadr binding) local-types))
          (and type-name (cons (datum->string (car binding)) type-name)))))
 
-(def (calls-from-let-bindings relpath start end bindings caller local-types)
+(def (calls-from-let-bindings relpath start end head bindings caller local-types)
   (cond
    ((not (pair? bindings)) '())
+   ((member head '(let* let*-values))
+    (calls-from-sequential-let-bindings relpath start end bindings caller local-types))
    (else
     (apply append
-           (map (lambda (binding)
-                  (cond
-                   ((and (pair? binding)
-                         (pair? (cdr binding))
-                         (not (list? (car binding))))
-                    (calls-from-expr relpath start end (cadr binding) caller local-types))
-                   ((and (pair? binding)
-                         (list? (car binding))
-                         (pair? (cdr binding)))
-                    (calls-from-expr relpath start end (cadr binding) caller local-types))
-                   (else '())))
+           (map (cut calls-from-let-binding relpath start end <> caller local-types)
                 (datum-list-items bindings))))))
+
+(def (calls-from-sequential-let-bindings relpath start end bindings caller local-types)
+  (let lp ((rest (datum-list-items bindings))
+           (env local-types)
+           (out '()))
+    (match rest
+      ([binding . more]
+       (let* ((binding-calls
+              (calls-from-let-binding relpath start end binding caller env))
+              (type-binding (binding-type binding env))
+              (next-env (if type-binding (cons type-binding env) env)))
+         (lp more next-env (append out binding-calls))))
+      (else out))))
+
+(def (calls-from-let-binding relpath start end binding caller local-types)
+  (if (and (pair? binding) (pair? (cdr binding)))
+    (calls-from-expr relpath start end (cadr binding) caller local-types)
+    '()))
 
 (def (top-form-from relpath form datum)
   (let* ((head (and (pair? datum) (car datum)))

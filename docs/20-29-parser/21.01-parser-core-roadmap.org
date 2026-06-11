@@ -99,5 +99,7 @@ datum strings, literal argument type names, and the enclosing definition name
 when the caller is known, so type-owned checks can resolve argument types
 through native parameter and literal facts. Simple =let= bindings whose values
 are direct literals also feed the call argument type facts for the enclosing
-body. Selectors intentionally point at the enclosing top-level form until nested
-syntax spans are promoted into the parser model.
+body. Sequential =let*= bindings can also propagate simple aliases of known
+local literal facts, while simultaneous =let= bindings do not make sibling
+bindings visible to each other. Selectors intentionally point at the enclosing
+top-level form until nested syntax spans are promoted into the parser model.
