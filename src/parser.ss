@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Stable parser facade for the Gerbil Scheme project harness.
 
-(import :gerbil-scheme-language-project-harness/parser/core)
+(import :parser/core)
 
 (export +source-extensions+
         +config-files+

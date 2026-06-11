@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; JSON projections for Gerbil parser-owned facts.
 
-(import :gerbil-scheme-language-project-harness/parser
+(import :parser
         :std/text/json)
 
 (export source-file-json
