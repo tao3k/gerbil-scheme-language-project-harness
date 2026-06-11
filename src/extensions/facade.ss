@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-;;; Stable extension facade for optional Gerbil package capabilities.
+;;; Stable extension facade for Gerbil package capability facts.
 
 (import :extensions/core
         :extensions/poo)

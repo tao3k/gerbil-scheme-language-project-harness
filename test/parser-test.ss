@@ -150,6 +150,7 @@
           (check (project-package-name (project-index-package index)) => "sample/app")
           (check (hash-get extension 'name) => "poo")
           (check (hash-get extension 'activation) => "gerbil.pkg")
+          (check (hash-get extension 'dependencyMode) => "required")
           (check (hash-get extension 'packageManager) => "gxpkg")
           (check (hash-get extension 'package) => "sample/app"))))))
 

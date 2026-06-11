@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-;;; Extension aggregation for optional Gerbil package capabilities.
+;;; Extension aggregation for provider-owned Gerbil package capabilities.
 
 (import :extensions/poo)
 

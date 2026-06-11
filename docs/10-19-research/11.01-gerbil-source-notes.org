@@ -21,6 +21,10 @@ uses Gerbil reader/expander APIs as the parser boundary.
 
 - Source files are primarily ~.ss~, ~.ssi~, and ~.scm~.
 - Package roots commonly contain ~gerbil.pkg~ and ~build.ss~.
+- ~gerbil.pkg~ ~depend:~ entries are treated as required ~gxpkg~
+  dependencies by the harness packet. The current Poo extension support is
+  activated only from that declared dependency fact; optional dependency
+  semantics need explicit package-manager evidence before they are surfaced.
 - Module headers use plain top-level fields such as ~prelude:~, ~package:~,
   and ~namespace:~.
 - Dependency edges are visible in top-level ~(import ...)~ forms with Gerbil

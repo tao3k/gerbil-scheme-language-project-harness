@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-;;; Optional Gerbil-poo package extension facts.
+;;; Gerbil-poo package extension facts activated by declared gxpkg dependencies.
 
 (import :package-manager/facade
         :parser/facade
@@ -33,6 +33,7 @@
     (string-append
      "|extension name=poo activation=gerbil.pkg packageManager="
      (project-package-manager package)
+     " dependencyMode=required"
      " package="
      (project-package-name package)
      " dependencies="
@@ -45,6 +46,7 @@
        (let (package (project-index-package index))
          (hash (name "poo")
                (activation "gerbil.pkg")
+               (dependencyMode "required")
                (packageManager (project-package-manager package))
                (package (project-package-name package))
                (dependencies (project-package-dependencies package))
