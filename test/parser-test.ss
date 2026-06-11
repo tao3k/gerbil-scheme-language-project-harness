@@ -20,7 +20,8 @@
         (check (map top-form-kind (source-file-forms file))
                => ["import" "export" "definition" "definition"])
         (check (top-form-selector (car (source-file-forms file)))
-               => "test/fixtures/sample.ss:5-5")))
+               => "test/fixtures/sample.ss:5-5")
+        (check (source-file-line-count file) => 12)))
     (test-case "native reader captures definition formals"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "test/fixtures/formals.ss")))

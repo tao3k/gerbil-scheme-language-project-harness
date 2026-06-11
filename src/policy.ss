@@ -10,13 +10,17 @@
         policy-rule-id
         policy-rule-severity
         +modularity-facade-rule+
+        +modularity-source-leaf-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
         run-policy-checks
         run-modularity-policy
+        +max-source-line-count+
+        +min-source-definition-count+
         facade-source-file?
         facade-implementation-finding
+        source-leaf-bloat-finding
         run-agent-policy
         facade-intent-finding
         generic-owner-segment

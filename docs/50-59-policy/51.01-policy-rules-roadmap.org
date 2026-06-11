@@ -14,6 +14,8 @@ copying Rust-specific syntax:
 
 - =GERBIL-SCHEME-MOD-R001=: facade source files with sibling owner directories
   must not contain implementation definitions.
+- =GERBIL-SCHEME-MOD-R002=: oversized source leaves with many definitions must
+  be split by responsibility.
 - =GERBIL-SCHEME-AGENT-R001=: facade source files must carry an
   agent-readable intent comment near the file header.
 - =GERBIL-SCHEME-AGENT-R002=: source owner path segments must avoid generic
@@ -26,6 +28,11 @@ copying Rust-specific syntax:
 Policy rules consume =project-index=, =source-file=, =definition=, and file
 metadata derived by the native parser. They do not scan command output and do
 not own JSON rendering.
+
+The parser now records =source-file-line-count= so the first source-leaf rule
+can run from parser-owned file facts. =GERBIL-SCHEME-MOD-R002= follows the Rust
+harness threshold shape: it reports files with at least 650 source lines and at
+least 40 native definitions.
 
 Facade detection is structural: a file such as =src/foo.ss= is a facade when
 the project also contains owner files below =src/foo/=. This matches the current
@@ -47,9 +54,13 @@ The second policy slice adds generic owner name detection and duplicate facade
 export detection. Both consume existing parser facts only: source paths,
 facade ownership, and =source-file-exports=.
 
+Self-apply coverage lives in =test/self-apply-test.ss=. It compares the current
+harness findings to =test/snapshots/self-apply-findings.scm=. The current
+snapshot is empty, which means the harness must pass its own reader, type,
+checker, and policy rules.
+
 ** 51.01.4 Next Rule Candidates
 
 The next policy slices should be added only when parser facts can support them:
 
-- oversized source leaves after the parser records source line counts
 - test layout rules after project/test roots become first-class Gerbil facts

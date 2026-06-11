@@ -39,6 +39,7 @@
         top-form-end
         top-form-selector
         source-file-path
+        source-file-line-count
         source-file-package
         source-file-prelude
         source-file-namespace
@@ -69,7 +70,7 @@
 (defstruct definition (name kind path start end formals arity))
 (defstruct call-fact (callee arity path start end))
 (defstruct top-form (kind head path start end))
-(defstruct source-file (path package prelude namespace imports exports includes definitions calls forms parse-error))
+(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms parse-error))
 (defstruct project-index (root files))
 
 (def (collect-project root)
@@ -98,6 +99,7 @@
 
 (def (parse-source-file root path)
   (let* ((relpath (relative-path root path))
+         (line-count (source-line-count path))
          (read-result (read-native-forms path))
          (forms (vector-ref read-result 0))
          (parse-error (vector-ref read-result 1))
@@ -145,10 +147,15 @@
              (lp more package prelude namespace imports exports includes definitions
                  next-calls next-top-forms)))))
         (else
-         (make-source-file relpath package prelude namespace
+         (make-source-file relpath line-count package prelude namespace
                            (dedupe imports) (dedupe exports) (dedupe includes)
                            (reverse definitions) (reverse calls)
                            (reverse top-forms) parse-error))))))
+
+(def (source-line-count path)
+  (with-catch
+   (lambda (_) 0)
+   (lambda () (length (read-file-lines path)))))
 
 (def (read-native-forms path)
   (with-catch

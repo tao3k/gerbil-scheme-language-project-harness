@@ -34,6 +34,7 @@
         top-form-end
         top-form-selector
         source-file-path
+        source-file-line-count
         source-file-package
         source-file-prelude
         source-file-namespace

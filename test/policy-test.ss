@@ -34,6 +34,17 @@
         (check (type-finding-rule-id finding)
                => "GERBIL-SCHEME-AGENT-R001")
         (check (type-finding-path finding) => "src/bar.ss")))
+    (test-case "modularity policy rejects oversized source leaves"
+      (let* ((root ".run/policy-source-leaf")
+             (_ (write-large-policy-source root "large"))
+             (index (collect-project root))
+             (findings (run-modularity-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-MOD-R002" findings))
+             (finding (car matching)))
+        (check (length matching) => 1)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-MOD-R002")
+        (check (type-finding-path finding) => "src/large/core.ss")))
     (test-case "agent policy rejects generic owner names"
       (let* ((root ".run/policy-generic-owner")
              (_ (write-policy-project
@@ -95,3 +106,30 @@
    (lambda () (delete-file path)))
   (call-with-output-file path
     (lambda (port) (display text port))))
+
+(def (write-large-policy-source root owner-name)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/" owner-name))
+         (source-path (string-append owner "/core.ss")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (with-catch
+     (lambda (_) #f)
+     (lambda () (delete-file source-path)))
+    (call-with-output-file source-path
+      (lambda (port)
+        (display ";;; -*- Gerbil -*-\n;;; Large source leaf.\n" port)
+        (let lp ((index 0))
+          (when (fx< index 45)
+            (display "(def value" port)
+            (display index port)
+            (display " " port)
+            (display index port)
+            (display ")\n" port)
+            (lp (fx1+ index))))
+        (let lp ((index 0))
+          (when (fx< index 610)
+            (display ";; padding\n" port)
+            (lp (fx1+ index))))))))
