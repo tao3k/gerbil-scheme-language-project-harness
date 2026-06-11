@@ -25,33 +25,43 @@
 
 (def (call-function-type-mismatch-findings call signature param-env)
   (let ((expected-types (type-params signature))
-        (arg-names (call-fact-arguments call)))
+        (arg-names (call-fact-arguments call))
+        (arg-type-names (call-fact-argument-types call)))
     (if (fx= (length expected-types) (call-fact-arity call))
-      (argument-type-findings call expected-types arg-names param-env 0 '())
+      (argument-type-findings call expected-types arg-names arg-type-names param-env 0 '())
       '())))
 
-(def (argument-type-findings call expected-types arg-names param-env index out)
+(def (argument-type-findings call expected-types arg-names arg-type-names param-env index out)
   (cond
    ((or (null? expected-types) (null? arg-names)) (reverse out))
    (else
     (let* ((arg-name (car arg-names))
+           (arg-type-name (and (pair? arg-type-names) (car arg-type-names)))
            (expected-type (car expected-types))
-           (actual-type (argument-type call arg-name param-env))
+           (actual-type (argument-type call arg-name arg-type-name param-env))
            (finding (and actual-type
                          (not (type-compatible? actual-type expected-type))
                          (type-mismatch-finding call arg-name index expected-type actual-type))))
       (argument-type-findings call
                               (cdr expected-types)
                               (cdr arg-names)
+                              (if (pair? arg-type-names) (cdr arg-type-names) '())
                               param-env
                               (fx1+ index)
                               (if finding (cons finding out) out))))))
 
-(def (argument-type call arg-name param-env)
+(def (argument-type call arg-name arg-type-name param-env)
+  (or (argument-param-type call arg-name param-env)
+      (literal-argument-type arg-type-name)))
+
+(def (argument-param-type call arg-name param-env)
   (and (call-fact-caller call)
        (valid-argument-name? arg-name)
        (let (binding (find-param-binding (call-fact-caller call) arg-name param-env))
          (and binding (type-param-binding-type binding)))))
+
+(def (literal-argument-type arg-type-name)
+  (and arg-type-name (make-type-base arg-type-name)))
 
 (def (find-param-binding function-name arg-name param-env)
   (find (lambda (binding)

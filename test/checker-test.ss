@@ -92,6 +92,19 @@
         (check (type-finding-path finding) => "src/sample.ss")
         (check (type-finding-message finding)
                => "type mismatch for needs-string argument 0: expected string, got number")))
+    (test-case "type mismatch checker reports literal argument mismatches"
+      (let* ((root ".run/checker-literal-type-mismatch")
+             (_ (write-literal-type-mismatch-project root))
+             (index (collect-project root))
+             (signatures (load-type-signatures
+                          ".run/checker-literal-type-mismatch/type-signatures.scm"))
+             (findings (run-type-mismatch-checks index signatures))
+             (finding (car findings)))
+        (check (length findings) => 1)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-CHECKER-T001")
+        (check (type-finding-message finding)
+               => "type mismatch for needs-string argument 0: expected string, got number")))
     (test-case "type check pipeline includes type mismatch findings"
       (let* ((root ".run/checker-type-mismatch-pipeline")
              (_ (write-type-mismatch-project root))
@@ -135,6 +148,18 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-number n) (needs-string n))\n(def (use-string s) (needs-string s))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string))\n (use-number . (function (number) number))\n (use-string . (function (string) string)))\n")))
+
+(def (write-literal-type-mismatch-project root)
+  (let* ((src (string-append root "/src"))
+         (source-path (string-append src "/sample.ss"))
+         (signature-path (string-append root "/type-signatures.scm")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (write-text source-path
+                ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def good (needs-string \"ok\"))\n(def bad (needs-string 10))\n")
+    (write-text signature-path
+                "((needs-string . (function (string) string)))\n")))
 
 (def (ensure-dir path)
   (with-catch

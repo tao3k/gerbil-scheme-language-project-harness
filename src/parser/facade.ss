@@ -27,6 +27,7 @@
         call-fact-start
         call-fact-end
         call-fact-arguments
+        call-fact-argument-types
         call-fact-caller
         call-fact-selector
         top-form-kind

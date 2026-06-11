@@ -32,6 +32,7 @@
         call-fact-start
         call-fact-end
         call-fact-arguments
+        call-fact-argument-types
         call-fact-caller
         call-fact-selector
         top-form-kind
@@ -75,7 +76,7 @@
     cond case and or when unless match))
 
 (defstruct definition (name kind path start end formals arity))
-(defstruct call-fact (callee arity path start end arguments caller))
+(defstruct call-fact (callee arity path start end arguments argument-types caller))
 (defstruct top-form (kind head path start end))
 (defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms parse-error))
 (defstruct project-package (path name dependencies manager))
@@ -302,8 +303,17 @@
                             (length args)
                             relpath start end
                             (map datum->string args)
+                            (map literal-type-name args)
                             caller)
             (calls-from-exprs relpath start end (cdr expr) caller))))))
+
+(def (literal-type-name datum)
+  (cond
+   ((number? datum) "number")
+   ((string? datum) "string")
+   ((boolean? datum) "bool")
+   ((char? datum) "char")
+   (else #f)))
 
 (def (form-caller-name datum)
   (and (pair? datum)
