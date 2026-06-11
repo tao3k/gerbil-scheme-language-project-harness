@@ -45,8 +45,16 @@
         type-binding-arity
         type-binding-path
         type-binding-selector
+        make-type-param-binding
+        type-param-binding-function-name
+        type-param-binding-name
+        type-param-binding-type
+        type-param-binding-path
+        type-param-binding-selector
         build-type-env
         build-type-env/signatures
+        build-param-type-env
+        build-param-type-env/signatures
         duplicate-type-bindings
         type-finding-rule-id
         type-finding-severity

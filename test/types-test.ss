@@ -46,6 +46,21 @@
                => ["sum-two" "collect"])
         (check (map type->string (map type-binding-type sample-bindings))
                => ["(function (number number) number)" "(function (any) any)"])))
+    (test-case "signature parameter types build native param env"
+      (let* ((root (path-normalize "."))
+             (index (collect-project root))
+             (signatures (load-type-signatures "test/fixtures/type-signatures.scm"))
+             (param-bindings
+              (filter (lambda (binding)
+                        (equal? (type-param-binding-path binding)
+                                "test/fixtures/formals.ss"))
+                      (build-param-type-env/signatures index signatures))))
+        (check (map type-param-binding-function-name param-bindings)
+               => ["sum-two" "sum-two"])
+        (check (map type-param-binding-name param-bindings)
+               => ["x" "y"])
+        (check (map type->string (map type-param-binding-type param-bindings))
+               => ["number" "number"])))
     (test-case "signature parser supports structured native type forms"
       (let* ((signatures (load-type-signatures "test/fixtures/type-signatures.scm"))
              (pair-type (signature-type-for "pair-value" signatures))

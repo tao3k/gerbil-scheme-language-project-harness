@@ -50,6 +50,14 @@ Scheme signature expressions such as =(list number)=, =(vector string)=,
 =(function* number number 1)=. These facts stay in the native type model so
 future checker rules can consume typed values instead of reparsing strings.
 
+=src/types/env.ss= also derives parameter-level type facts from function
+signatures and parser-owned formals. Fixed-arity function signatures produce
+per-parameter bindings when their arity matches the definition; variadic
+function signatures can produce repeated parameter bindings after their minimum
+arity is satisfied. =any= and =unknown= parameters are not emitted as strong
+facts. This keeps the next type-mismatch and termination rules grounded in the
+native type environment instead of checker-local string parsing.
+
 The first type rule reports duplicate environment bindings within the same
 owner/path as =GERBIL-SCHEME-TYPE-E001=. Names from different source owners stay
 distinct.
