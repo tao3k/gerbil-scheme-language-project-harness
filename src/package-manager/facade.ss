@@ -5,4 +5,5 @@
 
 (export +gerbil-package-manager-id+
         project-package-managed-by-gerbil?
+        project-package-depends-on?
         project-package-activates?)

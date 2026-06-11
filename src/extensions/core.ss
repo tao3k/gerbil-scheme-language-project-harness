@@ -1,15 +1,20 @@
 ;;; -*- Gerbil -*-
 ;;; Extension aggregation for provider-owned Gerbil package capabilities.
 
-(import :extensions/poo)
+(import :extensions/model
+        :extensions/poo)
 
-(export project-extension-search-lines
+(export project-extension-facts
+        project-extension-search-lines
         project-extension-json)
 
-(def (project-extension-search-lines index)
-  (poo-extension-search-lines index))
-
-(def (project-extension-json index)
+(def (project-extension-facts index)
   (filter-map
    (lambda (extension) extension)
-   [(poo-extension-json index)]))
+   [(poo-extension-fact index)]))
+
+(def (project-extension-search-lines index)
+  (map extension-fact-search-line (project-extension-facts index)))
+
+(def (project-extension-json index)
+  (map extension-fact-json (project-extension-facts index)))

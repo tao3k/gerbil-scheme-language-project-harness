@@ -25,6 +25,9 @@ uses Gerbil reader/expander APIs as the parser boundary.
   dependencies by the harness packet. The current Poo extension support is
   activated only from that declared dependency fact; optional dependency
   semantics need explicit package-manager evidence before they are surfaced.
+- Poo extension support currently means packet-level capability facts for
+  declared ~gerbil-poo~ dependencies. It does not yet parse Poo-specific class,
+  protocol, or metaobject forms as separate semantic facts.
 - Module headers use plain top-level fields such as ~prelude:~, ~package:~,
   and ~namespace:~.
 - Dependency edges are visible in top-level ~(import ...)~ forms with Gerbil

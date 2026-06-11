@@ -5,6 +5,7 @@
 
 (export +gerbil-package-manager-id+
         project-package-managed-by-gerbil?
+        project-package-depends-on?
         project-package-activates?)
 
 (def +gerbil-package-manager-id+ "gxpkg")
@@ -15,5 +16,13 @@
 
 (def (project-package-activates? package token-matches?)
   (and (project-package-managed-by-gerbil? package)
-       (or (token-matches? (project-package-name package))
-           (ormap token-matches? (project-package-dependencies package)))))
+       (not
+        (not
+         (or (token-matches? (project-package-name package))
+             (ormap token-matches? (project-package-dependencies package)))))))
+
+(def (project-package-depends-on? package token-matches?)
+  (and (project-package-managed-by-gerbil? package)
+       (not
+        (not
+         (ormap token-matches? (project-package-dependencies package))))))

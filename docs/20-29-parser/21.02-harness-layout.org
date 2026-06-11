@@ -50,7 +50,10 @@ does not depend on JSON output.
 Package extension JSON stays provider-owned under the shared search packet
 =extensions= field. Poo is currently reported with =dependencyMode=required=
 because activation comes from a concrete =gerbil.pkg= =depend:= entry managed
-by =gxpkg=.
+by =gxpkg=. The extension facade exposes model facts first through
+=project-extension-facts=; JSON and compact search lines are projections of the
+same fact model. Poo packet stability is covered by
+=test/snapshots/poo-extension-packet.scm=.
 
 ** 21.02.4 Next Split
 
