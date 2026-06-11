@@ -15,6 +15,7 @@
         extension-fact-snapshot
         extension-packet-snapshot
         search-prime-snapshot
+        self-apply-findings-snapshot
         finding-snapshot
         check-report-snapshot)
 
@@ -217,6 +218,14 @@
    (type-finding-path finding)
    (type-finding-selector finding)
    (type-finding-message finding)])
+
+(def (self-apply-findings-snapshot findings)
+  (list 'selfApplyFindings
+        (list 'languageId +language-id+)
+        (list 'providerId +provider-id+)
+        (list 'status (type-status findings))
+        (list 'findingCount (length findings))
+        (list 'findings (map finding-snapshot findings))))
 
 (def (check-report-snapshot index findings)
   (list 'checkReport

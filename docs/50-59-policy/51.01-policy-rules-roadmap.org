@@ -67,11 +67,12 @@ export detection. Both consume existing parser facts only: source paths,
 facade ownership, and =source-file-exports=.
 
 Self-apply coverage lives in =test/self-apply-test.ss=. It compares the current
-harness findings to =test/snapshots/self-apply-findings.ss=. The current
-snapshot is empty, which means the harness must pass its own reader, type,
-checker, and policy rules. The check report snapshot uses the shared
-=snapshot/facade= projection so policy tests and command packet tests exercise
-the same unit interface.
+harness findings to =test/snapshots/self-apply-findings.ss=. The findings
+snapshot is an explicit invariant, not a bare empty list: =status= must be
+=pass=, =findingCount= must be =0=, and =findings= must be empty. This means
+the harness must pass its own reader, type, checker, and policy rules. The
+check report snapshot uses the shared =snapshot/facade= projection so policy
+tests and command packet tests exercise the same unit interface.
 
 ** 51.01.4 Next Rule Candidates
 
