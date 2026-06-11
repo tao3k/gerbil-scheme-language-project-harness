@@ -30,4 +30,4 @@
                                        "first.ss" "first.ss:1-1"))
              (second (make-type-binding "answer" "definition" "unknown"
                                         "second.ss" "second.ss:2-2")))
-        (check (duplicate-type-bindings [first second]) => '()))))
+        (check (duplicate-type-bindings [first second]) => '())))))
