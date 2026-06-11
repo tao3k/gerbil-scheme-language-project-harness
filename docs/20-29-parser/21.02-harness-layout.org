@@ -1,0 +1,37 @@
+#+title: 21.02 Gerbil Harness Layout
+#+startup: overview
+
+* 21.02 Gerbil Harness Layout
+
+** 21.02.1 Source Boundaries
+
+The harness keeps native parser authority under the =parser/= namespace and
+keeps protocol projection under the =protocol/= namespace. CLI modules may
+coordinate commands, but they should not own parser facts or schema-shaped JSON
+projection.
+
+#+begin_src text
+src/gerbil-scheme-language-project-harness/
+  cli.ss
+  parser.ss
+  parser/core.ss
+  protocol/json.ss
+#+end_src
+
+** 21.02.2 Parser Boundary
+
+=parser/core.ss= owns native reader integration, source collection, top-level
+form facts, definition facts, and project indexing. =parser.ss= is a stable
+facade for command modules and tests, so the internal parser namespace can keep
+splitting without forcing broad import churn.
+
+** 21.02.3 Protocol Boundary
+
+=protocol/json.ss= owns JSON projection for parser-owned facts. Search and
+query commands can reuse these projections, but the parser core remains Scheme
+data first and does not depend on JSON output.
+
+** 21.02.4 Next Split
+
+The next parser split should move project walking and package/config facts out
+of =parser/core.ss= once parser-facts packets require richer root metadata.

@@ -4,12 +4,12 @@
 (import :gerbil/expander
         :gerbil/gambit
         :gerbil-scheme-language-project-harness/parser
+        :gerbil-scheme-language-project-harness/protocol/json
         :std/format
         :std/iter
         :std/misc/ports
         :std/sort
-        :std/srfi/13
-        :std/text/json)
+        :std/srfi/13)
 (export main)
 
 (def +language-id+ "gerbil-scheme")
@@ -376,39 +376,6 @@ Usage:
        (else
         (lp (cdr rest) (fx1+ line) out))))))
 
-(def (source-file-json file)
-  (hash (path (source-file-path file))
-        (package (source-file-package file))
-        (prelude (source-file-prelude file))
-        (namespace (source-file-namespace file))
-        (imports (source-file-imports file))
-        (exports (source-file-exports file))
-        (includes (source-file-includes file))
-        (definitions (map definition-json (source-file-definitions file)))
-        (forms (map top-form-json (source-file-forms file)))
-        (parseError (source-file-parse-error file))))
-
-(def (definition-json defn)
-  (hash (name (definition-name defn))
-        (kind (definition-kind defn))
-        (path (definition-path defn))
-        (start (definition-start defn))
-        (end (definition-end defn))
-        (selector (definition-selector defn))))
-
-(def (top-form-json form)
-  (hash (kind (top-form-kind form))
-        (head (top-form-head form))
-        (path (top-form-path form))
-        (start (top-form-start form))
-        (end (top-form-end form))
-        (selector (top-form-selector form))))
-
-(def (parse-error-json file)
-  (hash (path (source-file-path file))
-        (ruleId "GERBIL-SCHEME-READ-R001")
-        (message (source-file-parse-error file))))
-
 (def (language-registry root)
   (hash
    (registryId "agent.semantic-protocols.semantic-language-registry")
@@ -440,10 +407,6 @@ Usage:
   (displayln "|cmd owner-items=gerbil-scheme-harness search owner <path> items --query <symbol> --names-only .")
   (displayln "|cmd query-code=gerbil-scheme-harness query <path> --term <symbol> --workspace . --code")
   (displayln "|cmd check=gerbil-scheme-harness check --changed ."))
-
-(def (write-json-line obj)
-  (write-json obj)
-  (newline))
 
 (def (flag? flag args)
   (member flag args))
