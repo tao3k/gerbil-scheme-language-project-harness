@@ -275,37 +275,46 @@
          (start (source-start-line loc))
          (end (source-end-line loc))
          (caller (form-caller-name datum)))
-    (calls-from-exprs relpath start end (form-body-datums datum) caller)))
+    (calls-from-exprs relpath start end (form-body-datums datum) caller '())))
 
-(def (calls-from-exprs relpath start end exprs caller)
-  (apply append (map (cut calls-from-expr relpath start end <> caller)
+(def (calls-from-exprs relpath start end exprs caller local-types)
+  (apply append (map (cut calls-from-expr relpath start end <> caller local-types)
                      (datum-list-items exprs))))
 
-(def (calls-from-expr relpath start end expr caller)
+(def (calls-from-expr relpath start end expr caller local-types)
   (cond
    ((not (pair? expr)) '())
    ((not (symbol? (car expr)))
-    (calls-from-exprs relpath start end expr caller))
+    (calls-from-exprs relpath start end expr caller local-types))
    ((member (car expr) '(quote quasiquote syntax quote-syntax))
     '())
    ((member (car expr) +definition-heads+)
     (calls-from-exprs relpath start end
                       (form-body-datums expr)
-                      (or (form-caller-name expr) caller)))
+                      (or (form-caller-name expr) caller)
+                      local-types))
    ((let-head? (car expr))
-    (append (calls-from-let-bindings relpath start end (safe-cadr expr) caller)
-            (calls-from-exprs relpath start end (let-body-datums expr) caller)))
+    (let* ((bindings (let-binding-datums expr))
+           (body-local-types (append (literal-binding-types bindings) local-types)))
+      (append (calls-from-let-bindings relpath start end bindings caller local-types)
+              (calls-from-exprs relpath start end (let-body-datums expr) caller body-local-types))))
    ((member (car expr) +non-call-heads+)
-    (calls-from-exprs relpath start end (cdr expr) caller))
+    (calls-from-exprs relpath start end (cdr expr) caller local-types))
    (else
     (let (args (datum-list-items (cdr expr)))
       (cons (make-call-fact (datum->string (car expr))
                             (length args)
                             relpath start end
                             (map datum->string args)
-                            (map literal-type-name args)
+                            (map (cut argument-type-name <> local-types) args)
                             caller)
-            (calls-from-exprs relpath start end (cdr expr) caller))))))
+            (calls-from-exprs relpath start end (cdr expr) caller local-types))))))
+
+(def (argument-type-name datum local-types)
+  (or (literal-type-name datum)
+      (and (symbol? datum)
+           (let (found (assoc (datum->string datum) local-types))
+             (and found (cdr found))))))
 
 (def (literal-type-name datum)
   (cond
@@ -339,7 +348,27 @@
       (safe-cdddr expr))
      (else (safe-cddr expr)))))
 
-(def (calls-from-let-bindings relpath start end bindings caller)
+(def (let-binding-datums expr)
+  (let ((head (car expr))
+        (second (safe-cadr expr)))
+    (cond
+     ((and (eq? head 'let) (symbol? second))
+      (safe-caddr expr))
+     (else second))))
+
+(def (literal-binding-types bindings)
+  (if (pair? bindings)
+    (filter-map literal-binding-type (datum-list-items bindings))
+    '()))
+
+(def (literal-binding-type binding)
+  (and (pair? binding)
+       (symbol? (car binding))
+       (pair? (cdr binding))
+       (let (type-name (literal-type-name (cadr binding)))
+         (and type-name (cons (datum->string (car binding)) type-name)))))
+
+(def (calls-from-let-bindings relpath start end bindings caller local-types)
   (cond
    ((not (pair? bindings)) '())
    (else
@@ -349,11 +378,11 @@
                    ((and (pair? binding)
                          (pair? (cdr binding))
                          (not (list? (car binding))))
-                    (calls-from-expr relpath start end (cadr binding) caller))
+                    (calls-from-expr relpath start end (cadr binding) caller local-types))
                    ((and (pair? binding)
                          (list? (car binding))
                          (pair? (cdr binding)))
-                    (calls-from-expr relpath start end (cadr binding) caller))
+                    (calls-from-expr relpath start end (cadr binding) caller local-types))
                    (else '())))
                 (datum-list-items bindings))))))
 
@@ -487,6 +516,9 @@
 
 (def (safe-cadr obj)
   (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
+
+(def (safe-caddr obj)
+  (and (pair? obj) (pair? (cdr obj)) (pair? (cddr obj)) (caddr obj)))
 
 (def (safe-cdr obj)
   (if (pair? obj) (cdr obj) '()))
