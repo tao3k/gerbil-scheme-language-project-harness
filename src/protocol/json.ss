@@ -29,7 +29,8 @@
   (and package
        (hash (path (project-package-path package))
              (name (project-package-name package))
-             (dependencies (project-package-dependencies package)))))
+             (dependencies (project-package-dependencies package))
+             (fields (hash (packageManager (project-package-manager package)))))))
 
 (def (definition-json defn)
   (hash (name (definition-name defn))

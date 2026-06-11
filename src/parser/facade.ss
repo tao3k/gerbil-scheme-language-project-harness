@@ -48,6 +48,7 @@
         project-package-path
         project-package-name
         project-package-dependencies
+        project-package-manager
         project-index-root
         project-index-files
         project-index-package)

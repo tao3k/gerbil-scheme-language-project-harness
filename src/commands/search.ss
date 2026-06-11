@@ -91,6 +91,7 @@
     (when package
       (displayln "|package name=" (project-package-name package)
                  " path=" (project-package-path package)
+                 " packageManager=" (project-package-manager package)
                  " dependencies=" (join (project-package-dependencies package) ",")))))
 
 (def (emit-extension-lines index)
