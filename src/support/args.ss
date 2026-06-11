@@ -13,6 +13,9 @@
         drop-project-root
         file-directory?)
 
+(def +boolean-flags+ '("--json" "--code" "--names-only" "--changed" "--full"))
+(def +value-options+ '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"))
+
 (def (flag? flag args)
   (member flag args))
 
@@ -38,9 +41,9 @@
       ([] (reverse out))
       ([hd value . more]
        (cond
-        ((member hd '("--json" "--code" "--names-only" "--changed" "--full"))
+        ((member hd +boolean-flags+)
          (lp (cons value more) out))
-        ((member hd '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"))
+        ((member hd +value-options+)
          (lp more out))
         ((string-prefix? "--" hd)
          (lp (cons value more) out))
@@ -58,10 +61,41 @@
 (def (drop-project-root args)
   (let* ((pos (positional-args args))
          (root? (and (pair? pos) (file-directory? (last pos))))
-         (root (and root? (last pos))))
+         (root-index (and root? (length pos))))
     (if root?
-      (filter (lambda (arg) (not (equal? arg root))) args)
+      (drop-positional-index args root-index)
       args)))
 
+(def (drop-positional-index args target-index)
+  (let lp ((rest args)
+           (out '())
+           (index 0))
+    (match rest
+      ([] (reverse out))
+      ([hd value . more]
+       (cond
+        ((member hd +boolean-flags+)
+         (lp (cons value more) (cons hd out) index))
+        ((member hd +value-options+)
+         (lp more (cons value (cons hd out)) index))
+        ((string-prefix? "--" hd)
+         (lp (cons value more) (cons hd out) index))
+        (else
+         (let (next-index (fx1+ index))
+           (if (fx= next-index target-index)
+             (lp (cons value more) out next-index)
+             (lp (cons value more) (cons hd out) next-index))))))
+      ([hd]
+       (cond
+        ((string-prefix? "--" hd)
+         (reverse (cons hd out)))
+        (else
+         (let (next-index (fx1+ index))
+           (if (fx= next-index target-index)
+             (reverse out)
+             (reverse (cons hd out))))))))))
+
 (def (file-directory? path)
-  (eq? (file-type path) 'directory))
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (eq? (file-type path) 'directory))))
