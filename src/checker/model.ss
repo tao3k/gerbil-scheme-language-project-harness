@@ -11,7 +11,8 @@
         checker-evidence-selector
         checker-evidence-signature
         +arity-rule+
-        +whitelist-rule+)
+        +whitelist-rule+
+        +forbidden-form-rule+)
 
 (defstruct checker-rule (id severity))
 (defstruct checker-evidence (callee expected actual selector signature))
@@ -21,3 +22,6 @@
 
 (def +whitelist-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-W001" "error"))
+
+(def +forbidden-form-rule+
+  (make-checker-rule "GERBIL-SCHEME-CHECKER-W002" "error"))

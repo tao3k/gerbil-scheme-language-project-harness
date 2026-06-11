@@ -50,6 +50,26 @@
              (rule-ids (map type-finding-rule-id findings)))
         (check (not (not (member "GERBIL-SCHEME-CHECKER-W001" rule-ids)))
                => #t)))
+    (test-case "forbidden form checker rejects macro forms"
+      (let* ((root ".run/checker-forbidden-forms")
+             (_ (write-forbidden-form-project root))
+             (index (collect-project root))
+             (findings (run-forbidden-form-checks index))
+             (rule-ids (map type-finding-rule-id findings))
+             (paths (map type-finding-path findings)))
+        (check (length findings) => 2)
+        (check rule-ids
+               => ["GERBIL-SCHEME-CHECKER-W002"
+                   "GERBIL-SCHEME-CHECKER-W002"])
+        (check paths => ["src/sample.ss" "src/sample.ss"])))
+    (test-case "type check pipeline includes forbidden form findings"
+      (let* ((root ".run/checker-forbidden-forms-pipeline")
+             (_ (write-forbidden-form-project root))
+             (index (collect-project root))
+             (findings (run-type-checks index))
+             (rule-ids (map type-finding-rule-id findings)))
+        (check (not (not (member "GERBIL-SCHEME-CHECKER-W002" rule-ids)))
+               => #t)))
     (test-case "type check pipeline includes checker findings with signatures"
       (let* ((root (path-normalize "."))
              (index (collect-project root))
@@ -70,6 +90,15 @@
                 ";;; -*- Gerbil -*-\n(def (safe x) (allowed x))\n(def (unsafe x) (danger x))\n")
     (write-text whitelist-path
                 "; comment lines are ignored\nallowed\n\n")))
+
+(def (write-forbidden-form-project root)
+  (let* ((src (string-append root "/src"))
+         (source-path (string-append src "/sample.ss")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (write-text source-path
+                ";;; -*- Gerbil -*-\n(define-syntax unsafe-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
 
 (def (ensure-dir path)
   (with-catch

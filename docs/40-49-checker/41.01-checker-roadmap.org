@@ -15,6 +15,7 @@ src/checker/facade.ss
 src/checker/core.ss
 src/checker/model.ss
 src/checker/arity.ss
+src/checker/forms.ss
 src/checker/whitelist.ss
 #+end_src
 
@@ -29,6 +30,9 @@ Whitelist checking also consumes =project-calls=. When a whitelist is supplied,
 the checker allows project-local definitions plus the configured external call
 names and rejects every other callee by default.
 
+Forbidden-form checking consumes parser-owned top-level forms. It rejects macro
+extension entrypoints before generated code is considered safe to execute.
+
 ** 41.01.3 First Rules
 
 =GERBIL-SCHEME-CHECKER-A001= reports an ordinary application whose parser-owned
@@ -36,6 +40,9 @@ call arity differs from the expected arity in a function signature.
 
 =GERBIL-SCHEME-CHECKER-W001= reports an ordinary application whose callee is
 not project-local and is absent from the configured native call whitelist.
+
+=GERBIL-SCHEME-CHECKER-W002= reports top-level macro and syntax-extension forms
+such as =define-syntax=, =syntax-case=, =defsyntax=, and =defrules=.
 
 The rule emits the existing =type-finding= model so =check --json= can continue
 to use the current report packet. Signature-aware checks are available through

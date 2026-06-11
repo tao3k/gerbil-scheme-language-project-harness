@@ -3,6 +3,7 @@
 
 (import :checker/arity
         :checker/core
+        :checker/forms
         :checker/model
         :checker/whitelist)
 
@@ -17,10 +18,14 @@
         checker-evidence-signature
         +arity-rule+
         +whitelist-rule+
+        +forbidden-form-rule+
         run-checker-checks
         run-checker-checks/whitelist
         run-arity-checks
         call-arity-finding
+        +forbidden-form-heads+
+        run-forbidden-form-checks
+        forbidden-form-finding
         load-call-whitelist
         run-whitelist-checks
         call-whitelist-finding)
