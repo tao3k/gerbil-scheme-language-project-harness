@@ -26,7 +26,10 @@ owned by the native Gerbil reader/expander boundary, not ad hoc text scans.
 4. Definition fact layer.
    Derive definitions from syntax datums while preserving source locations and
    selectors.
-5. Expansion fact layer.
+5. Call fact layer.
+   Derive native application facts from definition and form bodies with callee,
+   arity, source path, and selector.
+6. Expansion fact layer.
    Add phase-aware imports/exports and macro-expanded facts only behind commands
    that explicitly need expanded semantics.
 
@@ -88,3 +91,9 @@ The parser-owned data structures, native read functions, source collection, and
 project index now live in ~src/parser.ss~.
 The CLI imports that module and keeps command dispatch/rendering separate from
 parser fact ownership.
+
+The parser also exports native ~call-fact~ values through ~source-file-calls~
+and ~project-calls~. The first slice records ordinary application callee names
+and arity from native syntax datums. Selectors intentionally point at the
+enclosing top-level form until nested syntax spans are promoted into the parser
+model.
