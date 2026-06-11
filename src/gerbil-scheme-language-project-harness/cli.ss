@@ -14,7 +14,11 @@
         parse-source-file
         source-file-package
         source-file-definitions
-        definition-name)
+        source-file-forms
+        definition-name
+        top-form-kind
+        top-form-head
+        top-form-selector)
 
 (def +language-id+ "gerbil-scheme")
 (def +provider-id+ "gerbil-scheme-harness")
@@ -28,7 +32,8 @@
     defstruct defclass defsyntax defrules defalias defmethod defcompile-method))
 
 (defstruct definition (name kind path start end))
-(defstruct source-file (path package prelude namespace imports exports includes definitions parse-error))
+(defstruct top-form (kind head path start end))
+(defstruct source-file (path package prelude namespace imports exports includes definitions forms parse-error))
 (defstruct project-index (root files))
 
 (def +help+
@@ -196,36 +201,39 @@ Usage:
              (imports '())
              (exports '())
              (includes '())
-             (definitions '()))
+             (definitions '())
+             (top-forms '()))
       (match rest
         ([form . more]
          (let* ((datum (syntax->datum form))
-                (head (and (pair? datum) (car datum))))
+                (head (and (pair? datum) (car datum)))
+                (top-form (top-form-from relpath form datum))
+                (next-top-forms (cons top-form top-forms)))
            (cond
             ((eq? head 'package:)
-             (lp more (datum->string (safe-cadr datum)) prelude namespace imports exports includes definitions))
+             (lp more (datum->string (safe-cadr datum)) prelude namespace imports exports includes definitions next-top-forms))
             ((eq? head 'prelude:)
-             (lp more package (datum->string (safe-cadr datum)) namespace imports exports includes definitions))
+             (lp more package (datum->string (safe-cadr datum)) namespace imports exports includes definitions next-top-forms))
             ((eq? head 'namespace:)
-             (lp more package prelude (datum->string (safe-cadr datum)) imports exports includes definitions))
+             (lp more package prelude (datum->string (safe-cadr datum)) imports exports includes definitions next-top-forms))
             ((eq? head 'import)
              (lp more package prelude namespace
-                 (append (module-refs datum) imports) exports includes definitions))
+                 (append (module-refs datum) imports) exports includes definitions next-top-forms))
             ((eq? head 'export)
              (lp more package prelude namespace imports
-                 (append (export-symbols datum) exports) includes definitions))
+                 (append (export-symbols datum) exports) includes definitions next-top-forms))
             ((eq? head 'include)
              (lp more package prelude namespace imports exports
-                 (append (string-datums datum) includes) definitions))
+                 (append (string-datums datum) includes) definitions next-top-forms))
             ((member head +definition-heads+)
              (lp more package prelude namespace imports exports includes
-                 (append (definitions-from-form relpath form datum) definitions)))
+                 (append (definitions-from-form relpath form datum) definitions) next-top-forms))
             (else
-             (lp more package prelude namespace imports exports includes definitions)))))
+             (lp more package prelude namespace imports exports includes definitions next-top-forms)))))
         (else
          (make-source-file relpath package prelude namespace
                            (dedupe imports) (dedupe exports) (dedupe includes)
-                           (reverse definitions) parse-error))))))
+                           (reverse definitions) (reverse top-forms) parse-error))))))
 
 (def (read-native-forms path)
   (with-catch
@@ -297,6 +305,23 @@ Usage:
              (make-definition (datum->string name) (symbol->string head)
                               relpath start end)))
          name-datums)))
+
+(def (top-form-from relpath form datum)
+  (let* ((head (and (pair? datum) (car datum)))
+         (loc (stx-source form)))
+    (make-top-form (form-kind head) (datum->string head) relpath
+                   (source-start-line loc) (source-end-line loc))))
+
+(def (form-kind head)
+  (cond
+   ((eq? head 'package:) "package")
+   ((eq? head 'prelude:) "prelude")
+   ((eq? head 'namespace:) "namespace")
+   ((eq? head 'import) "import")
+   ((eq? head 'export) "export")
+   ((eq? head 'include) "include")
+   ((member head +definition-heads+) "definition")
+   (else "form")))
 
 (def (definition-name-datums datum)
   (let ((head (car datum))
@@ -619,6 +644,12 @@ Usage:
                  "-"
                  (number->string (definition-end defn))))
 
+(def (top-form-selector form)
+  (string-append (top-form-path form) ":"
+                 (number->string (top-form-start form))
+                 "-"
+                 (number->string (top-form-end form))))
+
 (def (source-file-json file)
   (hash (path (source-file-path file))
         (package (source-file-package file))
@@ -628,6 +659,7 @@ Usage:
         (exports (source-file-exports file))
         (includes (source-file-includes file))
         (definitions (map definition-json (source-file-definitions file)))
+        (forms (map top-form-json (source-file-forms file)))
         (parseError (source-file-parse-error file))))
 
 (def (definition-json defn)
@@ -637,6 +669,14 @@ Usage:
         (start (definition-start defn))
         (end (definition-end defn))
         (selector (definition-selector defn))))
+
+(def (top-form-json form)
+  (hash (kind (top-form-kind form))
+        (head (top-form-head form))
+        (path (top-form-path form))
+        (start (top-form-start form))
+        (end (top-form-end form))
+        (selector (top-form-selector form))))
 
 (def (parse-error-json file)
   (hash (path (source-file-path file))
