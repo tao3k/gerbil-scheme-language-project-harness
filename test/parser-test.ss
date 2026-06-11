@@ -1,5 +1,6 @@
 ;;; -*- Gerbil -*-
 (import :std/test
+        :extensions/facade
         :parser/facade)
 (export parser-test)
 
@@ -84,7 +85,26 @@
           (check (project-package-name package) => "clan/poo")
           (check (project-package-manager package) => "gxpkg")
           (check (project-package-dependencies package)
-                 => ["git.cons.io/mighty-gerbils/gerbil-utils"]))))))
+                 => ["git.cons.io/mighty-gerbils/gerbil-utils"]))))
+    (test-case "project package dependency activates poo extension"
+      (let* ((root (path-normalize ".run/parser-poo-dependency"))
+             (source-dir (string-append root "/src"))
+             (package-path (string-append root "/gerbil.pkg"))
+             (source-path (string-append source-dir "/main.ss")))
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir source-dir)
+        (write-text package-path
+                    "(package: sample/app\n depend: (\"git.cons.io/mighty-gerbils/gerbil-poo\"))\n")
+        (write-text source-path "(package: sample/app/main)\n(def answer 42)\n")
+        (let* ((index (collect-project root))
+               (extensions (project-extension-json index))
+               (extension (car extensions)))
+          (check (project-package-name (project-index-package index)) => "sample/app")
+          (check (hash-get extension 'name) => "poo")
+          (check (hash-get extension 'activation) => "gerbil.pkg")
+          (check (hash-get extension 'packageManager) => "gxpkg")
+          (check (hash-get extension 'package) => "sample/app"))))))
 
 (def (ensure-dir path)
   (with-catch
