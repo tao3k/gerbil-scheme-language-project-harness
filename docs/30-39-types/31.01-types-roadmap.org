@@ -27,7 +27,18 @@ src/types/findings.ss
 =src/commands/check.ss= remains a command adapter. It asks the types module for
 findings and formats the result, but it does not own type facts or type rules.
 
-** 31.01.3 Dispatch Order
+** 31.01.3 Environment Facts
+
+=src/types/env.ss= builds a type environment from parser-owned definitions. The
+first environment fact records each definition as an =unknown= binding with its
+name, kind, path, and selector. This keeps the type pipeline ready for signature
+and schema-derived types without making the parser depend on type rules.
+
+The first type rule reports duplicate environment bindings within the same
+owner/path as =GERBIL-SCHEME-TYPE-E001=. Names from different source owners stay
+distinct.
+
+** 31.01.4 Dispatch Order
 
 The next checker work should flow through the types modules before command or
 JSON projection changes:
