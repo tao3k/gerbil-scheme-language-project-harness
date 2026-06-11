@@ -21,6 +21,8 @@ copying Rust-specific syntax:
 - =GERBIL-SCHEME-MOD-R004=: files inside an owner directory must not repeat the
   owner name, such as =src/foo/foo.ss=. Use a purpose-named module such as
   =facade.ss= instead.
+- =GERBIL-SCHEME-MOD-R005=: executable entrypoints under =bin/= must stay thin
+  and must not contain implementation definitions.
 - =GERBIL-SCHEME-AGENT-R001=: facade source files must carry an
   agent-readable intent comment near the file header.
 - =GERBIL-SCHEME-AGENT-R002=: source owner path segments must avoid generic
@@ -44,6 +46,10 @@ when the project also contains owner files below =src/foo/=. This matches the
 current Gerbil harness layout where =src/parser/facade.ss=,
 =src/types/facade.ss=, =src/checker/facade.ss=, and =src/policy/facade.ss= act
 as stable facades.
+
+Executable entrypoints follow the same thin-adapter policy. A file such as
+=bin/run.ss= may import and dispatch to owned modules, but implementation
+definitions belong under =src/= so agent-facing edits land on reusable owners.
 
 ** 51.01.3 Check Integration
 

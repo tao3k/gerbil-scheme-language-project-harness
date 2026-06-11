@@ -49,6 +49,18 @@
         (check (type-finding-rule-id finding)
                => "GERBIL-SCHEME-MOD-R004")
         (check (type-finding-path finding) => "src/foo/foo.ss")))
+    (test-case "modularity policy rejects bin entrypoint implementation"
+      (let* ((root ".run/policy-bin-entrypoint")
+             (_ (write-bin-entrypoint-project
+                 root ";;; -*- Gerbil -*-\n(import :std/cli/getopt)\n(def (main . args) args)\n"))
+             (index (collect-project root))
+             (findings (run-modularity-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-MOD-R005" findings))
+             (finding (car matching)))
+        (check (length matching) => 1)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-MOD-R005")
+        (check (type-finding-path finding) => "bin/run.ss")))
     (test-case "agent policy requires facade intent comment"
       (let* ((root ".run/policy-agent")
              (_ (write-facade-policy-project
@@ -158,6 +170,14 @@
     (delete-file-if-exists repeated-entry-path)
     (write-text facade-path facade-source)
     (write-text core-path core-source)))
+
+(def (write-bin-entrypoint-project root source)
+  (let* ((bin (string-append root "/bin"))
+         (entrypoint-path (string-append bin "/run.ss")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir bin)
+    (write-text entrypoint-path source)))
 
 (def (ensure-dir path)
   (with-catch

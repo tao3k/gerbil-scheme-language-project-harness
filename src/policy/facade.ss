@@ -13,6 +13,7 @@
         +modularity-source-leaf-rule+
         +modularity-owner-collision-rule+
         +modularity-repeated-owner-entry-rule+
+        +modularity-bin-entrypoint-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
@@ -24,6 +25,7 @@
         facade-implementation-finding
         sibling-file-dir-owner-collision-finding
         repeated-owner-entry-finding
+        bin-entrypoint-implementation-finding
         source-leaf-bloat-finding
         run-agent-policy
         facade-intent-finding

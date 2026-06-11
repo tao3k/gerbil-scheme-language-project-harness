@@ -8,6 +8,7 @@
         +modularity-source-leaf-rule+
         +modularity-owner-collision-rule+
         +modularity-repeated-owner-entry-rule+
+        +modularity-bin-entrypoint-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+)
@@ -25,6 +26,9 @@
 
 (def +modularity-repeated-owner-entry-rule+
   (make-policy-rule "GERBIL-SCHEME-MOD-R004" "warning"))
+
+(def +modularity-bin-entrypoint-rule+
+  (make-policy-rule "GERBIL-SCHEME-MOD-R005" "warning"))
 
 (def +agent-intent-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R001" "warning"))

@@ -13,6 +13,7 @@
         facade-implementation-finding
         sibling-file-dir-owner-collision-finding
         repeated-owner-entry-finding
+        bin-entrypoint-implementation-finding
         source-leaf-bloat-finding)
 
 (def +max-source-line-count+ 650)
@@ -22,6 +23,7 @@
   (append
    (sibling-file-dir-owner-collision-findings index)
    (repeated-owner-entry-findings index)
+   (bin-entrypoint-implementation-findings index)
    (facade-implementation-findings index)
    (source-leaf-bloat-findings index)))
 
@@ -40,6 +42,14 @@
    (lambda (file)
      (and (repeated-owner-entry-path? (source-file-path file))
           (repeated-owner-entry-finding file)))
+   (project-index-files index)))
+
+(def (bin-entrypoint-implementation-findings index)
+  (filter-map
+   (lambda (file)
+     (and (bin-entrypoint-source-file? file)
+          (pair? (source-file-definitions file))
+          (bin-entrypoint-implementation-finding file)))
    (project-index-files index)))
 
 (def (facade-implementation-findings index)
@@ -93,6 +103,11 @@
 (def (gerbil-source-path? path)
   (and (string-prefix? "src/" path)
        (string-suffix? ".ss" path)))
+
+(def (bin-entrypoint-source-file? file)
+  (let (path (source-file-path file))
+    (and (string-prefix? "bin/" path)
+         (string-suffix? ".ss" path))))
 
 (def (path-without-extension path)
   (substring path 0 (- (string-length path) 3)))
@@ -163,6 +178,21 @@
      path
      (hash (owner owner)
            (replacement "facade.ss")))))
+
+(def (bin-entrypoint-implementation-finding file)
+  (let* ((definition (car (source-file-definitions file)))
+         (selector (definition-selector definition)))
+    (make-type-finding
+     (policy-rule-id +modularity-bin-entrypoint-rule+)
+     (policy-rule-severity +modularity-bin-entrypoint-rule+)
+     (source-file-path file)
+     (string-append "entrypoint "
+                    (source-file-path file)
+                    " contains implementation definition "
+                    (definition-name definition))
+     selector
+     (hash (definition (definition-name definition))
+           (selector selector)))))
 
 (def (source-leaf-bloat-findings index)
   (filter-map
