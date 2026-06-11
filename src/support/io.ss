@@ -3,6 +3,7 @@
 
 (import :gerbil/gambit
         :parser
+        :std/misc/ports
         :std/srfi/13)
 
 (export read-definition-code
