@@ -85,6 +85,6 @@ range, and selector. Module headers returned as native metadata remain separate
 from body forms, matching the Gerbil reader/expander boundary.
 
 The parser-owned data structures, native read functions, source collection, and
-project index now live in ~src/gerbil-scheme-language-project-harness/parser.ss~.
+project index now live in ~src/parser.ss~.
 The CLI imports that module and keeps command dispatch/rendering separate from
 parser fact ownership.
