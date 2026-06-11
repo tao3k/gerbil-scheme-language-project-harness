@@ -103,23 +103,27 @@
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" facade-name))
          (facade-path (string-append src "/" facade-name ".ss"))
+         (owner-entry-path (string-append owner "/" facade-name ".ss"))
          (core-path (string-append owner "/core.ss")))
     (ensure-dir ".run")
     (ensure-dir root)
     (ensure-dir src)
     (ensure-dir owner)
+    (delete-file-if-exists owner-entry-path)
     (write-text facade-path facade-source)
     (write-text core-path core-source)))
 
 (def (write-owner-entry-policy-project root owner-name facade-source core-source)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" owner-name))
+         (sibling-path (string-append src "/" owner-name ".ss"))
          (facade-path (string-append owner "/" owner-name ".ss"))
          (core-path (string-append owner "/core.ss")))
     (ensure-dir ".run")
     (ensure-dir root)
     (ensure-dir src)
     (ensure-dir owner)
+    (delete-file-if-exists sibling-path)
     (write-text facade-path facade-source)
     (write-text core-path core-source)))
 
@@ -129,11 +133,14 @@
    (lambda () (create-directory path))))
 
 (def (write-text path text)
-  (with-catch
-   (lambda (_) #f)
-   (lambda () (delete-file path)))
+  (delete-file-if-exists path)
   (call-with-output-file path
     (lambda (port) (display text port))))
+
+(def (delete-file-if-exists path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (delete-file path))))
 
 (def (write-large-policy-source root owner-name)
   (let* ((src (string-append root "/src"))
