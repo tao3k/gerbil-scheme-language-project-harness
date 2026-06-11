@@ -33,7 +33,44 @@
         (check (length findings) => 1)
         (check (type-finding-rule-id finding)
                => "GERBIL-SCHEME-AGENT-R001")
-        (check (type-finding-path finding) => "src/bar.ss")))))
+        (check (type-finding-path finding) => "src/bar.ss")))
+    (test-case "agent policy rejects generic owner names"
+      (let* ((root ".run/policy-generic-owner")
+             (_ (write-policy-project
+                 root "utils"
+                 ";;; -*- Gerbil -*-\n;;; Utilities facade.\n(export value)\n"
+                 ";;; -*- Gerbil -*-\n;;; Utilities core.\n(def value 1)\n"))
+             (index (collect-project root))
+             (findings (run-agent-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R002" findings))
+             (finding (car matching)))
+        (check (length matching) => 2)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-AGENT-R002")
+        (check (type-finding-path finding) => "src/utils.ss")))
+    (test-case "agent policy rejects duplicate facade exports"
+      (let* ((root ".run/policy-export-conflict")
+             (_alpha (write-policy-project
+                      root "alpha"
+                      ";;; -*- Gerbil -*-\n;;; Alpha facade.\n(export value)\n"
+                      ";;; -*- Gerbil -*-\n;;; Alpha core.\n(def value 1)\n"))
+             (_beta (write-policy-project
+                     root "beta"
+                     ";;; -*- Gerbil -*-\n;;; Beta facade.\n(export value)\n"
+                     ";;; -*- Gerbil -*-\n;;; Beta core.\n(def value 2)\n"))
+             (index (collect-project root))
+             (findings (run-agent-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R003" findings))
+             (finding (car matching)))
+        (check (length matching) => 1)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-AGENT-R003")
+        (check (type-finding-path finding) => "src/beta.ss")))))
+
+(def (filter-rule rule-id findings)
+  (filter (lambda (finding)
+            (equal? (type-finding-rule-id finding) rule-id))
+          findings))
 
 (def (write-policy-project root facade-name facade-source core-source)
   (let* ((src (string-append root "/src"))

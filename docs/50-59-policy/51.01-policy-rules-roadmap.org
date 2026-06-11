@@ -16,6 +16,10 @@ copying Rust-specific syntax:
   must not contain implementation definitions.
 - =GERBIL-SCHEME-AGENT-R001=: facade source files must carry an
   agent-readable intent comment near the file header.
+- =GERBIL-SCHEME-AGENT-R002=: source owner path segments must avoid generic
+  buckets such as =utils=, =common=, =helpers=, and =shared=.
+- =GERBIL-SCHEME-AGENT-R003=: unrelated facades must not export the same public
+  name.
 
 ** 51.01.2 Native Inputs
 
@@ -39,11 +43,13 @@ The current repository is expected to pass these first policy rules. Positive
 coverage lives in =test/policy-test.ss= and builds temporary fixture projects
 under =.run= so failing policy fixtures do not pollute normal project scans.
 
+The second policy slice adds generic owner name detection and duplicate facade
+export detection. Both consume existing parser facts only: source paths,
+facade ownership, and =source-file-exports=.
+
 ** 51.01.4 Next Rule Candidates
 
 The next policy slices should be added only when parser facts can support them:
 
-- generic facade or owner segment names
-- repeated public export names across unrelated owners
 - oversized source leaves after the parser records source line counts
 - test layout rules after project/test roots become first-class Gerbil facts
