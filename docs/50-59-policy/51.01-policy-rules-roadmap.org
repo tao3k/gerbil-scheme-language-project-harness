@@ -62,9 +62,12 @@ The current repository is expected to pass these first policy rules. Positive
 coverage lives in =test/policy-test.ss= and builds temporary fixture projects
 under =.run= so failing policy fixtures do not pollute normal project scans.
 
-The second policy slice adds generic owner name detection and duplicate facade
-export detection. Both consume existing parser facts only: source paths,
-facade ownership, and =source-file-exports=.
+The second policy slice adds generic owner name detection, duplicate facade
+export detection, and generic facade intent detection. These rules consume
+existing parser facts and bounded source headers only: source paths, facade
+ownership, =source-file-exports=, and the first agent-readable facade comment.
+The goal is not style policing; it is to keep Agent-facing module boundaries
+specific enough that generated follow-up edits land in the right owner.
 
 Self-apply coverage lives in =test/self-apply-test.ss=. It compares the current
 harness findings to =test/snapshots/self-apply-findings.ss=. The findings

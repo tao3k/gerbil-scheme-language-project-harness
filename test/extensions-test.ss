@@ -36,6 +36,19 @@
         (check (hash-get extension 'name) => "poo")
         (check (hash-get extension 'dependencyMode) => "required")
         (check (hash-get extension 'dependencies) => ["clan/poo"])))
+    (test-case "poo scenario preserves mixed dependency context"
+      (let* ((root ".run/extensions-poo-mixed-deps")
+             (dependencies ["github.com/acme/logging"
+                            "git.cons.io/mighty-gerbils/gerbil-poo"
+                            "github.com/acme/metrics"])
+             (_ (write-extension-project root "sample/app" dependencies))
+             (index (collect-project root))
+             (extension (car (project-extension-json index))))
+        (check (poo-extension-active? index) => #t)
+        (check (hash-get extension 'package) => "sample/app")
+        (check (hash-get extension 'dependencies) => dependencies)
+        (check (hash-get extension 'capabilities)
+               => ["object-system" "metaobject-protocol" "protocols"])))
     (test-case "poo extension does not activate from package name alone"
       (let* ((root ".run/extensions-poo-package-name-only")
              (_ (write-extension-project
