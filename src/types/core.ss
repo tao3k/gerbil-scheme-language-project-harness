@@ -1,21 +1,27 @@
 ;;; -*- Gerbil -*-
 ;;; Type-check dispatch for Gerbil source projects.
 
-(import :parser
+(import :checker
+        :parser
         :types/env
         :types/findings)
 
 (export type-status
         run-type-checks
+        run-type-checks/signatures
         source-file-type-findings)
 
 (def (type-status findings)
   (if (null? findings) "pass" "fail"))
 
 (def (run-type-checks index)
+  (run-type-checks/signatures index '()))
+
+(def (run-type-checks/signatures index signatures)
   (append
    (apply append (map source-file-type-findings (project-index-files index)))
-   (type-env-findings (build-type-env index))))
+   (type-env-findings (build-type-env/signatures index signatures))
+   (run-checker-checks index signatures)))
 
 (def (source-file-type-findings file)
   (let (error (source-file-parse-error file))

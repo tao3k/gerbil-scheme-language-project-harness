@@ -1,0 +1,42 @@
+#+title: 41.01 Gerbil Checker Roadmap
+
+* 41.01 Gerbil Checker Roadmap
+
+** 41.01.1 Boundary
+
+The checker consumes parser-owned and type-owned native facts. It does not scan
+source text and does not own JSON rendering. Command and protocol modules remain
+adapters over the checker result model.
+
+The first checker modules live under =src/checker/=:
+
+#+begin_src text
+src/checker.ss
+src/checker/model.ss
+src/checker/arity.ss
+#+end_src
+
+** 41.01.2 Native Inputs
+
+Arity checking consumes =project-calls= from the parser and native function
+types loaded by =src/types/signatures.ss=. A missing signature is not a checker
+failure. A non-function signature is outside the first arity rule and is left
+for a later type rule.
+
+** 41.01.3 First Rule
+
+=GERBIL-SCHEME-CHECKER-A001= reports an ordinary application whose parser-owned
+call arity differs from the expected arity in a function signature.
+
+The rule emits the existing =type-finding= model so =check --json= can continue
+to use the current report packet. Signature-aware checks are available through
+=run-type-checks/signatures=; the default command path still runs with no
+external signatures and therefore remains stable.
+
+** 41.01.4 Next Rules
+
+The next checker slices should stay small:
+
+- type mismatch for calls with known argument types
+- unknown callee classification after the parser has reference facts
+- termination and recursion checks only after native call graph facts exist

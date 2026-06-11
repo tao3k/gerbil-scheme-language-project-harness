@@ -40,4 +40,5 @@
         type-finding-details
         type-status
         run-type-checks
+        run-type-checks/signatures
         source-file-type-findings)
