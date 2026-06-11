@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Check command adapter.
 
-(import :constants
+(import :checker
+        :constants
         :parser
         :protocol/json
         :support/args)
@@ -12,8 +13,8 @@
   (let* ((root (project-root args))
          (json? (flag? "--json" args))
          (index (collect-project root))
-         (errors (filter source-file-parse-error (project-index-files index)))
-         (status (if (null? errors) "pass" "fail")))
+         (findings (run-checks index))
+         (status (project-status findings)))
     (if json?
       (write-json-line
        (hash (schemaId "agent.semantic-protocols.gerbil-scheme-harness-report")
@@ -23,16 +24,17 @@
              (status status)
              (files (length (project-index-files index)))
              (definitions (length (project-definitions index)))
-             (findings (map parse-error-json errors))))
+             (findings (map finding-json findings))))
       (begin
         (displayln "[gerbil-check] status=" status
                    " files=" (length (project-index-files index))
                    " definitions=" (length (project-definitions index))
-                   " findings=" (length errors))
+                   " findings=" (length findings))
         (for-each
-          (lambda (file)
-            (displayln "|finding rule=GERBIL-SCHEME-READ-R001 path="
-                       (source-file-path file)
-                       " message=" (source-file-parse-error file)))
-          errors)))
-    (if (null? errors) 0 1)))
+          (lambda (finding)
+            (displayln "|finding rule=" (finding-rule-id finding)
+                       " severity=" (finding-severity finding)
+                       " path=" (finding-path finding)
+                       " message=" (finding-message finding)))
+          findings)))
+    (if (null? findings) 0 1)))

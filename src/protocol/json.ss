@@ -1,12 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; JSON projections for Gerbil parser-owned facts.
 
-(import :parser
+(import :checker
+        :parser
         :std/text/json)
 
 (export source-file-json
         definition-json
         top-form-json
+        finding-json
         parse-error-json
         write-json-line)
 
@@ -37,6 +39,14 @@
         (start (top-form-start form))
         (end (top-form-end form))
         (selector (top-form-selector form))))
+
+(def (finding-json finding)
+  (hash (ruleId (finding-rule-id finding))
+        (severity (finding-severity finding))
+        (path (finding-path finding))
+        (message (finding-message finding))
+        (selector (finding-selector finding))
+        (details (finding-details finding))))
 
 (def (parse-error-json file)
   (hash (path (source-file-path file))
