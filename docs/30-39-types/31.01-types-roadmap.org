@@ -26,6 +26,7 @@ src/types/findings.ss
 
 =src/commands/check.ss= remains a command adapter. It asks the types module for
 findings and formats the result, but it does not own type facts or type rules.
+JSON remains a protocol projection after findings are produced.
 
 ** 31.01.3 Environment Facts
 
@@ -46,3 +47,6 @@ JSON projection changes:
 #+begin_src text
 parser facts -> types facts -> types rules -> finding JSON -> check command
 #+end_src
+
+Native parser facts are the required test boundary. JSON output is useful for
+machines, but it is not the authority for type analysis.

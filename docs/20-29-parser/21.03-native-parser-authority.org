@@ -1,0 +1,32 @@
+#+title: 21.03 Native Parser Authority
+#+startup: overview
+
+* 21.03 Native Parser Authority
+
+** 21.03.1 Source of Truth
+
+The Gerbil harness source of truth is the native Scheme parser implemented
+under =src/parser/=. Parser facts are Scheme data first: source files,
+top-level forms, definitions, selectors, packages, imports, exports, and reader
+errors.
+
+JSON is only a machine-facing projection under =src/protocol/=. JSON output
+must not define parser semantics, type semantics, or checker behavior.
+
+** 21.03.2 Dependency Direction
+
+The dependency direction is one-way:
+
+#+begin_src text
+parser facts -> types facts -> findings -> protocol/json projection
+#+end_src
+
+=src/types/= depends on parser-owned facts. =src/parser/= must not depend on
+=src/protocol/json.ss= or any JSON schema. This keeps the native parser usable
+from Scheme tests and future in-process tools without requiring JSON transport.
+
+** 21.03.3 Validation Rule
+
+Every new type or checker rule should have at least one Scheme test that
+exercises native parser data directly. JSON tests can be added for integration,
+but they are not a substitute for parser-owned fact tests.

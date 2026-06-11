@@ -15,6 +15,20 @@
         (check (type-finding-rule-id finding) => "GERBIL-SCHEME-READ-R001")
         (check (type-finding-severity finding) => "error")
         (check (type-finding-path finding) => "test/fixtures/invalid-read.fixture")))
+    (test-case "type env is built from native parser facts"
+      (let* ((root (path-normalize "."))
+             (index (collect-project root))
+             (sample-bindings
+              (filter (lambda (binding)
+                        (equal? (type-binding-path binding)
+                                "test/fixtures/sample.ss"))
+                      (build-type-env index))))
+        (check (map type-binding-name sample-bindings)
+               => ["answer" "make-answer"])
+        (check (map type-binding-kind sample-bindings)
+               => ["def" "def"])
+        (check (map type-binding-type sample-bindings)
+               => ["unknown" "unknown"])))
     (test-case "duplicate definitions become type env facts"
       (let* ((first (make-type-binding "answer" "definition" "unknown"
                                        "same.ss" "same.ss:1-1"))
