@@ -11,6 +11,7 @@
         gerbil-source-path?
         parse-source-file
         project-definitions
+        project-calls
         find-owner
         definition-name
         definition-kind
@@ -20,6 +21,12 @@
         definition-formals
         definition-arity
         definition-selector
+        call-fact-callee
+        call-fact-arity
+        call-fact-path
+        call-fact-start
+        call-fact-end
+        call-fact-selector
         top-form-kind
         top-form-head
         top-form-path
@@ -34,6 +41,7 @@
         source-file-exports
         source-file-includes
         source-file-definitions
+        source-file-calls
         source-file-forms
         source-file-parse-error
         project-index-root

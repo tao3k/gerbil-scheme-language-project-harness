@@ -29,4 +29,12 @@
         (check (map definition-formals (source-file-definitions file))
                => [["x" "y"] ["xs"]])
         (check (map definition-arity (source-file-definitions file))
-               => [2 1])))))
+               => [2 1])))
+    (test-case "native reader captures call facts"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "test/fixtures/formals.ss"))
+             (calls (source-file-calls file)))
+        (check (map call-fact-callee calls) => ["+"])
+        (check (map call-fact-arity calls) => [2])
+        (check (map call-fact-selector calls)
+               => ["test/fixtures/formals.ss:4-5"])))))

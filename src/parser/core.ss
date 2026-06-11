@@ -16,6 +16,7 @@
         gerbil-source-path?
         parse-source-file
         project-definitions
+        project-calls
         find-owner
         definition-name
         definition-kind
@@ -25,6 +26,12 @@
         definition-formals
         definition-arity
         definition-selector
+        call-fact-callee
+        call-fact-arity
+        call-fact-path
+        call-fact-start
+        call-fact-end
+        call-fact-selector
         top-form-kind
         top-form-head
         top-form-path
@@ -39,6 +46,7 @@
         source-file-exports
         source-file-includes
         source-file-definitions
+        source-file-calls
         source-file-forms
         source-file-parse-error
         project-index-root
@@ -51,10 +59,17 @@
 (def +definition-heads+
   '(def def* define define-values define-syntax
     defstruct defclass defsyntax defrules defalias defmethod defcompile-method))
+(def +non-call-heads+
+  '(quote quasiquote syntax quote-syntax
+    package package: prelude: namespace: import export include
+    if begin begin0 lambda case-lambda
+    let let* letrec let-values let*-values
+    cond case and or when unless match))
 
 (defstruct definition (name kind path start end formals arity))
+(defstruct call-fact (callee arity path start end))
 (defstruct top-form (kind head path start end))
-(defstruct source-file (path package prelude namespace imports exports includes definitions forms parse-error))
+(defstruct source-file (path package prelude namespace imports exports includes definitions calls forms parse-error))
 (defstruct project-index (root files))
 
 (def (collect-project root)
@@ -97,38 +112,43 @@
              (exports '())
              (includes '())
              (definitions '())
+             (calls '())
              (top-forms '()))
       (match rest
         ([form . more]
          (let* ((datum (syntax->datum form))
                 (head (and (pair? datum) (car datum)))
                 (top-form (top-form-from relpath form datum))
-                (next-top-forms (cons top-form top-forms)))
+                (next-top-forms (cons top-form top-forms))
+                (next-calls (append (calls-from-form relpath form datum) calls)))
            (cond
             ((eq? head 'package:)
-             (lp more (datum->string (safe-cadr datum)) prelude namespace imports exports includes definitions next-top-forms))
+             (lp more (datum->string (safe-cadr datum)) prelude namespace imports exports includes definitions calls next-top-forms))
             ((eq? head 'prelude:)
-             (lp more package (datum->string (safe-cadr datum)) namespace imports exports includes definitions next-top-forms))
+             (lp more package (datum->string (safe-cadr datum)) namespace imports exports includes definitions calls next-top-forms))
             ((eq? head 'namespace:)
-             (lp more package prelude (datum->string (safe-cadr datum)) imports exports includes definitions next-top-forms))
+             (lp more package prelude (datum->string (safe-cadr datum)) imports exports includes definitions calls next-top-forms))
             ((eq? head 'import)
              (lp more package prelude namespace
-                 (append (module-refs datum) imports) exports includes definitions next-top-forms))
+                 (append (module-refs datum) imports) exports includes definitions calls next-top-forms))
             ((eq? head 'export)
              (lp more package prelude namespace imports
-                 (append (export-symbols datum) exports) includes definitions next-top-forms))
+                 (append (export-symbols datum) exports) includes definitions calls next-top-forms))
             ((eq? head 'include)
              (lp more package prelude namespace imports exports
-                 (append (string-datums datum) includes) definitions next-top-forms))
+                 (append (string-datums datum) includes) definitions calls next-top-forms))
             ((member head +definition-heads+)
              (lp more package prelude namespace imports exports includes
-                 (append (definitions-from-form relpath form datum) definitions) next-top-forms))
+                 (append (definitions-from-form relpath form datum) definitions)
+                 next-calls next-top-forms))
             (else
-             (lp more package prelude namespace imports exports includes definitions next-top-forms)))))
+             (lp more package prelude namespace imports exports includes definitions
+                 next-calls next-top-forms)))))
         (else
          (make-source-file relpath package prelude namespace
                            (dedupe imports) (dedupe exports) (dedupe includes)
-                           (reverse definitions) (reverse top-forms) parse-error))))))
+                           (reverse definitions) (reverse calls)
+                           (reverse top-forms) parse-error))))))
 
 (def (read-native-forms path)
   (with-catch
@@ -202,6 +222,71 @@
                               (definition-formal-names datum name)
                               (definition-formal-arity datum name))))
          name-datums)))
+
+(def (calls-from-form relpath form datum)
+  (let* ((loc (stx-source form))
+         (start (source-start-line loc))
+         (end (source-end-line loc)))
+    (calls-from-exprs relpath start end (form-body-datums datum))))
+
+(def (calls-from-exprs relpath start end exprs)
+  (apply append (map (cut calls-from-expr relpath start end <>)
+                     (datum-list-items exprs))))
+
+(def (calls-from-expr relpath start end expr)
+  (cond
+   ((not (pair? expr)) '())
+   ((not (symbol? (car expr)))
+    (calls-from-exprs relpath start end expr))
+   ((member (car expr) '(quote quasiquote syntax quote-syntax))
+    '())
+   ((member (car expr) +definition-heads+)
+    (calls-from-exprs relpath start end (form-body-datums expr)))
+   ((let-head? (car expr))
+    (append (calls-from-let-bindings relpath start end (safe-cadr expr))
+            (calls-from-exprs relpath start end (let-body-datums expr))))
+   ((member (car expr) +non-call-heads+)
+    (calls-from-exprs relpath start end (cdr expr)))
+   (else
+    (cons (make-call-fact (datum->string (car expr))
+                          (length (datum-list-items (cdr expr)))
+                          relpath start end)
+          (calls-from-exprs relpath start end (cdr expr))))))
+
+(def (form-body-datums datum)
+  (let ((head (and (pair? datum) (car datum))))
+    (cond
+     ((member head +definition-heads+) (cddr datum))
+     (else [datum]))))
+
+(def (let-head? head)
+  (member head '(let let* letrec let-values let*-values)))
+
+(def (let-body-datums expr)
+  (let ((head (car expr))
+        (second (safe-cadr expr)))
+    (cond
+     ((and (eq? head 'let) (symbol? second))
+      (cdddr expr))
+     (else (cddr expr)))))
+
+(def (calls-from-let-bindings relpath start end bindings)
+  (cond
+   ((not (pair? bindings)) '())
+   (else
+    (apply append
+           (map (lambda (binding)
+                  (cond
+                   ((and (pair? binding)
+                         (pair? (cdr binding))
+                         (not (list? (car binding))))
+                    (calls-from-expr relpath start end (cadr binding)))
+                   ((and (pair? binding)
+                         (list? (car binding))
+                         (pair? (cdr binding)))
+                    (calls-from-expr relpath start end (cadr binding)))
+                   (else '())))
+                (datum-list-items bindings))))))
 
 (def (top-form-from relpath form datum)
   (let* ((head (and (pair? datum) (car datum)))
@@ -324,6 +409,13 @@
    ((pair? obj) (append (flatten (car obj)) (flatten (cdr obj))))
    (else [obj])))
 
+(def (datum-list-items obj)
+  (let lp ((rest obj) (out '()))
+    (cond
+     ((null? rest) (reverse out))
+     ((pair? rest) (lp (cdr rest) (cons (car rest) out)))
+     (else (reverse out)))))
+
 (def (safe-cadr obj)
   (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
 
@@ -351,6 +443,9 @@
 (def (project-definitions index)
   (apply append (map source-file-definitions (project-index-files index))))
 
+(def (project-calls index)
+  (apply append (map source-file-calls (project-index-files index))))
+
 (def (find-owner index owner)
   (find (lambda (file) (equal? (source-file-path file) (normalize-owner owner)))
         (project-index-files index)))
@@ -360,6 +455,12 @@
                  (number->string (definition-start defn))
                  "-"
                  (number->string (definition-end defn))))
+
+(def (call-fact-selector call)
+  (string-append (call-fact-path call) ":"
+                 (number->string (call-fact-start call))
+                 "-"
+                 (number->string (call-fact-end call))))
 
 (def (top-form-selector form)
   (string-append (top-form-path form) ":"
