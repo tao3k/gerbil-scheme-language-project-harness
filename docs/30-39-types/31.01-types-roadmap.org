@@ -21,7 +21,10 @@ implementation lives under =src/types/=:
 #+begin_src text
 src/types.ss
 src/types/core.ss
+src/types/env.ss
 src/types/findings.ss
+src/types/model.ss
+src/types/signatures.ss
 #+end_src
 
 =src/commands/check.ss= remains a command adapter. It asks the types module for
@@ -35,6 +38,10 @@ first environment fact records each definition as an =unknown= binding with its
 name, kind, parser-owned formals, arity, path, and selector. This keeps the
 type pipeline ready for signature and schema-derived types without making the
 parser depend on type rules.
+
+=src/types/model.ss= owns native type values. =src/types/signatures.ss= loads
+Scheme signature data and merges it into =src/types/env.ss=. Signature data is
+native Scheme input; JSON remains only a later projection of these facts.
 
 The first type rule reports duplicate environment bindings within the same
 owner/path as =GERBIL-SCHEME-TYPE-E001=. Names from different source owners stay

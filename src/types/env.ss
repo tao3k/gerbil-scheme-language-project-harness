@@ -1,7 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; Type environment facts derived from parser-owned definitions.
 
-(import :parser)
+(import :parser
+        :types/model
+        :types/signatures)
 
 (export make-type-binding
         type-binding-name
@@ -12,17 +14,23 @@
         type-binding-path
         type-binding-selector
         build-type-env
+        build-type-env/signatures
         duplicate-type-bindings)
 
 (defstruct type-binding (name kind type formals arity path selector))
 
 (def (build-type-env index)
-  (map definition->type-binding (project-definitions index)))
+  (build-type-env/signatures index '()))
 
-(def (definition->type-binding defn)
+(def (build-type-env/signatures index signatures)
+  (map (cut definition->type-binding <> signatures)
+       (project-definitions index)))
+
+(def (definition->type-binding defn signatures)
   (make-type-binding (definition-name defn)
                      (definition-kind defn)
-                     "unknown"
+                     (or (signature-type-for (definition-name defn) signatures)
+                         (make-type-unknown))
                      (definition-formals defn)
                      (definition-arity defn)
                      (definition-path defn)
