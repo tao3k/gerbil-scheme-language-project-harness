@@ -16,6 +16,7 @@ src/checker/core.ss
 src/checker/model.ss
 src/checker/arity.ss
 src/checker/forms.ss
+src/checker/types.ss
 src/checker/whitelist.ss
 #+end_src
 
@@ -33,10 +34,18 @@ names and rejects every other callee by default.
 Forbidden-form checking consumes parser-owned top-level forms. It rejects macro
 extension entrypoints before generated code is considered safe to execute.
 
+Type-mismatch checking consumes parser-owned calls, native function signatures,
+and parameter type facts derived by =src/types/env.ss=. It only reports when
+both the callee parameter type and the caller argument type are known.
+
 ** 41.01.3 First Rules
 
 =GERBIL-SCHEME-CHECKER-A001= reports an ordinary application whose parser-owned
 call arity differs from the expected arity in a function signature.
+
+=GERBIL-SCHEME-CHECKER-T001= reports an ordinary application whose parser-owned
+argument name resolves through the native parameter type environment to a type
+that is incompatible with the callee's function signature.
 
 =GERBIL-SCHEME-CHECKER-W001= reports an ordinary application whose callee is
 not project-local and is absent from the configured native call whitelist.

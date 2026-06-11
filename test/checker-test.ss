@@ -77,6 +77,30 @@
              (findings (run-type-checks/signatures index signatures))
              (rule-ids (map type-finding-rule-id findings)))
         (check (not (not (member "GERBIL-SCHEME-CHECKER-A001" rule-ids)))
+               => #t)))
+    (test-case "type mismatch checker reports known argument mismatches"
+      (let* ((root ".run/checker-type-mismatch")
+             (_ (write-type-mismatch-project root))
+             (index (collect-project root))
+             (signatures (load-type-signatures
+                          ".run/checker-type-mismatch/type-signatures.scm"))
+             (findings (run-type-mismatch-checks index signatures))
+             (finding (car findings)))
+        (check (length findings) => 1)
+        (check (type-finding-rule-id finding)
+               => "GERBIL-SCHEME-CHECKER-T001")
+        (check (type-finding-path finding) => "src/sample.ss")
+        (check (type-finding-message finding)
+               => "type mismatch for needs-string argument 0: expected string, got number")))
+    (test-case "type check pipeline includes type mismatch findings"
+      (let* ((root ".run/checker-type-mismatch-pipeline")
+             (_ (write-type-mismatch-project root))
+             (index (collect-project root))
+             (signatures (load-type-signatures
+                          ".run/checker-type-mismatch-pipeline/type-signatures.scm"))
+             (findings (run-type-checks/signatures index signatures))
+             (rule-ids (map type-finding-rule-id findings)))
+        (check (not (not (member "GERBIL-SCHEME-CHECKER-T001" rule-ids)))
                => #t)))))
 
 (def (write-whitelist-project root)
@@ -99,6 +123,18 @@
     (ensure-dir src)
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax unsafe-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
+
+(def (write-type-mismatch-project root)
+  (let* ((src (string-append root "/src"))
+         (source-path (string-append src "/sample.ss"))
+         (signature-path (string-append root "/type-signatures.scm")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (write-text source-path
+                ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-number n) (needs-string n))\n(def (use-string s) (needs-string s))\n")
+    (write-text signature-path
+                "((needs-string . (function (string) string))\n (use-number . (function (number) number))\n (use-string . (function (string) string)))\n")))
 
 (def (ensure-dir path)
   (with-catch

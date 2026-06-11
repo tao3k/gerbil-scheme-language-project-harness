@@ -94,6 +94,8 @@ parser fact ownership.
 
 The parser also exports native ~call-fact~ values through ~source-file-calls~
 and ~project-calls~. The first slice records ordinary application callee names
-and arity from native syntax datums. Selectors intentionally point at the
-enclosing top-level form until nested syntax spans are promoted into the parser
-model.
+and arity from native syntax datums. Call facts now also preserve argument
+datum strings and the enclosing definition name when the caller is known, so
+type-owned checks can resolve argument types through the native parameter
+environment. Selectors intentionally point at the enclosing top-level form
+until nested syntax spans are promoted into the parser model.

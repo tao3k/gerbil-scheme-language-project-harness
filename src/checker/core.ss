@@ -3,6 +3,7 @@
 
 (import :checker/arity
         :checker/forms
+        :checker/types
         :checker/whitelist)
 
 (export run-checker-checks
@@ -10,6 +11,7 @@
 
 (def (run-checker-checks index signatures)
   (append (run-arity-checks index signatures)
+          (run-type-mismatch-checks index signatures)
           (run-forbidden-form-checks index)))
 
 (def (run-checker-checks/whitelist index signatures whitelist)

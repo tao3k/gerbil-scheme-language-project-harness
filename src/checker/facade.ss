@@ -5,6 +5,7 @@
         :checker/core
         :checker/forms
         :checker/model
+        :checker/types
         :checker/whitelist)
 
 (export make-checker-rule
@@ -17,12 +18,15 @@
         checker-evidence-selector
         checker-evidence-signature
         +arity-rule+
+        +type-mismatch-rule+
         +whitelist-rule+
         +forbidden-form-rule+
         run-checker-checks
         run-checker-checks/whitelist
         run-arity-checks
         call-arity-finding
+        run-type-mismatch-checks
+        call-type-mismatch-findings
         +forbidden-form-heads+
         run-forbidden-form-checks
         forbidden-form-finding

@@ -26,6 +26,8 @@
         call-fact-path
         call-fact-start
         call-fact-end
+        call-fact-arguments
+        call-fact-caller
         call-fact-selector
         top-form-kind
         top-form-head

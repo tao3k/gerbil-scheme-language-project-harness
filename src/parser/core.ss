@@ -31,6 +31,8 @@
         call-fact-path
         call-fact-start
         call-fact-end
+        call-fact-arguments
+        call-fact-caller
         call-fact-selector
         top-form-kind
         top-form-head
@@ -73,7 +75,7 @@
     cond case and or when unless match))
 
 (defstruct definition (name kind path start end formals arity))
-(defstruct call-fact (callee arity path start end))
+(defstruct call-fact (callee arity path start end arguments caller))
 (defstruct top-form (kind head path start end))
 (defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms parse-error))
 (defstruct project-package (path name dependencies manager))
@@ -270,32 +272,45 @@
 (def (calls-from-form relpath form datum)
   (let* ((loc (stx-source form))
          (start (source-start-line loc))
-         (end (source-end-line loc)))
-    (calls-from-exprs relpath start end (form-body-datums datum))))
+         (end (source-end-line loc))
+         (caller (form-caller-name datum)))
+    (calls-from-exprs relpath start end (form-body-datums datum) caller)))
 
-(def (calls-from-exprs relpath start end exprs)
-  (apply append (map (cut calls-from-expr relpath start end <>)
+(def (calls-from-exprs relpath start end exprs caller)
+  (apply append (map (cut calls-from-expr relpath start end <> caller)
                      (datum-list-items exprs))))
 
-(def (calls-from-expr relpath start end expr)
+(def (calls-from-expr relpath start end expr caller)
   (cond
    ((not (pair? expr)) '())
    ((not (symbol? (car expr)))
-    (calls-from-exprs relpath start end expr))
+    (calls-from-exprs relpath start end expr caller))
    ((member (car expr) '(quote quasiquote syntax quote-syntax))
     '())
    ((member (car expr) +definition-heads+)
-    (calls-from-exprs relpath start end (form-body-datums expr)))
+    (calls-from-exprs relpath start end
+                      (form-body-datums expr)
+                      (or (form-caller-name expr) caller)))
    ((let-head? (car expr))
-    (append (calls-from-let-bindings relpath start end (safe-cadr expr))
-            (calls-from-exprs relpath start end (let-body-datums expr))))
+    (append (calls-from-let-bindings relpath start end (safe-cadr expr) caller)
+            (calls-from-exprs relpath start end (let-body-datums expr) caller)))
    ((member (car expr) +non-call-heads+)
-    (calls-from-exprs relpath start end (cdr expr)))
+    (calls-from-exprs relpath start end (cdr expr) caller))
    (else
-    (cons (make-call-fact (datum->string (car expr))
-                          (length (datum-list-items (cdr expr)))
-                          relpath start end)
-          (calls-from-exprs relpath start end (cdr expr))))))
+    (let (args (datum-list-items (cdr expr)))
+      (cons (make-call-fact (datum->string (car expr))
+                            (length args)
+                            relpath start end
+                            (map datum->string args)
+                            caller)
+            (calls-from-exprs relpath start end (cdr expr) caller))))))
+
+(def (form-caller-name datum)
+  (and (pair? datum)
+       (let (names (definition-name-datums datum))
+         (and (pair? names)
+              (null? (cdr names))
+              (datum->string (car names))))))
 
 (def (form-body-datums datum)
   (let ((head (and (pair? datum) (car datum))))
@@ -314,7 +329,7 @@
       (safe-cdddr expr))
      (else (safe-cddr expr)))))
 
-(def (calls-from-let-bindings relpath start end bindings)
+(def (calls-from-let-bindings relpath start end bindings caller)
   (cond
    ((not (pair? bindings)) '())
    (else
@@ -324,11 +339,11 @@
                    ((and (pair? binding)
                          (pair? (cdr binding))
                          (not (list? (car binding))))
-                    (calls-from-expr relpath start end (cadr binding)))
+                    (calls-from-expr relpath start end (cadr binding) caller))
                    ((and (pair? binding)
                          (list? (car binding))
                          (pair? (cdr binding)))
-                    (calls-from-expr relpath start end (cadr binding)))
+                    (calls-from-expr relpath start end (cadr binding) caller))
                    (else '())))
                 (datum-list-items bindings))))))
 

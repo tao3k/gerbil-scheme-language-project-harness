@@ -11,6 +11,7 @@
         checker-evidence-selector
         checker-evidence-signature
         +arity-rule+
+        +type-mismatch-rule+
         +whitelist-rule+
         +forbidden-form-rule+)
 
@@ -19,6 +20,9 @@
 
 (def +arity-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-A001" "error"))
+
+(def +type-mismatch-rule+
+  (make-checker-rule "GERBIL-SCHEME-CHECKER-T001" "error"))
 
 (def +whitelist-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-W001" "error"))

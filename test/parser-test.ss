@@ -38,6 +38,8 @@
              (calls (source-file-calls file)))
         (check (map call-fact-callee calls) => ["+"])
         (check (map call-fact-arity calls) => [2])
+        (check (map call-fact-arguments calls) => [["x" "y"]])
+        (check (map call-fact-caller calls) => ["sum-two"])
         (check (map call-fact-selector calls)
                => ["test/fixtures/formals.ss:4-5"])))
     (test-case "native reader tolerates malformed let forms"
