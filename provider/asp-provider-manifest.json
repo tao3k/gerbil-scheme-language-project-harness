@@ -11,10 +11,35 @@
   "binary": "gerbil-scheme-harness",
   "execution": "external-process",
   "source": {
-    "defaultExtensions": [".ss", ".ssi", ".scm", ".sld"],
-    "defaultConfigFiles": ["gerbil.pkg", "build.ss"],
-    "defaultSourceRoots": ["src", "test", "tests", "doc", "docs", "examples", "tutorial"],
-    "defaultIgnoredPathPrefixes": [".git", ".cache", ".run", ".gerbil", "build", "dist", "src/gambit"]
+    "defaultExtensions": [
+      ".ss",
+      ".ssi",
+      ".scm",
+      ".sld"
+    ],
+    "defaultConfigFiles": [
+      "gerbil.pkg",
+      "build.ss"
+    ],
+    "defaultSourceRoots": [
+      "src",
+      "test",
+      "tests",
+      "doc",
+      "docs",
+      "examples",
+      "tutorial"
+    ],
+    "defaultIgnoredPathPrefixes": [
+      ".devenv",
+      ".git",
+      ".cache",
+      ".run",
+      ".gerbil",
+      "build",
+      "dist",
+      "src/gambit"
+    ]
   },
   "policy": {
     "directSourceRead": "block",
@@ -24,27 +49,79 @@
   },
   "routes": {
     "guide": {
-      "argv": ["gerbil-scheme-harness", "agent", "guide", "."]
+      "argv": [
+        "gerbil-scheme-harness",
+        "agent",
+        "guide",
+        "."
+      ]
     },
     "prime": {
-      "argv": ["gerbil-scheme-harness", "search", "prime", "--view", "seeds", "."]
+      "argv": [
+        "gerbil-scheme-harness",
+        "search",
+        "prime",
+        "--view",
+        "seeds",
+        "."
+      ]
     },
     "owner": {
-      "argv": ["gerbil-scheme-harness", "search", "owner", "{path}", "--view", "seeds", "."]
+      "argv": [
+        "gerbil-scheme-harness",
+        "search",
+        "owner",
+        "{path}",
+        "--view",
+        "seeds",
+        "."
+      ]
     },
     "query": {
-      "argv": ["gerbil-scheme-harness", "query", "{path}", "--term", "{query}", "--workspace", ".", "--names-only"]
+      "argv": [
+        "gerbil-scheme-harness",
+        "query",
+        "{path}",
+        "--term",
+        "{query}",
+        "--workspace",
+        ".",
+        "--names-only"
+      ]
     },
     "fzf": {
-      "argv": ["gerbil-scheme-harness", "search", "fzf", "{query}", "owner", "tests", "--view", "seeds", "."]
+      "argv": [
+        "gerbil-scheme-harness",
+        "search",
+        "fzf",
+        "{query}",
+        "owner",
+        "tests",
+        "--view",
+        "seeds",
+        "."
+      ]
     },
     "ingest": {
-      "argv": ["gerbil-scheme-harness", "search", "ingest", "owner", "tests", "--view", "seeds", "."],
+      "argv": [
+        "gerbil-scheme-harness",
+        "search",
+        "ingest",
+        "owner",
+        "tests",
+        "--view",
+        "seeds",
+        "."
+      ],
       "stdinMode": "pipe-candidates"
     },
     "checkChanged": {
-      "argv": ["gerbil-scheme-harness", "check", "--changed", "."]
+      "argv": [
+        "gerbil-scheme-harness",
+        "check",
+        "--changed",
+        "."
+      ]
     }
   }
 }
-

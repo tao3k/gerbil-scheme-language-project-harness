@@ -22,8 +22,7 @@
 (def +source-extensions+ '(".ss" ".ssi" ".scm" ".sld"))
 (def +config-files+ '("gerbil.pkg" "build.ss"))
 (def +ignored-dirs+
-  '(".git" ".cache" ".run" ".gerbil" ".pytest_cache" ".ruff_cache"
-    ".venv" "__pycache__" "build" "dist"))
+  '(".devenv" ".git" ".cache" ".run" ".gerbil" "build" "dist" "src/gambit"))
 (def +definition-heads+
   '(def def* define define-values define-syntax
     defstruct defclass defsyntax defrules defalias defmethod defcompile-method))
