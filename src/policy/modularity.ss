@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Modularity policy checks over parser-owned source-file facts.
 
-(import :parser/parser
+(import :parser/facade
         :policy/model
         :std/srfi/13
         :types/findings)
@@ -12,6 +12,7 @@
         facade-source-file?
         facade-implementation-finding
         sibling-file-dir-owner-collision-finding
+        repeated-owner-entry-finding
         source-leaf-bloat-finding)
 
 (def +max-source-line-count+ 650)
@@ -20,6 +21,7 @@
 (def (run-modularity-policy index)
   (append
    (sibling-file-dir-owner-collision-findings index)
+   (repeated-owner-entry-findings index)
    (facade-implementation-findings index)
    (source-leaf-bloat-findings index)))
 
@@ -31,6 +33,13 @@
        (and owner-prefix
             (owner-prefix-has-child-source? index owner-prefix path)
             (sibling-file-dir-owner-collision-finding file owner-prefix))))
+   (project-index-files index)))
+
+(def (repeated-owner-entry-findings index)
+  (filter-map
+   (lambda (file)
+     (and (repeated-owner-entry-path? (source-file-path file))
+          (repeated-owner-entry-finding file)))
    (project-index-files index)))
 
 (def (facade-implementation-findings index)
@@ -58,20 +67,28 @@
 
 (def (sibling-owner-prefix path)
   (and (gerbil-source-path? path)
-       (not (owner-entry-path? path))
        (string-append (path-without-extension path) "/")))
 
 (def (owner-entry-prefix path)
   (and (gerbil-source-path? path)
-       (owner-entry-path? path)
+       (facade-entry-path? path)
        (path-parent-prefix path)))
 
-(def (owner-entry-path? path)
+(def (facade-entry-path? path)
+  (and (gerbil-source-path? path)
+       (equal? (path-stem path) "facade")
+       (path-parent-prefix path)
+       (not (equal? (path-parent-prefix path) "src/"))))
+
+(def (repeated-owner-entry-path? path)
   (let ((parent (path-parent-prefix path))
         (stem (path-stem path)))
     (and parent
          (not (equal? parent "src/"))
          (equal? stem (path-parent-name parent)))))
+
+(def (owner-entry-path? path)
+  (repeated-owner-entry-path? path))
 
 (def (gerbil-source-path? path)
   (and (string-prefix? "src/" path)
@@ -130,6 +147,22 @@
                   " share the same owner name at one filesystem level")
    (source-file-path file)
    (hash (ownerDirectory owner-prefix))))
+
+(def (repeated-owner-entry-finding file)
+  (let* ((path (source-file-path file))
+         (parent (path-parent-prefix path))
+         (owner (and parent (path-parent-name parent))))
+    (make-type-finding
+     (policy-rule-id +modularity-repeated-owner-entry-rule+)
+     (policy-rule-severity +modularity-repeated-owner-entry-rule+)
+     path
+     (string-append path
+                    " repeats owner name "
+                    owner
+                    " inside its own directory")
+     path
+     (hash (owner owner)
+           (replacement "facade.ss")))))
 
 (def (source-leaf-bloat-findings index)
   (filter-map

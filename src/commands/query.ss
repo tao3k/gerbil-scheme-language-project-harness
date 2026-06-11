@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Query command adapter.
 
-(import :parser/parser
+(import :parser/facade
         :parser/query
         :protocol/json
         :support/args

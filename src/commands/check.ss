@@ -2,10 +2,10 @@
 ;;; Check command adapter.
 
 (import :constants
-        :parser/parser
+        :parser/facade
         :protocol/json
         :support/args
-        :types/types)
+        :types/facade)
 
 (export check-main)
 

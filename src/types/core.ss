@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; Type-check dispatch for Gerbil source projects.
 
-(import :checker/checker
-        :parser/parser
-        :policy/policy
+(import :checker/facade
+        :parser/facade
+        :policy/facade
         :types/env
         :types/findings)
 

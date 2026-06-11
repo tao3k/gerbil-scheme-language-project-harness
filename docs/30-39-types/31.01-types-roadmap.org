@@ -15,11 +15,11 @@ analysis as a first-class module family:
 
 ** 31.01.2 Local Boundary
 
-The Gerbil harness uses =src/types.ss= as the stable facade. Type-specific
-implementation lives under =src/types/=:
+The Gerbil harness uses =src/types/facade.ss= as the stable facade.
+Type-specific implementation lives under =src/types/=:
 
 #+begin_src text
-src/types.ss
+src/types/facade.ss
 src/types/core.ss
 src/types/env.ss
 src/types/findings.ss

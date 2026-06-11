@@ -38,7 +38,8 @@
       ".gerbil",
       "build",
       "dist",
-      "src/gambit"
+      "src/gambit",
+      "tree-sitter"
     ]
   },
   "policy": {

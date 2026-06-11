@@ -2,7 +2,7 @@
 ;;; Agent-facing policy checks over facade intent comments.
 
 (import :gerbil/gambit
-        :parser/parser
+        :parser/facade
         :policy/model
         :policy/modularity
         :std/misc/ports

@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 (import :std/test
-        :checker/checker
-        :parser/parser
-        :types/types)
+        :checker/facade
+        :parser/facade
+        :types/facade)
 (export checker-test)
 
 (def checker-test

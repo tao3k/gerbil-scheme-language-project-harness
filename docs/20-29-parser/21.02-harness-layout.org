@@ -36,9 +36,9 @@ src/
 ** 21.02.2 Parser Boundary
 
 =src/parser/core.ss= owns native reader integration, source collection,
-top-level form facts, definition facts, and project indexing. =src/parser.ss=
-is a stable facade for command modules and tests, so the internal parser
-namespace can keep splitting without forcing broad import churn.
+top-level form facts, definition facts, and project indexing.
+=src/parser/facade.ss= is a stable facade for command modules and tests, so the
+internal parser namespace can keep splitting without forcing broad import churn.
 
 ** 21.02.3 Protocol Boundary
 

@@ -2,7 +2,7 @@
 ;;; Provider registry projection.
 
 (import :constants
-        :parser/parser)
+        :parser/facade)
 
 (export language-registry)
 

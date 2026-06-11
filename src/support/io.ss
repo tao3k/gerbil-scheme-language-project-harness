@@ -2,7 +2,7 @@
 ;;; Source-range transport helpers.
 
 (import :gerbil/gambit
-        :parser/parser
+        :parser/facade
         :std/misc/ports
         :std/srfi/13)
 
