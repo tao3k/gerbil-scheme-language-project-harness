@@ -1,0 +1,37 @@
+#+title: 31.01 Gerbil Types Roadmap
+#+startup: overview
+
+* 31.01 Gerbil Types Roadmap
+
+** 31.01.1 Reference Scope
+
+The local reference checkout at =.data/scheme-harness-checker= treats type
+analysis as a first-class module family:
+
+- JSON schema projection into checker types.
+- Type environment construction from signatures and first-pass constraints.
+- Type contradiction detection before higher-level rule reporting.
+- Termination and whitelist rules that depend on typed facts.
+
+** 31.01.2 Local Boundary
+
+The Gerbil harness uses =src/types.ss= as the stable facade. Type-specific
+implementation lives under =src/types/=:
+
+#+begin_src text
+src/types.ss
+src/types/core.ss
+src/types/findings.ss
+#+end_src
+
+=src/commands/check.ss= remains a command adapter. It asks the types module for
+findings and formats the result, but it does not own type facts or type rules.
+
+** 31.01.3 Dispatch Order
+
+The next checker work should flow through the types modules before command or
+JSON projection changes:
+
+#+begin_src text
+parser facts -> types facts -> types rules -> finding JSON -> check command
+#+end_src
