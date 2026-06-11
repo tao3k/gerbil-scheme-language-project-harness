@@ -30,6 +30,8 @@
         (path (definition-path defn))
         (start (definition-start defn))
         (end (definition-end defn))
+        (formals (definition-formals defn))
+        (arity (definition-arity defn))
         (selector (definition-selector defn))))
 
 (def (top-form-json form)

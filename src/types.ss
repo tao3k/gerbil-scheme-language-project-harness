@@ -9,6 +9,8 @@
         type-binding-name
         type-binding-kind
         type-binding-type
+        type-binding-formals
+        type-binding-arity
         type-binding-path
         type-binding-selector
         build-type-env

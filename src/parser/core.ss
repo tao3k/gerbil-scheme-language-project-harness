@@ -22,6 +22,8 @@
         definition-path
         definition-start
         definition-end
+        definition-formals
+        definition-arity
         definition-selector
         top-form-kind
         top-form-head
@@ -50,7 +52,7 @@
   '(def def* define define-values define-syntax
     defstruct defclass defsyntax defrules defalias defmethod defcompile-method))
 
-(defstruct definition (name kind path start end))
+(defstruct definition (name kind path start end formals arity))
 (defstruct top-form (kind head path start end))
 (defstruct source-file (path package prelude namespace imports exports includes definitions forms parse-error))
 (defstruct project-index (root files))
@@ -192,11 +194,13 @@
   (let ((head (car datum))
         (name-datums (definition-name-datums datum)))
     (map (lambda (name)
-           (let* ((loc (stx-source form))
+             (let* ((loc (stx-source form))
                   (start (source-start-line loc))
                   (end (source-end-line loc)))
              (make-definition (datum->string name) (symbol->string head)
-                              relpath start end)))
+                              relpath start end
+                              (definition-formal-names datum name)
+                              (definition-formal-arity datum name))))
          name-datums)))
 
 (def (top-form-from relpath form datum)
@@ -234,6 +238,38 @@
        (else '())))
      ((symbol? second) [second])
      (else '()))))
+
+(def (definition-formal-names datum name)
+  (filter-map
+   (lambda (formal)
+     (and (symbol? formal) (datum->string formal)))
+   (definition-formal-datums datum name)))
+
+(def (definition-formal-arity datum name)
+  (let (formals (definition-formal-datums datum name))
+    (and formals (length formals))))
+
+(def (definition-formal-datums datum name)
+  (let ((head (car datum))
+        (second (safe-cadr datum)))
+    (cond
+     ((member head '(def def* define defmethod))
+      (cond
+       ((and (pair? second) (eq? (car second) name))
+        (formal-tail-datums (cdr second)))
+       (else '())))
+     (else '()))))
+
+(def (formal-tail-datums tail)
+  (cond
+   ((null? tail) '())
+   ((symbol? tail) [tail])
+   ((pair? tail)
+    (let (head (car tail))
+      (if (symbol? head)
+        (cons head (formal-tail-datums (cdr tail)))
+        (formal-tail-datums (cdr tail)))))
+   (else '())))
 
 (def (module-refs datum)
   (dedupe

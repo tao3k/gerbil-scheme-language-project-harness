@@ -21,19 +21,23 @@
              (sample-bindings
               (filter (lambda (binding)
                         (equal? (type-binding-path binding)
-                                "test/fixtures/sample.ss"))
+                                "test/fixtures/formals.ss"))
                       (build-type-env index))))
         (check (map type-binding-name sample-bindings)
-               => ["answer" "make-answer"])
+               => ["sum-two" "collect"])
         (check (map type-binding-kind sample-bindings)
                => ["def" "def"])
         (check (map type-binding-type sample-bindings)
-               => ["unknown" "unknown"])))
+               => ["unknown" "unknown"])
+        (check (map type-binding-formals sample-bindings)
+               => [["x" "y"] ["xs"]])
+        (check (map type-binding-arity sample-bindings)
+               => [2 1])))
     (test-case "duplicate definitions become type env facts"
       (let* ((first (make-type-binding "answer" "definition" "unknown"
-                                       "same.ss" "same.ss:1-1"))
+                                       '() 0 "same.ss" "same.ss:1-1"))
              (second (make-type-binding "answer" "definition" "unknown"
-                                        "same.ss" "same.ss:2-2"))
+                                        '() 0 "same.ss" "same.ss:2-2"))
              (duplicates (duplicate-type-bindings [first second]))
              (duplicate (car duplicates)))
         (check (length duplicates) => 1)
@@ -41,7 +45,7 @@
         (check (type-binding-selector (cadr duplicate)) => "same.ss:1-1")))
     (test-case "same definition names in different owners are distinct"
       (let* ((first (make-type-binding "answer" "definition" "unknown"
-                                       "first.ss" "first.ss:1-1"))
+                                       '() 0 "first.ss" "first.ss:1-1"))
              (second (make-type-binding "answer" "definition" "unknown"
-                                        "second.ss" "second.ss:2-2")))
+                                        '() 0 "second.ss" "second.ss:2-2")))
         (check (duplicate-type-bindings [first second]) => '())))))

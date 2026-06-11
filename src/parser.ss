@@ -17,6 +17,8 @@
         definition-path
         definition-start
         definition-end
+        definition-formals
+        definition-arity
         definition-selector
         top-form-kind
         top-form-head

@@ -7,12 +7,14 @@
         type-binding-name
         type-binding-kind
         type-binding-type
+        type-binding-formals
+        type-binding-arity
         type-binding-path
         type-binding-selector
         build-type-env
         duplicate-type-bindings)
 
-(defstruct type-binding (name kind type path selector))
+(defstruct type-binding (name kind type formals arity path selector))
 
 (def (build-type-env index)
   (map definition->type-binding (project-definitions index)))
@@ -21,6 +23,8 @@
   (make-type-binding (definition-name defn)
                      (definition-kind defn)
                      "unknown"
+                     (definition-formals defn)
+                     (definition-arity defn)
                      (definition-path defn)
                      (definition-selector defn)))
 

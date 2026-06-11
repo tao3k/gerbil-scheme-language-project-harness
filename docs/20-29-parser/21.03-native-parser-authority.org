@@ -7,8 +7,8 @@
 
 The Gerbil harness source of truth is the native Scheme parser implemented
 under =src/parser/=. Parser facts are Scheme data first: source files,
-top-level forms, definitions, selectors, packages, imports, exports, and reader
-errors.
+top-level forms, definitions, definition formals and arity, selectors,
+packages, imports, exports, and reader errors.
 
 JSON is only a machine-facing projection under =src/protocol/=. JSON output
 must not define parser semantics, type semantics, or checker behavior.
