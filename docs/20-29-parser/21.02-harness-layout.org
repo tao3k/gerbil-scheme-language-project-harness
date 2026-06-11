@@ -27,6 +27,9 @@ src/
   protocol/
     json.ss
     registry.ss
+  snapshot/
+    core.ss
+    facade.ss
   support/
     args.ss
     io.ss
@@ -47,13 +50,17 @@ internal parser namespace can keep splitting without forcing broad import churn.
 can reuse these projections, but the parser core remains Scheme data first and
 does not depend on JSON output.
 
+=src/snapshot/core.ss= owns stable test projections for schema-facing facts.
+Snapshot fixtures use =.ss= files because they are Gerbil-native Scheme data
+read by tests, not generic =.scm= source modules or JSON golden files.
+
 Package extension JSON stays provider-owned under the shared search packet
 =extensions= field. Poo is currently reported with =dependencyMode=required=
 because activation comes from a concrete =gerbil.pkg= =depend:= entry managed
 by =gxpkg=. The extension facade exposes model facts first through
 =project-extension-facts=; JSON and compact search lines are projections of the
 same fact model. Poo packet stability is covered by
-=test/snapshots/poo-extension-packet.scm=.
+=test/snapshots/poo-extension-packet.ss=.
 
 ** 21.02.4 Next Split
 

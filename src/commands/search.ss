@@ -58,15 +58,7 @@
 (def (emit-prime index json?)
   (if json?
     (write-json-line
-     (hash (schemaId "agent.semantic-protocols.semantic-search-packet")
-           (schemaVersion "1")
-           (languageId +language-id+)
-           (providerId +provider-id+)
-           (view "prime")
-           (root (project-index-root index))
-           (projectPackage (project-package-json (project-index-package index)))
-           (extensions (project-extension-json index))
-           (owners (map source-file-json (take* (ranked-files index) 100)))))
+     (search-prime-packet-json index))
     (begin
       (displayln "[gerbil-search-prime] root=" (project-index-root index)
                  " files=" (length (project-index-files index))

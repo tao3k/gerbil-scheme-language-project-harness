@@ -1,6 +1,7 @@
 ;;; -*- Gerbil -*-
 (import :extensions/facade
         :parser/facade
+        :snapshot/facade
         :std/test)
 (export extensions-test)
 
@@ -14,7 +15,17 @@
                  ["git.cons.io/mighty-gerbils/gerbil-poo"]))
              (index (collect-project root))
              (snapshot (extension-packet-snapshot index))
-             (expected (load-snapshot "test/snapshots/poo-extension-packet.scm")))
+             (expected (snapshot-load "test/snapshots/poo-extension-packet.ss")))
+        (check snapshot => expected)))
+    (test-case "poo search prime snapshot matches packet interface"
+      (let* ((root ".run/extensions-poo-search-prime")
+             (_ (write-extension-project
+                 root
+                 "sample/app"
+                 ["git.cons.io/mighty-gerbils/gerbil-poo"]))
+             (index (collect-project root))
+             (snapshot (search-prime-snapshot index))
+             (expected (snapshot-load "test/snapshots/poo-search-prime-packet.ss")))
         (check snapshot => expected)))
     (test-case "poo dependency aliases activate extension"
       (let* ((root ".run/extensions-poo-alias")
@@ -46,28 +57,6 @@
         (check (project-extension-json index) => '())
         (check (project-extension-search-lines index) => '())))))
 
-(def (extension-packet-snapshot index)
-  (list (package-snapshot (project-index-package index))
-        (list 'extensions
-              (map extension-json-snapshot (project-extension-json index)))
-        (list 'search-lines (project-extension-search-lines index))))
-
-(def (package-snapshot package)
-  (list 'package
-        (project-package-name package)
-        (project-package-path package)
-        (project-package-manager package)
-        (project-package-dependencies package)))
-
-(def (extension-json-snapshot extension)
-  [(hash-get extension 'name)
-   (hash-get extension 'activation)
-   (hash-get extension 'dependencyMode)
-   (hash-get extension 'packageManager)
-   (hash-get extension 'package)
-   (hash-get extension 'dependencies)
-   (hash-get extension 'capabilities)])
-
 (def (write-extension-project root package-name dependencies)
   (let* ((src (string-append root "/src"))
          (package-path (string-append root "/gerbil.pkg"))
@@ -95,9 +84,6 @@
     ([dependency . more]
      (string-append "\"" dependency "\" "
                     (quoted-string-list-source more)))))
-
-(def (load-snapshot path)
-  (call-with-input-file path read))
 
 (def (ensure-dir path)
   (with-catch
