@@ -62,7 +62,16 @@ by =gxpkg=. The extension facade exposes model facts first through
 same fact model. Poo packet stability is covered by
 =test/snapshots/poo-extension-packet.ss=.
 
-** 21.02.4 Next Split
+** 21.02.4 Test Boundary
+
+Top-level =test/*-test.ss= files are test entrypoints. Fine-grained test logic
+lives under =test/unit/= by domain, such as =test/unit/search/=,
+=test/unit/schema/=, and =test/unit/snapshot/=. Unit modules export higher-level
+Scheme check functions or fact projections; entrypoints own =test-case= labels
+and compose those functions. This keeps the module grain closer to the Rust
+harness unit layout while preserving Gerbil-native test logic.
+
+** 21.02.5 Next Split
 
 The next parser split should move project walking and package/config facts out
 of =src/parser/core.ss= once parser-facts packets require richer root metadata.
