@@ -1,2 +1,2 @@
-(package: gerbil-scheme-language-project-harness)
-
+(package: gerbil-scheme-language-project-harness
+ depend: ("git.cons.io/mighty-gerbils/gerbil-poo"))
