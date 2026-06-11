@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 (import :std/test
-        :parser
-        :types)
+        :parser/parser
+        :types/types)
 (export self-apply-test)
 
 (def self-apply-test

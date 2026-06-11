@@ -2,7 +2,7 @@
 ;;; Arity checks over parser-owned call facts and native type signatures.
 
 (import :checker/model
-        :parser
+        :parser/parser
         :types/findings
         :types/model
         :types/signatures)

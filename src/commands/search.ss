@@ -2,7 +2,7 @@
 ;;; Search command adapter.
 
 (import :constants
-        :parser
+        :parser/parser
         :parser/query
         :protocol/json
         :support/args

@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Type environment facts derived from parser-owned definitions.
 
-(import :parser
+(import :parser/parser
         :types/model
         :types/signatures)
 

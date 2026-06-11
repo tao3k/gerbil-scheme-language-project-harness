@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Modularity policy checks over parser-owned source-file facts.
 
-(import :parser
+(import :parser/parser
         :policy/model
         :std/srfi/13
         :types/findings)
@@ -11,6 +11,7 @@
         +min-source-definition-count+
         facade-source-file?
         facade-implementation-finding
+        sibling-file-dir-owner-collision-finding
         source-leaf-bloat-finding)
 
 (def +max-source-line-count+ 650)
@@ -18,8 +19,19 @@
 
 (def (run-modularity-policy index)
   (append
+   (sibling-file-dir-owner-collision-findings index)
    (facade-implementation-findings index)
    (source-leaf-bloat-findings index)))
+
+(def (sibling-file-dir-owner-collision-findings index)
+  (filter-map
+   (lambda (file)
+     (let* ((path (source-file-path file))
+            (owner-prefix (sibling-owner-prefix path)))
+       (and owner-prefix
+            (owner-prefix-has-child-source? index owner-prefix path)
+            (sibling-file-dir-owner-collision-finding file owner-prefix))))
+   (project-index-files index)))
 
 (def (facade-implementation-findings index)
   (filter-map
@@ -31,20 +43,68 @@
 
 (def (facade-source-file? index file)
   (let* ((path (source-file-path file))
-         (owner-prefix (facade-owner-prefix path)))
+         (owner-prefix (owner-entry-prefix path)))
     (and owner-prefix
-         (ormap
-          (lambda (candidate)
-            (string-prefix? owner-prefix (source-file-path candidate)))
-          (project-index-files index)))))
+         (owner-prefix-has-child-source? index owner-prefix path))))
 
-(def (facade-owner-prefix path)
+(def (owner-prefix-has-child-source? index owner-prefix path)
+  (ormap
+   (lambda (candidate)
+     (let (candidate-path (source-file-path candidate))
+       (and (not (equal? candidate-path path))
+            (gerbil-source-path? candidate-path)
+            (string-prefix? owner-prefix candidate-path))))
+   (project-index-files index)))
+
+(def (sibling-owner-prefix path)
+  (and (gerbil-source-path? path)
+       (not (owner-entry-path? path))
+       (string-append (path-without-extension path) "/")))
+
+(def (owner-entry-prefix path)
+  (and (gerbil-source-path? path)
+       (owner-entry-path? path)
+       (path-parent-prefix path)))
+
+(def (owner-entry-path? path)
+  (let ((parent (path-parent-prefix path))
+        (stem (path-stem path)))
+    (and parent
+         (not (equal? parent "src/"))
+         (equal? stem (path-parent-name parent)))))
+
+(def (gerbil-source-path? path)
   (and (string-prefix? "src/" path)
-       (string-suffix? ".ss" path)
-       (let (tail (substring path 4 (string-length path)))
-         (and (not (string-contains tail "/"))
-              (string-append (substring path 0 (- (string-length path) 3))
-                             "/")))))
+       (string-suffix? ".ss" path)))
+
+(def (path-without-extension path)
+  (substring path 0 (- (string-length path) 3)))
+
+(def (path-parent-prefix path)
+  (let (slash (last-index-of path #\/))
+    (and slash
+         (substring path 0 (fx1+ slash)))))
+
+(def (path-parent-name parent-prefix)
+  (let* ((trimmed (substring parent-prefix 0 (fx1- (string-length parent-prefix))))
+         (slash (last-index-of trimmed #\/)))
+    (if slash
+      (substring trimmed (fx1+ slash) (string-length trimmed))
+      trimmed)))
+
+(def (path-stem path)
+  (let* ((stem-path (path-without-extension path))
+         (slash (last-index-of stem-path #\/)))
+    (if slash
+      (substring stem-path (fx1+ slash) (string-length stem-path))
+      stem-path)))
+
+(def (last-index-of text ch)
+  (let lp ((index (fx1- (string-length text))))
+    (cond
+     ((fx< index 0) #f)
+     ((char=? (string-ref text index) ch) index)
+     (else (lp (fx1- index))))))
 
 (def (facade-implementation-finding file)
   (let* ((definition (car (source-file-definitions file)))
@@ -58,6 +118,18 @@
      selector
      (hash (definition (definition-name definition))
            (selector selector)))))
+
+(def (sibling-file-dir-owner-collision-finding file owner-prefix)
+  (make-type-finding
+   (policy-rule-id +modularity-owner-collision-rule+)
+   (policy-rule-severity +modularity-owner-collision-rule+)
+   (source-file-path file)
+   (string-append (source-file-path file)
+                  " and "
+                  owner-prefix
+                  " share the same owner name at one filesystem level")
+   (source-file-path file)
+   (hash (ownerDirectory owner-prefix))))
 
 (def (source-leaf-bloat-findings index)
   (filter-map

@@ -1,6 +1,6 @@
 ;;; -*- Gerbil -*-
 (import :std/test
-        :parser)
+        :parser/parser)
 (export parser-test)
 
 (def parser-test

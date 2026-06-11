@@ -11,6 +11,7 @@
         policy-rule-severity
         +modularity-facade-rule+
         +modularity-source-leaf-rule+
+        +modularity-owner-collision-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
@@ -20,6 +21,7 @@
         +min-source-definition-count+
         facade-source-file?
         facade-implementation-finding
+        sibling-file-dir-owner-collision-finding
         source-leaf-bloat-finding
         run-agent-policy
         facade-intent-finding

@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; JSON projections for Gerbil parser-owned facts.
 
-(import :parser
+(import :parser/parser
         :std/text/json
-        :types)
+        :types/types)
 
 (export source-file-json
         definition-json
