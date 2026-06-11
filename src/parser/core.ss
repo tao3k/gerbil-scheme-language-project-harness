@@ -53,6 +53,7 @@
         project-package-path
         project-package-name
         project-package-dependencies
+        project-package-manager
         project-index-root
         project-index-files
         project-index-package)
@@ -75,7 +76,7 @@
 (defstruct call-fact (callee arity path start end))
 (defstruct top-form (kind head path start end))
 (defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms parse-error))
-(defstruct project-package (path name dependencies))
+(defstruct project-package (path name dependencies manager))
 (defstruct project-index (root files package))
 
 (def (collect-project root)
@@ -115,7 +116,8 @@
        (and package-form
             (make-project-package "gerbil.pkg"
                                   (datum->string (safe-cadr package-form))
-                                  (package-dependencies package-form)))))))
+                                  (package-dependencies package-form)
+                                  "gxpkg"))))))
 
 (def (package-form? datum)
   (and (pair? datum) (eq? (car datum) 'package:)))
@@ -129,9 +131,10 @@
       (else '()))))
 
 (def (parse-source-file root path)
-  (let* ((relpath (relative-path root path))
-         (line-count (source-line-count path))
-         (read-result (read-native-forms path))
+  (let* ((fullpath (source-full-path root path))
+         (relpath (relative-path root fullpath))
+         (line-count (source-line-count fullpath))
+         (read-result (read-native-forms fullpath))
          (forms (vector-ref read-result 0))
          (parse-error (vector-ref read-result 1))
          (initial-package (vector-ref read-result 2))
@@ -294,7 +297,7 @@
 (def (form-body-datums datum)
   (let ((head (and (pair? datum) (car datum))))
     (cond
-     ((member head +definition-heads+) (cddr datum))
+     ((member head +definition-heads+) (safe-cddr datum))
      (else [datum]))))
 
 (def (let-head? head)
@@ -305,8 +308,8 @@
         (second (safe-cadr expr)))
     (cond
      ((and (eq? head 'let) (symbol? second))
-      (cdddr expr))
-     (else (cddr expr)))))
+      (safe-cdddr expr))
+     (else (safe-cddr expr)))))
 
 (def (calls-from-let-bindings relpath start end bindings)
   (cond
@@ -457,6 +460,15 @@
 (def (safe-cadr obj)
   (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
 
+(def (safe-cdr obj)
+  (if (pair? obj) (cdr obj) '()))
+
+(def (safe-cddr obj)
+  (safe-cdr (safe-cdr obj)))
+
+(def (safe-cdddr obj)
+  (safe-cdr (safe-cddr obj)))
+
 (def (datum->string obj)
   (cond
    ((not obj) #f)
@@ -513,6 +525,11 @@
     (if (string-prefix? prefix path*)
       (substring path* (string-length prefix) (string-length path*))
       path*)))
+
+(def (source-full-path root path)
+  (if (string-prefix? "/" path)
+    (path-normalize path)
+    (path-expand path root)))
 
 (def (normalize-owner owner)
   (if (string-prefix? "./" owner)

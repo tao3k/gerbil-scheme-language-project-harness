@@ -10,11 +10,27 @@
 (export make-type-unknown
         make-type-any
         make-type-base
+        make-type-pair
+        make-type-list
+        make-type-vector
         make-type-function
+        make-type-function-variadic
+        make-type-union
+        make-type-record
         type-kind
         type-name
         type-params
         type-result
+        type-pair-car
+        type-pair-cdr
+        type-list-elem
+        type-vector-elem
+        type-function-variadic-param
+        type-function-variadic-min-arity
+        type-union-members
+        type-record-fields
+        type-record-required
+        record-field-type
         type=?
         type->string
         parse-type-sexpr
