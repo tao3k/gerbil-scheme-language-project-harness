@@ -1,3 +1,10 @@
-#!/usr/bin/env gxi
-;; -*- Gerbil -*-
-(import :gerbil-scheme-language-project-harness/cli)
+#!/usr/bin/env sh
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+GERBIL="${GERBIL:-/opt/homebrew/opt/gerbil-scheme/bin/gxi}"
+
+GERBIL_LOADPATH="${GERBIL_LOADPATH:-$ROOT/src}"
+export GERBIL_LOADPATH
+
+exec "$GERBIL" "$ROOT/bin/gerbil-scheme-harness.ss" "$@"
