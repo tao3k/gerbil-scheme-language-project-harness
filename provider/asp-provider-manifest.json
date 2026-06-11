@@ -1,0 +1,50 @@
+{
+  "schemaId": "agent.semantic-protocols.hook.provider-manifest",
+  "schemaVersion": "1",
+  "protocolId": "agent.semantic-protocols.hook",
+  "protocolVersion": "1",
+  "manifestId": "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness",
+  "manifestVersion": "v1",
+  "languageId": "gerbil-scheme",
+  "providerId": "gerbil-scheme-harness",
+  "namespace": "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness",
+  "binary": "gerbil-scheme-harness",
+  "execution": "external-process",
+  "source": {
+    "defaultExtensions": [".ss", ".ssi", ".scm", ".sld"],
+    "defaultConfigFiles": ["gerbil.pkg", "build.ss"],
+    "defaultSourceRoots": ["src", "test", "tests", "doc", "docs", "examples", "tutorial"],
+    "defaultIgnoredPathPrefixes": [".git", ".cache", ".run", ".gerbil", "build", "dist", "src/gambit"]
+  },
+  "policy": {
+    "directSourceRead": "block",
+    "bulkSourceDump": "block",
+    "rawSourceSearch": "block",
+    "agentSearchJson": "block"
+  },
+  "routes": {
+    "guide": {
+      "argv": ["gerbil-scheme-harness", "agent", "guide", "."]
+    },
+    "prime": {
+      "argv": ["gerbil-scheme-harness", "search", "prime", "--view", "seeds", "."]
+    },
+    "owner": {
+      "argv": ["gerbil-scheme-harness", "search", "owner", "{path}", "--view", "seeds", "."]
+    },
+    "query": {
+      "argv": ["gerbil-scheme-harness", "query", "{path}", "--term", "{query}", "--workspace", ".", "--names-only"]
+    },
+    "fzf": {
+      "argv": ["gerbil-scheme-harness", "search", "fzf", "{query}", "owner", "tests", "--view", "seeds", "."]
+    },
+    "ingest": {
+      "argv": ["gerbil-scheme-harness", "search", "ingest", "owner", "tests", "--view", "seeds", "."],
+      "stdinMode": "pipe-candidates"
+    },
+    "checkChanged": {
+      "argv": ["gerbil-scheme-harness", "check", "--changed", "."]
+    }
+  }
+}
+

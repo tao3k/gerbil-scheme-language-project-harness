@@ -1,0 +1,3 @@
+#!/usr/bin/env gxi
+;; -*- Gerbil -*-
+(import :gerbil-scheme-language-project-harness/cli)
