@@ -2,6 +2,7 @@
 ;;; Search command adapter.
 
 (import :constants
+        :extensions/facade
         :parser/facade
         :parser/query
         :protocol/json
@@ -37,11 +38,15 @@
      (hash (languageId +language-id+)
            (providerId +provider-id+)
            (root (project-index-root index))
+           (projectPackage (project-package-json (project-index-package index)))
+           (extensions (project-extension-json index))
            (files (map source-file-json (project-index-files index)))))
     (begin
       (displayln "[gerbil-workspace] root=" (project-index-root index)
                  " files=" (length (project-index-files index))
                  " definitions=" (length (project-definitions index)))
+      (emit-package-line index)
+      (emit-extension-lines index)
       (for-each
         (lambda (file)
           (displayln "|owner path=" (source-file-path file)
@@ -59,6 +64,8 @@
            (providerId +provider-id+)
            (view "prime")
            (root (project-index-root index))
+           (projectPackage (project-package-json (project-index-package index)))
+           (extensions (project-extension-json index))
            (owners (map source-file-json (take* (ranked-files index) 100)))))
     (begin
       (displayln "[gerbil-search-prime] root=" (project-index-root index)
@@ -66,6 +73,8 @@
                  " definitions=" (length (project-definitions index)))
       (displayln "|language id=" +language-id+ " provider=" +provider-id+
                  " parser=core-read-module")
+      (emit-package-line index)
+      (emit-extension-lines index)
       (for-each
        (lambda (file)
          (displayln "owner:path(" (source-file-path file) ")"
@@ -76,6 +85,16 @@
       (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")
       (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")))
   0)
+
+(def (emit-package-line index)
+  (let (package (project-index-package index))
+    (when package
+      (displayln "|package name=" (project-package-name package)
+                 " path=" (project-package-path package)
+                 " dependencies=" (join (project-package-dependencies package) ",")))))
+
+(def (emit-extension-lines index)
+  (for-each displayln (project-extension-search-lines index)))
 
 (def (emit-owner-search index args json?)
   (let* ((positionals (positional-args args))

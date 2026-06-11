@@ -50,8 +50,12 @@
         source-file-calls
         source-file-forms
         source-file-parse-error
+        project-package-path
+        project-package-name
+        project-package-dependencies
         project-index-root
-        project-index-files)
+        project-index-files
+        project-index-package)
 
 (def +source-extensions+ '(".ss" ".ssi" ".scm" ".sld"))
 (def +config-files+ '("gerbil.pkg" "build.ss"))
@@ -71,12 +75,15 @@
 (defstruct call-fact (callee arity path start end))
 (defstruct top-form (kind head path start end))
 (defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms parse-error))
-(defstruct project-index (root files))
+(defstruct project-package (path name dependencies))
+(defstruct project-index (root files package))
 
 (def (collect-project root)
   (let* ((root (path-normalize root))
          (files (sort (collect-source-files root) string<?)))
-    (make-project-index root (map (cut parse-source-file root <>) files))))
+    (make-project-index root
+                        (map (cut parse-source-file root <>) files)
+                        (read-project-package root))))
 
 (def (collect-source-files root)
   (def (dir? path) (eq? (file-type path) 'directory))
@@ -96,6 +103,30 @@
 (def (gerbil-source-path? path)
   (or (member (path-extension path) +source-extensions+)
       (member (path-strip-directory path) +config-files+)))
+
+(def (read-project-package root)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (let* ((path (path-expand "gerbil.pkg" root))
+            (read-result (read-syntax-forms path))
+            (forms (map syntax->datum (vector-ref read-result 0)))
+            (package-form (find package-form? forms)))
+       (and package-form
+            (make-project-package "gerbil.pkg"
+                                  (datum->string (safe-cadr package-form))
+                                  (package-dependencies package-form)))))))
+
+(def (package-form? datum)
+  (and (pair? datum) (eq? (car datum) 'package:)))
+
+(def (package-dependencies datum)
+  (let lp ((rest (datum-list-items datum)))
+    (match rest
+      (['depend: deps . _]
+       (dedupe (filter-map datum->string (datum-list-items deps))))
+      ([_ . more] (lp more))
+      (else '()))))
 
 (def (parse-source-file root path)
   (let* ((relpath (relative-path root path))

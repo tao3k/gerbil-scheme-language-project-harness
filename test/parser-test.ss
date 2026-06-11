@@ -54,7 +54,23 @@
         (write-text source-path "(package: sample/main)\n(def answer 42)\n")
         (write-text query-path "((identifier) @local.definition)\n")
         (check (map source-file-path (project-index-files (collect-project root)))
-               => ["src/main.ss"])))))
+               => ["src/main.ss"])))
+    (test-case "project collection captures gerbil package dependencies"
+      (let* ((root ".run/parser-package")
+             (source-dir (string-append root "/src"))
+             (package-path (string-append root "/gerbil.pkg"))
+             (source-path (string-append source-dir "/main.ss")))
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir source-dir)
+        (write-text package-path
+                    "(package: clan/poo\n depend: (\"git.cons.io/mighty-gerbils/gerbil-utils\"))\n")
+        (write-text source-path "(package: clan/poo/main)\n(def answer 42)\n")
+        (let (package (project-index-package (collect-project root)))
+          (check (project-package-path package) => "gerbil.pkg")
+          (check (project-package-name package) => "clan/poo")
+          (check (project-package-dependencies package)
+                 => ["git.cons.io/mighty-gerbils/gerbil-utils"]))))))
 
 (def (ensure-dir path)
   (with-catch

@@ -6,6 +6,7 @@
         :types/facade)
 
 (export source-file-json
+        project-package-json
         definition-json
         top-form-json
         finding-json
@@ -23,6 +24,12 @@
         (definitions (map definition-json (source-file-definitions file)))
         (forms (map top-form-json (source-file-forms file)))
         (parseError (source-file-parse-error file))))
+
+(def (project-package-json package)
+  (and package
+       (hash (path (project-package-path package))
+             (name (project-package-name package))
+             (dependencies (project-package-dependencies package)))))
 
 (def (definition-json defn)
   (hash (name (definition-name defn))

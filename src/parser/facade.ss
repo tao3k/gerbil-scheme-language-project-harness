@@ -45,5 +45,9 @@
         source-file-calls
         source-file-forms
         source-file-parse-error
+        project-package-path
+        project-package-name
+        project-package-dependencies
         project-index-root
-        project-index-files)
+        project-index-files
+        project-index-package)
