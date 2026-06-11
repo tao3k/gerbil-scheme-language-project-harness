@@ -36,7 +36,7 @@ After `gxpkg build`, the installed entrypoint is expected to be
 This first native version aligns the common provider surface:
 
 - compact text by default
-- JSON for protocol consumers
+- `agent doctor --json` provider metadata for protocol consumers
 - `search workspace`, `prime`, `owner`, `owner items`, `symbol`, `import`,
   `fzf`, and `ingest`
 - parser-owned `query --term`, `query --names-only`, and `query --code`
@@ -48,4 +48,3 @@ This first native version aligns the common provider surface:
 The next implementation layer should enrich this with expanded module exports,
 phase-aware import/export facts, and compiler/type facts from Gerbil's expander
 and compiler modules.
-
