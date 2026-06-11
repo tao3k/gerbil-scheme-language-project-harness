@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Check command adapter.
 
-(import :constants
+(import :checker/facade
+        :constants
         :parser/facade
         :protocol/json
         :support/args
@@ -12,8 +13,12 @@
 (def (check-main args)
   (let* ((root (project-root args))
          (json? (flag? "--json" args))
+         (whitelist-path (option "--whitelist" args))
+         (whitelist (if whitelist-path
+                      (load-call-whitelist whitelist-path)
+                      '()))
          (index (collect-project root))
-         (findings (run-type-checks index))
+         (findings (run-type-checks/whitelist index '() whitelist))
          (status (type-status findings)))
     (if json?
       (write-json-line

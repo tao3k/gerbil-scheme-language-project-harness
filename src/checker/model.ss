@@ -10,10 +10,14 @@
         checker-evidence-actual
         checker-evidence-selector
         checker-evidence-signature
-        +arity-rule+)
+        +arity-rule+
+        +whitelist-rule+)
 
 (defstruct checker-rule (id severity))
 (defstruct checker-evidence (callee expected actual selector signature))
 
 (def +arity-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-A001" "error"))
+
+(def +whitelist-rule+
+  (make-checker-rule "GERBIL-SCHEME-CHECKER-W001" "error"))

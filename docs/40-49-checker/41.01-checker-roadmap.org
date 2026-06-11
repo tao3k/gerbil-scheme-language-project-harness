@@ -11,9 +11,11 @@ adapters over the checker result model.
 The first checker modules live under =src/checker/=:
 
 #+begin_src text
-src/checker.ss
+src/checker/facade.ss
+src/checker/core.ss
 src/checker/model.ss
 src/checker/arity.ss
+src/checker/whitelist.ss
 #+end_src
 
 ** 41.01.2 Native Inputs
@@ -23,20 +25,31 @@ types loaded by =src/types/signatures.ss=. A missing signature is not a checker
 failure. A non-function signature is outside the first arity rule and is left
 for a later type rule.
 
-** 41.01.3 First Rule
+Whitelist checking also consumes =project-calls=. When a whitelist is supplied,
+the checker allows project-local definitions plus the configured external call
+names and rejects every other callee by default.
+
+** 41.01.3 First Rules
 
 =GERBIL-SCHEME-CHECKER-A001= reports an ordinary application whose parser-owned
 call arity differs from the expected arity in a function signature.
+
+=GERBIL-SCHEME-CHECKER-W001= reports an ordinary application whose callee is
+not project-local and is absent from the configured native call whitelist.
 
 The rule emits the existing =type-finding= model so =check --json= can continue
 to use the current report packet. Signature-aware checks are available through
 =run-type-checks/signatures=; the default command path still runs with no
 external signatures and therefore remains stable.
 
+Whitelist-aware checks are available through =run-type-checks/whitelist= and
+through =check --whitelist PATH=. The default command path keeps the whitelist
+empty so repository self-apply remains stable unless a safety profile is
+explicitly configured.
+
 ** 41.01.4 Next Rules
 
 The next checker slices should stay small:
 
 - type mismatch for calls with known argument types
-- unknown callee classification after the parser has reference facts
 - termination and recursion checks only after native call graph facts exist

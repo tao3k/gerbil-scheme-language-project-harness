@@ -10,6 +10,7 @@
 (export type-status
         run-type-checks
         run-type-checks/signatures
+        run-type-checks/whitelist
         source-file-type-findings)
 
 (def (type-status findings)
@@ -19,10 +20,13 @@
   (run-type-checks/signatures index '()))
 
 (def (run-type-checks/signatures index signatures)
+  (run-type-checks/whitelist index signatures '()))
+
+(def (run-type-checks/whitelist index signatures whitelist)
   (append
    (apply append (map source-file-type-findings (project-index-files index)))
    (type-env-findings (build-type-env/signatures index signatures))
-   (run-checker-checks index signatures)
+   (run-checker-checks/whitelist index signatures whitelist)
    (run-policy-checks index)))
 
 (def (source-file-type-findings file)

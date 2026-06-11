@@ -41,4 +41,5 @@
         type-status
         run-type-checks
         run-type-checks/signatures
+        run-type-checks/whitelist
         source-file-type-findings)
