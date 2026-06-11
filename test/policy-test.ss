@@ -118,21 +118,7 @@
         (check (length matching) => 1)
         (check (type-finding-rule-id finding)
                => "GERBIL-SCHEME-AGENT-R003")
-        (check (type-finding-path finding) => "src/beta/facade.ss")))
-    (test-case "agent policy rejects generic facade intent comments"
-      (let* ((root ".run/policy-generic-intent")
-             (_ (write-facade-policy-project
-                 root "alpha"
-                 ";;; -*- Gerbil -*-\n;;; Facade.\n(export value)\n"
-                 ";;; -*- Gerbil -*-\n;;; Alpha core.\n(def value 1)\n"))
-             (index (collect-project root))
-             (findings (run-agent-policy index))
-             (matching (filter-rule "GERBIL-SCHEME-AGENT-R004" findings))
-             (finding (car matching)))
-        (check (length matching) => 1)
-        (check (type-finding-rule-id finding)
-               => "GERBIL-SCHEME-AGENT-R004")
-        (check (type-finding-path finding) => "src/alpha/facade.ss")))))
+        (check (type-finding-path finding) => "src/beta/facade.ss")))))
 
 (def (filter-rule rule-id findings)
   (filter (lambda (finding)

@@ -18,34 +18,9 @@
 (def +generic-owner-segments+
   '("utils" "common" "helpers" "shared"))
 
-(def +generic-intent-comments+
-  '("facade"
-    "facade."
-    "module"
-    "module."
-    "helper"
-    "helper."
-    "helpers"
-    "helpers."
-    "utility"
-    "utility."
-    "utilities"
-    "utilities."
-    "utility facade"
-    "utility facade."
-    "utilities facade"
-    "utilities facade."
-    "common facade"
-    "common facade."
-    "shared facade"
-    "shared facade."
-    "wrapper"
-    "wrapper."))
-
 (def (run-agent-policy index)
   (append
    (facade-intent-findings index)
-   (facade-generic-intent-findings index)
    (generic-owner-findings index)
    (facade-export-conflict-findings index)))
 
@@ -64,43 +39,20 @@
        (and segment (generic-owner-finding file segment))))
    (project-index-files index)))
 
-(def (facade-generic-intent-findings index)
-  (filter-map
-   (lambda (file)
-     (and (facade-source-file? index file)
-          (let (comment (facade-intent-comment index file))
-            (and comment
-                 (generic-intent-comment? comment)
-                 (facade-generic-intent-finding file comment)))))
-   (project-index-files index)))
-
 (def (facade-has-intent-doc? index file)
-  (not (not (facade-intent-comment index file))))
-
-(def (facade-intent-comment index file)
   (with-catch
    (lambda (_) #f)
    (lambda ()
-     (find intent-comment?
-           (take* (read-file-lines
-                   (path-expand (source-file-path file)
-                                (project-index-root index)))
-                  8)))))
+     (ormap intent-comment?
+            (take* (read-file-lines
+                    (path-expand (source-file-path file)
+                                 (project-index-root index)))
+                   8)))))
 
 (def (intent-comment? line)
   (let (text (string-trim line))
     (and (string-prefix? ";;;" text)
          (not (string-contains text "-*-")))))
-
-(def (generic-intent-comment? line)
-  (member (string-downcase (intent-comment-text line))
-          +generic-intent-comments+))
-
-(def (intent-comment-text line)
-  (let (text (string-trim line))
-    (if (string-prefix? ";;;" text)
-      (string-trim (substring text 3 (string-length text)))
-      text)))
 
 (def (facade-intent-finding file)
   (make-type-finding
@@ -130,16 +82,6 @@
                   " hides the Gerbil module responsibility")
    (source-file-path file)
    (hash (segment segment))))
-
-(def (facade-generic-intent-finding file comment)
-  (make-type-finding
-   (policy-rule-id +agent-generic-intent-rule+)
-   (policy-rule-severity +agent-generic-intent-rule+)
-   (source-file-path file)
-   (string-append "facade " (source-file-path file)
-                  " has a generic intent comment that does not describe the module responsibility")
-   (source-file-path file)
-   (hash (comment (intent-comment-text comment)))))
 
 (def (facade-export-conflict-findings index)
   (let lp ((rest (facade-export-bindings index)) (seen '()) (out '()))

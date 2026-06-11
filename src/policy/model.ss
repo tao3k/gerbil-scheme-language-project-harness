@@ -11,8 +11,7 @@
         +modularity-bin-entrypoint-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
-        +agent-export-conflict-rule+
-        +agent-generic-intent-rule+)
+        +agent-export-conflict-rule+)
 
 (defstruct policy-rule (id severity))
 
@@ -39,6 +38,3 @@
 
 (def +agent-export-conflict-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R003" "warning"))
-
-(def +agent-generic-intent-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R004" "warning"))
