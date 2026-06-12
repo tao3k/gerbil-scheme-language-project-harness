@@ -27,24 +27,29 @@
       (let* ((positionals (positional-args (drop-project-root args)))
              (owner (and (pair? positionals) (car positionals)))
              (terms (options "--term" args)))
-        (unless owner (error "query requires an owner path"))
-        (let* ((index (collect-project workspace))
-               (file (find-owner index owner)))
-          (unless file (error "owner not found" owner))
-          (let (matches (matching-definitions (source-file-definitions file) terms))
-            (cond
-             (json?
-              (write-json-line (hash (owner (source-file-path file))
-                                     (matches (map definition-json matches)))))
-             (code?
-              (for-each (lambda (defn)
-                          (display (read-definition-code workspace defn)))
-                        matches))
-             (names-only?
-              (for-each (lambda (defn) (displayln (definition-name defn))) matches))
-             (else
-              (emit-owner-items file matches))))
-          0)))))
+        (if (and (not owner) names-only? (pair? terms))
+          (begin
+            (displayln "query --names-only requires an owner selector; workspace term discovery is `search fzf '<term>' owner --view seeds --workspace <workspace-root>`")
+            2)
+          (begin
+            (unless owner (error "query requires an owner path"))
+            (let* ((index (collect-project workspace))
+                   (file (find-owner index owner)))
+              (unless file (error "owner not found" owner))
+              (let (matches (matching-definitions (source-file-definitions file) terms))
+                (cond
+                 (json?
+                  (write-json-line (hash (owner (source-file-path file))
+                                         (matches (map definition-json matches)))))
+                 (code?
+                  (for-each (lambda (defn)
+                              (display (read-definition-code workspace defn)))
+                            matches))
+                 (names-only?
+                  (for-each (lambda (defn) (displayln (definition-name defn))) matches))
+                 (else
+                  (emit-owner-items file matches))))
+              0)))))))
 
 (def (emit-owner-items file matches)
   (displayln "[gerbil-owner-items] path=" (source-file-path file)
