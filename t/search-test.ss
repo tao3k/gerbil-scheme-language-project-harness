@@ -9,10 +9,14 @@
 (export search-test)
 
 (def (search-output args)
-  (call-with-output-string
-    (lambda (out)
-      (parameterize ((current-output-port out))
-        (check (search-main args) => 0)))))
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (search-main args)))))))
+    (check status => 0)
+    output))
 
 (def (contains? output fragment)
   (and (string-contains output fragment) #t))
@@ -82,39 +86,33 @@
       (check (language-evidence-next "pattern" "hygienic-macro")
              => "search pattern hygienic-macro"))
     (test-case "search guide routes to provider guide"
-      (let (output (call-with-output-string
-                     (lambda (out)
-                       (parameterize ((current-output-port out))
-                         (check (search-main ["guide" "--view" "seeds" "."]) => 0)))))
+      (let (output (search-output ["guide" "--view" "seeds" "."]))
         (check (string-prefix? "gerbil-scheme-harness guide" output) => #t)
-        (check (string-contains output "|cmd prime=gerbil-scheme-harness search prime --view seeds .") => #t)
-        (check (string-contains output "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --view seeds .") => #t)
-        (check (string-contains output "|cmd query-code=gerbil-scheme-harness query --selector <path:start-end> --workspace . --code") => #t)
-        (check (string-contains output "|cmd env=gerbil-scheme-harness search env [term ...] --view seeds .") => #t)
-        (check (string-contains output "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --view seeds .") => #t)
-        (check (string-contains output "|cmd lang=gerbil-scheme-harness search lang [term ...] --view seeds .") => #t)
-        (check (string-contains output "|cmd std=gerbil-scheme-harness search std [term ...] --view seeds .") => #t)
-        (check (string-contains output "|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds .") => #t)
-        (check (string-contains output "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds .") => #t)
-        (check (string-contains output "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --view seeds .") => #t)
-        (check (string-contains output "|cmd structural-index=gerbil-scheme-harness search structural --json .") => #t)
-        (check (string-contains output "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing") => #t)
-        (check (string-contains output "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads") => #t)
-        (check (string-contains output "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed") => #t)))
+        (check (contains? output "|cmd prime=gerbil-scheme-harness search prime --view seeds .") => #t)
+        (check (contains? output "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --view seeds .") => #t)
+        (check (contains? output "|cmd query-code=gerbil-scheme-harness query --selector <path:start-end> --workspace . --code") => #t)
+        (check (contains? output "|cmd env=gerbil-scheme-harness search env [term ...] --view seeds .") => #t)
+        (check (contains? output "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --view seeds .") => #t)
+        (check (contains? output "|cmd lang=gerbil-scheme-harness search lang [term ...] --view seeds .") => #t)
+        (check (contains? output "|cmd std=gerbil-scheme-harness search std [term ...] --view seeds .") => #t)
+        (check (contains? output "|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds .") => #t)
+        (check (contains? output "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds .") => #t)
+        (check (contains? output "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --view seeds .") => #t)
+        (check (contains? output "|cmd structural-index=gerbil-scheme-harness search structural --json .") => #t)
+        (check (contains? output "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing") => #t)
+        (check (contains? output "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads") => #t)
+        (check (contains? output "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed") => #t)))
     (test-case "search pipe routes through compact fzf frontier"
       (let (output (search-output ["pipe" "guide" "."]))
-        (check (string-contains output "[gerbil-search-fzf] query=guide") => #t)
-        (check (string-contains output "recommendedNext=gerbil-scheme-harness search owner") => #t)))
+        (check (contains? output "[gerbil-search-fzf] query=guide") => #t)
+        (check (contains? output "recommendedNext=gerbil-scheme-harness search owner") => #t)))
     (test-case "env search exposes active runtime witness"
-      (let (output (call-with-output-string
-                     (lambda (out)
-                       (parameterize ((current-output-port out))
-                         (check (search-main ["env" "gxi" "."]) => 0)))))
-        (check (string-contains output "evidenceGrade=fact") => #t)
-        (check (string-contains output "|runtime gerbilHome=") => #t)
-        (check (string-contains output "gxiExists=#t") => #t)
-        (check (string-contains output "gscExists=#t") => #t)
-        (check (not (string-contains output "pending")) => #t)))
+      (let (output (search-output ["env" "gxi" "."]))
+        (check (contains? output "evidenceGrade=fact") => #t)
+        (check (contains? output "|runtime gerbilHome=") => #t)
+        (check (contains? output "gxiExists=#t") => #t)
+        (check (contains? output "gscExists=#t") => #t)
+        (check (not (contains? output "pending")) => #t)))
     (test-case "runtime-source search exposes ASP acquisition plan"
       (let (output (search-output ["runtime-source" "macro" "."]))
         (check-output-contains
@@ -152,8 +150,8 @@
           "|qualitySignal id=code-with-comments-output"
           "|qualitySignal id=selector-resolver-owned-by-asp"
           "next=search runtime-source macro sugar module-sugar"])
-        (check (not (string-contains output ".data")) => #t)
-        (check (not (string-contains output "pending")) => #t)))
+        (check (not (contains? output ".data")) => #t)
+        (check (not (contains? output "pending")) => #t)))
     (test-case "runtime-source search routes std sugar to versioned source"
       (let (output (search-output ["runtime-source" "sugar" "."]))
         (check-output-contains
@@ -163,7 +161,7 @@
           "repository=https://git.cons.io/mighty-gerbils/gerbil"
           "|qualitySignal id=source-index-required"
           "next=search runtime-source macro sugar module-sugar"])
-        (check (not (string-contains output "pending")) => #t)))
+        (check (not (contains? output "pending")) => #t)))
     (test-case "runtime-source search routes module sugar to versioned source"
       (let (output (search-output ["runtime-source" "module-sugar" "."]))
         (check-output-contains
@@ -174,7 +172,7 @@
           "stateNamespace=runtime-source/gerbil-scheme"
           "|qualitySignal id=source-index-required"
           "next=search runtime-source macro sugar module-sugar"])
-        (check (not (string-contains output "pending")) => #t)))
+        (check (not (contains? output "pending")) => #t)))
     (test-case "runtime-source search routes writeenv printer hooks to versioned source"
       (let (output (search-output ["runtime-source" "writeenv" "printer" "hook" "."]))
         (check-output-contains
@@ -198,8 +196,8 @@
           "|qualitySignal id=writeenv-source-index-required"
           "|qualitySignal id=printer-hook-source-required"
           "next=search runtime-source writeenv printer hook"])
-        (check (not (string-contains output ".data")) => #t)
-        (check (not (string-contains output "pending")) => #t)))
+        (check (not (contains? output ".data")) => #t)
+        (check (not (contains? output "pending")) => #t)))
     (test-case "runtime-source json uses schema-backed acquisition packet"
       (let* ((output (search-output ["runtime-source" "macro" "--json" "."]))
              (packet (call-with-input-string output read-json))
@@ -236,7 +234,7 @@
         (check (hash-get packet "next")
                => "search runtime-source macro sugar module-sugar")
         (check (string-prefix? "Gerbil v" (hash-get runtime "systemVersion")) => #t)
-        (check (not (string-contains output ".data")) => #t)))
+        (check (not (contains? output ".data")) => #t)))
     (test-case "runtime-source json exposes writeenv printer hook selectors"
       (let* ((output (search-output ["runtime-source" "writeenv" "printer" "hook" "--json" "."]))
              (packet (call-with-input-string output read-json))
@@ -265,7 +263,7 @@
                => "gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object")
         (check (hash-get roundtrip-failure "id")
                => "poo-writeenv-roundtrip-assumption")
-        (check (not (string-contains output ".data")) => #t)))
+        (check (not (contains? output ".data")) => #t)))
     (test-case "compare search prefers active runtime over documented claims"
       (let (output (search-output ["compare" "env" "active" "documented" "."]))
         (check-output-contains
@@ -285,9 +283,9 @@
           "|qualitySignal id=active-runtime-fact"
           "|qualitySignal id=path-free-compare-output"
           "next=search env gxi load-path"])
-        (check (not (string-contains output ".data")) => #t)
-        (check (not (string-contains output "/Users/")) => #t)
-        (check (not (string-contains output "/opt/homebrew")) => #t)))
+        (check (not (contains? output ".data")) => #t)
+        (check (not (contains? output "/Users/")) => #t)
+        (check (not (contains? output "/opt/homebrew")) => #t)))
     (test-case "compare search routes compile target versions to runtime source"
       (let (output (search-output ["compare" "compile" "v0.18" "v0.19" "nightly" "."]))
         (check-output-contains
@@ -308,9 +306,9 @@
           "|qualitySignal id=version-matched-source"
           "|qualitySignal id=source-checkout-required"
           "next=search runtime-source macro sugar module-sugar"])
-        (check (not (string-contains output ".data")) => #t)
-        (check (not (string-contains output "/Users/")) => #t)
-        (check (not (string-contains output "/opt/homebrew")) => #t)))
+        (check (not (contains? output ".data")) => #t)
+        (check (not (contains? output "/Users/")) => #t)
+        (check (not (contains? output "/opt/homebrew")) => #t)))
     (test-case "compare json uses schema-backed packet"
       (let* ((output (search-output ["compare" "env" "active" "documented" "--json" "."]))
              (packet (call-with-input-string output read-json))
@@ -327,88 +325,64 @@
         (check (hash-get comparison "result") => "active-runtime-authoritative")
         (check (hash-get left "kind") => "active-runtime")
         (check (hash-get right "status") => "non-authoritative")
-        (check (not (string-contains output ".data")) => #t)
-        (check (not (string-contains output "/Users/")) => #t)))
+        (check (not (contains? output ".data")) => #t)
+        (check (not (contains? output "/Users/")) => #t)))
     (test-case "lang and std searches expose fact witnesses"
-      (let ((lang-output (call-with-output-string
-                           (lambda (out)
-                             (parameterize ((current-output-port out))
-                               (check (search-main ["lang" "hygienic-macro" "."]) => 0)))))
-            (style-output (call-with-output-string
-                            (lambda (out)
-                              (parameterize ((current-output-port out))
-                                (check (search-main ["lang" "style" "."]) => 0)))))
-            (module-output (call-with-output-string
-                             (lambda (out)
-                               (parameterize ((current-output-port out))
-                                 (check (search-main ["lang" "rename-in" "only-in" "."]) => 0)))))
-            (std-output (call-with-output-string
-                          (lambda (out)
-                            (parameterize ((current-output-port out))
-                              (check (search-main ["std" "srfi-13" "."]) => 0)))))
-            (sugar-output (call-with-output-string
-                            (lambda (out)
-                              (parameterize ((current-output-port out))
-                                (check (search-main ["std" "sugar" "defrule" "."]) => 0)))))
-            (json-output (call-with-output-string
-                           (lambda (out)
-                             (parameterize ((current-output-port out))
-                               (check (search-main ["std" "json" "."]) => 0))))))
-        (check (string-contains lang-output "|fact id=hygienic-macro") => #t)
-        (check (string-contains lang-output "selector=src/checker/forms.ss:13") => #t)
-        (check (not (string-contains lang-output "pending")) => #t)
-        (check (string-contains style-output "|fact id=scheme-style") => #t)
-        (check (string-contains style-output "gerbil-utils-style-audit-and-harness-policy") => #t)
-        (check (string-contains style-output "|failureCase id=legacy-test-directory") => #t)
-        (check (string-contains style-output "|failureCase id=vague-definition-name") => #t)
-        (check (string-contains style-output "|failureCase id=top-level-executable-call") => #t)
-        (check (string-contains style-output "selector=gerbil-utils://t/base-test.ss#base-test") => #t)
-        (check (string-contains style-output "|qualitySignal id=t-test-layout") => #t)
-        (check (string-contains style-output "|qualitySignal id=real-project-t-tests") => #t)
-        (check (string-contains style-output "|qualitySignal id=vague-definition-policy") => #t)
-        (check (string-contains style-output "|qualitySignal id=top-level-executable-policy") => #t)
-        (check (not (string-contains style-output "pending")) => #t)
-        (check (string-contains module-output "|fact id=module-import") => #t)
-        (check (string-contains module-output "runtime-source-module-sugar-import-export-sets") => #t)
-        (check (string-contains module-output "selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#only-in") => #t)
-        (check (string-contains module-output "selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#rename-in") => #t)
-        (check (string-contains module-output "selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#rename-out") => #t)
-        (check (string-contains module-output "|failureCase id=racket-require-assumption") => #t)
-        (check (string-contains module-output "|failureCase id=unchecked-rename-in") => #t)
-        (check (string-contains module-output "|failureCase id=rename-out-confusion") => #t)
-        (check (string-contains module-output "|qualitySignal id=module-sugar-source") => #t)
-        (check (string-contains module-output "|qualitySignal id=import-set-witness") => #t)
-        (check (string-contains module-output "|qualitySignal id=export-set-witness") => #t)
-        (check (not (string-contains module-output "pending")) => #t)
-        (check (string-contains std-output "|fact id=std/srfi/13") => #t)
-        (check (string-contains std-output "provider-imports-:std/srfi/13") => #t)
-        (check (not (string-contains std-output "pending")) => #t)
-        (check (string-contains sugar-output "|fact id=std/sugar") => #t)
-        (check (string-contains sugar-output "runtime-source-std-sugar-defrule-and-defsyntax") => #t)
-        (check (string-contains sugar-output "selector=gerbil-runtime-source://src/std/sugar.ss#defrule") => #t)
-        (check (string-contains sugar-output "|qualitySignal id=runtime-source-backed-std-module") => #t)
-        (check (not (string-contains sugar-output "pending")) => #t)
-        (check (string-contains json-output "|fact id=std/text/json") => #t)
-        (check (string-contains json-output "provider-imports-:std/text/json") => #t)
-        (check (string-contains json-output "|failureCase id=foreign-json-parser") => #t)
-        (check (string-contains json-output "|qualitySignal id=read-json-capability") => #t)
-        (check (not (string-contains json-output "pending")) => #t)))
+      (let ((lang-output (search-output ["lang" "hygienic-macro" "."]))
+            (style-output (search-output ["lang" "style" "."]))
+            (module-output (search-output ["lang" "rename-in" "only-in" "."]))
+            (std-output (search-output ["std" "srfi-13" "."]))
+            (sugar-output (search-output ["std" "sugar" "defrule" "."]))
+            (json-output (search-output ["std" "json" "."])))
+        (check (contains? lang-output "|fact id=hygienic-macro") => #t)
+        (check (contains? lang-output "selector=src/checker/forms.ss:13") => #t)
+        (check (not (contains? lang-output "pending")) => #t)
+        (check (contains? style-output "|fact id=scheme-style") => #t)
+        (check (contains? style-output "gerbil-utils-style-audit-and-harness-policy") => #t)
+        (check (contains? style-output "|failureCase id=legacy-test-directory") => #t)
+        (check (contains? style-output "|failureCase id=vague-definition-name") => #t)
+        (check (contains? style-output "|failureCase id=top-level-executable-call") => #t)
+        (check (contains? style-output "selector=gerbil-utils://t/base-test.ss#base-test") => #t)
+        (check (contains? style-output "|qualitySignal id=t-test-layout") => #t)
+        (check (contains? style-output "|qualitySignal id=real-project-t-tests") => #t)
+        (check (contains? style-output "|qualitySignal id=vague-definition-policy") => #t)
+        (check (contains? style-output "|qualitySignal id=top-level-executable-policy") => #t)
+        (check (not (contains? style-output "pending")) => #t)
+        (check (contains? module-output "|fact id=module-import") => #t)
+        (check (contains? module-output "runtime-source-module-sugar-import-export-sets") => #t)
+        (check (contains? module-output "selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#only-in") => #t)
+        (check (contains? module-output "selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#rename-in") => #t)
+        (check (contains? module-output "selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#rename-out") => #t)
+        (check (contains? module-output "|failureCase id=racket-require-assumption") => #t)
+        (check (contains? module-output "|failureCase id=unchecked-rename-in") => #t)
+        (check (contains? module-output "|failureCase id=rename-out-confusion") => #t)
+        (check (contains? module-output "|qualitySignal id=module-sugar-source") => #t)
+        (check (contains? module-output "|qualitySignal id=import-set-witness") => #t)
+        (check (contains? module-output "|qualitySignal id=export-set-witness") => #t)
+        (check (not (contains? module-output "pending")) => #t)
+        (check (contains? std-output "|fact id=std/srfi/13") => #t)
+        (check (contains? std-output "provider-imports-:std/srfi/13") => #t)
+        (check (not (contains? std-output "pending")) => #t)
+        (check (contains? sugar-output "|fact id=std/sugar") => #t)
+        (check (contains? sugar-output "runtime-source-std-sugar-defrule-and-defsyntax") => #t)
+        (check (contains? sugar-output "selector=gerbil-runtime-source://src/std/sugar.ss#defrule") => #t)
+        (check (contains? sugar-output "|qualitySignal id=runtime-source-backed-std-module") => #t)
+        (check (not (contains? sugar-output "pending")) => #t)
+        (check (contains? json-output "|fact id=std/text/json") => #t)
+        (check (contains? json-output "provider-imports-:std/text/json") => #t)
+        (check (contains? json-output "|failureCase id=foreign-json-parser") => #t)
+        (check (contains? json-output "|qualitySignal id=read-json-capability") => #t)
+        (check (not (contains? json-output "pending")) => #t)))
     (test-case "pattern search exposes verified runnable witnesses"
-      (let ((macro-output (call-with-output-string
-                            (lambda (out)
-                              (parameterize ((current-output-port out))
-                                (check (search-main ["pattern" "hygienic-macro" "."]) => 0)))))
-            (poo-output (call-with-output-string
-                          (lambda (out)
-                            (parameterize ((current-output-port out))
-                              (check (search-main ["pattern" "poo" "object" "."]) => 0))))))
-        (check (string-contains macro-output "quality=verified") => #t)
-        (check (string-contains macro-output "witness=parser-and-test-backed-hygienic-macro-pattern") => #t)
-        (check (string-contains macro-output "missing=-") => #t)
-        (check (string-contains poo-output "sourceRef=package-manager-download:gxpkg:git.cons.io/mighty-gerbils/gerbil-poo:runtime-resolved") => #t)
-        (check (string-contains poo-output "selector=gerbil-poo://object.ss#defclass") => #t)
-        (check (string-contains poo-output "witness=dependency-backed-poo-mapping") => #t)
-        (check (string-contains poo-output "missing=-") => #t)))
+      (let ((macro-output (search-output ["pattern" "hygienic-macro" "."]))
+            (poo-output (search-output ["pattern" "poo" "object" "."])))
+        (check (contains? macro-output "quality=verified") => #t)
+        (check (contains? macro-output "witness=parser-and-test-backed-hygienic-macro-pattern") => #t)
+        (check (contains? macro-output "missing=-") => #t)
+        (check (contains? poo-output "sourceRef=package-manager-download:gxpkg:git.cons.io/mighty-gerbils/gerbil-poo:runtime-resolved") => #t)
+        (check (contains? poo-output "selector=gerbil-poo://object.ss#defclass") => #t)
+        (check (contains? poo-output "witness=dependency-backed-poo-mapping") => #t)
+        (check (contains? poo-output "missing=-") => #t)))
     (test-case "agent scenario routes unknown POO usage through extension then pattern guidance"
       (let ((extension-output (search-output ["extension" "poo" "syntax" "."]))
             (pattern-output (search-output ["pattern" "how" "do" "I" "write" "poo" "class" "method" "protocol" "."])))
@@ -417,7 +391,7 @@
          ["[gerbil-search-extension]"
           "|extension name=poo"
           "next=search pattern poo syntax"])
-        (check (not (string-contains extension-output "|form role=")) => #t)
+        (check (not (contains? extension-output "|form role=")) => #t)
         (check-output-contains
          pattern-output
          ["quality=verified"
@@ -442,8 +416,8 @@
           "|qualitySignal id=slot-order-witness"
           "selectorCount=7 formCount=6 failureCaseCount=4"
           "missing=-"])
-        (check (not (string-contains pattern-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains pattern-output "pending")) => #t)))
+        (check (not (contains? pattern-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? pattern-output "pending")) => #t)))
     (test-case "agent scenario exposes POO source gaps as partial pattern evidence"
       (let ((proto-output (search-output ["pattern" "poo" "prototype" "compose-proto" "."]))
             (trace-output (search-output ["pattern" "poo" "trace" "debug" "."]))
@@ -573,18 +547,18 @@
           "|qualitySignal id=validation-negative-witness"
           "|quality verified missing=- selectorCount=4 formCount=3 failureCaseCount=3"
           "next=search pattern poo sealed validate"])
-        (check (not (string-contains proto-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains trace-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains slot-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains io-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains lens-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains type-output (string-append ".data" "/gerbil-poo"))) => #t)
-        (check (not (string-contains proto-output "pending")) => #t)
-        (check (not (string-contains trace-output "pending")) => #t)
-        (check (not (string-contains slot-output "pending")) => #t)
-        (check (not (string-contains io-output "pending")) => #t)
-        (check (not (string-contains lens-output "pending")) => #t)
-        (check (not (string-contains type-output "pending")) => #t)))
+        (check (not (contains? proto-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? trace-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? slot-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? io-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? lens-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? type-output (string-append ".data" "/gerbil-poo"))) => #t)
+        (check (not (contains? proto-output "pending")) => #t)
+        (check (not (contains? trace-output "pending")) => #t)
+        (check (not (contains? slot-output "pending")) => #t)
+        (check (not (contains? io-output "pending")) => #t)
+        (check (not (contains? lens-output "pending")) => #t)
+        (check (not (contains? type-output "pending")) => #t)))
     (test-case "agent scenario warns when macro syntax would violate generated-code policy"
       (let ((lang-output (search-output ["lang" "how" "macro" "syntax-case" "defsyntax" "."]))
             (pattern-output (search-output ["pattern" "I" "need" "macro" "syntax-case" "."])))
@@ -609,7 +583,7 @@
           "|qualitySignal id=for-syntax-import-witness"
           "|qualitySignal id=generated-code-policy"
           "quality verified missing=-"])
-        (check (not (string-contains pattern-output "pending")) => #t)))
+        (check (not (contains? pattern-output "pending")) => #t)))
     (test-case "agent scenario validates env and std quality before dialect guessing"
       (let ((env-output (search-output ["env" "which" "gxi" "load" "path" "."]))
             (std-output (search-output ["std" "how" "string" "prefix" "contains" "."]))
@@ -641,7 +615,7 @@
           "|failureCase id=broad-json-import"
           "|qualitySignal id=read-json-capability"
           "|qualitySignal id=only-in-minimal-import"])
-        (check (not (string-contains std-output "pending")) => #t)))
+        (check (not (contains? std-output "pending")) => #t)))
     (test-case "std json machine packet exposes minimal Gerbil import mapping"
       (let* ((output (search-output ["std" "json" "--json" "."]))
              (packet (call-with-input-string output read-json))
@@ -774,7 +748,7 @@
         (check (hash-get printer-failure "riskKind") => "printer-hook-contract")
         (check (hash-get printer-failure "badPattern")
                => "agent-assumes-write-output-roundtrips-through-poo-:wr")
-        (check (not (string-contains output ".data")) => #t)))
+        (check (not (contains? output ".data")) => #t)))
     (test-case "pattern json reports insufficient mapping without inventing extension facts"
       (let* ((output (search-output ["pattern" "unknown-extension" "--json" "."]))
              (packet (call-with-input-string output read-json)))

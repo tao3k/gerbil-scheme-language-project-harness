@@ -289,7 +289,7 @@
 
 (def (snapshot-detail-object details key snapshot-proc)
   (if (hash-key? details key)
-    [(list key (snapshot-proc (hash-get details key)))]
+    [(snapshot-proc (hash-get details key))]
     '()))
 
 (def (snapshot-detail-objects details key snapshot-proc)
@@ -299,7 +299,7 @@
 
 (def (optional-snapshot label details snapshot-proc)
   (if (hash-key? details label)
-    (list label (snapshot-proc (hash-get details label)))
+    (snapshot-proc (hash-get details label))
     (list label #f)))
 
 (def (selector-resolver-snapshot resolver)

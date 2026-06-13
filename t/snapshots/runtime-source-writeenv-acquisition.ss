@@ -22,6 +22,47 @@
      (operation "clone-or-fetch-checkout-index")
      (stateNamespace "runtime-source/gerbil-scheme")
      (indexOwner "asp-structural-index"))
+    (selectorResolver
+     (scheme "gerbil-runtime-source")
+     (owner "asp")
+     (stateNamespace "runtime-source/gerbil-scheme")
+     (selectorFormat "gerbil-runtime-source://<source-path>#<symbol>")
+     (output "code-with-comments")
+     (indexOwner "asp-structural-index"))
+    (sourceExamples
+     ((sourceExample
+       (id "runtime-writeenv-binding")
+       (role "runtime-binding")
+       (symbol "writeenv")
+       (selector "gerbil-runtime-source://src/bootstrap/gerbil/builtin.ssxi.ss#writeenv")
+       (form
+        (head "system:")
+        (operands ("writeenv::t" "(t::t)"))
+        (keywords ()))
+       (commentMode "neighbor-comments-before-form"))
+      (sourceExample
+       (id "runtime-write-object-owner")
+       (role "runtime-printer-owner")
+       (symbol "write-object")
+       (selector "gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object")
+       (form
+        (head "write-object")
+        (operands ("<object>" "<port>" "<writeenv>"))
+        (keywords ()))
+       (commentMode "implementation-window-with-leading-comments"))))
+    (sourceComments
+     ((sourceComment
+       (id "builtin-primitive-comment")
+       (selector "gerbil-runtime-source://src/bootstrap/gerbil/builtin.ssxi.ss#writeenv")
+       (extractor "leading-and-neighbor-line-comments")
+       (summary "include primitive-class comment context when resolving writeenv")
+       (fallback "comment-missing-is-signal"))
+      (sourceComment
+       (id "write-object-comment-boundary")
+       (selector "gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object")
+       (extractor "leading-and-neighbor-line-comments")
+       (summary "extract printer hook comments with the write-object owner window")
+       (fallback "comment-missing-is-signal"))))
     (selectors
      ((selector
        (role "writeenv-builtin")

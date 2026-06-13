@@ -82,7 +82,21 @@
   (let (facts (compare-facts))
     (if (null? terms)
       facts
-      (filter (cut compare-fact-matches-terms? <> terms) facts))))
+      (let (matches (filter (cut compare-fact-matches-terms? <> terms) facts))
+        (if (compare-compile-query? terms)
+          (focus-compare-fact "compile-target-runtime-source" matches)
+          matches)))))
+
+(def (compare-compile-query? terms)
+  (ormap (lambda (term)
+           (or (string-contains "compile compiler gsc target requested source checkout nightly" term)
+               (string-prefix? "v0." term)
+               (string-prefix? "0." term)))
+         terms))
+
+(def (focus-compare-fact id facts)
+  (let (focused (filter (lambda (fact) (equal? (hash-get fact 'id) id)) facts))
+    (if (null? focused) facts focused)))
 
 (def (compare-fact-matches-terms? fact terms)
   (ormap (lambda (term)

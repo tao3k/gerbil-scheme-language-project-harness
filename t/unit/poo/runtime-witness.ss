@@ -60,14 +60,15 @@
   (def trace-output
     (with-output-to-string
       (lambda ()
-        (set! trace-result
-          (eval '(begin
-                   (.def trace-base
-                     (foo (lambda (x) (+ x 1))))
-                   (def traced (trace-poo trace-base `trace-base))
-                   ((.@ traced foo) 4)))))))
+        (parameterize ((current-error-port (current-output-port)))
+          (set! trace-result
+            (eval '(begin
+                     (.def trace-base
+                       (foo (lambda (x) (+ x 1))))
+                     (def traced (trace-poo trace-base `trace-base))
+                     ((.@ traced foo) 4))))))))
   (check trace-result => 5)
-  (check (string-contains trace-output "(.@ trace-base foo)") => #t))
+  (check (and (string-contains trace-output "(.@ trace-base foo)") #t) => #t))
 
 (def (check-poo-runtime-witnesses)
   (check-poo-prototype-runtime-witness)
