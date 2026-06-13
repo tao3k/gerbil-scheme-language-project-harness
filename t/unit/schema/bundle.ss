@@ -49,7 +49,7 @@
    ((hash-table? value)
     (append-map
      (lambda (entry)
-       (append (if (and (equal? (car entry) "$ref")
+       (append (if (and (equal? (car entry) '$ref)
                         (string? (cdr entry)))
                  (local-schema-ref-list (cdr entry))
                  '())

@@ -4,6 +4,7 @@
 (import :parser/facade
         :parser/query
         :protocol/json
+        :std/sugar
         :support/args
         :support/io)
 
@@ -35,23 +36,33 @@
             2)
           (begin
             (unless owner (error "query requires an owner path"))
-            (let* ((index (collect-project workspace))
-                   (file (find-owner index owner)))
-              (unless file (error "owner not found" owner))
-              (let (matches (matching-definitions (source-file-definitions file) terms))
-                (cond
-                 (json?
-                  (write-json-line (hash (owner (source-file-path file))
-                                         (matches (map definition-json matches)))))
-                 (code?
-                  (for-each (lambda (defn)
-                              (display (read-definition-code workspace defn)))
-                            matches))
-                 (names-only?
-                  (for-each (lambda (defn) (displayln (definition-name defn))) matches))
-                 (else
-                  (emit-owner-items file matches))))
-              0))))))))
+            (if (not (owner-path-exists? workspace owner))
+              (begin
+                (displayln "query owner path does not exist under --workspace: "
+                           owner
+                           " workspace="
+                           workspace)
+                2)
+              (let* ((index (collect-project workspace))
+                     (file (find-owner index owner)))
+                (unless file (error "owner not found" owner))
+                (let (matches (matching-definitions (source-file-definitions file) terms))
+                  (cond
+                   (json?
+                    (write-json-line (hash (owner (source-file-path file))
+                                           (matches (map definition-json matches)))))
+                   (code?
+                    (for-each (lambda (defn)
+                                (display (read-definition-code workspace defn)))
+                              matches))
+                   (names-only?
+                    (for-each (lambda (defn) (displayln (definition-name defn))) matches))
+                   (else
+                    (emit-owner-items file matches))))
+                0)))))))))
+
+(def (owner-path-exists? workspace owner)
+  (file-exists? (path-expand owner workspace)))
 
 (def (emit-owner-items file matches)
   (displayln "[gerbil-owner-items] path=" (source-file-path file)

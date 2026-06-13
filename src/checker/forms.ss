@@ -4,6 +4,7 @@
 (import :checker/model
         :parser/facade
         :std/srfi/13
+        :std/sugar
         :types/findings)
 
 (export +macro-governance-form-heads+

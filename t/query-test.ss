@@ -48,7 +48,25 @@
                  (string-contains
                   message
                   "search fzf '<term>' owner --view seeds --workspace <workspace-root>")))
-               => #t))))))
+               => #t))))
+    (test-case "owner query rejects paths outside explicit workspace before indexing"
+      (let (result (query-output ["src/types/facade.ss"
+                                  "--workspace"
+                                  ".."
+                                  "--names-only"]))
+        (check (car result) => 2)
+        (check (not
+                (not
+                 (string-contains
+                  (cdr result)
+                  "query owner path does not exist under --workspace")))
+               => #t)
+        (check (not
+                (not
+                 (string-contains
+                  (cdr result)
+                  "workspace=..")))
+               => #t)))))
 
 (def (query-output args)
   (let (exit-code #f)

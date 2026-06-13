@@ -4,6 +4,7 @@
 (import :constants
         :parser/facade
         :protocol/json
+        :std/sugar
         :support/args)
 
 (export evidence-main

@@ -7,6 +7,7 @@
         :policy/modularity
         :std/misc/ports
         :std/srfi/13
+        :std/sugar
         :types/findings)
 
 (export run-agent-policy
@@ -15,8 +16,10 @@
         generic-owner-finding
         vague-definition-finding
         top-level-executable-finding
+        functional-idiom-advice-finding
         poo-direct-writeenv-finding
         poo-io-runtime-witness-finding
+        poo-method-shape-finding
         facade-export-conflict-findings)
 
 (def +generic-owner-segments+
@@ -28,14 +31,23 @@
 (def +poo-declarative-heads+
   '("defclass" ".defclass" ".defgeneric" "defmethod" ".defmethod"))
 
+(def +functional-idiom-roles+
+  '("sequence-map"
+    "sequence-filter"
+    "sequence-fold"
+    "loop-fold"
+    "partial-application"))
+
 (def (run-agent-policy index)
   (append
    (facade-intent-findings index)
    (generic-owner-findings index)
    (vague-definition-findings index)
    (top-level-executable-findings index)
+   (functional-idiom-advice-findings index)
    (poo-direct-writeenv-findings index)
    (poo-io-runtime-witness-findings index)
+   (poo-method-shape-findings index)
    (facade-export-conflict-findings index)))
 
 (def (facade-intent-findings index)
@@ -164,6 +176,39 @@
    (hash (callee (call-fact-callee call))
          (selector (call-fact-selector call)))))
 
+(def (functional-idiom-advice-findings index)
+  (filter-map functional-idiom-advice-finding
+              (project-index-files index)))
+
+(def (functional-idiom-advice-finding file)
+  (and (source-file-path file)
+       (string-prefix? "src/" (source-file-path file))
+       (not (file-has-functional-idiom? file))
+       (let (fact (manual-loop-control-flow file))
+         (and fact
+              (make-type-finding
+               (policy-rule-id +agent-functional-idiom-advice-rule+)
+               (policy-rule-severity +agent-functional-idiom-advice-rule+)
+               (source-file-path file)
+               "manual named let detected; if this is pure accumulation or sequence transformation, prefer for/fold, map, filter, fold, cut, or composition; keep named let for IO, stateful control flow, or generator/continuation drivers"
+               (control-flow-fact-selector fact)
+               (hash (name (control-flow-fact-name fact))
+                     (kind (control-flow-fact-kind fact))
+                     (selector (control-flow-fact-selector fact))
+                     (advice "prefer functional sequence idioms for pure transforms")
+                     (keepNamedLetWhen "IO/stateful control flow or generator/continuation driver")
+                     (learnedFrom ".data/gerbil-utils/bytestring.ss uses for/fold for pure counts and named let for port IO; generator.ss models push/pull inversion; list.ss uses cut/filter/fold/compose")))))))
+
+(def (manual-loop-control-flow file)
+  (find (lambda (fact)
+          (equal? (control-flow-fact-role fact) "manual-loop"))
+        (source-file-control-flow-forms file)))
+
+(def (file-has-functional-idiom? file)
+  (ormap (lambda (fact)
+           (member (higher-order-fact-role fact) +functional-idiom-roles+))
+         (source-file-higher-order-forms file)))
+
 (def (poo-direct-writeenv-findings index)
   (apply append
          (map (lambda (file)
@@ -223,6 +268,71 @@
    (source-file-path file)
    (hash (next "search runtime-source writeenv printer hook")
          (requiredWitness "writeenv-roundtrip-witness"))))
+
+(def (poo-method-shape-findings index)
+  (apply append
+         (map (lambda (file)
+                (filter-map
+                 (lambda (fact)
+                   (and (equal? (poo-form-fact-role fact) "method")
+                        (let (missing (poo-method-shape-missing index fact))
+                          (and (pair? missing)
+                               (poo-method-shape-finding file fact missing)))))
+                 (source-file-poo-forms file)))
+              (project-index-files index))))
+
+(def (poo-method-shape-missing index fact)
+  (filter identity
+          [(and (blank-string? (poo-form-fact-generic fact)) "generic")
+           (and (not (blank-string? (poo-form-fact-generic fact)))
+                (not (poo-generic-fact-exists? index (poo-form-fact-generic fact)))
+                "defgeneric")
+           (and (blank-string? (poo-form-fact-receiver-type fact)) "receiver-type")
+           (and (not (blank-string? (poo-form-fact-receiver-type fact)))
+                (not (poo-class-fact-exists? index (poo-form-fact-receiver-type fact)))
+                "defclass")]))
+
+(def (poo-generic-fact-exists? index generic)
+  (ormap
+   (lambda (fact)
+     (and (equal? (poo-form-fact-role fact) "generic")
+          (equal? (poo-form-fact-generic fact) generic)))
+   (project-poo-forms index)))
+
+(def (poo-class-fact-exists? index class-name)
+  (ormap
+   (lambda (fact)
+     (and (equal? (poo-form-fact-role fact) "class")
+          (equal? (poo-form-fact-name fact) class-name)))
+   (project-poo-forms index)))
+
+(def (project-poo-forms index)
+  (apply append (map source-file-poo-forms (project-index-files index))))
+
+(def (blank-string? value)
+  (or (not value) (equal? value "")))
+
+(def (poo-method-shape-finding file fact missing)
+  (make-type-finding
+   (policy-rule-id +agent-poo-method-shape-rule+)
+   (policy-rule-severity +agent-poo-method-shape-rule+)
+   (source-file-path file)
+   (string-append "POO method " (poo-form-fact-name fact)
+                  " is missing parser-owned "
+                  (join-missing missing)
+                  " facts; query POO pattern evidence and add defgeneric/defclass structure before extending methods")
+   (poo-form-fact-selector fact)
+   (hash (generic (or (poo-form-fact-generic fact) ""))
+         (receiverType (or (poo-form-fact-receiver-type fact) ""))
+         (missing missing)
+         (next "search pattern poo class"))))
+
+(def (join-missing items)
+  (let lp ((rest items) (out ""))
+    (match rest
+      ([] out)
+      ([item] (string-append out item))
+      ([item . more] (lp more (string-append out item ","))))))
 
 (def (facade-export-conflict-findings index)
   (let lp ((rest (facade-export-bindings index)) (seen '()) (out '()))

@@ -2,6 +2,7 @@
 (import :extensions/facade
         :parser/facade
         :snapshot/facade
+        :std/sugar
         :std/test)
 (export check-extension-snapshot-schema-fields
         check-extension-search-snapshot-schema-fields

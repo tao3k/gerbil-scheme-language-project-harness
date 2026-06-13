@@ -4,6 +4,7 @@
 (import :parser/facade
         :policy/model
         :std/srfi/13
+        :std/sugar
         :types/findings)
 
 (export run-modularity-policy
@@ -133,30 +134,23 @@
   (substring path 0 (- (string-length path) 3)))
 
 (def (path-parent-prefix path)
-  (let (slash (last-index-of path #\/))
+  (let (slash (string-index-right path #\/))
     (and slash
          (substring path 0 (fx1+ slash)))))
 
 (def (path-parent-name parent-prefix)
   (let* ((trimmed (substring parent-prefix 0 (fx1- (string-length parent-prefix))))
-         (slash (last-index-of trimmed #\/)))
+         (slash (string-index-right trimmed #\/)))
     (if slash
       (substring trimmed (fx1+ slash) (string-length trimmed))
       trimmed)))
 
 (def (path-stem path)
   (let* ((stem-path (path-without-extension path))
-         (slash (last-index-of stem-path #\/)))
+         (slash (string-index-right stem-path #\/)))
     (if slash
       (substring stem-path (fx1+ slash) (string-length stem-path))
       stem-path)))
-
-(def (last-index-of text ch)
-  (let lp ((index (fx1- (string-length text))))
-    (cond
-     ((fx< index 0) #f)
-     ((char=? (string-ref text index) ch) index)
-     (else (lp (fx1- index))))))
 
 (def (facade-implementation-finding file)
   (let* ((definition (car (source-file-definitions file)))

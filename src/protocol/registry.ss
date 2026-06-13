@@ -2,7 +2,8 @@
 ;;; Provider registry projection.
 
 (import :constants
-        :parser/facade)
+        :parser/facade
+        :std/sugar)
 
 (export language-registry)
 

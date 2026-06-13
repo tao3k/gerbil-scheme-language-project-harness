@@ -20,6 +20,10 @@
         +agent-export-conflict-rule+
         +agent-vague-definition-rule+
         +agent-top-level-executable-rule+
+        +agent-poo-direct-writeenv-rule+
+        +agent-poo-io-runtime-witness-rule+
+        +agent-poo-method-shape-rule+
+        +agent-functional-idiom-advice-rule+
         run-policy-checks
         run-modularity-policy
         +max-source-line-count+
@@ -36,4 +40,8 @@
         generic-owner-finding
         vague-definition-finding
         top-level-executable-finding
+        functional-idiom-advice-finding
+        poo-direct-writeenv-finding
+        poo-io-runtime-witness-finding
+        poo-method-shape-finding
         facade-export-conflict-findings)

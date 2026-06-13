@@ -2,6 +2,7 @@
 ;;; Type mismatch checks over parser-owned calls and native type environments.
 
 (import :std/srfi/13
+        :std/sugar
         :checker/model
         :parser/facade
         :types/env

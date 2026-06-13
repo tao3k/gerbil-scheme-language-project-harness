@@ -70,7 +70,30 @@
         poo-form-fact-supers
         poo-form-fact-slots
         poo-form-fact-options
+        poo-form-fact-specializers
+        poo-form-fact-specializer-types
         poo-form-fact-selector
+        higher-order-fact-name
+        higher-order-fact-kind
+        higher-order-fact-path
+        higher-order-fact-start
+        higher-order-fact-end
+        higher-order-fact-role
+        higher-order-fact-operand-count
+        higher-order-fact-arities
+        higher-order-fact-formals
+        higher-order-fact-caller
+        higher-order-fact-selector
+        control-flow-fact-name
+        control-flow-fact-kind
+        control-flow-fact-path
+        control-flow-fact-start
+        control-flow-fact-end
+        control-flow-fact-role
+        control-flow-fact-caller
+        control-flow-fact-binding-count
+        control-flow-fact-body-form-count
+        control-flow-fact-selector
         top-form-kind
         top-form-head
         top-form-path
@@ -92,6 +115,8 @@
         source-file-macros
         source-file-bindings
         source-file-poo-forms
+        source-file-higher-order-forms
+        source-file-control-flow-forms
         source-file-parse-error
         project-package-path
         project-package-name

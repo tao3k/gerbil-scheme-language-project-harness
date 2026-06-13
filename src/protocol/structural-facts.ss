@@ -2,6 +2,7 @@
 ;;; Native syntax fact rows for the structural index packet.
 
 (import :parser/facade
+        :std/sugar
         :support/list)
 
 (export structural-syntax-fact-json)
@@ -12,6 +13,10 @@
    (map macro-structural-fact-json (source-file-macros file))
    (map binding-structural-fact-json (source-file-bindings file))
    (map poo-form-structural-fact-json (source-file-poo-forms file))
+   (map higher-order-structural-fact-json
+        (source-file-higher-order-forms file))
+   (map control-flow-structural-fact-json
+        (source-file-control-flow-forms file))
    (map call-structural-fact-json (source-file-calls file))))
 
 (def (module-import-structural-fact-json fact)
@@ -107,10 +112,12 @@
                     (poo-form-fact-path fact)
                     (poo-form-fact-generic fact)
                     (poo-form-fact-receiver fact)
-                    (poo-form-fact-receiver-type fact)]
+                   (poo-form-fact-receiver-type fact)]
                    (poo-form-fact-supers fact)
                    (poo-form-fact-slots fact)
-                   (poo-form-fact-options fact)))))
+                   (poo-form-fact-options fact)
+                   (poo-form-fact-specializers fact)
+                   (poo-form-fact-specializer-types fact)))))
 
 (def (poo-form-fields-json fact)
   (hash (role (poo-form-fact-role fact))
@@ -119,7 +126,81 @@
         (receiverType (or (poo-form-fact-receiver-type fact) ""))
         (supers (poo-form-fact-supers fact))
         (slots (poo-form-fact-slots fact))
-        (options (poo-form-fact-options fact))))
+        (options (poo-form-fact-options fact))
+        (specializers (poo-form-fact-specializers fact))
+        (specializerTypes (poo-form-fact-specializer-types fact))
+        (dispatchArity (length (poo-form-fact-specializer-types fact)))))
+
+(def (higher-order-structural-fact-json fact)
+  (hash (id (native-syntax-fact-id "higher-order"
+                                   (higher-order-fact-path fact)
+                                   (higher-order-fact-name fact)
+                                   (higher-order-fact-start fact)))
+        (kind (higher-order-structural-kind fact))
+        (source "native-parser")
+        (languageKind (higher-order-fact-kind fact))
+        (name (higher-order-fact-name fact))
+        (ownerPath (higher-order-fact-path fact))
+        (location (fact-location-json (higher-order-fact-path fact)
+                                      (higher-order-fact-start fact)
+                                      (higher-order-fact-end fact)))
+        (queryKeys (higher-order-query-keys fact))
+        (fields (higher-order-fields-json fact))))
+
+(def (higher-order-structural-kind fact)
+  (if (member (higher-order-fact-role fact)
+              '("anonymous-function" "multi-arity-function"))
+    "function"
+    "call"))
+
+(def (higher-order-query-keys fact)
+  (dedupe
+   (filter identity
+           (append [(higher-order-fact-name fact)
+                    (higher-order-fact-kind fact)
+                    (higher-order-fact-role fact)
+                    (higher-order-fact-caller fact)
+                    (higher-order-fact-path fact)]
+                   (higher-order-fact-formals fact)))))
+
+(def (higher-order-fields-json fact)
+  (hash (role (higher-order-fact-role fact))
+        (operandCount (higher-order-fact-operand-count fact))
+        (arities (higher-order-fact-arities fact))
+        (formals (higher-order-fact-formals fact))
+        (caller (or (higher-order-fact-caller fact) ""))))
+
+(def (control-flow-structural-fact-json fact)
+  (hash (id (native-syntax-fact-id "control-flow"
+                                   (control-flow-fact-path fact)
+                                   (control-flow-fact-name fact)
+                                   (control-flow-fact-start fact)))
+        (kind "custom")
+        (source "native-parser")
+        (languageKind (control-flow-fact-kind fact))
+        (name (control-flow-fact-name fact))
+        (ownerPath (control-flow-fact-path fact))
+        (location (fact-location-json (control-flow-fact-path fact)
+                                      (control-flow-fact-start fact)
+                                      (control-flow-fact-end fact)))
+        (queryKeys (control-flow-query-keys fact))
+        (fields (control-flow-fields-json fact))))
+
+(def (control-flow-query-keys fact)
+  (dedupe
+   (filter identity
+           [(control-flow-fact-name fact)
+            (control-flow-fact-kind fact)
+            (control-flow-fact-role fact)
+            (control-flow-fact-caller fact)
+            (control-flow-fact-path fact)
+            "control-flow"])))
+
+(def (control-flow-fields-json fact)
+  (hash (role (control-flow-fact-role fact))
+        (caller (or (control-flow-fact-caller fact) ""))
+        (bindingCount (control-flow-fact-binding-count fact))
+        (bodyFormCount (control-flow-fact-body-form-count fact))))
 
 (def (call-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "call" (call-fact-path fact)

@@ -9,6 +9,7 @@
         :protocol/structural-facts
         :support/list
         :std/misc/ports
+        :std/sugar
         :std/text/json
         :types/facade)
 
@@ -23,6 +24,7 @@
         macro-json
         binding-json
         poo-form-json
+        higher-order-json
         top-form-json
         finding-json
         parse-error-json
@@ -51,6 +53,10 @@
         (macros (map macro-json (source-file-macros file)))
         (bindings (map binding-json (source-file-bindings file)))
         (pooForms (map poo-form-json (source-file-poo-forms file)))
+        (higherOrderForms
+         (map higher-order-json (source-file-higher-order-forms file)))
+        (controlFlowForms
+         (map control-flow-json (source-file-control-flow-forms file)))
         (forms (map top-form-json (source-file-forms file)))
         (parseError (source-file-parse-error file))))
 
@@ -235,7 +241,9 @@
          (join (map call-fact-callee (source-file-calls file)) ",")
          (join (map macro-fact-name (source-file-macros file)) ",")
          (join (map binding-fact-name (source-file-bindings file)) ",")
-         (join (map poo-form-fact-name (source-file-poo-forms file)) ",")]
+         (join (map poo-form-fact-name (source-file-poo-forms file)) ",")
+         (join (map higher-order-fact-name
+                    (source-file-higher-order-forms file)) ",")]
         "|"))
 
 (def (structural-owner-json file)
@@ -391,12 +399,6 @@
                        ":"
                        (number->string (definition-end first)))))))
 
-(def (map-indexed proc xs)
-  (let lp ((rest xs) (rank 1) (out '()))
-    (match rest
-      ([] (reverse out))
-      ([hd . tl] (lp tl (fx1+ rank) (cons (proc hd rank) out))))))
-
 (def (append-map* proc xs)
   (if (null? xs)
     '()
@@ -487,7 +489,34 @@
         (supers (poo-form-fact-supers fact))
         (slots (poo-form-fact-slots fact))
         (options (poo-form-fact-options fact))
+        (specializers (poo-form-fact-specializers fact))
+        (specializerTypes (poo-form-fact-specializer-types fact))
         (selector (poo-form-fact-selector fact))))
+
+(def (higher-order-json fact)
+  (hash (name (higher-order-fact-name fact))
+        (kind (higher-order-fact-kind fact))
+        (path (higher-order-fact-path fact))
+        (start (higher-order-fact-start fact))
+        (end (higher-order-fact-end fact))
+        (role (higher-order-fact-role fact))
+        (operandCount (higher-order-fact-operand-count fact))
+        (arities (higher-order-fact-arities fact))
+        (formals (higher-order-fact-formals fact))
+        (caller (or (higher-order-fact-caller fact) ""))
+        (selector (higher-order-fact-selector fact))))
+
+(def (control-flow-json fact)
+  (hash (name (control-flow-fact-name fact))
+        (kind (control-flow-fact-kind fact))
+        (path (control-flow-fact-path fact))
+        (start (control-flow-fact-start fact))
+        (end (control-flow-fact-end fact))
+        (role (control-flow-fact-role fact))
+        (caller (or (control-flow-fact-caller fact) ""))
+        (bindingCount (control-flow-fact-binding-count fact))
+        (bodyFormCount (control-flow-fact-body-form-count fact))
+        (selector (control-flow-fact-selector fact))))
 
 (def (top-form-json form)
   (hash (kind (top-form-kind form))

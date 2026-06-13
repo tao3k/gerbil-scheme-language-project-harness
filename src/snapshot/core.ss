@@ -6,6 +6,7 @@
         :extensions/facade
         :parser/facade
         :snapshot/support
+        :support/time
         :std/srfi/13
         :types/facade)
 
@@ -26,6 +27,7 @@
         parser-source-file-snapshot
         self-apply-findings-snapshot
         finding-snapshot
+        bench-report-snapshot
         check-report-snapshot)
 
 (def (snapshot-load path)
@@ -440,6 +442,9 @@
         (list 'pooForms
               (map parser-poo-form-snapshot
                    (source-file-poo-forms file)))
+        (list 'higherOrderForms
+              (map parser-higher-order-form-snapshot
+                   (source-file-higher-order-forms file)))
         (list 'calls
               (map parser-call-snapshot
                    (source-file-calls file)))))
@@ -488,7 +493,20 @@
         (list 'supers (snapshot-list (poo-form-fact-supers fact)))
         (list 'slots (snapshot-list (poo-form-fact-slots fact)))
         (list 'options (snapshot-list (poo-form-fact-options fact)))
+        (list 'specializers (snapshot-list (poo-form-fact-specializers fact)))
+        (list 'specializerTypes (snapshot-list (poo-form-fact-specializer-types fact)))
         (list 'selector (poo-form-fact-selector fact))))
+
+(def (parser-higher-order-form-snapshot fact)
+  (list 'higherOrderForm
+        (list 'name (higher-order-fact-name fact))
+        (list 'kind (higher-order-fact-kind fact))
+        (list 'role (higher-order-fact-role fact))
+        (list 'operandCount (higher-order-fact-operand-count fact))
+        (list 'arities (snapshot-list (higher-order-fact-arities fact)))
+        (list 'formals (snapshot-list (higher-order-fact-formals fact)))
+        (list 'caller (or (higher-order-fact-caller fact) ""))
+        (list 'selector (higher-order-fact-selector fact))))
 
 (def (parser-call-snapshot fact)
   (list 'call
@@ -522,3 +540,64 @@
         (list 'providerId +provider-id+)
         (list 'status (type-status findings))
         (list 'findings (map finding-snapshot findings))))
+
+(def (bench-packet-has-key? packet key)
+  (or (hash-key? packet key)
+      (hash-key? packet (symbol->string key))))
+
+(def (bench-packet-get packet key)
+  (if (hash-key? packet key)
+    (hash-get packet key)
+    (hash-get packet (symbol->string key))))
+
+(def (bench-step-snapshot benchmark)
+  (list 'bench
+        (list 'name (bench-packet-get benchmark 'name))
+        (list 'iterations (bench-packet-get benchmark 'iterations))
+        (list 'durationMs (duration-state
+                            (bench-packet-get benchmark 'durationMs)))
+        (list 'averageMicros (duration-state
+                               (bench-packet-get benchmark 'averageMicros)))
+        (list 'averageMs (duration-state
+                           (bench-packet-get benchmark 'averageMs)))))
+
+(def (bench-performance-finding-snapshot finding)
+  (list 'finding
+        (list 'kind (bench-packet-get finding 'kind))
+        (list 'severity (bench-packet-get finding 'severity))
+        (list 'summary (bench-packet-get finding 'summary))
+        (list 'totalMs (duration-state
+                         (bench-packet-get finding 'totalMs)))
+        (list 'maxTotalMs (bench-packet-get finding 'maxTotalMs))
+        (list 'exceededByMs (duration-state
+                              (bench-packet-get finding 'exceededByMs)))
+        (list 'slowestBenchmarkName
+              (bench-packet-get finding 'slowestBenchmarkName))
+        (list 'slowestBenchmarkDurationMs
+              (duration-state
+               (bench-packet-get finding 'slowestBenchmarkDurationMs)))))
+
+(def (bench-report-snapshot packet)
+  (list 'benchReport
+        (list 'languageId +language-id+)
+        (list 'providerId +provider-id+)
+        (list 'schemaId (bench-packet-get packet 'schemaId))
+        (list 'status (bench-packet-get packet 'status))
+        (list 'iterations (bench-packet-get packet 'iterations))
+        (list 'maxTotalMs (if (bench-packet-has-key? packet 'maxTotalMs)
+                            (bench-packet-get packet 'maxTotalMs)
+                            #f))
+        (list 'totalMs (duration-state
+                         (bench-packet-get packet 'totalMs)))
+        (list 'files (bench-packet-get packet 'files))
+        (list 'definitions (bench-packet-get packet 'definitions))
+        (list 'findings (bench-packet-get packet 'findings))
+        (list 'performanceFindings
+              (map bench-performance-finding-snapshot
+                   (bench-packet-get packet 'performanceFindings)))
+        (list 'slowestBenchmark
+              (bench-step-snapshot
+               (bench-packet-get packet 'slowestBenchmark)))
+        (list 'benchmarks
+              (map bench-step-snapshot
+                   (bench-packet-get packet 'benchmarks)))))

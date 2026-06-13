@@ -28,7 +28,9 @@
                                    (poo-form-receiver-type datum)
                                    (poo-class-supers head datum)
                                    (poo-class-slots head datum)
-                                   (poo-class-options head datum))))
+                                   (poo-class-options head datum)
+                                   (poo-form-specializers datum)
+                                   (poo-form-specializer-types datum))))
            (definition-name-datums datum))
       '())))
 
@@ -39,6 +41,10 @@
      ((member head '(defmethod .defmethod defclass .defclass defgeneric .defgeneric))
       (cond
        ((symbol? second) [second])
+       ((and (pair? second)
+             (eq? (car second) '@method)
+             (symbol? (safe-cadr second)))
+        [(safe-cadr second)])
        ((and (pair? second) (symbol? (car second))) [(car second)])
        (else '())))
      (else '()))))
@@ -60,28 +66,59 @@
   (let (spec (safe-cadr datum))
     (cond
      ((symbol? spec) (datum->string spec))
+     ((and (pair? spec)
+           (eq? (car spec) '@method)
+           (symbol? (safe-cadr spec)))
+      (datum->string (safe-cadr spec)))
      ((and (pair? spec) (symbol? (car spec))) (datum->string (car spec)))
      (else #f))))
 
 (def (poo-form-receiver datum)
-  (let (receiver (poo-method-receiver-datum datum))
+  (let (receiver (car-or-false (poo-method-receiver-datums datum)))
     (and receiver
          (symbol? (car receiver))
          (datum->string (car receiver)))))
 
 (def (poo-form-receiver-type datum)
-  (let (receiver (poo-method-receiver-datum datum))
+  (let (receiver (car-or-false (poo-method-receiver-datums datum)))
     (and receiver
          (pair? (cdr receiver))
          (datum->string (cadr receiver)))))
 
-(def (poo-method-receiver-datum datum)
+(def (poo-form-specializers datum)
+  (map poo-specializer-name (poo-method-receiver-datums datum)))
+
+(def (poo-form-specializer-types datum)
+  (filter-map poo-specializer-type (poo-method-receiver-datums datum)))
+
+(def (poo-method-receiver-datums datum)
   (let (spec (safe-cadr datum))
-    (and (pair? spec)
-         (find poo-method-receiver-datum? (datum-list-items (cdr spec))))))
+    (cond
+     ((and (pair? spec) (eq? (car spec) '@method))
+      (map (lambda (type) (list #f type))
+           (datum-list-items (safe-cddr spec))))
+     ((pair? spec)
+      (filter poo-method-receiver-datum? (datum-list-items (cdr spec))))
+     (else '()))))
 
 (def (poo-method-receiver-datum? datum)
   (and (pair? datum) (symbol? (car datum))))
+
+(def (poo-specializer-name receiver)
+  (let ((name (safe-cadr receiver))
+        (binding (car-or-false receiver)))
+    (cond
+     ((and binding name)
+      (string-append (datum->string binding) ":" (datum->string name)))
+     (name (datum->string name))
+     (else ""))))
+
+(def (poo-specializer-type receiver)
+  (and (pair? (cdr receiver))
+       (datum->string (cadr receiver))))
+
+(def (car-or-false items)
+  (and (pair? items) (car items)))
 
 (def (poo-class-supers head datum)
   (if (member head '(defclass .defclass))

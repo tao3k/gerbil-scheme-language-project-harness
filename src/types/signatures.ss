@@ -36,11 +36,11 @@
       tail)))
 
 (def (filter-map-signatures entries)
-  (let lp ((rest entries) (out '()))
-    (match rest
-      ([] (reverse out))
-      ([entry . more]
-       (let (signature (parse-type-signature entry))
-         (if signature
-           (lp more (cons signature out))
-           (lp more out)))))))
+  (reverse
+   (foldl (lambda (entry out)
+            (let (signature (parse-type-signature entry))
+              (if signature
+                (cons signature out)
+                out)))
+          '()
+          entries)))

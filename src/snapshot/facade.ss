@@ -23,4 +23,5 @@
         search-prime-snapshot
         self-apply-findings-snapshot
         finding-snapshot
+        bench-report-snapshot
         check-report-snapshot)

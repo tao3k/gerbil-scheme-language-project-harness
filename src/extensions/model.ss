@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Provider-owned extension fact model.
 
-(import :support/list)
+(import :std/sugar
+        :support/list)
 
 (export extension-fact
         make-extension-fact

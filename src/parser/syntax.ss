@@ -12,6 +12,16 @@
         module-import-facts-from-form
         macro-facts-from-form
         binding-facts-from-form
+        +macro-definition-heads+
+        form-caller-name
+        stx-form-body-items
+        let-head?
+        let-binding-stxes
+        let-body-stxes
+        lambda-body-stxes
+        case-lambda-body-stxes
+        match-body-stxes
+        formal-tail-datums
         top-form-from
         module-refs
         export-symbols
@@ -524,12 +534,20 @@
      ((eq? head 'defmethod)
       (cond
        ((symbol? second) [second])
+       ((and (pair? second)
+             (eq? (car second) '@method)
+             (symbol? (safe-cadr second)))
+        [(safe-cadr second)])
        ((and (pair? second) (symbol? (car second))) [(car second)])
        (else '())))
      ((member head '(defclass .defclass defgeneric .defgeneric
                      .defmethod defsyntax defsyntax-for-match defrules defrule))
       (cond
        ((symbol? second) [second])
+       ((and (pair? second)
+             (eq? (car second) '@method)
+             (symbol? (safe-cadr second)))
+        [(safe-cadr second)])
        ((and (pair? second) (symbol? (car second))) [(car second)])
        (else '())))
      ((symbol? second) [second])

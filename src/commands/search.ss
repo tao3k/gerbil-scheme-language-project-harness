@@ -13,7 +13,8 @@
         :support/io
         :support/list
         :std/misc/ports
-        :std/srfi/13)
+        :std/srfi/13
+        :std/sugar)
 
 (export search-main
         language-evidence-view?

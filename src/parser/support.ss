@@ -2,7 +2,8 @@
 ;;; Shared parser support helpers for Gerbil syntax facts.
 
 (import :gerbil/expander
-        :gerbil/gambit)
+        :gerbil/gambit
+        :support/list)
 
 (export dedupe
         take*
@@ -25,21 +26,6 @@
         source-start-line
         source-end-line
         exception->string)
-
-(def (dedupe items)
-  (let lp ((rest items) (seen '()) (out '()))
-    (match rest
-      ([item . more]
-       (if (member item seen)
-         (lp more seen out)
-         (lp more (cons item seen) (cons item out))))
-      (else (reverse out)))))
-
-(def (take* items count)
-  (let lp ((rest items) (remaining count) (out '()))
-    (cond
-     ((or (null? rest) (fx<= remaining 0)) (reverse out))
-       (else (lp (cdr rest) (fx1- remaining) (cons (car rest) out))))))
 
 (def (join-lines lines)
   (let lp ((rest lines) (out ""))

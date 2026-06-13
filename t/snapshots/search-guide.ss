@@ -18,6 +18,7 @@
   "|cmd evidence-graph=gerbil-scheme-harness evidence graph --json ."
   "|cmd evidence-analyze=gerbil-scheme-harness evidence analyze --json ."
   "|cmd check=gerbil-scheme-harness check --changed ."
+  "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 60000 ."
   "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
   "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads"
   "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed")))

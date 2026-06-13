@@ -58,6 +58,29 @@
         poo-form-fact-supers
         poo-form-fact-slots
         poo-form-fact-options
+        poo-form-fact-specializers
+        poo-form-fact-specializer-types
+        make-higher-order-fact
+        higher-order-fact-name
+        higher-order-fact-kind
+        higher-order-fact-path
+        higher-order-fact-start
+        higher-order-fact-end
+        higher-order-fact-role
+        higher-order-fact-operand-count
+        higher-order-fact-arities
+        higher-order-fact-formals
+        higher-order-fact-caller
+        make-control-flow-fact
+        control-flow-fact-name
+        control-flow-fact-kind
+        control-flow-fact-path
+        control-flow-fact-start
+        control-flow-fact-end
+        control-flow-fact-role
+        control-flow-fact-caller
+        control-flow-fact-binding-count
+        control-flow-fact-body-form-count
         make-top-form
         top-form-kind
         top-form-head
@@ -80,6 +103,8 @@
         source-file-macros
         source-file-bindings
         source-file-poo-forms
+        source-file-higher-order-forms
+        source-file-control-flow-forms
         source-file-parse-error
         make-project-index
         project-index-root
@@ -91,7 +116,9 @@
 (defstruct module-import-fact (module phase modifier alias symbols path start end))
 (defstruct macro-fact (name kind path start end transformer phase pattern-count hygienic))
 (defstruct binding-fact (name kind path start end scope value-type))
-(defstruct poo-form-fact (name kind path start end role generic receiver receiver-type supers slots options))
+(defstruct poo-form-fact (name kind path start end role generic receiver receiver-type supers slots options specializers specializer-types))
+(defstruct higher-order-fact (name kind path start end role operand-count arities formals caller))
+(defstruct control-flow-fact (name kind path start end role caller binding-count body-form-count))
 (defstruct top-form (kind head path start end))
-(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports macros bindings poo-forms parse-error))
+(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports macros bindings poo-forms higher-order-forms control-flow-forms parse-error))
 (defstruct project-index (root files package))

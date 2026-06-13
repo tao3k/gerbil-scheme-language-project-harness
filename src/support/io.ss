@@ -42,11 +42,13 @@
 
 (def (read-line-range path start end)
   (let (lines (read-file-lines path))
-    (let lp ((rest lines) (line 1) (out ""))
-      (cond
-       ((null? rest) out)
-       ((> line end) out)
-       ((>= line start)
-        (lp (cdr rest) (fx1+ line) (string-append out (car rest) "\n")))
-       (else
-        (lp (cdr rest) (fx1+ line) out))))))
+    (cdr
+     (foldl (lambda (text state)
+              (let ((line (car state))
+                    (out (cdr state)))
+                (cons (fx1+ line)
+                      (if (and (>= line start) (<= line end))
+                        (string-append out text "\n")
+                        out))))
+            (cons 1 "")
+            lines))))

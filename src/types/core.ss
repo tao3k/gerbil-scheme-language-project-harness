@@ -4,6 +4,7 @@
 (import :checker/facade
         :parser/facade
         :policy/facade
+        :std/sugar
         :types/env
         :types/findings)
 
@@ -14,7 +15,10 @@
         source-file-type-findings)
 
 (def (type-status findings)
-  (if (null? findings) "pass" "fail"))
+  (if (ormap non-info-finding? findings) "fail" "pass"))
+
+(def (non-info-finding? finding)
+  (not (equal? (type-finding-severity finding) "info")))
 
 (def (run-type-checks index)
   (run-type-checks/signatures index '()))

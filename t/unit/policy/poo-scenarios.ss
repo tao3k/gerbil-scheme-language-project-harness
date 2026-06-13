@@ -6,6 +6,7 @@
 (export write-poo-direct-writeenv-project
         write-poo-io-override-project
         write-downstream-poo-agent-project
+        write-poo-method-shape-project
         write-downstream-poo-agent-positive-project)
 
 (def (write-poo-direct-writeenv-project root)
@@ -39,6 +40,16 @@
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(def (process order) order)\n(def (order-total order) order)\n")
     (write-text (string-append owner "/io.ss")
                 ";;; -*- Gerbil -*-\n(import :clan/poo/io)\n(defmethod (@method :wr object) (lambda (self writeenv) (writeenv self)))\n")))
+
+(def (write-poo-method-shape-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (write-text (string-append owner "/methods.ss")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import :clan/poo/mop)\n(defmethod (@method order-discount Order) (lambda (self amount) amount))\n")))
 
 (def (write-downstream-poo-agent-positive-project root)
   (let* ((src (string-append root "/src"))

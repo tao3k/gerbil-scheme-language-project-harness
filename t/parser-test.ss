@@ -9,6 +9,20 @@
           (equal? (call-fact-arguments call) [argument]))
         calls))
 
+(def (find-higher-order facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (higher-order-fact-name fact) name)
+               (equal? (higher-order-fact-role fact) role)
+               (equal? (or (higher-order-fact-caller fact) "") caller)))
+        facts))
+
+(def (find-control-flow facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (control-flow-fact-name fact) name)
+               (equal? (control-flow-fact-role fact) role)
+               (equal? (or (control-flow-fact-caller fact) "") caller)))
+        facts))
+
 (def parser-test
   (test-suite "gerbil scheme harness parser"
     (test-case "native reader captures package and definitions"
@@ -89,6 +103,10 @@
                => (list ["name" "count"] '() '()))
         (check (map poo-form-fact-options (source-file-poo-forms file))
                => (list ["transparent:"] '() '()))
+        (check (map poo-form-fact-specializers (source-file-poo-forms file))
+               => (list '() '() ["widget:<Widget>"]))
+        (check (map poo-form-fact-specializer-types (source-file-poo-forms file))
+               => (list '() '() ["<Widget>"]))
         (check (map binding-fact-kind (source-file-bindings file))
                => ["macro-formal"
                    "macro-formal"
@@ -122,6 +140,74 @@
                    "t/fixtures/parser/complex-syntax.ss:38-38"
                    "t/fixtures/parser/complex-syntax.ss:44-44"
                    "t/fixtures/parser/complex-syntax.ss:43-43"])))
+    (test-case "native reader captures higher-order syntax facts"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "t/fixtures/parser/higher-order.ss"))
+             (facts (source-file-higher-order-forms file))
+             (case-lambda-fact
+              (find-higher-order facts "case-lambda" "multi-arity-function" "select"))
+             (map-fact
+              (find-higher-order facts "map" "sequence-map" "names"))
+             (map-lambda
+              (find-higher-order facts "lambda" "anonymous-function" "names"))
+             (filter-fact
+              (find-higher-order facts "filter" "sequence-filter" "positives"))
+             (fold-fact
+              (find-higher-order facts "fold-left" "sequence-fold" "total"))
+             (cut-fact
+              (find-higher-order facts "cut" "partial-application" "bump"))
+             (for-fold-fact
+              (find-higher-order facts "for/fold" "loop-fold" "counted")))
+        (check (source-file-parse-error file) => #f)
+        (check (not (null? facts)) => #t)
+        (check (higher-order-fact-arities case-lambda-fact) => [0 1])
+        (check (higher-order-fact-operand-count map-fact) => 2)
+        (check (higher-order-fact-arities map-lambda) => [1])
+        (check (higher-order-fact-formals map-lambda) => ["widget"])
+        (check (higher-order-fact-operand-count filter-fact) => 2)
+        (check (higher-order-fact-operand-count fold-fact) => 3)
+        (check (higher-order-fact-operand-count cut-fact) => 3)
+        (check (higher-order-fact-operand-count for-fold-fact) => 3)))
+    (test-case "native reader captures control-flow syntax facts"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "t/fixtures/parser/control-flow.ss"))
+             (facts (source-file-control-flow-forms file))
+             (loop-fact
+              (find-control-flow facts "loop" "manual-loop" "total")))
+        (check (source-file-parse-error file) => #f)
+        (check (length facts) => 1)
+        (check (control-flow-fact-kind loop-fact) => "named-let")
+        (check (control-flow-fact-binding-count loop-fact) => 2)
+        (check (control-flow-fact-body-form-count loop-fact) => 1)
+        (check (control-flow-fact-selector loop-fact)
+               => "t/fixtures/parser/control-flow.ss:5-5")))
+    (test-case "native reader captures @method POO dispatch facts"
+      (let* ((root (path-normalize ".run/parser-poo-method-shapes"))
+             (source-dir (string-append root "/src"))
+             (source-path (string-append source-dir "/methods.ss")))
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir source-dir)
+        (write-text source-path
+                    ";;; -*- Gerbil -*-\n(package: sample/poo-method)\n(import :clan/poo/mop)\n(.defgeneric (order-discount Order amount))\n(defmethod (@method order-discount Order) (lambda (self amount) amount))\n(defmethod (:render (widget <Widget>) (ctx <Ctx>)) ctx)\n")
+        (let* ((file (parse-source-file root "src/methods.ss"))
+               (forms (source-file-poo-forms file))
+               (generic (car forms))
+               (method (cadr forms))
+               (multi (caddr forms)))
+          (check (map definition-name (source-file-definitions file))
+                 => ["order-discount" "order-discount" ":render"])
+          (check (poo-form-fact-role generic) => "generic")
+          (check (poo-form-fact-name method) => "order-discount")
+          (check (poo-form-fact-generic method) => "order-discount")
+          (check (poo-form-fact-receiver method) => #f)
+          (check (poo-form-fact-receiver-type method) => "Order")
+          (check (poo-form-fact-specializers method) => ["Order"])
+          (check (poo-form-fact-specializer-types method) => ["Order"])
+          (check (poo-form-fact-specializers multi)
+                 => ["widget:<Widget>" "ctx:<Ctx>"])
+          (check (poo-form-fact-specializer-types multi)
+                 => ["<Widget>" "<Ctx>"]))))
     (test-case "native reader captures local literal binding argument types"
       (let* ((root (path-normalize ".run/parser-local-literal-binding"))
              (source-dir (string-append root "/src"))

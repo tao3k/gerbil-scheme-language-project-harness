@@ -14,7 +14,9 @@
         file-directory?)
 
 (def +boolean-flags+ '("--json" "--code" "--names-only" "--changed" "--full"))
-(def +value-options+ '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"))
+(def +value-options+
+  '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"
+    "--iterations" "--max-total-ms" "--whitelist"))
 
 (def (flag? flag args)
   (member flag args))
@@ -36,21 +38,20 @@
     ([_] '())))
 
 (def (positional-args args)
-  (let lp ((rest args) (out '()))
-    (match rest
-      ([] (reverse out))
-      ([hd value . more]
-       (cond
-        ((member hd +boolean-flags+)
-         (lp (cons value more) out))
-        ((member hd +value-options+)
-         (lp more out))
-        ((string-prefix? "--" hd)
-         (lp (cons value more) out))
-        (else
-         (lp (cons value more) (cons hd out)))))
-      ([hd]
-       (if (string-prefix? "--" hd) (reverse out) (reverse (cons hd out)))))))
+  (let (state
+        (foldl (lambda (arg state)
+                 (let ((out (car state))
+                       (skip-next? (cdr state)))
+                   (cond
+                    (skip-next? (cons out #f))
+                    ((member arg +value-options+) (cons out #t))
+                    ((or (member arg +boolean-flags+)
+                         (string-prefix? "--" arg))
+                     (cons out #f))
+                    (else (cons (cons arg out) #f)))))
+               (cons '() #f)
+               args))
+    (reverse (car state))))
 
 (def (project-root args)
   (let (pos (positional-args args))
@@ -67,33 +68,27 @@
       args)))
 
 (def (drop-positional-index args target-index)
-  (let lp ((rest args)
-           (out '())
-           (index 0))
-    (match rest
-      ([] (reverse out))
-      ([hd value . more]
-       (cond
-        ((member hd +boolean-flags+)
-         (lp (cons value more) (cons hd out) index))
-        ((member hd +value-options+)
-         (lp more (cons value (cons hd out)) index))
-        ((string-prefix? "--" hd)
-         (lp (cons value more) (cons hd out) index))
-        (else
-         (let (next-index (fx1+ index))
-           (if (fx= next-index target-index)
-             (lp (cons value more) out next-index)
-             (lp (cons value more) (cons hd out) next-index))))))
-      ([hd]
-       (cond
-        ((string-prefix? "--" hd)
-         (reverse (cons hd out)))
-        (else
-         (let (next-index (fx1+ index))
-           (if (fx= next-index target-index)
-             (reverse out)
-             (reverse (cons hd out))))))))))
+  (let (state
+        (foldl (lambda (arg state)
+                 (let ((out (car state))
+                       (index (cadr state))
+                       (skip-value? (caddr state)))
+                   (cond
+                    (skip-value?
+                     [(cons arg out) index #f])
+                    ((member arg +value-options+)
+                     [(cons arg out) index #t])
+                    ((or (member arg +boolean-flags+)
+                         (string-prefix? "--" arg))
+                     [(cons arg out) index #f])
+                    (else
+                     (let (next-index (fx1+ index))
+                       (if (fx= next-index target-index)
+                         [out next-index #f]
+                         [(cons arg out) next-index #f]))))))
+               ['() 0 #f]
+               args))
+    (reverse (car state))))
 
 (def (file-directory? path)
   (with-catch

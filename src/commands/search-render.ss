@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-;;; Compact search line render helpers for agent-facing source evidence.
+;;; Compact search renderer helpers for agent-facing source evidence.
 
 (import :support/list)
 
@@ -55,11 +55,18 @@
                " receiverType=" (field-string fields 'receiverType)
                " supers=" (field-list-string fields 'supers)
                " slots=" (field-list-string fields 'slots)
-               " options=" (field-list-string fields 'options))))
+               " options=" (field-list-string fields 'options)
+               " specializers=" (field-list-string fields 'specializers)
+               " dispatchArity=" (field-string fields 'dispatchArity)
+               " operandCount=" (field-string fields 'operandCount)
+               " arities=" (field-list-string fields 'arities)
+               " formals=" (field-list-string fields 'formals)
+               " caller=" (field-string fields 'caller))))
 
 (def (ranked-syntax-facts facts)
   (dedupe-syntax-facts
    (append (filter poo-syntax-fact? facts)
+           (filter higher-order-syntax-fact? facts)
            (filter macro-or-import-syntax-fact? facts)
            facts)))
 
@@ -71,6 +78,18 @@
 
 (def (macro-or-import-syntax-fact? fact)
   (member (hash-get fact 'kind) '("macro" "import")))
+
+(def (higher-order-syntax-fact? fact)
+  (let (fields (hash-get fact 'fields))
+    (and fields
+         (member (field-string fields 'role)
+                 '("anonymous-function"
+                   "multi-arity-function"
+                   "partial-application"
+                   "loop-fold"
+                   "sequence-map"
+                   "sequence-filter"
+                   "sequence-fold")))))
 
 (def (dedupe-syntax-facts facts)
   (let lp ((rest facts) (seen '()) (out '()))
@@ -84,14 +103,14 @@
 
 (def (field-string fields key)
   (if (and fields (hash-key? fields key))
-    (dash-empty (hash-get fields key))
+    (dash-empty (value->field-string (hash-get fields key)))
     "-"))
 
 (def (field-list-string fields key)
   (if (and fields (hash-key? fields key))
     (let (value (hash-get fields key))
       (cond
-       ((list? value) (join-or-dash value))
+       ((list? value) (join-or-dash (map value->field-string value)))
        ((string? value) (dash-empty value))
        (else "-")))
     "-"))
@@ -100,6 +119,12 @@
   (cond
    ((not value) "-")
    ((and (string? value) (fx= (string-length value) 0)) "-")
+   (else value)))
+
+(def (value->field-string value)
+  (cond
+   ((number? value) (number->string value))
+   ((boolean? value) (if value "true" "false"))
    (else value)))
 
 (def (detail-list details key)

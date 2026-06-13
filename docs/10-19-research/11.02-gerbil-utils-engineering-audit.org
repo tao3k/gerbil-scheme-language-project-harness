@@ -1,0 +1,334 @@
+#+TITLE: 11.02 Gerbil Utils Engineering Audit
+#+CATEGORY: 11.02
+#+STARTUP: overview
+#+PROPERTY: JD_ID 11.02
+#+PROPERTY: STATUS research-note
+#+PROPERTY: SOURCE_ROOT ../../../../.data/gerbil-utils
+#+PROPERTY: TARGET_ROOT ..
+
+* 11.02 Gerbil Utils Engineering Audit
+:PROPERTIES:
+:JD_ID: 11.02
+:STATUS: research-note
+:SOURCE_ROOT: ../../../../.data/gerbil-utils
+:TARGET_ROOT: ..
+:END:
+
+** 11.02.1 Scope
+
+This note audits the local =.data/gerbil-utils= checkout for high-quality
+Gerbil/Scheme engineering patterns that can improve
+=gerbil-scheme-language-project-harness=.
+
+The goal is not to copy a utility library wholesale. The useful part is the
+engineering shape: small named protocols, clear lifecycle boundaries, stable
+facades over complex implementations, and tests that validate user-visible
+semantics instead of internal tricks.
+
+Parser-owned discovery found =.data/gerbil-utils= as package =clan= with 99
+source files and 956 definitions. High-signal owners include:
+
+- =timestamp.ss=
+- =base.ss=
+- =stateful-avl-map.ss=
+- =concurrency.ss=
+- =generator.ss=
+- =peekable-iterator.ss=
+- =building.ss=
+- =path-config.ss=
+- =list.ss=
+- =pure/dict/rationaldict.ss=
+
+** 11.02.2 Strong Patterns To Learn
+
+*** 11.02.2.1 Lifecycle-aware path configuration
+
+=path-config.ss= separates application paths by lifecycle:
+
+- source
+- build output
+- cache
+- config
+- data
+- log
+- transient session files
+- persistent database files
+
+It also has =set-path-config-root!=, which redirects the whole path policy into
+a single root for build or test contexts.
+
+This is directly useful for the harness. Today the harness has several path
+classes but they are not all represented as one policy surface: =.run= test
+state, benchmark receipts, runtime-source acquisition state, schema/cache
+artifacts, and temporary source fixtures.
+
+Recommended harness adaptation:
+
+1. Add a small =src/support/path-config.ss=.
+2. Expose functions such as =harness-run-path=, =harness-cache-path=,
+   =harness-runtime-source-path=, =harness-bench-path=, and
+   =harness-fixture-path=.
+3. Keep root selection explicit through command args or parameters. Do not
+   hide root mutation behind process-global state unless the command owns the
+   process.
+4. Make agent-facing docs say which lifecycle each artifact belongs to.
+
+Expected benefit: agent edits stop guessing whether a file is persistent
+state, cache, a golden fixture, or temporary runtime output.
+
+*** 11.02.2.2 Generator protocol over ad hoc sequence traversal
+
+=generator.ss= provides a named generator protocol around list, vector,
+for-each, fold, merge, flatten, concat, and cothread-backed generation.
+
+The important pattern is not the coroutine implementation. The important
+pattern is that traversal is a protocol:
+
+- =generating-map=
+- =generating-fold=
+- =generating-take=
+- =generating<-iter=
+- =generating<-cothread=
+
+The harness already performs many sequence transforms:
+
+- project files to parsed files
+- parsed files to definitions/calls/imports
+- facts to search packet nodes and edges
+- packet details to compact output
+- benchmark steps to receipts
+
+Recommended harness adaptation:
+
+1. Start with a lightweight =src/support/sequence.ss=.
+2. Provide only conservative helpers first: =sequence-map=, =sequence-fold=,
+   =sequence-filter=, =sequence-take=, =sequence-indexed=, and
+   =sequence-partition=.
+3. Use it in projection-heavy modules before adding any coroutine behavior.
+4. Only introduce cothread-style generation after there is a real parser or
+   runtime-source streaming boundary that benchmark data can reproduce.
+
+Expected benefit: search/protocol/snapshot code becomes a named data pipeline
+instead of repeated local =map=, =foldl=, =take*=, and bespoke accumulator
+shapes.
+
+*** 11.02.2.3 Peekable iterator as observable state
+
+=peekable-iterator.ss= models an iterator with explicit cached state:
+
+- no cached value
+- cached value
+- cached exception
+- end reached
+
+It also exposes adapters from lists, vectors, strings, hash tables, and raw
+iterators.
+
+The useful part for the harness is the observable cursor contract. Query and
+source-range logic often carries implicit state: path, start line, end line,
+current owner, current source form, and fallback state.
+
+Recommended harness adaptation:
+
+1. Add a narrow =source-cursor= only if selector/source-range behavior keeps
+   repeating implicit cursor state across query and source transport code.
+   growing.
+2. Make cursor operations explicit: =cursor-peek=, =cursor-next=,
+   =cursor-end?=, =cursor-selector=.
+3. Use it behind query/source transport, not in the parser core.
+
+Expected benefit: agent-facing selector behavior becomes easier to explain and
+test. Repeated reads and end-of-range behavior can be verified directly.
+
+*** 11.02.2.4 Concurrency as a named contract
+
+=concurrency.ss= wraps complex behavior behind small contracts:
+
+- =sequentialize/mutex=
+- =sequentialize/actor=
+- =race/list=
+- =parallel-map=
+- =parallel-hash-value-map=
+
+It also documents tradeoffs clearly. For example, the mutex implementation is
+called out as easier to debug and faster, while preserving the caller's dynamic
+environment.
+
+The harness currently has a concrete performance signal: self-apply benchmark
+usually reports =structural-index-packet= as the slowest step. If optimization
+continues, concurrency should be introduced as a deterministic contract, not
+as scattered =spawn= calls.
+
+Recommended harness adaptation:
+
+1. Add no concurrency until the benchmark proves a parser/projection bottleneck.
+2. If needed, introduce a deterministic =parallel-map/indexed= helper.
+3. Preserve sorted output order, because search packets and snapshots must
+   remain deterministic.
+   stay stable.
+4. Gate the change with self-apply benchmark and snapshot tests.
+
+Expected benefit: optimization remains observable and reversible. Agent edits
+can reason about one concurrency boundary instead of many hidden thread calls.
+
+*** 11.02.2.5 Stable facade over complex implementation
+
+=pure/dict/rationaldict.ss= wraps a lower-level =bare-= implementation behind
+a stable public API. The facade exports simple operations:
+
+- =rationaldict-ref=
+- =rationaldict-get=
+- =rationaldict-put=
+- =rationaldict-update=
+- =rationaldict-remove=
+- =rationaldict->list=
+- =list->rationaldict=
+
+This is a strong pattern for the harness because several modules are becoming
+large projection owners: =protocol/json.ss=, =snapshot/core.ss=, and
+=commands/search.ss=.
+
+Recommended harness adaptation:
+
+1. Split projection internals from public projection facades.
+2. Keep =facade.ss= modules as the stable import surface for commands and
+   tests.
+   tests.
+3. Move packet-specific details into owner modules when a file becomes a mixed
+   schema or projection owner.
+   bag of unrelated schemas.
+
+Expected benefit: agents can inspect the stable surface without reading every
+schema detail. Future schema changes become smaller and less risky.
+
+*** 11.02.2.6 Time and benchmark normalization
+
+=timestamp.ss= first normalizes SRFI-19 time into TAI, UTC, or monotonic time
+before exposing timestamp conversions. It keeps unit constants such as
+=one-second=, =one-minute=, =one-hour=, and =one-day= close to the conversion
+logic.
+
+The harness benchmark command currently owns timing locally. That is acceptable
+for first implementation, but the better long-term shape is a tiny support
+module.
+
+Recommended harness adaptation:
+
+1. Add =src/support/time.ss=.
+2. Move =monotonic-ms=, =duration-ms=, and =duration-state= there.
+3. Keep benchmark snapshots stable by recording measured/missing state, not raw
+   durations.
+   wall-clock values.
+
+Expected benefit: benchmark, self-apply, and CI all speak the same time
+language.
+
+*** 11.02.2.7 Build environment as one entry contract
+
+=building.ss= centralizes build setup through =%set-build-environment!= and
+then exposes =build-spec= and a command entry point. It owns environment
+mutation, load path setup, path config root, package metadata, and build
+options in one place.
+
+The harness can learn the shape without adopting the build system:
+
+1. Keep command setup in one command-owned boundary.
+2. Avoid repeating environment and path mutation across commands.
+3. Prefer one explicit initialization function over many local shell snippets.
+
+Expected benefit: command behavior becomes easier for agents to simulate and
+test.
+
+*** 11.02.2.8 Assertion and macro ergonomics
+
+=assert.ss= wraps comparison failures in macros that preserve expression names
+and values. This is a small but important test ergonomics pattern.
+
+Harness tests already use =std/test=, but some failures can still be hard to
+read when a packet shape changes. For high-value semantic checks, small
+domain-specific check helpers are better than repeated raw equality checks.
+
+Recommended harness adaptation:
+
+1. Keep =std/test= as the base.
+2. Add domain check helpers only where they name harness semantics, such as
+   packet field presence, selector stability, benchmark receipt shape,
+   =check-search-packet-owner=, or =check-bench-receipt=.
+3. Do not add macros for one-off assertions.
+
+Expected benefit: tests explain the semantic contract rather than only the
+data structure.
+
+** 11.02.3 Testing Lessons
+
+The best tests in =gerbil-utils= verify user-facing behavior:
+
+- =t/generator-test.ss= checks list/vector conversion, fold, partition, merge,
+  flatten, singleton, and concat.
+- =t/peekable-iterator-test.ss= repeatedly checks =peek=, =next!=, and =end?=
+  after the iterator reaches the end.
+
+The harness should keep following this direction. Good tests for this project
+should answer questions like:
+
+- Can an agent find the next command after an empty search?
+- Does a selector read behave the same after repeated calls?
+- Does a benchmark receipt identify the slowest step?
+- Does self-apply prove the command line still has zero findings?
+- Does a packet projection keep sorted, deterministic output?
+
+This is more valuable than testing internal helper details.
+
+** 11.02.4 Recommended Adoption Plan
+
+*** 11.02.4.1 Immediate
+
+1. Add =support/time.ss= for benchmark timing.
+2. Add =support/path-config.ss= for run/cache/runtime-source/bench artifact
+   roots.
+   lifecycle.
+3. Add test helpers for benchmark receipt assertions.
+
+*** 11.02.4.2 Near term
+
+1. Add =support/sequence.ss= with conservative list/sequence combinators.
+2. Use it in projection-heavy paths where it removes real duplication.
+3. Split large projection owners by schema or packet family.
+
+*** 11.02.4.3 Later
+
+1. Experiment with deterministic parallel projection only after benchmark data
+   identifies a repeated parser or packet projection bottleneck.
+   justifies it.
+2. Introduce cursor/peekable-iterator behavior only if selector/source-range
+   state continues to leak into multiple command owners.
+   handling keeps growing.
+3. Consider actor or limiter-style contracts only for real external runtime or
+   subprocess boundaries.
+   provider process contention.
+
+** 11.02.5 Avoid Copying These Directly
+
+- Do not copy broad =export #t= style. The harness benefits from explicit
+  facade exports.
+  facades.
+- Do not copy global mutable path configuration as-is. Prefer explicit root
+  arguments or command-local parameters.
+- Do not copy full coroutine generator machinery until there is a real
+  streaming boundary.
+- Do not introduce actor/concurrency utilities before benchmark evidence
+  proves the need and identifies a deterministic hot path.
+- Do not add macro helpers unless they name repeated harness semantics.
+
+** 11.02.6 Quality Bar For Adoption
+
+Any adopted pattern should satisfy all of these:
+
+1. It reduces a real repeated shape in the harness.
+2. It makes agent-facing behavior easier to explain.
+3. It has a stable facade.
+4. It preserves deterministic packet and snapshot output.
+5. It is covered by self-apply, benchmark, or command-level tests.
+
+If a pattern does not meet that bar, leave it in research notes rather than
+moving it into the harness.

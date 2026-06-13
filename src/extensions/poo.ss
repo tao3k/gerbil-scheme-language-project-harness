@@ -4,6 +4,7 @@
 (import :extensions/model
         :package-manager/facade
         :parser/facade
+        :std/sugar
         :support/list)
 
 (export poo-extension-active?

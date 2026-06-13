@@ -161,6 +161,8 @@
      (supers (":object"))
      (slots ("name" "count"))
      (options ("transparent:"))
+     (specializers ())
+     (specializerTypes ())
      (selector "t/fixtures/parser/complex-syntax.ss:19-19"))
     (pooForm
      (name ":render")
@@ -172,6 +174,8 @@
      (supers ())
      (slots ())
      (options ())
+     (specializers ())
+     (specializerTypes ())
      (selector "t/fixtures/parser/complex-syntax.ss:21-21"))
     (pooForm
      (name ":render")
@@ -183,7 +187,19 @@
      (supers ())
      (slots ())
      (options ())
+     (specializers ("widget:<Widget>"))
+     (specializerTypes ("<Widget>"))
      (selector "t/fixtures/parser/complex-syntax.ss:23-29"))))
+  (higherOrderForms
+   ((higherOrderForm
+     (name "case-lambda")
+     (kind "case-lambda")
+     (role "multi-arity-function")
+     (operandCount 2)
+     (arities (0 1))
+     (formals ("x"))
+     (caller "select")
+     (selector "t/fixtures/parser/complex-syntax.ss:42-44"))))
   (calls
    ((call
      (callee ":render")

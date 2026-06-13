@@ -2,7 +2,8 @@
 ;;; Stable compare facts for active Gerbil runtime evidence.
 
 (import :language/evidence
-        :std/srfi/13)
+        :std/srfi/13
+        :std/sugar)
 
 (export compare-facts
         matching-compare-facts

@@ -21,6 +21,7 @@ Usage:
   gerbil-scheme-harness query <owner-path> --term <symbol> [--term <symbol>] [--workspace PROJECT_ROOT] [--names-only | --code]
   gerbil-scheme-harness query --from-hook direct-source-read --selector <workspace-path:start-end> --workspace PROJECT_ROOT --code
   gerbil-scheme-harness check [--changed | --full] [--json] [--whitelist PATH] [PROJECT_ROOT]
+  gerbil-scheme-harness bench [--json] [--iterations N] [--max-total-ms N] [--whitelist PATH] [PROJECT_ROOT]
   gerbil-scheme-harness evidence graph [--json] [PROJECT_ROOT]
   gerbil-scheme-harness evidence analyze [--json] [PROJECT_ROOT]
   gerbil-scheme-harness agent doctor [--json] [PROJECT_ROOT]

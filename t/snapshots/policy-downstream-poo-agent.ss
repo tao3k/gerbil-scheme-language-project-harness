@@ -12,4 +12,8 @@
    ("GERBIL-SCHEME-AGENT-R007"
     "src/orders/io.ss"
     "src/orders/io.ss"
-    "POO IO method overrides in src/ need runtime-source-backed writeenv/printer-hook witness coverage before being treated as verified"))))
+    "POO IO method overrides in src/ need runtime-source-backed writeenv/printer-hook witness coverage before being treated as verified")
+   ("GERBIL-SCHEME-AGENT-R008"
+    "src/orders/io.ss"
+    "src/orders/io.ss:3-3"
+    "POO method :wr is missing parser-owned defgeneric,defclass facts; query POO pattern evidence and add defgeneric/defclass structure before extending methods"))))

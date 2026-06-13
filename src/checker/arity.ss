@@ -3,6 +3,7 @@
 
 (import :checker/model
         :parser/facade
+        :std/sugar
         :types/findings
         :types/model
         :types/signatures)

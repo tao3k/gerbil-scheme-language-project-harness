@@ -3,6 +3,8 @@
 
 (import :gerbil/expander
         :gerbil/gambit
+        :parser/control-flow
+        :parser/higher-order
         :parser/model
         :parser/package
         :parser/poo
@@ -79,7 +81,30 @@
         poo-form-fact-supers
         poo-form-fact-slots
         poo-form-fact-options
+        poo-form-fact-specializers
+        poo-form-fact-specializer-types
         poo-form-fact-selector
+        higher-order-fact-name
+        higher-order-fact-kind
+        higher-order-fact-path
+        higher-order-fact-start
+        higher-order-fact-end
+        higher-order-fact-role
+        higher-order-fact-operand-count
+        higher-order-fact-arities
+        higher-order-fact-formals
+        higher-order-fact-caller
+        higher-order-fact-selector
+        control-flow-fact-name
+        control-flow-fact-kind
+        control-flow-fact-path
+        control-flow-fact-start
+        control-flow-fact-end
+        control-flow-fact-role
+        control-flow-fact-caller
+        control-flow-fact-binding-count
+        control-flow-fact-body-form-count
+        control-flow-fact-selector
         top-form-kind
         top-form-head
         top-form-path
@@ -101,6 +126,8 @@
         source-file-macros
         source-file-bindings
         source-file-poo-forms
+        source-file-higher-order-forms
+        source-file-control-flow-forms
         source-file-parse-error
         project-package-path
         project-package-name
@@ -257,6 +284,18 @@
                  "-"
                  (number->string (poo-form-fact-end fact))))
 
+(def (higher-order-fact-selector fact)
+  (string-append (higher-order-fact-path fact) ":"
+                 (number->string (higher-order-fact-start fact))
+                 "-"
+                 (number->string (higher-order-fact-end fact))))
+
+(def (control-flow-fact-selector fact)
+  (string-append (control-flow-fact-path fact) ":"
+                 (number->string (control-flow-fact-start fact))
+                 "-"
+                 (number->string (control-flow-fact-end fact))))
+
 (def (top-form-selector form)
   (string-append (top-form-path form) ":"
                  (number->string (top-form-start form))
@@ -304,7 +343,9 @@
              (module-imports '())
              (macros '())
              (bindings '())
-             (poo-forms '()))
+             (poo-forms '())
+             (higher-order-forms '())
+             (control-flow-forms '()))
       (match rest
         ([form . more]
          (let* ((datum (syntax->datum form))
@@ -318,35 +359,47 @@
                    '()))
                 (form-macros (macro-facts-from-form relpath form datum))
                 (form-bindings (binding-facts-from-form relpath form datum))
-                (form-poo-forms (poo-form-facts-from-form relpath form datum)))
+                (form-poo-forms (poo-form-facts-from-form relpath form datum))
+                (form-higher-order-forms
+                 (higher-order-facts-from-form relpath form datum))
+                (form-control-flow-forms
+                 (control-flow-facts-from-form relpath form datum))
+                (next-control-flow-forms
+                 (append form-control-flow-forms control-flow-forms)))
            (cond
             ((eq? head 'package:)
-             (lp more (datum->string (safe-cadr datum)) prelude namespace imports exports includes definitions calls next-top-forms module-imports macros bindings poo-forms))
+             (lp more (datum->string (safe-cadr datum)) prelude namespace imports exports includes definitions calls next-top-forms module-imports macros bindings poo-forms higher-order-forms next-control-flow-forms))
             ((eq? head 'prelude:)
-             (lp more package (datum->string (safe-cadr datum)) namespace imports exports includes definitions calls next-top-forms module-imports macros bindings poo-forms))
+             (lp more package (datum->string (safe-cadr datum)) namespace imports exports includes definitions calls next-top-forms module-imports macros bindings poo-forms higher-order-forms next-control-flow-forms))
             ((eq? head 'namespace:)
-             (lp more package prelude (datum->string (safe-cadr datum)) imports exports includes definitions calls next-top-forms module-imports macros bindings poo-forms))
+             (lp more package prelude (datum->string (safe-cadr datum)) imports exports includes definitions calls next-top-forms module-imports macros bindings poo-forms higher-order-forms next-control-flow-forms))
             ((eq? head 'import)
              (lp more package prelude namespace
                  (append (module-refs datum) imports) exports includes definitions calls next-top-forms
                  (append form-module-imports module-imports)
                  (append form-macros macros)
                  (append form-bindings bindings)
-                 (append form-poo-forms poo-forms)))
+                 (append form-poo-forms poo-forms)
+                 (append form-higher-order-forms higher-order-forms)
+                 next-control-flow-forms))
             ((eq? head 'export)
              (lp more package prelude namespace imports
                  (append (export-symbols datum) exports) includes definitions calls next-top-forms
                  module-imports
                  (append form-macros macros)
                  (append form-bindings bindings)
-                 (append form-poo-forms poo-forms)))
+                 (append form-poo-forms poo-forms)
+                 (append form-higher-order-forms higher-order-forms)
+                 next-control-flow-forms))
             ((eq? head 'include)
              (lp more package prelude namespace imports exports
                  (append (string-datums datum) includes) definitions calls next-top-forms
                  module-imports
                  (append form-macros macros)
                  (append form-bindings bindings)
-                 (append form-poo-forms poo-forms)))
+                 (append form-poo-forms poo-forms)
+                 (append form-higher-order-forms higher-order-forms)
+                 next-control-flow-forms))
             ((member head +definition-heads+)
              (lp more package prelude namespace imports exports includes
                  (append (definitions-from-form relpath form datum) definitions)
@@ -354,14 +407,18 @@
                  module-imports
                  (append form-macros macros)
                  (append form-bindings bindings)
-                 (append form-poo-forms poo-forms)))
+                 (append form-poo-forms poo-forms)
+                 (append form-higher-order-forms higher-order-forms)
+                 next-control-flow-forms))
             (else
              (lp more package prelude namespace imports exports includes definitions
                  next-calls next-top-forms
                  module-imports
                  (append form-macros macros)
                  (append form-bindings bindings)
-                 (append form-poo-forms poo-forms))))))
+                 (append form-poo-forms poo-forms)
+                 (append form-higher-order-forms higher-order-forms)
+                 next-control-flow-forms)))))
         (else
          (make-source-file relpath line-count package prelude namespace
                            (dedupe imports) (dedupe exports) (dedupe includes)
@@ -371,4 +428,6 @@
                            (reverse macros)
                            (reverse bindings)
                            (reverse poo-forms)
+                           (reverse higher-order-forms)
+                           (reverse control-flow-forms)
                            parse-error))))))
