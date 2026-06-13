@@ -48,7 +48,17 @@
        (hash (path (project-package-path package))
              (name (project-package-name package))
              (dependencies (project-package-dependencies package))
-             (fields (hash (packageManager (project-package-manager package)))))))
+             (fields (hash (packageManager (project-package-manager package))
+                           (testDirectoryPolicy
+                            (test-directory-policy-json
+                             (project-package-test-directory-policy package))))))))
+
+(def (test-directory-policy-json policy)
+  (and policy
+       (hash (allowedDirectories
+              (test-directory-policy-allowed-directories policy))
+             (explanation
+              (test-directory-policy-explanation policy)))))
 
 (def (pattern-mapping-json pattern)
   (and pattern

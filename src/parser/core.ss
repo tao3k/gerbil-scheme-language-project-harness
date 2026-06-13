@@ -57,6 +57,9 @@
         project-package-name
         project-package-dependencies
         project-package-manager
+        project-package-test-directory-policy
+        test-directory-policy-allowed-directories
+        test-directory-policy-explanation
         project-index-root
         project-index-files
         project-index-package)
@@ -79,7 +82,8 @@
 (defstruct call-fact (callee arity path start end arguments argument-types caller))
 (defstruct top-form (kind head path start end))
 (defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms parse-error))
-(defstruct project-package (path name dependencies manager))
+(defstruct test-directory-policy (allowed-directories explanation))
+(defstruct project-package (path name dependencies manager test-directory-policy))
 (defstruct project-index (root files package))
 
 (def (collect-project root)
@@ -123,7 +127,8 @@
             (make-project-package "gerbil.pkg"
                                   (datum->string (safe-cadr package-form))
                                   (package-dependencies package-form)
-                                  "gxpkg"))))))
+                                  "gxpkg"
+                                  (package-test-directory-policy package-form)))))))
 
 (def (package-form? datum)
   (and (pair? datum) (eq? (car datum) 'package:)))
@@ -135,6 +140,50 @@
        (dedupe (filter-map datum->string (datum-list-items deps))))
       ([_ . more] (lp more))
       (else '()))))
+
+(def (package-test-directory-policy datum)
+  (let (policy (package-field-value datum 'policy:))
+    (and policy
+         (let (entry (policy-test-directory-entry policy))
+           (and entry
+                (make-test-directory-policy
+                 (policy-directory-list entry)
+                 (policy-string-field entry 'explanation:)))))))
+
+(def (policy-test-directory-entry policy)
+  (if (test-directory-policy-form? policy)
+    policy
+    (find test-directory-policy-form? (datum-list-items policy))))
+
+(def (test-directory-policy-form? datum)
+  (and (pair? datum)
+       (member (car datum) '(test-directory-layout test-directory-policy))))
+
+(def (policy-directory-list datum)
+  (or (policy-string-list-field datum 'allowed-directories:)
+      (policy-string-list-field datum 'allow-directories:)
+      (policy-string-list-field datum 'allow:)
+      '()))
+
+(def (policy-string-list-field datum field)
+  (let (value (package-field-value datum field))
+    (cond
+     ((not value) #f)
+     ((or (string? value) (symbol? value)) [(datum->string value)])
+     (else (dedupe (filter-map datum->string (datum-list-items value)))))))
+
+(def (policy-string-field datum field)
+  (let (value (package-field-value datum field))
+    (and value (datum->string value))))
+
+(def (package-field-value datum field)
+  (let lp ((rest (datum-list-items datum)))
+    (match rest
+      ([key value . more]
+       (if (eq? key field)
+         value
+         (lp more)))
+      (else #f))))
 
 (def (parse-source-file root path)
   (let* ((fullpath (source-full-path root path))

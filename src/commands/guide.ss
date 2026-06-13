@@ -24,6 +24,7 @@
    "|cmd evidence-analyze=gerbil-scheme-harness evidence analyze --json ."
    "|cmd check=gerbil-scheme-harness check --changed ."
    "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
+   "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads"
    "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed"])
 
 (def (print-guide)

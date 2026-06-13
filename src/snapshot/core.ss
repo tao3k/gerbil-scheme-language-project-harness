@@ -154,6 +154,13 @@
           (list 'witness (hash-get fact 'witness))
           (runtime-source-ref-snapshot source-ref)
           (runtime-source-acquisition-snapshot acquisition)
+          (optional-snapshot 'selectorResolver details selector-resolver-snapshot)
+          (list 'sourceExamples
+                (map source-example-snapshot
+                     (snapshot-detail-list-value details 'sourceExamples)))
+          (list 'sourceComments
+                (map source-comment-snapshot
+                     (snapshot-detail-list-value details 'sourceComments)))
           (list 'selectors
                 (map evidence-selector-snapshot
                      (hash-get fact 'selectors)))
@@ -257,6 +264,9 @@
          (snapshot-detail-list details 'capabilities)
          (snapshot-detail-string details 'minimalImport)
          (snapshot-detail-string details 'runtimeSourceSelector)
+         (snapshot-detail-object details 'selectorResolver selector-resolver-snapshot)
+         (snapshot-detail-objects details 'sourceExamples source-example-snapshot)
+         (snapshot-detail-objects details 'sourceComments source-comment-snapshot)
          (snapshot-detail-string details 'reference)
          (snapshot-detail-string details 'testDirectory)
          (snapshot-detail-list details 'policyRules)
@@ -271,6 +281,58 @@
   (if (hash-key? details key)
     [(list key (snapshot-list (hash-get details key)))]
     '()))
+
+(def (snapshot-detail-list-value details key)
+  (if (hash-key? details key)
+    (hash-get details key)
+    []))
+
+(def (snapshot-detail-object details key snapshot-proc)
+  (if (hash-key? details key)
+    [(list key (snapshot-proc (hash-get details key)))]
+    '()))
+
+(def (snapshot-detail-objects details key snapshot-proc)
+  (if (hash-key? details key)
+    [(list key (map snapshot-proc (hash-get details key)))]
+    '()))
+
+(def (optional-snapshot label details snapshot-proc)
+  (if (hash-key? details label)
+    (list label (snapshot-proc (hash-get details label)))
+    (list label #f)))
+
+(def (selector-resolver-snapshot resolver)
+  (list 'selectorResolver
+        (list 'scheme (hash-get resolver 'scheme))
+        (list 'owner (hash-get resolver 'owner))
+        (list 'stateNamespace (hash-get resolver 'stateNamespace))
+        (list 'selectorFormat (hash-get resolver 'selectorFormat))
+        (list 'output (hash-get resolver 'output))
+        (list 'indexOwner (hash-get resolver 'indexOwner))))
+
+(def (source-example-snapshot example)
+  (list 'sourceExample
+        (list 'id (hash-get example 'id))
+        (list 'role (hash-get example 'role))
+        (list 'symbol (hash-get example 'symbol))
+        (list 'selector (hash-get example 'selector))
+        (source-example-form-snapshot (hash-get example 'form))
+        (list 'commentMode (hash-get example 'commentMode))))
+
+(def (source-example-form-snapshot form)
+  (list 'form
+        (list 'head (hash-get form 'head))
+        (list 'operands (snapshot-list (hash-get form 'operands)))
+        (list 'keywords (snapshot-list (hash-get form 'keywords)))))
+
+(def (source-comment-snapshot comment)
+  (list 'sourceComment
+        (list 'id (hash-get comment 'id))
+        (list 'selector (hash-get comment 'selector))
+        (list 'extractor (hash-get comment 'extractor))
+        (list 'summary (hash-get comment 'summary))
+        (list 'fallback (hash-get comment 'fallback))))
 
 (def (language-evidence-search-snapshot namespace authority query facts next)
   (list 'languageEvidenceSearch
@@ -341,7 +403,10 @@
            [(list 'gscResolved (hash-get side 'gscResolved))]
            '())
          (snapshot-detail-string side 'source)
-         (snapshot-detail-string side 'status))))
+         (snapshot-detail-string side 'status)
+         (snapshot-detail-list side 'targetVersions)
+         (snapshot-detail-string side 'compileMode)
+         (snapshot-detail-string side 'stateNamespace))))
 
 (def (compare-search-snapshot query facts next)
   (list 'compareSearch

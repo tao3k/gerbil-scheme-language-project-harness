@@ -52,6 +52,9 @@
         project-package-name
         project-package-dependencies
         project-package-manager
+        project-package-test-directory-policy
+        test-directory-policy-allowed-directories
+        test-directory-policy-explanation
         project-index-root
         project-index-files
         project-index-package)

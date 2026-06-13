@@ -18,6 +18,8 @@
 
 (def +max-source-line-count+ 650)
 (def +min-source-definition-count+ 40)
+(def +default-test-directory+ "t")
+(def +min-test-directory-policy-explanation-length+ 24)
 
 (def (run-modularity-policy index)
   (append
@@ -25,7 +27,7 @@
    (repeated-owner-entry-findings index)
    (bin-entrypoint-implementation-findings index)
    (facade-implementation-findings index)
-   (legacy-test-directory-findings index)
+   (test-directory-layout-findings index)
    (source-leaf-bloat-findings index)))
 
 (def (sibling-file-dir-owner-collision-findings index)
@@ -110,10 +112,22 @@
     (and (string-prefix? "bin/" path)
          (string-suffix? ".ss" path))))
 
-(def (legacy-test-directory-source-file? file)
-  (let (path (source-file-path file))
-    (and (string-prefix? "test/" path)
-         (string-suffix? ".ss" path))))
+(def (non-t-test-directory-source-file file)
+  (let* ((path (source-file-path file))
+         (directory (non-t-test-directory-name path)))
+    (and directory
+         (string-suffix? ".ss" path)
+         directory)))
+
+(def (non-t-test-directory-name path)
+  (cond
+   ((path-contains-directory? path "test") "test")
+   ((path-contains-directory? path "tests") "tests")
+   (else #f)))
+
+(def (path-contains-directory? path directory)
+  (or (string-prefix? (string-append directory "/") path)
+      (string-contains path (string-append "/" directory "/"))))
 
 (def (path-without-extension path)
   (substring path 0 (- (string-length path) 3)))
@@ -200,24 +214,64 @@
      (hash (definition (definition-name definition))
            (selector selector)))))
 
-(def (legacy-test-directory-findings index)
+(def (test-directory-layout-findings index)
   (filter-map
    (lambda (file)
-     (and (legacy-test-directory-source-file? file)
-          (legacy-test-directory-finding file)))
+     (let (actual-directory (non-t-test-directory-source-file file))
+       (and actual-directory
+            (not (test-directory-policy-allows? index actual-directory))
+            (test-directory-layout-finding index file actual-directory))))
    (project-index-files index)))
 
-(def (legacy-test-directory-finding file)
-  (make-type-finding
-   (policy-rule-id +modularity-test-directory-rule+)
-   (policy-rule-severity +modularity-test-directory-rule+)
-   (source-file-path file)
-   (string-append "Gerbil unit test owner "
-                  (source-file-path file)
-                  " uses legacy test/ layout; use t/ while keeping unit tests explicit")
-   (source-file-path file)
-   (hash (expectedDirectory "t")
-         (actualDirectory "test"))))
+(def (test-directory-policy-allows? index directory)
+  (and (test-directory-policy-directory-listed? index directory)
+       (test-directory-policy-explanation-clear? (project-test-directory-policy index))))
+
+(def (test-directory-policy-directory-listed? index directory)
+  (let (policy (project-test-directory-policy index))
+    (and policy
+         (member directory (test-directory-policy-allowed-directories policy)))))
+
+(def (test-directory-policy-explanation-clear? policy)
+  (and policy
+       (let (explanation (test-directory-policy-explanation policy))
+         (and explanation
+              (fx>= (string-length (string-trim explanation))
+                    +min-test-directory-policy-explanation-length+)))))
+
+(def (project-test-directory-policy index)
+  (and (project-index-package index)
+       (project-package-test-directory-policy (project-index-package index))))
+
+(def (test-directory-layout-finding index file actual-directory)
+  (let* ((policy (project-test-directory-policy index))
+         (listed? (test-directory-policy-directory-listed? index actual-directory))
+         (explanation (and policy (test-directory-policy-explanation policy)))
+         (reason (test-directory-policy-rejection-reason policy listed?)))
+    (make-type-finding
+     (policy-rule-id +modularity-test-directory-rule+)
+     (policy-rule-severity +modularity-test-directory-rule+)
+     (source-file-path file)
+     (string-append "Gerbil unit test owner "
+                    (source-file-path file)
+                    " uses non-t "
+                    actual-directory
+                    "/ layout; use t/ unless gerbil.pkg policy explicitly allows this directory with a clear explanation ("
+                    reason
+                    ")")
+     (source-file-path file)
+     (hash (expectedDirectory +default-test-directory+)
+           (actualDirectory actual-directory)
+           (policyDirectoryAllowed listed?)
+           (policyExplanation explanation)
+           (policyExplanationMinimumChars
+            +min-test-directory-policy-explanation-length+)))))
+
+(def (test-directory-policy-rejection-reason policy listed?)
+  (cond
+   ((not policy) "no policy override")
+   ((not listed?) "directory is not allowed by policy")
+   (else "policy override is missing a clear explanation")))
 
 (def (source-leaf-bloat-findings index)
   (filter-map

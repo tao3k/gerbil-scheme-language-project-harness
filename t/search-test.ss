@@ -14,10 +14,13 @@
       (parameterize ((current-output-port out))
         (check (search-main args) => 0)))))
 
+(def (contains? output fragment)
+  (and (string-contains output fragment) #t))
+
 (def (check-output-contains output fragments)
   (for-each
    (lambda (fragment)
-     (check (string-contains output fragment) => #t))
+     (check (contains? output fragment) => #t))
    fragments))
 
 (def search-test
@@ -96,6 +99,7 @@
         (check (string-contains output "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --view seeds .") => #t)
         (check (string-contains output "|cmd structural-index=gerbil-scheme-harness search structural --json .") => #t)
         (check (string-contains output "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing") => #t)
+        (check (string-contains output "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads") => #t)
         (check (string-contains output "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed") => #t)))
     (test-case "search pipe routes through compact fzf frontier"
       (let (output (search-output ["pipe" "guide" "."]))
@@ -128,6 +132,16 @@
           "operation=clone-or-fetch-checkout-index"
           "stateNamespace=runtime-source/gerbil-scheme"
           "indexOwner=asp-structural-index"
+          "|selectorResolver scheme=gerbil-runtime-source owner=asp stateNamespace=runtime-source/gerbil-scheme"
+          "selectorFormat=gerbil-runtime-source://<source-path>#<symbol> output=code-with-comments"
+          "|sourceExample id=std-sugar-defrule role=macro-rule symbol=defrule selector=gerbil-runtime-source://src/std/sugar.ss#defrule"
+          "head=defrule operands=(<name> arg ...),body ... keywords=-"
+          "|sourceExample id=std-sugar-defsyntax-call role=procedural-macro-call symbol=defsyntax-call selector=gerbil-runtime-source://src/std/sugar.ss#defsyntax-call"
+          "|sourceExample id=module-sugar-only-in role=import-filter symbol=only-in selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#only-in"
+          "|sourceComment id=std-sugar-comment-boundary selector=gerbil-runtime-source://src/std/sugar.ss#defsyntax-call"
+          "fallback=comment-missing-is-signal"
+          "|selector role=std-sugar-source symbol=defrule selector=gerbil-runtime-source://src/std/sugar.ss#defrule"
+          "|selector role=module-sugar-import-filter symbol=only-in selector=gerbil-runtime-source://src/gerbil/core/module-sugar.ss#only-in"
           "clone-active-runtime-source-before-answering-language-or-macro-usage"
           "|failureCase id=memory-language-answer"
           "|failureCase id=wrong-runtime-version"
@@ -135,6 +149,8 @@
           "|qualitySignal id=no-memory"
           "|qualitySignal id=version-matched-source"
           "|qualitySignal id=asp-state-managed-checkout"
+          "|qualitySignal id=code-with-comments-output"
+          "|qualitySignal id=selector-resolver-owned-by-asp"
           "next=search runtime-source macro sugar module-sugar"])
         (check (not (string-contains output ".data")) => #t)
         (check (not (string-contains output "pending")) => #t)))
@@ -167,6 +183,12 @@
           "|fact id=gerbil-runtime-writeenv-source"
           "active-runtime-version-to-writeenv-source-acquisition-plan"
           "agent-needs-runtime-printer-hook-facts-before-poo-writeenv-roundtrip-claims"
+          "|selectorResolver scheme=gerbil-runtime-source owner=asp stateNamespace=runtime-source/gerbil-scheme"
+          "|sourceExample id=runtime-writeenv-binding role=runtime-binding symbol=writeenv selector=gerbil-runtime-source://src/bootstrap/gerbil/builtin.ssxi.ss#writeenv"
+          "head=system: operands=writeenv::t,(t::t) keywords=-"
+          "|sourceExample id=runtime-write-object-owner role=runtime-printer-owner symbol=write-object selector=gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object"
+          "|sourceComment id=builtin-primitive-comment selector=gerbil-runtime-source://src/bootstrap/gerbil/builtin.ssxi.ss#writeenv"
+          "|sourceComment id=write-object-comment-boundary selector=gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object"
           "selector=gerbil-runtime-source://src/bootstrap/gerbil/builtin.ssxi.ss#writeenv"
           "selector=gerbil-runtime-source://src/bootstrap/gerbil/core.ssi#writeenv"
           "selector=gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object"
@@ -183,7 +205,12 @@
              (packet (call-with-input-string output read-json))
              (runtime (hash-get packet "runtime"))
              (source-ref (hash-get packet "sourceRef"))
-             (acquisition (hash-get packet "acquisition")))
+             (acquisition (hash-get packet "acquisition"))
+             (fact (car (hash-get packet "facts")))
+             (details (hash-get fact "details"))
+             (resolver (hash-get details "selectorResolver"))
+             (examples (hash-get details "sourceExamples"))
+             (comments (hash-get details "sourceComments")))
         (check (hash-get packet "schemaId")
                => "agent.semantic-protocols.semantic-runtime-source-acquisition")
         (check (hash-get packet "namespace") => "runtime-source")
@@ -202,6 +229,10 @@
         (check (hash-get acquisition "stateNamespace")
                => "runtime-source/gerbil-scheme")
         (check (hash-get acquisition "indexOwner") => "asp-structural-index")
+        (check (hash-get resolver "scheme") => "gerbil-runtime-source")
+        (check (hash-get resolver "output") => "code-with-comments")
+        (check (hash-get (car examples) "id") => "std-sugar-defrule")
+        (check (hash-get (car comments) "fallback") => "comment-missing-is-signal")
         (check (hash-get packet "next")
                => "search runtime-source macro sugar module-sugar")
         (check (string-prefix? "Gerbil v" (hash-get runtime "systemVersion")) => #t)
@@ -254,6 +285,29 @@
           "|qualitySignal id=active-runtime-fact"
           "|qualitySignal id=path-free-compare-output"
           "next=search env gxi load-path"])
+        (check (not (string-contains output ".data")) => #t)
+        (check (not (string-contains output "/Users/")) => #t)
+        (check (not (string-contains output "/opt/homebrew")) => #t)))
+    (test-case "compare search routes compile target versions to runtime source"
+      (let (output (search-output ["compare" "compile" "v0.18" "v0.19" "nightly" "."]))
+        (check-output-contains
+         output
+         ["[gerbil-search-compare]"
+          "evidenceGrade=fact"
+          "quality=verified"
+          "|compare id=compile-target-runtime-source result=active-runtime-source-checkout-required-before-version-guidance"
+          "witness=active-runtime-selects-versioned-source-before-compile-guidance"
+          "|left kind=active-runtime"
+          "|right kind=requested-compile-target source=agent-request-or-user-claim status=non-authoritative-until-runtime-source-acquired"
+          "|compareTargets versions=v0.18,v0.19,nightly compileMode=active-gxi-gsc-first stateNamespace=runtime-source/gerbil-scheme"
+          "|agentScenario id=agent-needs-to-answer-gerbil-compile-or-syntax-question-for-a-requested-version"
+          "|failureCase id=requested-version-wins-without-runtime"
+          "|failureCase id=compile-source-mismatch"
+          "|failureCase id=nightly-assumption"
+          "|qualitySignal id=compile-version-query"
+          "|qualitySignal id=version-matched-source"
+          "|qualitySignal id=source-checkout-required"
+          "next=search runtime-source macro sugar module-sugar"])
         (check (not (string-contains output ".data")) => #t)
         (check (not (string-contains output "/Users/")) => #t)
         (check (not (string-contains output "/opt/homebrew")) => #t)))
