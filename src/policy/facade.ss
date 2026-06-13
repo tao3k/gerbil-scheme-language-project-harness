@@ -14,9 +14,12 @@
         +modularity-owner-collision-rule+
         +modularity-repeated-owner-entry-rule+
         +modularity-bin-entrypoint-rule+
+        +modularity-test-directory-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
+        +agent-vague-definition-rule+
+        +agent-top-level-executable-rule+
         run-policy-checks
         run-modularity-policy
         +max-source-line-count+
@@ -31,4 +34,6 @@
         facade-intent-finding
         generic-owner-segment
         generic-owner-finding
+        vague-definition-finding
+        top-level-executable-finding
         facade-export-conflict-findings)

@@ -75,7 +75,8 @@ owned by the native Gerbil reader/expander boundary, not ad hoc text scans.
 
 *** 21.01.4.5 Phase 5: Real-Source Evidence
 
-- Run parser and check passes against ~.data/gerbil~.
+- Run parser and check passes against a version-pinned Gerbil source checkout
+  acquired by the runtime-source flow.
 - Classify native reader findings into Gerbil modules, Gambit compatibility
   files, and custom grammar DSL files.
 - Feed any shared-contract gaps back through RFC and schema changes before

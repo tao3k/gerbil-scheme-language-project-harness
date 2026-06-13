@@ -9,9 +9,14 @@
         +modularity-owner-collision-rule+
         +modularity-repeated-owner-entry-rule+
         +modularity-bin-entrypoint-rule+
+        +modularity-test-directory-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
-        +agent-export-conflict-rule+)
+        +agent-export-conflict-rule+
+        +agent-vague-definition-rule+
+        +agent-top-level-executable-rule+
+        +agent-poo-direct-writeenv-rule+
+        +agent-poo-io-runtime-witness-rule+)
 
 (defstruct policy-rule (id severity))
 
@@ -30,6 +35,9 @@
 (def +modularity-bin-entrypoint-rule+
   (make-policy-rule "GERBIL-SCHEME-MOD-R005" "warning"))
 
+(def +modularity-test-directory-rule+
+  (make-policy-rule "GERBIL-SCHEME-MOD-R006" "warning"))
+
 (def +agent-intent-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R001" "warning"))
 
@@ -38,3 +46,15 @@
 
 (def +agent-export-conflict-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R003" "warning"))
+
+(def +agent-vague-definition-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R004" "warning"))
+
+(def +agent-top-level-executable-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R005" "warning"))
+
+(def +agent-poo-direct-writeenv-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R006" "warning"))
+
+(def +agent-poo-io-runtime-witness-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R007" "warning"))

@@ -1,0 +1,22 @@
+(guide
+ (lines
+  ("gerbil-scheme-harness guide"
+   "|cmd prime=gerbil-scheme-harness search prime --view seeds ."
+   "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --view seeds ."
+   "|cmd fzf=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds ."
+   "|cmd owner=gerbil-scheme-harness search owner <path> --view seeds ."
+   "|cmd owner-items=gerbil-scheme-harness search owner <path> items --query <symbol> --names-only ."
+   "|cmd query-code=gerbil-scheme-harness query --selector <path:start-end> --workspace . --code"
+   "|cmd env=gerbil-scheme-harness search env [term ...] --view seeds ."
+   "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --view seeds ."
+   "|cmd lang=gerbil-scheme-harness search lang [term ...] --view seeds ."
+   "|cmd std=gerbil-scheme-harness search std [term ...] --view seeds ."
+   "|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds ."
+  "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds ."
+  "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --view seeds ."
+  "|cmd structural-index=gerbil-scheme-harness search structural --json ."
+  "|cmd evidence-graph=gerbil-scheme-harness evidence graph --json ."
+  "|cmd evidence-analyze=gerbil-scheme-harness evidence analyze --json ."
+  "|cmd check=gerbil-scheme-harness check --changed ."
+  "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
+  "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed")))

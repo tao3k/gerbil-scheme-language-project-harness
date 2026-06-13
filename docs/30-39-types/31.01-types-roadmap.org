@@ -5,8 +5,8 @@
 
 ** 31.01.1 Reference Scope
 
-The local reference checkout at =.data/scheme-harness-checker= treats type
-analysis as a first-class module family:
+The =scheme-harness-checker= reference implementation treats type analysis as
+a first-class module family:
 
 - JSON schema projection into checker types.
 - Type environment construction from signatures and first-pass constraints.

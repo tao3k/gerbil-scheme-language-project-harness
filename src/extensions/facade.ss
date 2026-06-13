@@ -24,4 +24,11 @@
         poo-extension-fact
         poo-extension-capability-names
         poo-extension-search-lines
-        poo-extension-json)
+        poo-extension-json
+        poo-source-ref
+        poo-pattern-evidence
+        poo-pattern-query?
+        poo-pattern-focus
+        poo-pattern-selectors
+        poo-pattern-minimal-forms
+        poo-pattern-failure-cases)

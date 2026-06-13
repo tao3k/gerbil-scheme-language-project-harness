@@ -32,7 +32,13 @@
       [path
        (string->number (substring range 0 dash))
        (string->number (substring range (fx1+ dash) (string-length range)))]
-      [path (string->number range) (string->number range)])))
+      (let* ((prev (string-index-right path #\:))
+             (start-text (and prev (substring path (fx1+ prev) (string-length path))))
+             (start (and start-text (string->number start-text)))
+             (end (string->number range)))
+        (if (and prev start end)
+          [(substring path 0 prev) start end]
+          [path end end])))))
 
 (def (read-line-range path start end)
   (let (lines (read-file-lines path))

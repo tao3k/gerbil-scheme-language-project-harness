@@ -3,6 +3,7 @@
 
 (import :commands/agent
         :commands/check
+        :commands/evidence
         :commands/guide
         :commands/query
         :commands/search
@@ -18,6 +19,7 @@
     (["search" . rest] (search-main rest))
     (["query" . rest] (query-main rest))
     (["check" . rest] (check-main rest))
+    (["evidence" . rest] (evidence-main rest))
     (["agent" . rest] (agent-main rest))
     (["guide" . _] (print-guide) 0)
     (else

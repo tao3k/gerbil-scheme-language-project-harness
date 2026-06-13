@@ -25,6 +25,7 @@
    (repeated-owner-entry-findings index)
    (bin-entrypoint-implementation-findings index)
    (facade-implementation-findings index)
+   (legacy-test-directory-findings index)
    (source-leaf-bloat-findings index)))
 
 (def (sibling-file-dir-owner-collision-findings index)
@@ -107,6 +108,11 @@
 (def (bin-entrypoint-source-file? file)
   (let (path (source-file-path file))
     (and (string-prefix? "bin/" path)
+         (string-suffix? ".ss" path))))
+
+(def (legacy-test-directory-source-file? file)
+  (let (path (source-file-path file))
+    (and (string-prefix? "test/" path)
          (string-suffix? ".ss" path))))
 
 (def (path-without-extension path)
@@ -193,6 +199,25 @@
      selector
      (hash (definition (definition-name definition))
            (selector selector)))))
+
+(def (legacy-test-directory-findings index)
+  (filter-map
+   (lambda (file)
+     (and (legacy-test-directory-source-file? file)
+          (legacy-test-directory-finding file)))
+   (project-index-files index)))
+
+(def (legacy-test-directory-finding file)
+  (make-type-finding
+   (policy-rule-id +modularity-test-directory-rule+)
+   (policy-rule-severity +modularity-test-directory-rule+)
+   (source-file-path file)
+   (string-append "Gerbil unit test owner "
+                  (source-file-path file)
+                  " uses legacy test/ layout; use t/ while keeping unit tests explicit")
+   (source-file-path file)
+   (hash (expectedDirectory "t")
+         (actualDirectory "test"))))
 
 (def (source-leaf-bloat-findings index)
   (filter-map

@@ -16,14 +16,16 @@
          (names-only? (flag? "--names-only" args))
          (selector (option "--selector" args))
          (from-hook (option "--from-hook" args)))
-    (if (and from-hook (equal? from-hook "direct-source-read"))
-      (begin
-        (unless selector (error "direct-source-read requires --selector"))
-        (let (code (read-selector workspace selector))
-          (if json?
-            (write-json-line (hash (selector selector) (code code)))
-            (display code)))
-        0)
+    (cond
+     ((and from-hook (equal? from-hook "direct-source-read") (not selector))
+      (error "direct-source-read requires --selector"))
+     (selector
+      (let (code (read-selector workspace selector))
+        (if json?
+          (write-json-line (hash (selector selector) (code code)))
+          (display code)))
+      0)
+     (else
       (let* ((positionals (positional-args (drop-project-root args)))
              (owner (and (pair? positionals) (car positionals)))
              (terms (options "--term" args)))
@@ -49,7 +51,7 @@
                   (for-each (lambda (defn) (displayln (definition-name defn))) matches))
                  (else
                   (emit-owner-items file matches))))
-              0)))))))
+              0))))))))
 
 (def (emit-owner-items file matches)
   (displayln "[gerbil-owner-items] path=" (source-file-path file)
