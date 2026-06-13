@@ -34,6 +34,10 @@
     (schemaVersion "1")
     (path "schemas/semantic-structural-index.v1.schema.json"))
    (schema
+    (schemaId "agent.semantic-protocols.semantic-native-syntax-fact-index")
+    (schemaVersion "1")
+    (path "schemas/semantic-native-syntax-fact-index.v1.schema.json"))
+   (schema
     (schemaId "agent.semantic-protocols.semantic-evidence-graph")
     (schemaVersion "1")
     (path "schemas/semantic-evidence-graph.v1.schema.json"))

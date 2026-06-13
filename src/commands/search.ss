@@ -201,6 +201,7 @@
          (file-hashes (hash-get packet 'fileHashes))
          (owners (hash-get packet 'owners))
          (symbols (hash-get packet 'symbols))
+         (syntax-facts (hash-get packet 'syntaxFacts))
          (dependency-usages (hash-get packet 'dependencyUsages)))
     (if json?
       (write-json-line packet)
@@ -210,6 +211,7 @@
                    " files=" (length file-hashes)
                    " owners=" (length owners)
                    " symbols=" (length symbols)
+                   " syntaxFacts=" (length syntax-facts)
                    " dependencyUsages=" (length dependency-usages))
         (displayln "|artifact id=" (hash-get packet 'sourceArtifactId)
                    " schemaId=" (hash-get packet 'schemaId)

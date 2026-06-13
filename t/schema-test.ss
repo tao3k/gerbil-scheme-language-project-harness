@@ -17,4 +17,6 @@
     (test-case "extension pattern json packet conforms to local schema contract"
       (check-extension-pattern-json-schema-conformance))
     (test-case "compare json packet conforms to local schema contract"
-      (check-compare-json-schema-conformance))))
+      (check-compare-json-schema-conformance))
+    (test-case "structural index json packet exposes native syntax facts"
+      (check-structural-index-json-schema-conformance))))

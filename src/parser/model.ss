@@ -1,19 +1,7 @@
 ;;; -*- Gerbil -*-
-;;; Stable parser facade for the Gerbil Scheme project harness.
+;;; Data model for parser-owned Gerbil source facts.
 
-(import :parser/core
-        :parser/package)
-
-(export +source-extensions+
-        +config-files+
-        +ignored-dirs+
-        collect-project
-        collect-source-files
-        gerbil-source-path?
-        parse-source-file
-        project-definitions
-        project-calls
-        find-owner
+(export make-definition
         definition-name
         definition-kind
         definition-path
@@ -21,7 +9,7 @@
         definition-end
         definition-formals
         definition-arity
-        definition-selector
+        make-call-fact
         call-fact-callee
         call-fact-arity
         call-fact-path
@@ -30,7 +18,7 @@
         call-fact-arguments
         call-fact-argument-types
         call-fact-caller
-        call-fact-selector
+        make-module-import-fact
         module-import-fact-module
         module-import-fact-phase
         module-import-fact-modifier
@@ -39,7 +27,7 @@
         module-import-fact-path
         module-import-fact-start
         module-import-fact-end
-        module-import-fact-selector
+        make-macro-fact
         macro-fact-name
         macro-fact-kind
         macro-fact-path
@@ -49,7 +37,7 @@
         macro-fact-phase
         macro-fact-pattern-count
         macro-fact-hygienic
-        macro-fact-selector
+        make-binding-fact
         binding-fact-name
         binding-fact-kind
         binding-fact-path
@@ -57,7 +45,7 @@
         binding-fact-end
         binding-fact-scope
         binding-fact-value-type
-        binding-fact-selector
+        make-poo-form-fact
         poo-form-fact-name
         poo-form-fact-kind
         poo-form-fact-path
@@ -70,13 +58,13 @@
         poo-form-fact-supers
         poo-form-fact-slots
         poo-form-fact-options
-        poo-form-fact-selector
+        make-top-form
         top-form-kind
         top-form-head
         top-form-path
         top-form-start
         top-form-end
-        top-form-selector
+        make-source-file
         source-file-path
         source-file-line-count
         source-file-package
@@ -93,17 +81,17 @@
         source-file-bindings
         source-file-poo-forms
         source-file-parse-error
-        project-package-path
-        project-package-name
-        project-package-dependencies
-        project-package-manager
-        project-package-test-directory-policy
-        project-package-macro-governance-policy
-        test-directory-policy-allowed-directories
-        test-directory-policy-explanation
-        macro-governance-policy-allow-generated
-        macro-governance-policy-explanation
-        macro-governance-policy-witness
+        make-project-index
         project-index-root
         project-index-files
         project-index-package)
+
+(defstruct definition (name kind path start end formals arity))
+(defstruct call-fact (callee arity path start end arguments argument-types caller))
+(defstruct module-import-fact (module phase modifier alias symbols path start end))
+(defstruct macro-fact (name kind path start end transformer phase pattern-count hygienic))
+(defstruct binding-fact (name kind path start end scope value-type))
+(defstruct poo-form-fact (name kind path start end role generic receiver receiver-type supers slots options))
+(defstruct top-form (kind head path start end))
+(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports macros bindings poo-forms parse-error))
+(defstruct project-index (root files package))

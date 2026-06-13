@@ -36,7 +36,12 @@
            (string-suffix? "/gerbil-poo" token))))
 
 (def (poo-extension-capability-names)
-  '("object-system" "metaobject-protocol" "protocols"))
+  '("object-system"
+    "metaobject-protocol"
+    "protocols"
+    "policy-protocol"
+    "macro-governance"
+    "user-override-witness"))
 
 (def (poo-extension-fact index)
   (and (poo-extension-active? index)

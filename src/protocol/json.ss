@@ -6,6 +6,7 @@
         :extensions/facade
         :parser/facade
         :parser/query
+        :protocol/structural-facts
         :support/list
         :std/misc/ports
         :std/text/json
@@ -17,6 +18,11 @@
         structural-index-packet-json
         pattern-mapping-json
         definition-json
+        call-json
+        module-import-json
+        macro-json
+        binding-json
+        poo-form-json
         top-form-json
         finding-json
         parse-error-json
@@ -40,6 +46,11 @@
         (exports (source-file-exports file))
         (includes (source-file-includes file))
         (definitions (map definition-json (source-file-definitions file)))
+        (calls (map call-json (source-file-calls file)))
+        (moduleImports (map module-import-json (source-file-module-imports file)))
+        (macros (map macro-json (source-file-macros file)))
+        (bindings (map binding-json (source-file-bindings file)))
+        (pooForms (map poo-form-json (source-file-poo-forms file)))
         (forms (map top-form-json (source-file-forms file)))
         (parseError (source-file-parse-error file))))
 
@@ -51,7 +62,10 @@
              (fields (hash (packageManager (project-package-manager package))
                            (testDirectoryPolicy
                             (test-directory-policy-json
-                             (project-package-test-directory-policy package))))))))
+                             (project-package-test-directory-policy package)))
+                           (macroGovernancePolicy
+                            (macro-governance-policy-json
+                             (project-package-macro-governance-policy package))))))))
 
 (def (test-directory-policy-json policy)
   (and policy
@@ -59,6 +73,15 @@
               (test-directory-policy-allowed-directories policy))
              (explanation
               (test-directory-policy-explanation policy)))))
+
+(def (macro-governance-policy-json policy)
+  (and policy
+       (hash (allowGenerated
+              (macro-governance-policy-allow-generated policy))
+             (explanation
+              (macro-governance-policy-explanation policy))
+             (witness
+              (macro-governance-policy-witness policy)))))
 
 (def (pattern-mapping-json pattern)
   (and pattern
@@ -171,6 +194,7 @@
      (fileHashes (map (cut structural-file-hash-json index <>) files))
      (owners (map structural-owner-json files))
      (symbols (append-map* structural-symbol-json files))
+     (syntaxFacts (append-map* structural-syntax-fact-json files))
      (dependencyUsages (append-map* structural-dependency-json files)))))
 
 (def (structural-index-generation-id index)
@@ -208,7 +232,10 @@
          (join (source-file-imports file) ",")
          (join (source-file-exports file) ",")
          (join (map definition-name (source-file-definitions file)) ",")
-         (join (map call-fact-callee (source-file-calls file)) ",")]
+         (join (map call-fact-callee (source-file-calls file)) ",")
+         (join (map macro-fact-name (source-file-macros file)) ",")
+         (join (map binding-fact-name (source-file-bindings file)) ",")
+         (join (map poo-form-fact-name (source-file-poo-forms file)) ",")]
         "|"))
 
 (def (structural-owner-json file)
@@ -401,6 +428,66 @@
         (formals (definition-formals defn))
         (arity (definition-arity defn))
         (selector (definition-selector defn))))
+
+(def (call-json call)
+  (hash (callee (call-fact-callee call))
+        (arity (call-fact-arity call))
+        (path (call-fact-path call))
+        (start (call-fact-start call))
+        (end (call-fact-end call))
+        (arguments (call-fact-arguments call))
+        (argumentTypes (map (lambda (type) (or type "unknown"))
+                            (call-fact-argument-types call)))
+        (caller (or (call-fact-caller call) ""))
+        (selector (call-fact-selector call))))
+
+(def (module-import-json fact)
+  (hash (module (module-import-fact-module fact))
+        (phase (module-import-fact-phase fact))
+        (modifier (module-import-fact-modifier fact))
+        (alias (or (module-import-fact-alias fact) ""))
+        (symbols (module-import-fact-symbols fact))
+        (path (module-import-fact-path fact))
+        (start (module-import-fact-start fact))
+        (end (module-import-fact-end fact))
+        (selector (module-import-fact-selector fact))))
+
+(def (macro-json fact)
+  (hash (name (macro-fact-name fact))
+        (kind (macro-fact-kind fact))
+        (path (macro-fact-path fact))
+        (start (macro-fact-start fact))
+        (end (macro-fact-end fact))
+        (transformer (macro-fact-transformer fact))
+        (phase (macro-fact-phase fact))
+        (patternCount (macro-fact-pattern-count fact))
+        (hygienicSyntax (macro-fact-hygienic fact))
+        (selector (macro-fact-selector fact))))
+
+(def (binding-json fact)
+  (hash (name (binding-fact-name fact))
+        (kind (binding-fact-kind fact))
+        (path (binding-fact-path fact))
+        (start (binding-fact-start fact))
+        (end (binding-fact-end fact))
+        (scope (binding-fact-scope fact))
+        (valueType (or (binding-fact-value-type fact) "unknown"))
+        (selector (binding-fact-selector fact))))
+
+(def (poo-form-json fact)
+  (hash (name (poo-form-fact-name fact))
+        (kind (poo-form-fact-kind fact))
+        (path (poo-form-fact-path fact))
+        (start (poo-form-fact-start fact))
+        (end (poo-form-fact-end fact))
+        (role (poo-form-fact-role fact))
+        (generic (or (poo-form-fact-generic fact) ""))
+        (receiver (or (poo-form-fact-receiver fact) ""))
+        (receiverType (or (poo-form-fact-receiver-type fact) ""))
+        (supers (poo-form-fact-supers fact))
+        (slots (poo-form-fact-slots fact))
+        (options (poo-form-fact-options fact))
+        (selector (poo-form-fact-selector fact))))
 
 (def (top-form-json form)
   (hash (kind (top-form-kind form))

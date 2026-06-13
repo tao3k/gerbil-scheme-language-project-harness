@@ -97,6 +97,12 @@
         (check (length duplicates) => 1)
         (check (type-binding-selector (car duplicate)) => "same.ss:2-2")
         (check (type-binding-selector (cadr duplicate)) => "same.ss:1-1")))
+    (test-case "poo methods extend generic type bindings"
+      (let* ((generic (make-type-binding ":render" "defgeneric" (make-type-unknown)
+                                         '() 0 "same.ss" "same.ss:1-1"))
+             (method (make-type-binding ":render" "defmethod" (make-type-unknown)
+                                        '() 0 "same.ss" "same.ss:2-4")))
+        (check (duplicate-type-bindings [generic method]) => '())))
     (test-case "same definition names in different owners are distinct"
       (let* ((first (make-type-binding "answer" "definition" (make-type-unknown)
                                        '() 0 "first.ss" "first.ss:1-1"))

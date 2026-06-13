@@ -117,7 +117,9 @@
     (match rest
       ([] (reverse dupes))
       ([binding . more]
-       (let* ((key (cons (type-binding-path binding) (type-binding-name binding)))
+       (let* ((key (list (type-binding-path binding)
+                         (type-binding-name binding)
+                         (type-binding-kind binding)))
               (prior (assoc key seen)))
          (if prior
            (lp more seen (cons [binding (cdr prior)] dupes))

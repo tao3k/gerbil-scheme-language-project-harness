@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Stable facade for provider snapshot projections.
 
-(import :snapshot/core)
+(import :snapshot/core
+        :snapshot/graph)
 
 (export snapshot-load
         project-package-snapshot
@@ -17,6 +18,7 @@
         registry-snapshot
         compare-fact-snapshot
         compare-search-snapshot
+        parser-source-file-snapshot
         extension-packet-snapshot
         search-prime-snapshot
         self-apply-findings-snapshot

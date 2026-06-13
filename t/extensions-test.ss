@@ -53,7 +53,12 @@
         (check (hash-get extension 'package) => "sample/app")
         (check (hash-get extension 'dependencies) => dependencies)
         (check (hash-get extension 'capabilities)
-               => ["object-system" "metaobject-protocol" "protocols"])))
+               => ["object-system"
+                   "metaobject-protocol"
+                   "protocols"
+                   "policy-protocol"
+                   "macro-governance"
+                   "user-override-witness"])))
     (test-case "poo pattern evidence is downstream extension guidance"
       (let* ((root ".run/extensions-poo-pattern-evidence")
              (_ (write-extension-project

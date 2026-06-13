@@ -27,6 +27,7 @@
     (check (> (length (hash-get packet 'fileHashes)) 0) => #t)
     (check (> (length (hash-get packet 'owners)) 0) => #t)
     (check (> (length (hash-get packet 'symbols)) 0) => #t)
+    (check (> (length (hash-get packet 'syntaxFacts)) 0) => #t)
     (check (list? (hash-get packet 'dependencyUsages)) => #t)))
 
 (def (check-structural-index-queryable-facts)
@@ -35,6 +36,11 @@
     (check (packet-has-owner? packet "src/commands/search.ss") => #t)
     (check (packet-has-symbol? packet "search-main") => #t)
     (check (packet-has-symbol-query-key? packet "search-main") => #t)
+    (check (packet-has-syntax-fact? packet "macro" "capture-safe") => #t)
+    (check (packet-has-syntax-fact? packet "import" ":std/text/json") => #t)
+    (check (packet-has-syntax-fact? packet "binding" "again") => #t)
+    (check (packet-has-syntax-fact-field? packet "method" ":render" 'receiverType "<Widget>") => #t)
+    (check (packet-has-syntax-fact-field? packet "class" "<Widget>" 'slots ["name" "count"]) => #t)
     (check (packet-has-dependency? packet ":parser/facade") => #t)
     (check (packet-file-hashes-are-64-hex? packet) => #t)))
 
@@ -52,6 +58,20 @@
   (ormap (lambda (symbol)
            (and (member key (hash-get symbol 'queryKeys)) #t))
          (hash-get packet 'symbols)))
+
+(def (packet-has-syntax-fact? packet kind name)
+  (ormap (lambda (fact)
+           (and (equal? (hash-get fact 'kind) kind)
+                (equal? (hash-get fact 'name) name)))
+         (hash-get packet 'syntaxFacts)))
+
+(def (packet-has-syntax-fact-field? packet kind name field expected)
+  (ormap (lambda (fact)
+           (and (equal? (hash-get fact 'kind) kind)
+                (equal? (hash-get fact 'name) name)
+                (let (fields (hash-get fact 'fields))
+                  (and fields (equal? (hash-get fields field) expected)))))
+         (hash-get packet 'syntaxFacts)))
 
 (def (packet-has-dependency? packet import-path)
   (ormap (lambda (usage)

@@ -20,7 +20,10 @@
                        ["git.cons.io/mighty-gerbils/gerbil-poo"]
                        ["object-system"
                         "metaobject-protocol"
-                        "protocols"]))
+                        "protocols"
+                        "policy-protocol"
+                        "macro-governance"
+                        "user-override-witness"]))
 
 (def (sample-poo-c3-pattern)
   (hash (id "poo-c3-mro-regression")
@@ -103,7 +106,7 @@
                 (packageManager "gxpkg")
                 (package "sample/app")
                 (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-                (capabilities ("object-system" "metaobject-protocol" "protocols"))))))
+                (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness"))))))
 
 (def (check-extension-search-snapshot-schema-fields)
   (let (fact (sample-poo-extension-fact))
@@ -123,7 +126,7 @@
                    (packageManager "gxpkg")
                    (package "sample/app")
                    (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-                   (capabilities ("object-system" "metaobject-protocol" "protocols")))))
+                   (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness")))))
                 (next "search pattern poo syntax")))))
 
 (def (check-pattern-search-snapshot-quality-fields)

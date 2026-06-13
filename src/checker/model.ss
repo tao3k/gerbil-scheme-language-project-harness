@@ -13,6 +13,7 @@
         +arity-rule+
         +type-mismatch-rule+
         +whitelist-rule+
+        +macro-governance-rule+
         +forbidden-form-rule+)
 
 (defstruct checker-rule (id severity))
@@ -27,5 +28,7 @@
 (def +whitelist-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-W001" "error"))
 
-(def +forbidden-form-rule+
+(def +macro-governance-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-W002" "error"))
+
+(def +forbidden-form-rule+ +macro-governance-rule+)

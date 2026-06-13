@@ -24,7 +24,7 @@
                => "GERBIL-SCHEME-CHECKER-A001")
         (check (type-finding-severity finding) => "error")
         (check (type-finding-selector finding)
-               => "t/fixtures/formals.ss:4-5")
+               => "t/fixtures/formals.ss:5-5")
         (check (type-finding-message finding)
                => "arity mismatch for +: expected 3, got 2")))
     (test-case "native whitelist checker rejects unlisted external calls"
@@ -50,21 +50,45 @@
              (rule-ids (map type-finding-rule-id findings)))
         (check (not (not (member "GERBIL-SCHEME-CHECKER-W001" rule-ids)))
                => #t)))
-    (test-case "forbidden form checker rejects macro forms"
-      (let* ((root ".run/checker-forbidden-forms")
-             (_ (write-forbidden-form-project root))
+    (test-case "macro governance checker allows harness source macro forms"
+      (let* ((root ".run/checker-harness-macros")
+             (_ (write-harness-macro-project root))
              (index (collect-project root))
-             (findings (run-forbidden-form-checks index))
+             (findings (run-macro-governance-checks index)))
+        (check findings => [])))
+    (test-case "macro governance checker rejects generated macro forms without policy"
+      (let* ((root ".run/checker-macro-governance")
+             (_ (write-generated-macro-project root))
+             (index (collect-project root))
+             (findings (run-macro-governance-checks index))
              (rule-ids (map type-finding-rule-id findings))
              (paths (map type-finding-path findings)))
         (check (length findings) => 2)
         (check rule-ids
                => ["GERBIL-SCHEME-CHECKER-W002"
                    "GERBIL-SCHEME-CHECKER-W002"])
-        (check paths => ["src/sample.ss" "src/sample.ss"])))
-    (test-case "type check pipeline includes forbidden form findings"
-      (let* ((root ".run/checker-forbidden-forms-pipeline")
-             (_ (write-forbidden-form-project root))
+        (check paths => ["generated/sample.ss" "generated/sample.ss"])
+        (check (type-finding-message (car findings))
+               => "macro form define-syntax in generated-code requires POO macro-governance policy with clear user explanation and witness")))
+    (test-case "macro governance checker allows generated macro forms with clear package policy"
+      (let* ((root ".run/checker-macro-governance-policy")
+             (_ (write-generated-macro-project
+                 root
+                 ";;; -*- Gerbil -*-\n(package: sample\n  policy: ((macro-governance allow-generated: #t explanation: \"User-owned generated macro fixture exercises a local DSL that cannot be expressed cleanly as first-order functions.\" witness: \"t/checker-test.ss:macro-governance\")))\n"))
+             (index (collect-project root))
+             (findings (run-macro-governance-checks index)))
+        (check findings => [])))
+    (test-case "macro governance checker rejects generated macro policy without clear witness"
+      (let* ((root ".run/checker-macro-governance-short-policy")
+             (_ (write-generated-macro-project
+                 root
+                 ";;; -*- Gerbil -*-\n(package: sample\n  policy: ((macro-governance allow-generated: #t explanation: \"temporary\" witness: \"soon\")))\n"))
+             (index (collect-project root))
+             (findings (run-macro-governance-checks index)))
+        (check (length findings) => 2)))
+    (test-case "type check pipeline includes macro governance findings"
+      (let* ((root ".run/checker-macro-governance-pipeline")
+             (_ (write-generated-macro-project root))
              (index (collect-project root))
              (findings (run-type-checks index))
              (rule-ids (map type-finding-rule-id findings)))
@@ -154,7 +178,7 @@
     (write-text whitelist-path
                 "; comment lines are ignored\nallowed\n\n")))
 
-(def (write-forbidden-form-project root)
+(def (write-harness-macro-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss")))
     (ensure-dir ".run")
@@ -162,6 +186,19 @@
     (ensure-dir src)
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax unsafe-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
+
+(def (write-generated-macro-project root . maybe-package-source)
+  (let* ((generated (string-append root "/generated"))
+         (source-path (string-append generated "/sample.ss"))
+         (package-path (string-append root "/gerbil.pkg")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir generated)
+    (if (pair? maybe-package-source)
+      (write-text package-path (car maybe-package-source))
+      (delete-file-if-exists package-path))
+    (write-text source-path
+                ";;; -*- Gerbil -*-\n(define-syntax generated-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
 
 (def (write-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
@@ -222,3 +259,8 @@
    (lambda () (delete-file path)))
   (call-with-output-file path
     (lambda (port) (display text port))))
+
+(def (delete-file-if-exists path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (delete-file path))))

@@ -12,7 +12,7 @@
 (def (run-checker-checks index signatures)
   (append (run-arity-checks index signatures)
           (run-type-mismatch-checks index signatures)
-          (run-forbidden-form-checks index)))
+          (run-macro-governance-checks index)))
 
 (def (run-checker-checks/whitelist index signatures whitelist)
   (append (run-checker-checks index signatures)

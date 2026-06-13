@@ -47,7 +47,81 @@
         (check (map call-fact-argument-types calls) => [[#f #f]])
         (check (map call-fact-caller calls) => ["sum-two"])
         (check (map call-fact-selector calls)
-               => ["t/fixtures/formals.ss:4-5"])))
+               => ["t/fixtures/formals.ss:5-5"])))
+    (test-case "native reader captures complex Gerbil syntax facts"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "t/fixtures/parser/complex-syntax.ss")))
+        (check (source-file-parse-error file) => #f)
+        (check (map definition-name (source-file-definitions file))
+               => ["with-widget"
+                   "capture-safe"
+                   "<Widget>"
+                   ":render"
+                   ":render"
+                   "make-widget"
+                   "dispatch"
+                   "select"])
+        (check (map module-import-fact-module (source-file-module-imports file))
+               => [":std/misc/hash"
+                   ":std/misc/list"
+                   ":std/stxutil"
+                   ":std/text/json"
+                   ":std/sugar"])
+        (check (map module-import-fact-modifier (source-file-module-imports file))
+               => ["except-in" "rename-in" "for-syntax" "only-in" "direct"])
+        (check (map module-import-fact-phase (source-file-module-imports file))
+               => ["runtime" "runtime" "syntax" "runtime" "runtime"])
+        (check (map macro-fact-name (source-file-macros file))
+               => ["with-widget" "capture-safe"])
+        (check (map macro-fact-hygienic (source-file-macros file))
+               => [#t #t])
+        (check (map poo-form-fact-role (source-file-poo-forms file))
+               => ["class" "generic" "method"])
+        (check (map poo-form-fact-generic (source-file-poo-forms file))
+               => (list #f ":render" ":render"))
+        (check (map poo-form-fact-receiver (source-file-poo-forms file))
+               => (list #f #f "widget"))
+        (check (map poo-form-fact-receiver-type (source-file-poo-forms file))
+               => (list #f #f "<Widget>"))
+        (check (map poo-form-fact-supers (source-file-poo-forms file))
+               => (list [":object"] '() '()))
+        (check (map poo-form-fact-slots (source-file-poo-forms file))
+               => (list ["name" "count"] '() '()))
+        (check (map poo-form-fact-options (source-file-poo-forms file))
+               => (list ["transparent:"] '() '()))
+        (check (map binding-fact-kind (source-file-bindings file))
+               => ["macro-formal"
+                   "macro-formal"
+                   "macro-formal"
+                   "let*"
+                   "let*"
+                   "let*"
+                   "let"
+                   "formal"
+                   "formal"
+                   "formal"])
+        (check (map call-fact-callee (source-file-calls file))
+               => [":render"
+                   "open-input-string"
+                   "read-json"
+                   "displayln"
+                   "make-<Widget>"
+                   "with-widget"
+                   "make-widget"
+                   "make-widget"
+                   "dispatch"
+                   "make-widget"])
+        (check (map call-fact-selector (source-file-calls file))
+               => ["t/fixtures/parser/complex-syntax.ss:29-29"
+                   "t/fixtures/parser/complex-syntax.ss:28-28"
+                   "t/fixtures/parser/complex-syntax.ss:28-28"
+                   "t/fixtures/parser/complex-syntax.ss:27-27"
+                   "t/fixtures/parser/complex-syntax.ss:34-34"
+                   "t/fixtures/parser/complex-syntax.ss:33-34"
+                   "t/fixtures/parser/complex-syntax.ss:39-39"
+                   "t/fixtures/parser/complex-syntax.ss:38-38"
+                   "t/fixtures/parser/complex-syntax.ss:44-44"
+                   "t/fixtures/parser/complex-syntax.ss:43-43"])))
     (test-case "native reader captures local literal binding argument types"
       (let* ((root (path-normalize ".run/parser-local-literal-binding"))
              (source-dir (string-append root "/src"))

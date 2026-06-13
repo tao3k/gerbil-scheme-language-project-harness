@@ -79,6 +79,10 @@
                                "agent.semantic-protocols.semantic-structural-index"
                                "schemas/semantic-structural-index.v1.schema.json")
            => #t)
+    (check (schema-registered? schemas
+                               "agent.semantic-protocols.semantic-native-syntax-fact-index"
+                               "schemas/semantic-native-syntax-fact-index.v1.schema.json")
+           => #t)
     (check (descriptor-output-schema? descriptors
                                       "search/pattern"
                                       "agent.semantic-protocols.semantic-extension-pattern-mapping")

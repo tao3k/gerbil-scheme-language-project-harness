@@ -6,6 +6,7 @@
         :unit/snapshot/compare
         :unit/snapshot/extension
         :unit/snapshot/language-evidence
+        :unit/snapshot/parser
         :unit/snapshot/policy
         :unit/snapshot/runtime-source
         :unit/snapshot/self-apply)
@@ -41,6 +42,8 @@
       (check-compare-snapshot-fields))
     (test-case "compare snapshot fixtures cover active documented runtime"
       (check-compare-snapshot-fixtures))
+    (test-case "parser snapshot fixtures cover complex native syntax facts"
+      (check-parser-complex-native-facts-snapshot))
     (test-case "policy snapshot fixtures cover downstream POO agent drift"
       (check-policy-snapshot-fixtures))
     (test-case "check report snapshot uses stable unit interface"

@@ -7,7 +7,8 @@
 
 (export check-runtime-source-json-schema-conformance
         check-extension-pattern-json-schema-conformance
-        check-compare-json-schema-conformance)
+        check-compare-json-schema-conformance
+        check-structural-index-json-schema-conformance)
 
 (def (search-json args)
   (let* ((status #f)
@@ -104,3 +105,32 @@
     (check (hash-get right "status") => "non-authoritative")
     (check (not (null? (hash-get comparison "failureCases"))) => #t)
     (check (not (null? (hash-get comparison "qualitySignals"))) => #t)))
+
+(def (check-structural-index-json-schema-conformance)
+  (let* ((packet (search-json ["structural" "--json" "."]))
+         (syntax-facts (hash-get packet "syntaxFacts"))
+         (macro-fact (find-syntax-fact syntax-facts "macro" "capture-safe"))
+         (import-fact (find-syntax-fact syntax-facts "import" ":std/text/json"))
+         (binding-fact (find-syntax-fact syntax-facts "binding" "again"))
+         (class-fact (find-syntax-fact syntax-facts "class" "<Widget>"))
+         (method-fact (find-syntax-fact syntax-facts "method" ":render")))
+    (check-packet-conforms-to-schema!
+     packet
+     "semantic-structural-index.v1.schema.json")
+    (check (hash-get packet "rawSourceStored") => #f)
+    (check (not (null? syntax-facts)) => #t)
+    (check (hash-get macro-fact "source") => "native-parser")
+    (check (hash-get macro-fact "languageKind") => "defsyntax")
+    (check (hash-get import-fact "languageKind") => "module-import")
+    (check (hash-get binding-fact "languageKind") => "let*")
+    (check (hash-get (hash-get class-fact "fields") "slots")
+           => ["name" "count"])
+    (check (hash-get (hash-get method-fact "fields") "receiverType")
+           => "<Widget>")))
+
+(def (find-syntax-fact facts kind name)
+  (or (find (lambda (fact)
+              (and (equal? (hash-get fact "kind") kind)
+                   (equal? (hash-get fact "name") name)))
+            facts)
+      (error "syntax fact not found" kind name)))

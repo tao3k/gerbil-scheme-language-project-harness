@@ -9,11 +9,16 @@
         project-package-dependencies
         project-package-manager
         project-package-test-directory-policy
+        project-package-macro-governance-policy
         test-directory-policy-allowed-directories
-        test-directory-policy-explanation)
+        test-directory-policy-explanation
+        macro-governance-policy-allow-generated
+        macro-governance-policy-explanation
+        macro-governance-policy-witness)
 
 (defstruct test-directory-policy (allowed-directories explanation))
-(defstruct project-package (path name dependencies manager test-directory-policy))
+(defstruct macro-governance-policy (allow-generated explanation witness))
+(defstruct project-package (path name dependencies manager test-directory-policy macro-governance-policy))
 
 (def (read-project-package root)
   (with-catch
@@ -27,7 +32,8 @@
                                   (datum->string (safe-cadr package-form))
                                   (package-dependencies package-form)
                                   "gxpkg"
-                                  (package-test-directory-policy package-form)))))))
+                                  (package-test-directory-policy package-form)
+                                  (package-macro-governance-policy package-form)))))))
 
 (def (read-package-forms path)
   (call-with-input-file path
@@ -67,6 +73,25 @@
   (and (pair? datum)
        (member (car datum) '(test-directory-layout test-directory-policy))))
 
+(def (package-macro-governance-policy datum)
+  (let (policy (package-field-value datum 'policy:))
+    (and policy
+         (let (entry (policy-macro-governance-entry policy))
+           (and entry
+                (make-macro-governance-policy
+                 (policy-boolean-field entry 'allow-generated:)
+                 (policy-string-field entry 'explanation:)
+                 (policy-string-field entry 'witness:)))))))
+
+(def (policy-macro-governance-entry policy)
+  (if (macro-governance-policy-form? policy)
+    policy
+    (find macro-governance-policy-form? (datum-list-items policy))))
+
+(def (macro-governance-policy-form? datum)
+  (and (pair? datum)
+       (member (car datum) '(macro-governance macro-policy))))
+
 (def (policy-directory-list datum)
   (or (policy-string-list-field datum 'allowed-directories:)
       (policy-string-list-field datum 'allow-directories:)
@@ -83,6 +108,16 @@
 (def (policy-string-field datum field)
   (let (value (package-field-value datum field))
     (and value (datum->string value))))
+
+(def (policy-boolean-field datum field)
+  (let (value (package-field-value datum field))
+    (truthy-policy-value? value)))
+
+(def (truthy-policy-value? value)
+  (if (or (eq? value #t)
+          (member (datum->string value) '("true" "yes" "allow" "allowed")))
+    #t
+    #f))
 
 (def (package-field-value datum field)
   (let lp ((rest (datum-list-items datum)))

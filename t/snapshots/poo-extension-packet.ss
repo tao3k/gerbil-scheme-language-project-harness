@@ -12,6 +12,6 @@
     (packageManager "gxpkg")
     (package "sample/app")
     (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-    (capabilities ("object-system" "metaobject-protocol" "protocols")))))
+    (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness")))))
  (searchLines
-  ("|extension name=poo activation=gerbil.pkg packageManager=gxpkg dependencyMode=required package=sample/app dependencies=git.cons.io/mighty-gerbils/gerbil-poo capabilities=object-system,metaobject-protocol,protocols")))
+  ("|extension name=poo activation=gerbil.pkg packageManager=gxpkg dependencyMode=required package=sample/app dependencies=git.cons.io/mighty-gerbils/gerbil-poo capabilities=object-system,metaobject-protocol,protocols,policy-protocol,macro-governance,user-override-witness")))
