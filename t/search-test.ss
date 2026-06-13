@@ -770,4 +770,12 @@
     (test-case "structural index packet satisfies IFC envelope"
       (check-structural-index-required-envelope))
     (test-case "structural index exposes queryable owner symbol dependency facts"
-      (check-structural-index-queryable-facts))))
+      (check-structural-index-queryable-facts))
+    (test-case "structural index compact output exposes native POO facts"
+      (let (output (search-output ["structural" "."]))
+        (check-output-contains
+         output
+         ["|syntaxFact kind=class languageKind=defclass name=<Widget>"
+          "role=class generic=- receiver=- receiverType=- supers=:object slots=name,count options=transparent:"
+          "|syntaxFact kind=method languageKind=defmethod name=:render"
+          "role=method generic=:render receiver=widget receiverType=<Widget>"])))))

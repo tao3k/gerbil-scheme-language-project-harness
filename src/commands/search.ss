@@ -222,6 +222,7 @@
                       " kind=" (hash-get owner 'ownerKind)
                       " authority=" (hash-get owner 'sourceAuthority)))
          (take* owners 20))
+        (emit-structural-syntax-fact-lines syntax-facts)
         (displayln "nextCommand=gerbil-scheme-harness search structural --json ."))))
   0)
 
