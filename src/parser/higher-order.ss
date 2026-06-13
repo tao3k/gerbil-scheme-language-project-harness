@@ -11,9 +11,13 @@
 (def +higher-order-heads+
   '(lambda case-lambda
     cut cute
+    curry rcurry compose compose1
     for/fold for*/fold
-    map filter
-    fold foldl foldr fold-left fold-right))
+    map filter filter-map append-map
+    andmap ormap every any
+    find list-index
+    fold foldl foldr fold-left fold-right
+    with-list-builder))
 
 (def (higher-order-facts-from-form relpath form datum)
   (higher-order-facts-from-stx relpath form (form-caller-name datum)))
@@ -103,10 +107,17 @@
    ((eq? head 'lambda) "anonymous-function")
    ((eq? head 'case-lambda) "multi-arity-function")
    ((member head '(cut cute)) "partial-application")
+   ((member head '(curry rcurry)) "function-curry")
+   ((member head '(compose compose1)) "function-composition")
    ((member head '(for/fold for*/fold)) "loop-fold")
    ((eq? head 'map) "sequence-map")
    ((eq? head 'filter) "sequence-filter")
+   ((eq? head 'filter-map) "sequence-filter-map")
+   ((eq? head 'append-map) "sequence-append-map")
+   ((member head '(andmap ormap every any)) "sequence-predicate")
+   ((member head '(find list-index)) "sequence-search")
    ((member head '(fold foldl foldr fold-left fold-right)) "sequence-fold")
+   ((eq? head 'with-list-builder) "list-builder")
    (else "higher-order-call")))
 
 (def (higher-order-operand-count head datum)

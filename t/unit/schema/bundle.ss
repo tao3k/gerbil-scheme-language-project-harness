@@ -14,6 +14,7 @@
    "semantic-content-compaction.v1.schema.json"
    "semantic-handle.v1.schema.json"
    "semantic-invariant-candidate.v1.schema.json"
+   "semantic-gerbil-scheme-harness-info.v1.schema.json"
    "semantic-extension-pattern-mapping.v1.schema.json"
    "semantic-runtime-source-acquisition.v1.schema.json"
    "semantic-language-registry.v1.schema.json"
@@ -49,7 +50,7 @@
    ((hash-table? value)
     (append-map
      (lambda (entry)
-       (append (if (and (equal? (car entry) '$ref)
+       (append (if (and (equal? (car entry) "$ref")
                         (string? (cdr entry)))
                  (local-schema-ref-list (cdr entry))
                  '())

@@ -6,6 +6,7 @@
         :commands/check
         :commands/evidence
         :commands/guide
+        :commands/info
         :commands/query
         :commands/search
         :constants)
@@ -23,7 +24,8 @@
     (["bench" . rest] (bench-main rest))
     (["evidence" . rest] (evidence-main rest))
     (["agent" . rest] (agent-main rest))
-    (["guide" . _] (print-guide) 0)
+    (["guide" . rest] (guide-main rest))
+    (["info" . rest] (info-main rest))
     (else
      (display +help+)
      2)))

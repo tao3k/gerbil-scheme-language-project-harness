@@ -19,7 +19,10 @@
         functional-idiom-advice-finding
         poo-direct-writeenv-finding
         poo-io-runtime-witness-finding
+        poo-object-model-finding
         poo-method-shape-finding
+        macro-runtime-source-witness-finding
+        protocol-evidence-finding
         facade-export-conflict-findings)
 
 (def +generic-owner-segments+
@@ -31,12 +34,44 @@
 (def +poo-declarative-heads+
   '("defclass" ".defclass" ".defgeneric" "defmethod" ".defmethod"))
 
+(def +poo-capability-dependencies+
+  '("gerbil-poo" "clan/poo"))
+
+(def +manual-object-model-callees+
+  '("hash" "make-hash-table" "list->hash-table"))
+
 (def +functional-idiom-roles+
   '("sequence-map"
     "sequence-filter"
+    "sequence-filter-map"
+    "sequence-append-map"
+    "sequence-predicate"
+    "sequence-search"
     "sequence-fold"
     "loop-fold"
-    "partial-application"))
+    "partial-application"
+    "function-curry"
+    "function-composition"
+    "list-builder"))
+
+(def +functional-sequence-idioms+
+  '("map" "filter" "filter-map" "append-map" "fold/foldl/foldr" "for/fold"))
+
+(def +functional-predicate-idioms+
+  '("andmap/ormap" "every/any" "find/list-index"))
+
+(def +functional-composition-idioms+
+  '("cut/cute" "curry/rcurry" "compose/compose1"))
+
+(def +functional-preservation-control-roles+
+  '("protected-control"
+    "protected-handler"
+    "continuation-control"
+    "resource-scope"
+    "builder-control"))
+
+(def +macro-runtime-source-witness-explanation-min-length+ 32)
+(def +macro-runtime-source-witness-min-length+ 8)
 
 (def (run-agent-policy index)
   (append
@@ -47,7 +82,10 @@
    (functional-idiom-advice-findings index)
    (poo-direct-writeenv-findings index)
    (poo-io-runtime-witness-findings index)
+   (poo-object-model-findings index)
    (poo-method-shape-findings index)
+   (macro-runtime-source-witness-findings index)
+   (protocol-evidence-findings index)
    (facade-export-conflict-findings index)))
 
 (def (facade-intent-findings index)
@@ -138,14 +176,14 @@
          (map (lambda (file)
               (filter-map
                (lambda (call)
-                   (and (top-level-executable-call? file call)
+                   (and (top-level-executable-call? index file call)
                         (top-level-executable-finding file call)))
                  (source-file-calls file)))
               (project-index-files index))))
 
-(def (top-level-executable-call? file call)
+(def (top-level-executable-call? index file call)
   (and (not (call-fact-caller call))
-       (source-runtime-file-path? (call-fact-path call))
+       (index-source-runtime-file-path? index (call-fact-path call))
        (not (poo-declarative-call? file call))))
 
 (def (poo-declarative-call? file call)
@@ -161,9 +199,48 @@
            (string-contains import "clan/poo"))
          (source-file-imports file)))
 
+(def (poo-capability-active? index)
+  (or (ormap poo-source-file? (project-index-files index))
+      (ormap (lambda (fact)
+               (member (poo-form-fact-role fact)
+                       '("class" "generic" "method")))
+             (project-poo-forms index))
+      (let (package (project-index-package index))
+        (and package
+             (ormap poo-capability-dependency?
+                    (project-package-dependencies package))))))
+
+(def (poo-capability-dependency? dependency)
+  (ormap (lambda (needle)
+           (string-contains dependency needle))
+         +poo-capability-dependencies+))
+
 (def (source-runtime-file-path? path)
   (and (string-prefix? "src/" path)
        (string-suffix? ".ss" path)))
+
+(def (index-source-runtime-file-path? index path)
+  (and (string-suffix? ".ss" path)
+       (let* ((package (project-index-package index))
+              (policy (and package
+                           (project-package-source-scope-policy package)))
+              (roots (configured-runtime-roots policy)))
+         (ormap (lambda (root)
+                  (source-path-under-root? path root))
+                roots))))
+
+(def (configured-runtime-roots policy)
+  (cond
+   ((and policy (pair? (source-scope-policy-runtime-roots policy)))
+    (source-scope-policy-runtime-roots policy))
+   ((and policy (pair? (source-scope-policy-roots policy)))
+    (source-scope-policy-roots policy))
+   (else ["src"])))
+
+(def (source-path-under-root? path root)
+  (or (equal? root ".")
+      (equal? path root)
+      (string-prefix? (string-append root "/") path)))
 
 (def (top-level-executable-finding file call)
   (make-type-finding
@@ -177,12 +254,12 @@
          (selector (call-fact-selector call)))))
 
 (def (functional-idiom-advice-findings index)
-  (filter-map functional-idiom-advice-finding
+  (filter-map (cut functional-idiom-advice-finding index <>)
               (project-index-files index)))
 
-(def (functional-idiom-advice-finding file)
+(def (functional-idiom-advice-finding index file)
   (and (source-file-path file)
-       (string-prefix? "src/" (source-file-path file))
+       (index-source-runtime-file-path? index (source-file-path file))
        (not (file-has-functional-idiom? file))
        (let (fact (manual-loop-control-flow file))
          (and fact
@@ -190,14 +267,20 @@
                (policy-rule-id +agent-functional-idiom-advice-rule+)
                (policy-rule-severity +agent-functional-idiom-advice-rule+)
                (source-file-path file)
-               "manual named let detected; if this is pure accumulation or sequence transformation, prefer for/fold, map, filter, fold, cut, or composition; keep named let for IO, stateful control flow, or generator/continuation drivers"
+               "manual named let detected; if this is pure accumulation, predicate search, or sequence transformation, prefer for/fold, map/filter/filter-map/append-map, fold, predicate helpers, cut/curry/compose, or with-list-builder; keep named let for IO, stateful control flow, C3-style fixpoint selection, or generator/continuation drivers"
                (control-flow-fact-selector fact)
                (hash (name (control-flow-fact-name fact))
                      (kind (control-flow-fact-kind fact))
                      (selector (control-flow-fact-selector fact))
-                     (advice "prefer functional sequence idioms for pure transforms")
-                     (keepNamedLetWhen "IO/stateful control flow or generator/continuation driver")
-                     (learnedFrom ".data/gerbil-utils/bytestring.ss uses for/fold for pure counts and named let for port IO; generator.ss models push/pull inversion; list.ss uses cut/filter/fold/compose")))))))
+                     (advice "prefer parser-owned functional idioms for pure transforms")
+                     (sequenceIdioms +functional-sequence-idioms+)
+                     (predicateIdioms +functional-predicate-idioms+)
+                     (compositionIdioms +functional-composition-idioms+)
+                     (builderIdioms '("with-list-builder"))
+                     (detectedControlContexts
+                      (functional-preservation-control-contexts file))
+                     (keepNamedLetWhen "IO/stateful control flow, C3-style fixpoint selection, or generator/continuation driver")
+                     (learnedFrom ".data/gerbil-utils/list.ss uses map/filter/fold/cut and keeps named let for C3 selection; generator.ss models coroutine control inversion; bytestring.ss uses for/fold for pure counts and named let for port IO")))))))
 
 (def (manual-loop-control-flow file)
   (find (lambda (fact)
@@ -208,6 +291,13 @@
   (ormap (lambda (fact)
            (member (higher-order-fact-role fact) +functional-idiom-roles+))
          (source-file-higher-order-forms file)))
+
+(def (functional-preservation-control-contexts file)
+  (map control-flow-fact-role
+       (filter (lambda (fact)
+                 (member (control-flow-fact-role fact)
+                         +functional-preservation-control-roles+))
+               (source-file-control-flow-forms file))))
 
 (def (poo-direct-writeenv-findings index)
   (apply append
@@ -235,7 +325,7 @@
 (def (poo-io-runtime-witness-findings index)
   (filter-map
    (lambda (file)
-     (and (source-runtime-file-path? (source-file-path file))
+     (and (index-source-runtime-file-path? index (source-file-path file))
           (poo-io-source-file? file)
           (poo-io-method-override-file? file)
           (poo-io-runtime-witness-finding file)))
@@ -269,6 +359,41 @@
    (hash (next "search runtime-source writeenv printer hook")
          (requiredWitness "writeenv-roundtrip-witness"))))
 
+(def (poo-object-model-findings index)
+  (if (poo-capability-active? index)
+    (apply append
+           (map (lambda (file)
+                  (filter-map
+                   (lambda (call)
+                     (and (manual-object-model-call? index file call)
+                          (poo-object-model-finding file call)))
+                   (source-file-calls file)))
+                (project-index-files index)))
+    '()))
+
+(def (manual-object-model-call? index file call)
+  (and (index-source-runtime-file-path? index (source-file-path file))
+       (null? (source-file-poo-forms file))
+       (member (call-fact-callee call) +manual-object-model-callees+)
+       (call-fact-caller call)
+       (or (string-prefix? "make-" (call-fact-caller call))
+           (string-prefix? "new-" (call-fact-caller call))
+           (string-prefix? "build-" (call-fact-caller call)))))
+
+(def (poo-object-model-finding file call)
+  (make-type-finding
+   (policy-rule-id +agent-poo-object-model-rule+)
+   (policy-rule-severity +agent-poo-object-model-rule+)
+   (source-file-path file)
+   (string-append "manual object constructor " (call-fact-caller call)
+                  " uses " (call-fact-callee call)
+                  " while POO/protocol capability is active; prefer parser-owned defclass/defgeneric/defmethod or cite why a raw data record is intentional")
+   (call-fact-selector call)
+   (hash (constructor (call-fact-caller call))
+         (callee (call-fact-callee call))
+         (selector (call-fact-selector call))
+         (next "search pattern poo class"))))
+
 (def (poo-method-shape-findings index)
   (apply append
          (map (lambda (file)
@@ -289,8 +414,10 @@
                 "defgeneric")
            (and (blank-string? (poo-form-fact-receiver-type fact)) "receiver-type")
            (and (not (blank-string? (poo-form-fact-receiver-type fact)))
-                (not (poo-class-fact-exists? index (poo-form-fact-receiver-type fact)))
-                "defclass")]))
+                (not (poo-receiver-evidence-exists?
+                      index
+                      (poo-form-fact-receiver-type fact)))
+                "defclass-or-defprotocol")]))
 
 (def (poo-generic-fact-exists? index generic)
   (ormap
@@ -306,6 +433,10 @@
           (equal? (poo-form-fact-name fact) class-name)))
    (project-poo-forms index)))
 
+(def (poo-receiver-evidence-exists? index name)
+  (or (poo-class-fact-exists? index name)
+      (poo-protocol-fact-exists? index name)))
+
 (def (project-poo-forms index)
   (apply append (map source-file-poo-forms (project-index-files index))))
 
@@ -320,12 +451,109 @@
    (string-append "POO method " (poo-form-fact-name fact)
                   " is missing parser-owned "
                   (join-missing missing)
-                  " facts; query POO pattern evidence and add defgeneric/defclass structure before extending methods")
+                  " facts; query POO pattern evidence and add defgeneric/defclass/defprotocol structure before extending methods")
    (poo-form-fact-selector fact)
    (hash (generic (or (poo-form-fact-generic fact) ""))
          (receiverType (or (poo-form-fact-receiver-type fact) ""))
          (missing missing)
-         (next "search pattern poo class"))))
+         (next "search pattern poo class protocol"))))
+
+(def (macro-runtime-source-witness-findings index)
+  (if (macro-runtime-source-policy-allows? index)
+    '()
+    (filter-map
+     (lambda (file)
+       (and (index-source-runtime-file-path? index (source-file-path file))
+            (pair? (source-file-macros file))
+            (macro-runtime-source-witness-finding
+             file
+             (car (source-file-macros file)))))
+     (project-index-files index))))
+
+(def (macro-runtime-source-policy-allows? index)
+  (let (policy (project-macro-governance-policy index))
+    (and policy
+         (macro-runtime-source-explanation-clear? policy)
+         (macro-runtime-source-witness-clear? policy))))
+
+(def (project-macro-governance-policy index)
+  (and (project-index-package index)
+       (project-package-macro-governance-policy (project-index-package index))))
+
+(def (macro-runtime-source-explanation-clear? policy)
+  (and (macro-governance-policy-explanation policy)
+       (fx>= (string-length
+              (string-trim (macro-governance-policy-explanation policy)))
+             +macro-runtime-source-witness-explanation-min-length+)))
+
+(def (macro-runtime-source-witness-clear? policy)
+  (and (macro-governance-policy-witness policy)
+       (fx>= (string-length
+              (string-trim (macro-governance-policy-witness policy)))
+             +macro-runtime-source-witness-min-length+)))
+
+(def (macro-runtime-source-witness-finding file fact)
+  (make-type-finding
+   (policy-rule-id +agent-macro-runtime-source-witness-rule+)
+   (policy-rule-severity +agent-macro-runtime-source-witness-rule+)
+   (source-file-path file)
+   (string-append "macro " (macro-fact-name fact)
+                  " needs runtime-source or macro-expansion witness before agent edits; query search runtime-source macro sugar module-sugar and record gerbil.pkg macro-governance witness")
+   (macro-fact-selector fact)
+   (hash (macro (macro-fact-name fact))
+         (transformer (macro-fact-transformer fact))
+         (selector (macro-fact-selector fact))
+         (next "search runtime-source macro sugar module-sugar")
+         (requiredWitness "gerbil.pkg policy macro-governance witness"))))
+
+(def (protocol-evidence-findings index)
+  (apply append
+         (map (lambda (file)
+                (if (protocol-context-file? file)
+                  (filter-map
+                   (lambda (fact)
+                     (and (equal? (poo-form-fact-role fact) "method")
+                          (not (blank-string? (poo-form-fact-receiver-type fact)))
+                          (not (poo-protocol-fact-exists?
+                                index
+                                (poo-form-fact-receiver-type fact)))
+                          (not (poo-class-fact-exists?
+                                index
+                                (poo-form-fact-receiver-type fact)))
+                          (protocol-evidence-finding file fact)))
+                   (source-file-poo-forms file))
+                  '()))
+              (project-index-files index))))
+
+(def (protocol-context-file? file)
+  (or (ormap protocol-import? (source-file-imports file))
+      (ormap (lambda (fact)
+               (equal? (poo-form-fact-role fact) "protocol"))
+             (source-file-poo-forms file))))
+
+(def (protocol-import? import)
+  (and import (string-contains import "protocol")))
+
+(def (poo-protocol-fact-exists? index protocol-name)
+  (ormap
+   (lambda (fact)
+     (and (equal? (poo-form-fact-role fact) "protocol")
+          (equal? (poo-form-fact-name fact) protocol-name)))
+   (project-poo-forms index)))
+
+(def (protocol-evidence-finding file fact)
+  (make-type-finding
+   (policy-rule-id +agent-protocol-evidence-rule+)
+   (policy-rule-severity +agent-protocol-evidence-rule+)
+   (source-file-path file)
+   (string-append "protocol method " (poo-form-fact-name fact)
+                  " specializes " (poo-form-fact-receiver-type fact)
+                  " without parser-owned defprotocol/defclass evidence; declare protocol evidence before implementing methods")
+   (poo-form-fact-selector fact)
+   (hash (method (poo-form-fact-name fact))
+         (receiverType (poo-form-fact-receiver-type fact))
+         (generic (or (poo-form-fact-generic fact) ""))
+         (next "search pattern poo protocol"))))
 
 (def (join-missing items)
   (let lp ((rest items) (out ""))

@@ -35,7 +35,7 @@
   (filter-map
    (lambda (file)
      (let* ((path (source-file-path file))
-            (owner-prefix (sibling-owner-prefix path)))
+            (owner-prefix (sibling-owner-prefix index path)))
        (and owner-prefix
             (owner-prefix-has-child-source? index owner-prefix path)
             (sibling-file-dir-owner-collision-finding file owner-prefix))))
@@ -44,7 +44,7 @@
 (def (repeated-owner-entry-findings index)
   (filter-map
    (lambda (file)
-     (and (repeated-owner-entry-path? (source-file-path file))
+     (and (repeated-owner-entry-path? index (source-file-path file))
           (repeated-owner-entry-finding file)))
    (project-index-files index)))
 
@@ -66,7 +66,7 @@
 
 (def (facade-source-file? index file)
   (let* ((path (source-file-path file))
-         (owner-prefix (owner-entry-prefix path)))
+         (owner-prefix (owner-entry-prefix index path)))
     (and owner-prefix
          (owner-prefix-has-child-source? index owner-prefix path))))
 
@@ -75,38 +75,72 @@
    (lambda (candidate)
      (let (candidate-path (source-file-path candidate))
        (and (not (equal? candidate-path path))
-            (gerbil-source-path? candidate-path)
+            (project-gerbil-source-path? index candidate-path)
             (string-prefix? owner-prefix candidate-path))))
    (project-index-files index)))
 
-(def (sibling-owner-prefix path)
-  (and (gerbil-source-path? path)
+(def (sibling-owner-prefix index path)
+  (and (project-gerbil-source-path? index path)
        (string-append (path-without-extension path) "/")))
 
-(def (owner-entry-prefix path)
-  (and (gerbil-source-path? path)
-       (facade-entry-path? path)
+(def (owner-entry-prefix index path)
+  (and (project-gerbil-source-path? index path)
+       (facade-entry-path? index path)
        (path-parent-prefix path)))
 
-(def (facade-entry-path? path)
-  (and (gerbil-source-path? path)
+(def (facade-entry-path? index path)
+  (and (project-gerbil-source-path? index path)
        (equal? (path-stem path) "facade")
        (path-parent-prefix path)
-       (not (equal? (path-parent-prefix path) "src/"))))
+       (not (source-root-parent-prefix? index (path-parent-prefix path)))))
 
-(def (repeated-owner-entry-path? path)
+(def (repeated-owner-entry-path? index path)
   (let ((parent (path-parent-prefix path))
         (stem (path-stem path)))
     (and parent
-         (not (equal? parent "src/"))
+         (project-gerbil-source-path? index path)
+         (not (source-root-parent-prefix? index parent))
          (equal? stem (path-parent-name parent)))))
 
-(def (owner-entry-path? path)
-  (repeated-owner-entry-path? path))
+(def (owner-entry-path? index path)
+  (repeated-owner-entry-path? index path))
 
-(def (gerbil-source-path? path)
-  (and (string-prefix? "src/" path)
-       (string-suffix? ".ss" path)))
+(def (project-gerbil-source-path? index path)
+  (and (string-suffix? ".ss" path)
+       (not (config-file-path? path))
+       (ormap (lambda (root)
+                (source-path-under-root? path root))
+              (project-source-roots index))))
+
+(def (config-file-path? path)
+  (find (lambda (candidate) (string=? path candidate)) +config-files+))
+
+(def (project-source-roots index)
+  (let* ((package (project-index-package index))
+         (policy (and package
+                      (project-package-source-scope-policy package)))
+         (roots (and policy (source-scope-policy-roots policy))))
+    (cond
+     ((and roots (pair? roots)) roots)
+     ((and policy (pair? (source-scope-policy-runtime-roots policy)))
+      (source-scope-policy-runtime-roots policy))
+     (else ["src"]))))
+
+(def (source-path-under-root? path root)
+  (or (equal? root ".")
+      (equal? path root)
+      (string-prefix? (source-root-prefix root) path)))
+
+(def (source-root-parent-prefix? index parent)
+  (ormap (lambda (root)
+           (equal? parent (source-root-prefix root)))
+         (project-source-roots index)))
+
+(def (source-root-prefix root)
+  (cond
+   ((equal? root ".") "")
+   ((string-suffix? "/" root) root)
+   (else (string-append root "/"))))
 
 (def (bin-entrypoint-source-file? file)
   (let (path (source-file-path file))
@@ -270,7 +304,8 @@
 (def (source-leaf-bloat-findings index)
   (filter-map
    (lambda (file)
-     (and (fx>= (source-file-line-count file) +max-source-line-count+)
+     (and (project-gerbil-source-path? index (source-file-path file))
+          (fx>= (source-file-line-count file) +max-source-line-count+)
           (fx>= (length (source-file-definitions file)) +min-source-definition-count+)
           (source-leaf-bloat-finding file)))
    (project-index-files index)))

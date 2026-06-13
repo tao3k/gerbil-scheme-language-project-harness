@@ -18,7 +18,10 @@
         +agent-poo-direct-writeenv-rule+
         +agent-poo-io-runtime-witness-rule+
         +agent-poo-method-shape-rule+
-        +agent-functional-idiom-advice-rule+)
+        +agent-functional-idiom-advice-rule+
+        +agent-poo-object-model-rule+
+        +agent-macro-runtime-source-witness-rule+
+        +agent-protocol-evidence-rule+)
 
 (defstruct policy-rule (id severity))
 
@@ -66,3 +69,12 @@
 
 (def +agent-functional-idiom-advice-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R009" "warning"))
+
+(def +agent-poo-object-model-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R010" "warning"))
+
+(def +agent-macro-runtime-source-witness-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R011" "warning"))
+
+(def +agent-protocol-evidence-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R012" "warning"))

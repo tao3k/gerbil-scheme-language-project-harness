@@ -24,6 +24,9 @@
         +agent-poo-io-runtime-witness-rule+
         +agent-poo-method-shape-rule+
         +agent-functional-idiom-advice-rule+
+        +agent-poo-object-model-rule+
+        +agent-macro-runtime-source-witness-rule+
+        +agent-protocol-evidence-rule+
         run-policy-checks
         run-modularity-policy
         +max-source-line-count+
@@ -43,5 +46,8 @@
         functional-idiom-advice-finding
         poo-direct-writeenv-finding
         poo-io-runtime-witness-finding
+        poo-object-model-finding
         poo-method-shape-finding
+        macro-runtime-source-witness-finding
+        protocol-evidence-finding
         facade-export-conflict-findings)

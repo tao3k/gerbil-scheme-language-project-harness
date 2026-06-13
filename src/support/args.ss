@@ -13,10 +13,11 @@
         drop-project-root
         file-directory?)
 
-(def +boolean-flags+ '("--json" "--code" "--names-only" "--changed" "--full"))
+(def +boolean-flags+ '("--json" "--code" "--names-only" "--changed" "--full" "--more"))
 (def +value-options+
   '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"
-    "--iterations" "--max-total-ms" "--whitelist"))
+    "--iterations" "--max-total-ms" "--whitelist"
+    "--topic" "--intent" "--role" "--level" "--rule" "--finding" "--limit"))
 
 (def (flag? flag args)
   (member flag args))

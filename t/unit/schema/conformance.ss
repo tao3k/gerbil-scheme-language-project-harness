@@ -1,17 +1,19 @@
 ;;; -*- Gerbil -*-
-(import :commands/search
+(import :commands/info
+        :commands/search
         :std/misc/ports
         :std/srfi/13
         :std/test
         :std/text/json)
 
-(export check-runtime-source-json-schema-conformance
+(export check-info-json-schema-conformance
+        check-runtime-source-json-schema-conformance
         check-extension-pattern-json-schema-conformance
         check-compare-json-schema-conformance
         check-structural-index-json-schema-conformance)
 
 (def (json-get table key)
-  (hash-get table (if (string? key) (string->symbol key) key)))
+  (hash-get table key))
 
 (def (search-json args)
   (let* ((status #f)
@@ -20,6 +22,16 @@
             (lambda (out)
               (parameterize ((current-output-port out))
                 (set! status (search-main args)))))))
+    (check status => 0)
+    (call-with-input-string output read-json)))
+
+(def (info-json args)
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (info-main args)))))))
     (check status => 0)
     (call-with-input-string output read-json)))
 
@@ -34,9 +46,30 @@
        (check (json-get packet (car entry)) => (cdr entry)))
      (top-level-const-fields schema))))
 
+(def (has-rule-id? rules id)
+  (cond
+   ((null? rules) #f)
+   ((equal? (json-get (car rules) "id") id) #t)
+   (else (has-rule-id? (cdr rules) id))))
+
+(def (check-info-json-schema-conformance)
+  (let* ((packet (info-json ["--json" "."]))
+         (steering (json-get packet "agentSteering"))
+         (commands (json-get packet "closureCommands")))
+    (check-packet-conforms-to-schema!
+     packet
+     "semantic-gerbil-scheme-harness-info.v1.schema.json")
+    (check (> (json-get packet "files") 0) => #t)
+    (check (> (json-get packet "definitions") 0) => #t)
+    (check (not (not (member "macroFacts" (json-get steering "facts")))) => #t)
+    (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-R011") => #t)
+    (check (string-prefix? "./bin/gerbil-scheme-harness check"
+                           (json-get commands "check"))
+           => #t)))
+
 (def (missing-required-fields packet schema)
   (filter (lambda (key)
-            (not (hash-key? packet (string->symbol key))))
+            (not (hash-key? packet key)))
           (json-get schema "required")))
 
 (def (top-level-const-fields schema)

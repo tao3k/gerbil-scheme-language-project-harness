@@ -20,6 +20,11 @@
         (sibling-bin (path-expand (string-append "../bin/" name) (gerbil-home))))
     (if (file-exists? default-bin) default-bin sibling-bin)))
 
+(def (runtime-path-normalize path)
+  (with-catch
+   (lambda (_) path)
+   (lambda () (path-normalize path))))
+
 (def (gerbil-runtime-tag version-string)
   (let (start (string-index version-string #\v))
     (and start
@@ -46,7 +51,10 @@
   (let* ((home (path-normalize (gerbil-home)))
          (gxi (path-normalize (runtime-bin "gxi")))
          (gsc (path-normalize (runtime-bin "gsc")))
-         (paths (map path-normalize (load-path)))
+         (paths (map runtime-path-normalize (load-path)))
+         (missing-paths (filter (lambda (path)
+                                  (not (file-exists? path)))
+                                paths))
          (witness (if (and (file-exists? gxi) (file-exists? gsc))
                     "gerbil-home-gxi-gsc-load-path-resolved"
                     "gerbil-home-load-path-resolved")))
@@ -62,7 +70,8 @@
             (gsc gsc)
             (gxiExists (file-exists? gxi))
             (gscExists (file-exists? gsc))
-            (loadPath paths))
+            (loadPath paths)
+            (loadPathMissing missing-paths))
       []
       "agent-needs-active-gerbil-runtime-before-import-or-macro-claims"
       "discover-active-gxi-gsc-and-load-path-before-writing-gerbil-code"

@@ -134,8 +134,16 @@
         project-package-dependencies
         project-package-manager
         project-package-test-directory-policy
+        project-package-source-scope-policy
+        project-package-agent-policy
         test-directory-policy-allowed-directories
         test-directory-policy-explanation
+        source-scope-policy-roots
+        source-scope-policy-runtime-roots
+        source-scope-policy-exclude-directories
+        source-scope-policy-explanation
+        agent-policy-enabled-rules
+        agent-policy-disabled-rules
         project-index-root
         project-index-files
         project-index-package)
@@ -146,28 +154,76 @@
   '(".devenv" ".git" ".cache" ".run" ".gerbil" "build" "dist" "target" "src/gambit" "tree-sitter"))
 (def (collect-project root)
   (let* ((root (path-normalize root))
-         (files (sort (collect-source-files root) string<?)))
+         (package (read-project-package root))
+         (files (sort (collect-source-files root package) string<?)))
     (make-project-index root
                         (map (cut parse-source-file root <>) files)
-                        (read-project-package root))))
+                        package)))
 
-(def (collect-source-files root)
-  (def (dir? path)
-    (with-catch
-     (lambda (_) #f)
-     (lambda () (eq? (file-type path) 'directory))))
+(def (collect-source-files root . maybe-package)
+  (let* ((package (and (pair? maybe-package) (car maybe-package)))
+         (scope-policy (and package
+                            (project-package-source-scope-policy package)))
+         (source-roots (configured-source-roots scope-policy))
+         (ignored-dirs (append +ignored-dirs+
+                               (if scope-policy
+                                 (source-scope-policy-exclude-directories scope-policy)
+                                 '()))))
+    (dedupe-string-list
+     (map path-normalize
+          (append (root-config-files root)
+                  (apply append
+                         (map (lambda (source-root)
+                                (let (path (path-expand source-root root))
+                                  (if (source-directory? path)
+                                    (walk-source-directory root path ignored-dirs)
+                                    '())))
+                              source-roots)))))))
+
+(def (dedupe-string-list items)
+  (let lp ((rest items) (seen '()) (out '()))
+    (match rest
+      ([] (reverse out))
+      ([item . more]
+       (if (string-list-member? item seen)
+         (lp more seen out)
+         (lp more (cons item seen) (cons item out)))))))
+
+(def (string-list-member? item items)
+  (find (lambda (candidate) (string=? item candidate)) items))
+
+(def (configured-source-roots policy)
+  (let (roots (and policy (source-scope-policy-roots policy)))
+    (if (and roots (pair? roots)) roots ["."])))
+
+(def (root-config-files root)
+  (filter file-exists?
+          (map (cut path-expand <> root) +config-files+)))
+
+(def (source-directory? path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (eq? (file-type path) 'directory))))
+
+(def (walk-source-directory root dir ignored-dirs)
   (def (walk dir acc)
     (for/fold (result acc) (entry (sort (directory-files dir) string<?))
       (if (member entry '("." ".."))
         result
         (let (path (path-expand entry dir))
           (cond
-           ((and (dir? path) (not (member entry +ignored-dirs+)))
+           ((and (source-directory? path)
+                 (not (ignored-source-directory? root path entry ignored-dirs)))
             (walk path result))
            ((gerbil-source-path? path)
             (cons path result))
            (else result))))))
-  (walk root '()))
+  (walk dir '()))
+
+(def (ignored-source-directory? root path entry ignored-dirs)
+  (let (relpath (relative-path root path))
+    (or (member entry ignored-dirs)
+        (member relpath ignored-dirs))))
 
 (def (gerbil-source-path? path)
   (or (member (path-extension path) +source-extensions+)

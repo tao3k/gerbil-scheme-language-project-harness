@@ -2,22 +2,29 @@
 ;;; Native syntax fact rows for the structural index packet.
 
 (import :parser/facade
+        :std/sort
         :std/sugar
         :support/list)
 
 (export structural-syntax-fact-json)
 
 (def (structural-syntax-fact-json file)
-  (append
-   (map module-import-structural-fact-json (source-file-module-imports file))
-   (map macro-structural-fact-json (source-file-macros file))
-   (map binding-structural-fact-json (source-file-bindings file))
-   (map poo-form-structural-fact-json (source-file-poo-forms file))
-   (map higher-order-structural-fact-json
-        (source-file-higher-order-forms file))
-   (map control-flow-structural-fact-json
-        (source-file-control-flow-forms file))
-   (map call-structural-fact-json (source-file-calls file))))
+  (stable-structural-facts
+   (append
+    (map module-import-structural-fact-json (source-file-module-imports file))
+    (map macro-structural-fact-json (source-file-macros file))
+    (map binding-structural-fact-json (source-file-bindings file))
+    (map poo-form-structural-fact-json (source-file-poo-forms file))
+    (map higher-order-structural-fact-json
+         (source-file-higher-order-forms file))
+    (map control-flow-structural-fact-json
+         (source-file-control-flow-forms file))
+    (map call-structural-fact-json (source-file-calls file)))))
+
+(def (stable-structural-facts facts)
+  (sort facts
+        (lambda (a b)
+          (string<? (hash-get a 'id) (hash-get b 'id)))))
 
 (def (module-import-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "import" (module-import-fact-path fact)
@@ -101,6 +108,7 @@
    ((equal? (poo-form-fact-role fact) "class") "class")
    ((equal? (poo-form-fact-role fact) "generic") "function")
    ((equal? (poo-form-fact-role fact) "method") "method")
+   ((equal? (poo-form-fact-role fact) "protocol") "interface")
    (else "custom")))
 
 (def (poo-form-query-keys fact)

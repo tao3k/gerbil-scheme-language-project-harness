@@ -8,6 +8,17 @@
 
 (export control-flow-facts-from-form)
 
+(def +protected-control-heads+ '(try with-catch))
+(def +protected-handler-heads+ '(catch finally))
+(def +continuation-control-heads+ '(let/cc call/cc))
+(def +resource-scope-heads+
+  '(parameterize
+    call-with-input call-with-output
+    call-with-input-file call-with-output-file
+    call-with-input-string call-with-output-string
+    with-input with-output))
+(def +builder-control-heads+ '(with-list-builder))
+
 (def (control-flow-facts-from-form relpath form datum)
   (control-flow-facts-from-stx relpath form (form-caller-name datum)))
 
@@ -49,6 +60,9 @@
          (control-flow-facts-from-stxes relpath
                                         (let-body-stxes expr-stx head)
                                         caller)))
+       ((control-flow-head? head)
+        (cons (generic-control-flow-fact relpath expr-stx head caller)
+              (control-flow-facts-from-stxes relpath (cdr items) caller)))
        ((eq? head 'match)
         (control-flow-facts-from-stxes relpath (match-body-stxes expr-stx) caller))
        ((member head '(syntax-case syntax-rules identifier-rules))
@@ -88,3 +102,32 @@
                             caller
                             (length bindings)
                             (length body))))
+
+(def (control-flow-head? head)
+  (or (member head +protected-control-heads+)
+      (member head +protected-handler-heads+)
+      (member head +continuation-control-heads+)
+      (member head +resource-scope-heads+)
+      (member head +builder-control-heads+)))
+
+(def (control-flow-role head)
+  (cond
+   ((member head +protected-control-heads+) "protected-control")
+   ((member head +protected-handler-heads+) "protected-handler")
+   ((member head +continuation-control-heads+) "continuation-control")
+   ((member head +resource-scope-heads+) "resource-scope")
+   ((member head +builder-control-heads+) "builder-control")
+   (else "control-flow")))
+
+(def (generic-control-flow-fact relpath expr-stx head caller)
+  (let* ((items (stx-list-items expr-stx))
+         (loc (stx-source expr-stx)))
+    (make-control-flow-fact (datum->string head)
+                            (datum->string head)
+                            relpath
+                            (source-start-line loc)
+                            (source-end-line loc)
+                            (control-flow-role head)
+                            caller
+                            0
+                            (length (cdr items)))))

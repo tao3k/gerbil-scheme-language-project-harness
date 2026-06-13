@@ -26,4 +26,5 @@ Usage:
   gerbil-scheme-harness evidence analyze [--json] [PROJECT_ROOT]
   gerbil-scheme-harness agent doctor [--json] [PROJECT_ROOT]
   gerbil-scheme-harness agent guide [PROJECT_ROOT]
+  gerbil-scheme-harness info [--json] [PROJECT_ROOT]
 ")

@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Parser-owned package metadata facts.
 
-(import :gerbil/gambit)
+(import :gerbil/gambit
+        :std/srfi/13)
 
 (export read-project-package
         project-package-path
@@ -10,30 +11,73 @@
         project-package-manager
         project-package-test-directory-policy
         project-package-macro-governance-policy
+        project-package-source-scope-policy
+        project-package-agent-policy
         test-directory-policy-allowed-directories
         test-directory-policy-explanation
         macro-governance-policy-allow-generated
         macro-governance-policy-explanation
-        macro-governance-policy-witness)
+        macro-governance-policy-witness
+        source-scope-policy-roots
+        source-scope-policy-runtime-roots
+        source-scope-policy-exclude-directories
+        source-scope-policy-explanation
+        agent-policy-enabled-rules
+        agent-policy-disabled-rules)
 
 (defstruct test-directory-policy (allowed-directories explanation))
 (defstruct macro-governance-policy (allow-generated explanation witness))
-(defstruct project-package (path name dependencies manager test-directory-policy macro-governance-policy))
+(defstruct source-scope-policy (roots runtime-roots exclude-directories explanation))
+(defstruct agent-policy (enabled-rules disabled-rules))
+(defstruct project-package (path name dependencies manager test-directory-policy macro-governance-policy source-scope-policy agent-policy))
 
 (def (read-project-package root)
+  (let* ((package-form (read-package-form root))
+         (build-scope (read-build-source-scope-policy root)))
+    (cond
+     (package-form
+      (make-project-package "gerbil.pkg"
+                            (datum->string (safe-cadr package-form))
+                            (package-dependencies package-form)
+                            "gxpkg"
+                            (package-test-directory-policy package-form)
+                            (package-macro-governance-policy package-form)
+                            (or (package-source-scope-policy package-form)
+                                build-scope)
+                            (package-agent-policy package-form)))
+     (build-scope
+      (make-project-package "build.ss"
+                            #f
+                            '()
+                            "gxpkg"
+                            #f
+                            #f
+                            build-scope
+                            #f))
+     (else #f))))
+
+(def (read-package-form root)
   (with-catch
    (lambda (_) #f)
    (lambda ()
      (let* ((path (path-expand "gerbil.pkg" root))
+            (forms (read-package-forms path)))
+       (find package-form? forms)))))
+
+(def (read-build-source-scope-policy root)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (let* ((path (path-expand "build.ss" root))
             (forms (read-package-forms path))
-            (package-form (find package-form? forms)))
-       (and package-form
-            (make-project-package "gerbil.pkg"
-                                  (datum->string (safe-cadr package-form))
-                                  (package-dependencies package-form)
-                                  "gxpkg"
-                                  (package-test-directory-policy package-form)
-                                  (package-macro-governance-policy package-form)))))))
+            (targets (build-script-targets forms))
+            (runtime-roots (build-target-source-roots targets)))
+       (and (pair? runtime-roots)
+            (make-source-scope-policy
+             '()
+             runtime-roots
+             '()
+             "Inferred from build.ss defbuild-script targets."))))))
 
 (def (read-package-forms path)
   (call-with-input-file path
@@ -91,6 +135,87 @@
 (def (macro-governance-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(macro-governance macro-policy))))
+
+(def (package-source-scope-policy datum)
+  (let (policy (package-field-value datum 'policy:))
+    (and policy
+         (let (entry (policy-source-scope-entry policy))
+           (and entry
+                (make-source-scope-policy
+                 (or (policy-string-list-field entry 'roots:)
+                     (policy-string-list-field entry 'source-roots:)
+                     (policy-string-list-field entry 'source-root:)
+                     '())
+                 (or (policy-string-list-field entry 'runtime-roots:)
+                     (policy-string-list-field entry 'runtime-root:)
+                     '())
+                 (or (policy-string-list-field entry 'exclude-directories:)
+                     (policy-string-list-field entry 'excluded-directories:)
+                     (policy-string-list-field entry 'ignore-directories:)
+                     '())
+                 (policy-string-field entry 'explanation:)))))))
+
+(def (policy-source-scope-entry policy)
+  (if (source-scope-policy-form? policy)
+    policy
+    (find source-scope-policy-form? (datum-list-items policy))))
+
+(def (source-scope-policy-form? datum)
+  (and (pair? datum)
+       (member (car datum) '(source-scope source-policy project-scope))))
+
+(def (build-script-targets forms)
+  (let (form (find build-script-form? forms))
+    (if form
+      (build-script-target-value (safe-cadr form))
+      '())))
+
+(def (build-script-form? datum)
+  (and (pair? datum) (eq? (car datum) 'defbuild-script)))
+
+(def (build-script-target-value datum)
+  (cond
+   ((not datum) '())
+   ((quoted-datum? datum) (build-script-target-value (safe-cadr datum)))
+   ((or (string? datum) (symbol? datum)) [(datum->string datum)])
+   (else (filter-map datum->string (datum-list-items datum)))))
+
+(def (quoted-datum? datum)
+  (and (pair? datum) (eq? (car datum) 'quote)))
+
+(def (build-target-source-roots targets)
+  (dedupe-strings
+   (filter-map build-target-source-root targets)))
+
+(def (build-target-source-root target)
+  (let (slash (and target (string-index target #\/)))
+    (cond
+     ((not target) #f)
+     ((not slash) ".")
+     ((fx= slash 0) ".")
+     (else (substring target 0 slash)))))
+
+(def (package-agent-policy datum)
+  (let (policy (package-field-value datum 'policy:))
+    (and policy
+         (let (entry (policy-agent-entry policy))
+           (and entry
+                (make-agent-policy
+                 (or (policy-string-list-field entry 'enabled-rules:)
+                     (policy-string-list-field entry 'enable:)
+                     '())
+                 (or (policy-string-list-field entry 'disabled-rules:)
+                     (policy-string-list-field entry 'disable:)
+                     '())))))))
+
+(def (policy-agent-entry policy)
+  (if (agent-policy-form? policy)
+    policy
+    (find agent-policy-form? (datum-list-items policy))))
+
+(def (agent-policy-form? datum)
+  (and (pair? datum)
+       (member (car datum) '(agent-policy policy-rules))))
 
 (def (policy-directory-list datum)
   (or (policy-string-list-field datum 'allowed-directories:)
@@ -153,3 +278,15 @@
          (lp more seen out)
          (lp more (cons item seen) (cons item out))))
       (else (reverse out)))))
+
+(def (dedupe-strings items)
+  (let lp ((rest items) (seen '()) (out '()))
+    (match rest
+      ([item . more]
+       (if (string-list-member? item seen)
+         (lp more seen out)
+         (lp more (cons item seen) (cons item out))))
+      (else (reverse out)))))
+
+(def (string-list-member? item items)
+  (find (lambda (candidate) (string=? item candidate)) items))

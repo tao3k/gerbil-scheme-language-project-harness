@@ -4,7 +4,7 @@
         (for-syntax :std/stxutil)
         (rename-in :std/misc/list (foldl fold-left))
         (except-in :std/misc/hash hash-copy))
-(export make-widget with-widget <Widget> :render)
+(export make-widget with-widget <Widget> <Renderable> :render)
 
 (defrule (with-widget value body ...)
   (let ((tmp value))
@@ -19,6 +19,8 @@
 (defclass (<Widget> :object) (name count) transparent: #t)
 
 (defgeneric :render)
+
+(defprotocol <Renderable>)
 
 (defmethod (:render (widget <Widget>))
   (let* ((label "ok")

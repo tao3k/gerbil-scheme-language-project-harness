@@ -1,6 +1,7 @@
 ;;; -*- Gerbil -*-
 (import :parser/facade
         :protocol/json
+        :std/sort
         :std/test)
 (export check-structural-index-required-envelope
         check-structural-index-queryable-facts)
@@ -43,6 +44,7 @@
     (check (packet-has-syntax-fact-field? packet "method" ":render" 'specializers ["widget:<Widget>"]) => #t)
     (check (packet-has-syntax-fact-field? packet "method" ":render" 'dispatchArity 1) => #t)
     (check (packet-has-syntax-fact-field? packet "class" "<Widget>" 'slots ["name" "count"]) => #t)
+    (check (packet-has-syntax-fact-field? packet "interface" "<Renderable>" 'role "protocol") => #t)
     (check (packet-has-syntax-fact-field? packet "function" "case-lambda" 'role "multi-arity-function") => #t)
     (check (packet-has-syntax-fact-field? packet "function" "lambda" 'formals ["widget"]) => #t)
     (check (packet-has-syntax-fact-field? packet "call" "map" 'role "sequence-map") => #t)
@@ -51,7 +53,16 @@
     (check (packet-has-syntax-fact-field? packet "call" "cut" 'role "partial-application") => #t)
     (check (packet-has-syntax-fact-field? packet "call" "for/fold" 'role "loop-fold") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "loop" 'role "manual-loop") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "loop" "control-flow") => #t)
+    (check (packet-has-syntax-fact-id? packet "custom" "loop"
+                                       "control-flow:t/fixtures/parser/control-flow.ss:7:loop") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "loop" 'bindingCount 2) => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "loop" 'bodyFormCount 1) => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "let/cc" 'role "continuation-control") => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "try" 'role "protected-control") => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "finally" 'role "protected-handler") => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "call-with-output-string" 'role "resource-scope") => #t)
+    (check (packet-syntax-fact-ids-are-sorted? packet) => #t)
     (check (packet-has-dependency? packet ":parser/facade") => #t)
     (check (packet-file-hashes-are-64-hex? packet) => #t)))
 
@@ -83,6 +94,25 @@
                 (let (fields (hash-get fact 'fields))
                   (and fields (equal? (hash-get fields field) expected)))))
          (hash-get packet 'syntaxFacts)))
+
+(def (packet-has-syntax-fact-query-key? packet kind name key)
+  (ormap (lambda (fact)
+           (and (equal? (hash-get fact 'kind) kind)
+                (equal? (hash-get fact 'name) name)
+                (member key (hash-get fact 'queryKeys))
+                #t))
+         (hash-get packet 'syntaxFacts)))
+
+(def (packet-has-syntax-fact-id? packet kind name id)
+  (ormap (lambda (fact)
+           (and (equal? (hash-get fact 'kind) kind)
+                (equal? (hash-get fact 'name) name)
+                (equal? (hash-get fact 'id) id)))
+         (hash-get packet 'syntaxFacts)))
+
+(def (packet-syntax-fact-ids-are-sorted? packet)
+  (let (ids (map (cut hash-get <> 'id) (hash-get packet 'syntaxFacts)))
+    (equal? ids (sort ids string<?))))
 
 (def (packet-has-dependency? packet import-path)
   (ormap (lambda (usage)

@@ -8,7 +8,7 @@
   (test-suite "gerbil scheme harness query"
     (test-case "selector query is a first-class code read"
       (let (result (query-output ["--selector"
-                                  "src/commands/guide.ss:1-13"
+                                  "src/commands/guide.ss:14-61"
                                   "--workspace"
                                   "."
                                   "--code"]))
@@ -21,7 +21,7 @@
                => #t)))
     (test-case "selector query accepts graph frontier colon ranges"
       (let (result (query-output ["--selector"
-                                  "src/commands/guide.ss:1:13"
+                                  "src/commands/guide.ss:14:61"
                                   "--workspace"
                                   "."
                                   "--code"]))

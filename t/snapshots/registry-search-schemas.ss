@@ -14,6 +14,7 @@
            "query/direct-source-read"
            "check/changed"
            "guide"
+           "info"
            "evidence/graph"
            "evidence/analyze"))
  (schemas
@@ -21,6 +22,10 @@
     (schemaId "agent.semantic-protocols.semantic-extension-pattern-mapping")
     (schemaVersion "1")
     (path "schemas/semantic-extension-pattern-mapping.v1.schema.json"))
+   (schema
+    (schemaId "agent.semantic-protocols.gerbil-scheme-harness-info")
+    (schemaVersion "1")
+    (path "schemas/semantic-gerbil-scheme-harness-info.v1.schema.json"))
    (schema
     (schemaId "agent.semantic-protocols.semantic-runtime-source-acquisition")
     (schemaVersion "1")
@@ -47,6 +52,10 @@
     (path "schemas/semantic-graph-turbo-request.v1.schema.json"))))
  (methodDescriptors
   ((methodDescriptor
+    (method "info")
+    (command "info")
+    (outputSchemaIds ("agent.semantic-protocols.gerbil-scheme-harness-info")))
+   (methodDescriptor
     (method "search/pattern")
     (command "search pattern")
     (outputSchemaIds ("agent.semantic-protocols.semantic-extension-pattern-mapping")))

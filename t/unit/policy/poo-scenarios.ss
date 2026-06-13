@@ -37,7 +37,7 @@
     (ensure-dir src)
     (ensure-dir owner)
     (write-text (string-append owner "/core.ss")
-                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(def (process order) order)\n(def (order-total order) order)\n")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(def (process order) order)\n(def (make-order id total) (hash (id id) (total total)))\n(def (order-total order) order)\n")
     (write-text (string-append owner "/io.ss")
                 ";;; -*- Gerbil -*-\n(import :clan/poo/io)\n(defmethod (@method :wr object) (lambda (self writeenv) (writeenv self)))\n")))
 

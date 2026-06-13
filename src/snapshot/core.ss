@@ -39,7 +39,27 @@
         (list 'name (project-package-name package))
         (list 'dependencies (snapshot-list (project-package-dependencies package)))
         (list 'fields
-              (list 'packageManager (project-package-manager package)))))
+              (list 'packageManager (project-package-manager package))
+              (source-scope-policy-snapshot
+               (project-package-source-scope-policy package))
+              (agent-policy-snapshot
+               (project-package-agent-policy package)))))
+
+(def (source-scope-policy-snapshot policy)
+  (list 'sourceScopePolicy
+        (if policy
+          (list (list 'roots (snapshot-list (source-scope-policy-roots policy)))
+                (list 'runtimeRoots (snapshot-list (source-scope-policy-runtime-roots policy)))
+                (list 'excludeDirectories (snapshot-list (source-scope-policy-exclude-directories policy)))
+                (list 'explanation (source-scope-policy-explanation policy)))
+          '())))
+
+(def (agent-policy-snapshot policy)
+  (list 'agentPolicy
+        (if policy
+          (list (list 'enabledRules (snapshot-list (agent-policy-enabled-rules policy)))
+                (list 'disabledRules (snapshot-list (agent-policy-disabled-rules policy))))
+          '())))
 
 (def (extension-fact-snapshot fact)
   (list 'providerExtension

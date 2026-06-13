@@ -1,7 +1,10 @@
 ;;; -*- Gerbil -*-
 (import :std/test
+        :commands/guide
+        :commands/info
         :commands/search
         :support/args
+        :support/io
         :std/misc/ports
         (only-in :std/text/json read-json)
         :unit/poo/runtime-witness
@@ -9,7 +12,7 @@
 (export search-test)
 
 (def (json-get table key)
-  (hash-get table (if (string? key) (string->symbol key) key)))
+  (hash-get table key))
 
 (def (search-output args)
   (let* ((status #f)
@@ -21,8 +24,41 @@
     (check status => 0)
     output))
 
+(def (guide-output args)
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (guide-main args)))))))
+    (check status => 0)
+    output))
+
+(def (info-output args)
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (info-main args)))))))
+    (check status => 0)
+    output))
+
 (def (contains? output fragment)
   (and (string-contains output fragment) #t))
+
+(def (expected-guide-excerpt comment-selector code-selector)
+  (string-append (read-selector "." comment-selector)
+                 (read-selector "." code-selector)))
+
+(def (guide-code-render-metadata-free? output)
+  (not (or (contains? output "[guide")
+           (contains? output "|primaryExemplar")
+           (contains? output "|exemplar")
+           (contains? output "|code begin")
+           (contains? output "selector=")
+           (contains? output "nextCommand=")
+           (contains? output "\n|"))))
 
 (def (check-output-contains output fragments)
   (for-each
@@ -91,6 +127,12 @@
     (test-case "search guide routes to provider guide"
       (let (output (search-output ["guide" "--view" "seeds" "."]))
         (check (string-prefix? "gerbil-scheme-harness guide" output) => #t)
+        (check (contains? output "|cmd guide-code=gerbil-scheme-harness guide --code") => #t)
+        (check (contains? output "|cmd guide-code-more=gerbil-scheme-harness guide --code --topic higher-order-control --more") => #t)
+        (check (contains? output "|cmd guide-code-repair=gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair") => #t)
+        (check (contains? output "|cmd guide-code-poo-repair=gerbil-scheme-harness guide --code --topic poo-policy --intent repair") => #t)
+        (check (contains? output "|cmd guide-code-macro-witness=gerbil-scheme-harness guide --code --topic macro-runtime-source --intent witness") => #t)
+        (check (contains? output "|cmd guide-code-advanced=gerbil-scheme-harness guide --code --topic higher-order-control --level advanced") => #t)
         (check (contains? output "|cmd prime=gerbil-scheme-harness search prime --view seeds .") => #t)
         (check (contains? output "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --view seeds .") => #t)
         (check (contains? output "|cmd query-code=gerbil-scheme-harness query --selector <path:start-end> --workspace . --code") => #t)
@@ -101,19 +143,145 @@
         (check (contains? output "|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds .") => #t)
         (check (contains? output "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds .") => #t)
         (check (contains? output "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --view seeds .") => #t)
-        (check (contains? output "|cmd structural-index=gerbil-scheme-harness search structural --json .") => #t)
+        (check (contains? output "|cmd structural=gerbil-scheme-harness search structural --view seeds .") => #t)
+        (check (contains? output "|cmd structural-index-json=gerbil-scheme-harness search structural --json .") => #t)
+        (check (contains? output "|cmd info=gerbil-scheme-harness info --json .") => #t)
+        (check (contains? output "|policy package-module-style=Gerbil package modules should preserve package:/namespace:/import/export style") => #t)
+        (check (contains? output "|policy poo-method-shape=GERBIL-SCHEME-AGENT-R008") => #t)
+        (check (contains? output "|policy macro-runtime-source-witness=GERBIL-SCHEME-AGENT-R011") => #t)
+        (check (contains? output "|policy protocol-evidence=GERBIL-SCHEME-AGENT-R012") => #t)
+        (check (contains? output "|policy functional-data-transform=GERBIL-SCHEME-AGENT-R009") => #t)
         (check (contains? output "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing") => #t)
         (check (contains? output "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads") => #t)
+        (check (contains? output "|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-R009") => #t)
+        (check (contains? output "|guideExemplar id=gerbil.functional-data-transform.filter-map topic=functional-data-transform intent=repair rule=GERBIL-SCHEME-AGENT-R009") => #t)
+        (check (contains? output "|guideExemplar id=gerbil.poo-policy.parser-facts topic=poo-policy intent=repair rule=GERBIL-SCHEME-AGENT-R008") => #t)
+        (check (contains? output "|guideExemplar id=gerbil.macro-runtime-source.witness topic=macro-runtime-source intent=witness rule=GERBIL-SCHEME-AGENT-R011") => #t)
+        (check (contains? output "|policy guide-code-default=guide --code writes only extracted source comment plus source code; guide without --code carries selectors and next commands") => #t)
+        (check (contains? output "|policy guide-code-progressive=guide --code defaults to one source-backed excerpt; --more adds one adjacent exemplar; --level advanced includes the macro runtime-source witness path") => #t)
+        (check (contains? output "|policy guide-code-routing=--rule/--finding route known policy ids to source-backed exemplars before agent repair; --intent witness routes to macro runtime-source evidence") => #t)
+        (check (contains? output "|policy guide-workspace=guide does not require a positional .; use --workspace . only when project-local exemplar selection needs context") => #t)
         (check (contains? output "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed") => #t)))
+    (test-case "info command exposes configurable interface closure"
+      (let ((text-output (info-output ["."]))
+            (json-output (info-output ["--json" "."])))
+        (check (contains? text-output "[gerbil-info] language=gerbil-scheme provider=gerbil-scheme-harness") => #t)
+        (check (contains? text-output "|interface source-scope=gerbil.pkg-policy") => #t)
+        (check (contains? text-output "|interface build-scope=build.ss defbuild-script targets -> runtime-roots") => #t)
+        (check (contains? text-output "|agent-steering facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,dependencyUsageFacts") => #t)
+        (check (contains? text-output "|agent-steering rules=GERBIL-SCHEME-AGENT-R008,R009,R011,R012") => #t)
+        (check (contains? text-output "|closure self-apply=GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss") => #t)
+        (check (contains? text-output "|closure check=./bin/gerbil-scheme-harness check .") => #t)
+        (check (contains? text-output "|closure bench=./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .") => #t)
+        (check (contains? json-output "agent.semantic-protocols.gerbil-scheme-harness-info") => #t)
+        (check (contains? json-output "configurableInterface") => #t)
+        (check (contains? json-output "agentSteering") => #t)
+        (check (contains? json-output "macro-runtime-source-witness") => #t)
+        (check (contains? json-output "protocol-evidence") => #t)
+        (check (contains? json-output "closureCommands") => #t)))
+    (test-case "guide code defaults to one source-backed pure excerpt"
+      (let (output (guide-output ["--code"]))
+        (check (contains? output ";;; Arity checks over parser-owned call facts and native type signatures.") => #t)
+        (check (contains? output "(def (run-arity-checks index signatures)") => #t)
+        (check (contains? output "[guide-code]") => #f)
+        (check (contains? output "|primaryExemplar") => #f)
+        (check (contains? output "|code begin") => #f)
+        (check (contains? output "(def (poo-form-facts-from-form") => #f)))
+    (test-case "guide code more progressively adds a second exemplar"
+      (let (output (guide-output ["--code" "--more"]))
+        (check (contains? output ";;; Arity checks over parser-owned call facts and native type signatures.") => #t)
+        (check (contains? output ";;; POO-specific parser-owned syntax facts.") => #t)
+        (check (contains? output "(def (poo-form-facts-from-form") => #t)
+        (check (contains? output "|exemplar") => #f)))
+    (test-case "guide code scenario preserves source-quality progressive excerpts"
+      (let* ((guide (guide-output []))
+             (primary (expected-guide-excerpt
+                       "src/checker/arity.ss:2-2"
+                       "src/checker/arity.ss:14-19"))
+             (poo (expected-guide-excerpt
+                   "src/parser/poo.ss:2-2"
+                   "src/parser/poo.ss:15-35"))
+             (default-output
+              (guide-output ["--code" "--topic" "higher-order-control"]))
+             (more-output
+              (guide-output ["--code" "--topic" "higher-order-control" "--more"])))
+        (check (contains? guide "|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-R009") => #t)
+        (check (contains? guide "nextCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control\"") => #t)
+        (check (contains? guide "moreCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --more\"") => #t)
+        (check default-output => primary)
+        (check more-output => (string-append primary "\n" poo))
+        (check (guide-code-render-metadata-free? default-output) => #t)
+        (check (guide-code-render-metadata-free? more-output) => #t)
+        (check (contains? default-output "filter-map") => #t)
+        (check (contains? default-output "(lambda (call)") => #t)
+        (check (contains? default-output "(def (poo-form-facts-from-form") => #f)
+        (check (contains? more-output "(def (poo-form-facts-from-form") => #t)
+        (check (contains? guide "(def (run-arity-checks index signatures)") => #f)))
+    (test-case "guide code routes repair witness and advanced scenarios to source only"
+      (let* ((functional (expected-guide-excerpt
+                          "src/checker/arity.ss:2-2"
+                          "src/checker/arity.ss:14-19"))
+             (poo (expected-guide-excerpt
+                   "src/parser/poo.ss:2-2"
+                   "src/parser/poo.ss:15-35"))
+             (macro (expected-guide-excerpt
+                     "src/commands/search.ss:2-2"
+                     "src/commands/search.ss:562-577"))
+             (repair-output
+              (guide-output ["--code"
+                             "--rule" "GERBIL-SCHEME-AGENT-R009"
+                             "--intent" "repair"]))
+             (finding-output
+              (guide-output ["--code"
+                             "--finding" "policy=GERBIL-SCHEME-AGENT-R009"
+                             "--intent" "repair"]))
+             (poo-output
+              (guide-output ["--code"
+                             "--topic" "poo-policy"
+                             "--intent" "repair"]))
+             (macro-output
+              (guide-output ["--code"
+                             "--topic" "macro-runtime-source"
+                             "--intent" "witness"]))
+             (role-output
+              (guide-output ["--code"
+                             "--role" "witness"]))
+             (advanced-output
+              (guide-output ["--code"
+                             "--topic" "higher-order-control"
+                             "--level" "advanced"])))
+        (check repair-output => functional)
+        (check finding-output => functional)
+        (check poo-output => poo)
+        (check macro-output => macro)
+        (check role-output => macro)
+        (check advanced-output => (string-append functional "\n" poo "\n" macro))
+        (for-each
+         (lambda (output)
+           (check (guide-code-render-metadata-free? output) => #t))
+         [repair-output finding-output poo-output macro-output role-output advanced-output])
+        (check (contains? repair-output "(def (poo-form-facts-from-form") => #f)
+        (check (contains? poo-output "(def (run-arity-checks index signatures)") => #f)
+        (check (contains? macro-output "(def (matching-language-evidence-facts namespace terms)") => #t)
+        (check (contains? macro-output "[gerbil-search-runtime-source]") => #f)
+        (check (contains? macro-output "protocolId") => #f)
+        (check (contains? macro-output "selectorResolver scheme=") => #f)))
     (test-case "search pipe routes through compact fzf frontier"
       (let (output (search-output ["pipe" "guide" "."]))
         (check (contains? output "[gerbil-search-fzf] query=guide") => #t)
         (check (contains? output "recommendedNext=gerbil-scheme-harness search owner") => #t)))
+    (test-case "search fzf projects parser-owned protocol syntax facts"
+      (let (output (search-output ["fzf" "defprotocol protocol <Renderable>" "owner" "tests" "--view" "seeds" "."]))
+        (check (contains? output "[gerbil-search-fzf] query=defprotocol protocol <Renderable>") => #t)
+        (check (contains? output "|owner path=t/fixtures/parser/complex-syntax.ss") => #t)
+        (check (contains? output "recommendedNext=gerbil-scheme-harness search owner t/fixtures/parser/complex-syntax.ss") => #t)))
     (test-case "structural search compact output exposes higher-order facts"
       (let (output (search-output ["structural" "--view" "seeds" "."]))
         (check-output-contains
          output
          ["[gerbil-search-structural]"
+          "kind=interface languageKind=defprotocol name=<Renderable>"
+          "role=protocol"
           "|syntaxFact kind=function languageKind=lambda name=lambda"
           "role=anonymous-function"
           "operandCount=1"

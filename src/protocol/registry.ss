@@ -25,11 +25,14 @@
       (methods ["search/prime" "search/owner" "search/fzf" "search/ingest"
                 "search/pattern" "search/runtime-source" "search/compare"
                 "index/structural"
-                "query/direct-source-read" "check/changed" "guide"
+                "query/direct-source-read" "check/changed" "guide" "info"
                 "evidence/graph" "evidence/analyze"])
       (schemas [(hash (schemaId "agent.semantic-protocols.semantic-extension-pattern-mapping")
                       (schemaVersion "1")
                       (path "schemas/semantic-extension-pattern-mapping.v1.schema.json"))
+                (hash (schemaId "agent.semantic-protocols.gerbil-scheme-harness-info")
+                      (schemaVersion "1")
+                      (path "schemas/semantic-gerbil-scheme-harness-info.v1.schema.json"))
                 (hash (schemaId "agent.semantic-protocols.semantic-runtime-source-acquisition")
                       (schemaVersion "1")
                       (path "schemas/semantic-runtime-source-acquisition.v1.schema.json"))
@@ -49,7 +52,11 @@
                       (schemaVersion "1")
                       (path "schemas/semantic-graph-turbo-request.v1.schema.json"))])
       (methodDescriptors
-       [(hash (method "search/pattern")
+       [(hash (method "info")
+              (command "info")
+              (summary "Emit provider-local Gerbil package, configurable interface, agent steering, and closure command facts.")
+              (outputSchemaIds ["agent.semantic-protocols.gerbil-scheme-harness-info"]))
+        (hash (method "search/pattern")
               (command "search pattern")
               (summary "Emit extension-backed executable pattern mappings for agent-facing framework or language usage guidance.")
               (outputSchemaIds ["agent.semantic-protocols.semantic-extension-pattern-mapping"]))

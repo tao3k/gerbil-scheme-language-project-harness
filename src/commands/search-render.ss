@@ -74,7 +74,7 @@
   (let (fields (hash-get fact 'fields))
     (and fields
          (member (field-string fields 'role)
-                 '("class" "generic" "method")))))
+                 '("class" "generic" "protocol" "method")))))
 
 (def (macro-or-import-syntax-fact? fact)
   (member (hash-get fact 'kind) '("macro" "import")))

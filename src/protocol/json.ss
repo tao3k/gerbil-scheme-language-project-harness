@@ -9,6 +9,7 @@
         :protocol/structural-facts
         :support/list
         :std/misc/ports
+        :std/sort
         :std/sugar
         :std/text/json
         :types/facade)
@@ -71,7 +72,13 @@
                              (project-package-test-directory-policy package)))
                            (macroGovernancePolicy
                             (macro-governance-policy-json
-                             (project-package-macro-governance-policy package))))))))
+                             (project-package-macro-governance-policy package)))
+                           (sourceScopePolicy
+                            (source-scope-policy-json
+                             (project-package-source-scope-policy package)))
+                           (agentPolicy
+                            (agent-policy-json
+                             (project-package-agent-policy package))))))))
 
 (def (test-directory-policy-json policy)
   (and policy
@@ -88,6 +95,24 @@
               (macro-governance-policy-explanation policy))
              (witness
               (macro-governance-policy-witness policy)))))
+
+(def (source-scope-policy-json policy)
+  (and policy
+       (hash (roots
+              (source-scope-policy-roots policy))
+             (runtimeRoots
+              (source-scope-policy-runtime-roots policy))
+             (excludeDirectories
+              (source-scope-policy-exclude-directories policy))
+             (explanation
+              (source-scope-policy-explanation policy)))))
+
+(def (agent-policy-json policy)
+  (and policy
+       (hash (enabledRules
+              (agent-policy-enabled-rules policy))
+             (disabledRules
+              (agent-policy-disabled-rules policy)))))
 
 (def (pattern-mapping-json pattern)
   (and pattern
@@ -200,8 +225,14 @@
      (fileHashes (map (cut structural-file-hash-json index <>) files))
      (owners (map structural-owner-json files))
      (symbols (append-map* structural-symbol-json files))
-     (syntaxFacts (append-map* structural-syntax-fact-json files))
+     (syntaxFacts (json-rows-by-id
+                   (append-map* structural-syntax-fact-json files)))
      (dependencyUsages (append-map* structural-dependency-json files)))))
+
+(def (json-rows-by-id rows)
+  (sort rows
+        (lambda (a b)
+          (string<? (hash-get a 'id) (hash-get b 'id)))))
 
 (def (structural-index-generation-id index)
   (string-append

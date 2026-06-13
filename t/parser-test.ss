@@ -71,6 +71,7 @@
                    "capture-safe"
                    "<Widget>"
                    ":render"
+                   "<Renderable>"
                    ":render"
                    "make-widget"
                    "dispatch"
@@ -90,23 +91,23 @@
         (check (map macro-fact-hygienic (source-file-macros file))
                => [#t #t])
         (check (map poo-form-fact-role (source-file-poo-forms file))
-               => ["class" "generic" "method"])
+               => ["class" "generic" "protocol" "method"])
         (check (map poo-form-fact-generic (source-file-poo-forms file))
-               => (list #f ":render" ":render"))
+               => (list #f ":render" #f ":render"))
         (check (map poo-form-fact-receiver (source-file-poo-forms file))
-               => (list #f #f "widget"))
+               => (list #f #f #f "widget"))
         (check (map poo-form-fact-receiver-type (source-file-poo-forms file))
-               => (list #f #f "<Widget>"))
+               => (list #f #f #f "<Widget>"))
         (check (map poo-form-fact-supers (source-file-poo-forms file))
-               => (list [":object"] '() '()))
+               => (list [":object"] '() '() '()))
         (check (map poo-form-fact-slots (source-file-poo-forms file))
-               => (list ["name" "count"] '() '()))
+               => (list ["name" "count"] '() '() '()))
         (check (map poo-form-fact-options (source-file-poo-forms file))
-               => (list ["transparent:"] '() '()))
+               => (list ["transparent:"] '() '() '()))
         (check (map poo-form-fact-specializers (source-file-poo-forms file))
-               => (list '() '() ["widget:<Widget>"]))
+               => (list '() '() '() ["widget:<Widget>"]))
         (check (map poo-form-fact-specializer-types (source-file-poo-forms file))
-               => (list '() '() ["<Widget>"]))
+               => (list '() '() '() ["<Widget>"]))
         (check (map binding-fact-kind (source-file-bindings file))
                => ["macro-formal"
                    "macro-formal"
@@ -130,16 +131,16 @@
                    "dispatch"
                    "make-widget"])
         (check (map call-fact-selector (source-file-calls file))
-               => ["t/fixtures/parser/complex-syntax.ss:29-29"
-                   "t/fixtures/parser/complex-syntax.ss:28-28"
-                   "t/fixtures/parser/complex-syntax.ss:28-28"
-                   "t/fixtures/parser/complex-syntax.ss:27-27"
-                   "t/fixtures/parser/complex-syntax.ss:34-34"
-                   "t/fixtures/parser/complex-syntax.ss:33-34"
-                   "t/fixtures/parser/complex-syntax.ss:39-39"
-                   "t/fixtures/parser/complex-syntax.ss:38-38"
-                   "t/fixtures/parser/complex-syntax.ss:44-44"
-                   "t/fixtures/parser/complex-syntax.ss:43-43"])))
+               => ["t/fixtures/parser/complex-syntax.ss:31-31"
+                   "t/fixtures/parser/complex-syntax.ss:30-30"
+                   "t/fixtures/parser/complex-syntax.ss:30-30"
+                   "t/fixtures/parser/complex-syntax.ss:29-29"
+                   "t/fixtures/parser/complex-syntax.ss:36-36"
+                   "t/fixtures/parser/complex-syntax.ss:35-36"
+                   "t/fixtures/parser/complex-syntax.ss:41-41"
+                   "t/fixtures/parser/complex-syntax.ss:40-40"
+                   "t/fixtures/parser/complex-syntax.ss:46-46"
+                   "t/fixtures/parser/complex-syntax.ss:45-45"])))
     (test-case "native reader captures higher-order syntax facts"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "t/fixtures/parser/higher-order.ss"))
@@ -152,6 +153,12 @@
               (find-higher-order facts "lambda" "anonymous-function" "names"))
              (filter-fact
               (find-higher-order facts "filter" "sequence-filter" "positives"))
+             (filter-map-fact
+              (find-higher-order facts "filter-map" "sequence-filter-map" "positive-names"))
+             (predicate-fact
+              (find-higher-order facts "ormap" "sequence-predicate" "any-positive?"))
+             (search-fact
+              (find-higher-order facts "find" "sequence-search" "first-positive"))
              (fold-fact
               (find-higher-order facts "fold-left" "sequence-fold" "total"))
              (cut-fact
@@ -165,6 +172,9 @@
         (check (higher-order-fact-arities map-lambda) => [1])
         (check (higher-order-fact-formals map-lambda) => ["widget"])
         (check (higher-order-fact-operand-count filter-fact) => 2)
+        (check (higher-order-fact-operand-count filter-map-fact) => 2)
+        (check (higher-order-fact-operand-count predicate-fact) => 2)
+        (check (higher-order-fact-operand-count search-fact) => 2)
         (check (higher-order-fact-operand-count fold-fact) => 3)
         (check (higher-order-fact-operand-count cut-fact) => 3)
         (check (higher-order-fact-operand-count for-fold-fact) => 3)))
@@ -173,14 +183,35 @@
              (file (parse-source-file root "t/fixtures/parser/control-flow.ss"))
              (facts (source-file-control-flow-forms file))
              (loop-fact
-              (find-control-flow facts "loop" "manual-loop" "total")))
+              (find-control-flow facts "loop" "manual-loop" "total"))
+             (continuation-fact
+              (find-control-flow facts "let/cc" "continuation-control" "first-or-stop"))
+             (builder-fact
+              (find-control-flow facts "with-list-builder" "builder-control" "safe-take"))
+             (try-fact
+              (find-control-flow facts "try" "protected-control" "safe-take"))
+             (catch-fact
+              (find-control-flow facts "catch" "protected-handler" "safe-take"))
+             (finally-fact
+              (find-control-flow facts "finally" "protected-handler" "safe-take"))
+             (resource-fact
+              (find-control-flow facts "call-with-output-string" "resource-scope" "capture-output"))
+             (parameter-fact
+              (find-control-flow facts "parameterize" "resource-scope" "capture-output")))
         (check (source-file-parse-error file) => #f)
-        (check (length facts) => 1)
+        (check (>= (length facts) 8) => #t)
         (check (control-flow-fact-kind loop-fact) => "named-let")
         (check (control-flow-fact-binding-count loop-fact) => 2)
         (check (control-flow-fact-body-form-count loop-fact) => 1)
         (check (control-flow-fact-selector loop-fact)
-               => "t/fixtures/parser/control-flow.ss:5-5")))
+               => "t/fixtures/parser/control-flow.ss:7-7")
+        (check (control-flow-fact-kind continuation-fact) => "let/cc")
+        (check (control-flow-fact-kind builder-fact) => "with-list-builder")
+        (check (control-flow-fact-kind try-fact) => "try")
+        (check (control-flow-fact-kind catch-fact) => "catch")
+        (check (control-flow-fact-kind finally-fact) => "finally")
+        (check (control-flow-fact-kind resource-fact) => "call-with-output-string")
+        (check (control-flow-fact-kind parameter-fact) => "parameterize")))
     (test-case "native reader captures @method POO dispatch facts"
       (let* ((root (path-normalize ".run/parser-poo-method-shapes"))
              (source-dir (string-append root "/src"))
@@ -293,6 +324,58 @@
           (check (project-package-manager package) => "gxpkg")
           (check (project-package-dependencies package)
                  => ["git.cons.io/mighty-gerbils/gerbil-utils"]))))
+    (test-case "project package configures source scope"
+      (let* ((root (path-normalize ".run/parser-source-scope"))
+             (lib-dir (string-append root "/lib"))
+             (ignored-dir (string-append root "/scratch"))
+             (package-path (string-append root "/gerbil.pkg"))
+             (build-path (string-append root "/build.ss"))
+             (lib-path (string-append lib-dir "/main.ss"))
+             (ignored-path (string-append ignored-dir "/ignored.ss"))
+             (flat-path (string-append root "/flat.ss")))
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir lib-dir)
+        (ensure-dir ignored-dir)
+        (write-text package-path
+                    "(package: sample/scope\n  policy: ((source-scope roots: (\"lib\" \".\") exclude-directories: (\"scratch\") runtime-roots: (\"lib\") explanation: \"The project keeps runtime modules in lib and a small root entry.\")))\n")
+        (write-text build-path ";;; -*- Gerbil -*-\n(defbuild-script '(\"lib/main\"))\n")
+        (write-text lib-path "(package: sample/scope/main)\n(def answer 42)\n")
+        (write-text ignored-path "(package: sample/scope/ignored)\n(def ignored 0)\n")
+        (write-text flat-path "(package: sample/scope/flat)\n(def flat 1)\n")
+        (let* ((index (collect-project root))
+               (package (project-index-package index))
+               (scope (project-package-source-scope-policy package)))
+          (check (map source-file-path (project-index-files index))
+                 => ["build.ss" "flat.ss" "gerbil.pkg" "lib/main.ss"])
+          (check (source-scope-policy-roots scope) => ["lib" "."])
+          (check (source-scope-policy-runtime-roots scope) => ["lib"])
+          (check (source-scope-policy-exclude-directories scope) => ["scratch"]))))
+    (test-case "project package infers runtime roots from build script"
+      (let* ((root (path-normalize ".run/parser-build-scope"))
+             (lib-dir (string-append root "/lib"))
+             (package-path (string-append root "/gerbil.pkg"))
+             (build-path (string-append root "/build.ss"))
+             (lib-path (string-append lib-dir "/main.ss"))
+             (flat-path (string-append root "/cli.ss")))
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir lib-dir)
+        (write-text package-path
+                    "(package: sample/build-scope)\n")
+        (write-text build-path
+                    ";;; -*- Gerbil -*-\n(defbuild-script '(\"lib/main\" \"cli\"))\n")
+        (write-text lib-path "(package: sample/build-scope/main)\n(def answer 42)\n")
+        (write-text flat-path "(package: sample/build-scope/cli)\n(def (main . args) args)\n")
+        (let* ((index (collect-project root))
+               (package (project-index-package index))
+               (scope (project-package-source-scope-policy package)))
+          (check (map source-file-path (project-index-files index))
+                 => ["build.ss" "cli.ss" "gerbil.pkg" "lib/main.ss"])
+          (check (source-scope-policy-roots scope) => [])
+          (check (source-scope-policy-runtime-roots scope) => ["lib" "."])
+          (check (source-scope-policy-explanation scope)
+                 => "Inferred from build.ss defbuild-script targets."))))
     (test-case "project package dependency activates poo extension"
       (let* ((root (path-normalize ".run/parser-poo-dependency"))
              (source-dir (string-append root "/src"))

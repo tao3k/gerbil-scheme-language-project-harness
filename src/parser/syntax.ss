@@ -30,7 +30,8 @@
 (def +definition-heads+
   '(def def* define define-values define-syntax
     defstruct defclass .defclass defsyntax defsyntax-for-match defrules defrule
-    defalias defmethod .defmethod defgeneric .defgeneric defcompile-method))
+    defalias defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol
+    defcompile-method))
 (def +macro-definition-heads+
   '(define-syntax defsyntax defsyntax-for-match defrules defrule))
 (def +non-call-heads+

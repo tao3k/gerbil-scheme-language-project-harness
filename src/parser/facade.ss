@@ -124,11 +124,19 @@
         project-package-manager
         project-package-test-directory-policy
         project-package-macro-governance-policy
+        project-package-source-scope-policy
+        project-package-agent-policy
         test-directory-policy-allowed-directories
         test-directory-policy-explanation
         macro-governance-policy-allow-generated
         macro-governance-policy-explanation
         macro-governance-policy-witness
+        source-scope-policy-roots
+        source-scope-policy-runtime-roots
+        source-scope-policy-exclude-directories
+        source-scope-policy-explanation
+        agent-policy-enabled-rules
+        agent-policy-disabled-rules
         project-index-root
         project-index-files
         project-index-package)

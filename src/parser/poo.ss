@@ -10,7 +10,7 @@
         poo-form-facts-from-form)
 
 (def +poo-definition-heads+
-  '(defclass .defclass defmethod .defmethod defgeneric .defgeneric))
+  '(defclass .defclass defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol))
 
 (def (poo-form-facts-from-form relpath form datum)
   (let ((head (and (pair? datum) (car datum))))
@@ -38,7 +38,7 @@
   (let ((head (car datum))
         (second (safe-cadr datum)))
     (cond
-     ((member head '(defmethod .defmethod defclass .defclass defgeneric .defgeneric))
+     ((member head '(defmethod .defmethod defclass .defclass defgeneric .defgeneric defprotocol .defprotocol))
       (cond
        ((symbol? second) [second])
        ((and (pair? second)
@@ -54,6 +54,7 @@
    ((member head '(defclass .defclass)) "class")
    ((member head '(defmethod .defmethod)) "method")
    ((member head '(defgeneric .defgeneric)) "generic")
+   ((member head '(defprotocol .defprotocol)) "protocol")
    (else "poo-form")))
 
 (def (poo-form-generic head datum name)

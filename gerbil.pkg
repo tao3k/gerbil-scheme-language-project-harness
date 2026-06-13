@@ -1,2 +1,6 @@
 (package: gerbil-scheme-language-project-harness
- depend: ("git.cons.io/mighty-gerbils/gerbil-poo"))
+ depend: ("git.cons.io/mighty-gerbils/gerbil-poo")
+ policy: ((macro-governance
+           allow-generated: #t
+           explanation: "Harness macro edits must cite runtime-source and macro-expansion evidence before changing transformers."
+           witness: "search runtime-source macro sugar module-sugar")))

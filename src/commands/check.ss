@@ -56,14 +56,41 @@
          (parts (and details
                      (filter identity
                              (map (cut finding-detail-part details <>)
-                                  +finding-detail-keys+)))))
-    (when (and parts (pair? parts))
+                                  +finding-detail-keys+))))
+         (guide-parts (finding-guide-parts finding))
+         (all-parts (append (or parts []) guide-parts)))
+    (when (and all-parts (pair? all-parts))
       (display "|finding-detail")
       (for-each (lambda (part)
                   (display " ")
                   (display part))
-                parts)
+                all-parts)
       (newline))))
+
+(def (finding-guide-parts finding)
+  (match (finding-guide-route (type-finding-rule-id finding))
+    ([topic intent command]
+     [(string-append "guideTopic=" topic)
+      (string-append "guideIntent=" intent)
+      (string-append "nextCommand=" command)])
+    (_ [])))
+
+(def (finding-guide-route rule)
+  (cond
+   ((equal? rule "GERBIL-SCHEME-AGENT-R009")
+    ["functional-data-transform"
+     "repair"
+     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair"])
+   ((equal? rule "GERBIL-SCHEME-AGENT-R011")
+    ["macro-runtime-source"
+     "witness"
+     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R011 --intent witness"])
+   ((or (equal? rule "GERBIL-SCHEME-AGENT-R008")
+        (equal? rule "GERBIL-SCHEME-AGENT-R012"))
+    ["poo-policy"
+     "repair"
+     (string-append "asp gerbil-scheme guide --code --rule " rule " --intent repair")])
+   (else #f)))
 
 (def (finding-detail-part details key)
   (let (value (finding-detail-value details key))
