@@ -24,9 +24,15 @@
            => (snapshot-load "t/snapshots/compare-env-active-documented.ss"))))
 
 (def (check-compare-snapshot-fixtures)
-  (let (fact (compare-fact-by-id "env-active-documented"))
+  (let ((fact (compare-fact-by-id "env-active-documented"))
+        (compile-fact (compare-fact-by-id "compile-target-runtime-source")))
     (check (compare-search-snapshot
             "env active documented"
             [fact]
             (hash-get fact 'next))
-           => (snapshot-load "t/snapshots/compare-env-active-documented.ss"))))
+           => (snapshot-load "t/snapshots/compare-env-active-documented.ss"))
+    (check (compare-search-snapshot
+            "compile v0.18 v0.19 nightly"
+            [compile-fact]
+            (hash-get compile-fact 'next))
+           => (snapshot-load "t/snapshots/compare-compile-target-runtime-source.ss"))))
