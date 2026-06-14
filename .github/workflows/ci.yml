@@ -100,6 +100,7 @@ jobs:
 
       - name: Install Gerbil package dependencies from gerbil.pkg
         run: |
+          mkdir -p "$HOME/.gerbil/pkg"
           gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
           gxpkg deps --install
 
