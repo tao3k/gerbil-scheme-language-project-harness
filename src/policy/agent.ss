@@ -3,11 +3,16 @@
 
 (import :gerbil/gambit
         :parser/facade
+        :policy/agent-comment
+        :policy/agent-poo
+        :policy/agent-style
+        :policy/agent-support
         :policy/model
         :policy/modularity
         :std/misc/ports
         :std/srfi/13
         :std/sugar
+        :support/list
         :types/findings)
 
 (export run-agent-policy
@@ -23,23 +28,17 @@
         poo-method-shape-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
+        typed-combinator-style-finding
+        comment-quality-finding
+        controlled-branch-shape-finding
         facade-export-conflict-findings)
-
+;; ConfigConstant
 (def +generic-owner-segments+
   '("utils" "util" "utility" "common" "helpers" "misc" "shared"))
-
+;; ConfigConstant
 (def +vague-definition-names+
   '("helper" "helpers" "process" "handle" "convert" "transform" "thing" "stuff" "do-it" "run-it"))
-
-(def +poo-declarative-heads+
-  '("defclass" ".defclass" ".defgeneric" "defmethod" ".defmethod"))
-
-(def +poo-capability-dependencies+
-  '("gerbil-poo" "clan/poo"))
-
-(def +manual-object-model-callees+
-  '("hash" "make-hash-table" "list->hash-table"))
-
+;; String
 (def +functional-idiom-roles+
   '("sequence-map"
     "sequence-filter"
@@ -53,26 +52,30 @@
     "function-curry"
     "function-composition"
     "list-builder"))
-
+;; Integer
 (def +functional-sequence-idioms+
   '("map" "filter" "filter-map" "append-map" "fold/foldl/foldr" "for/fold"))
-
+;; Integer
 (def +functional-predicate-idioms+
   '("andmap/ormap" "every/any" "find/list-index"))
-
+;; Integer
 (def +functional-composition-idioms+
   '("cut/cute" "curry/rcurry" "compose/compose1"))
-
+;; String
 (def +functional-preservation-control-roles+
   '("protected-control"
     "protected-handler"
     "continuation-control"
     "resource-scope"
     "builder-control"))
-
+;; String
+(def +functional-preservation-reader-callees+
+  '("read" "read-line" "read-syntax"))
+;; Integer
 (def +macro-runtime-source-witness-explanation-min-length+ 32)
+;; Integer
 (def +macro-runtime-source-witness-min-length+ 8)
-
+;; (List TypeFinding) <- ProjectIndex
 (def (run-agent-policy index)
   (append
    (facade-intent-findings index)
@@ -86,8 +89,14 @@
    (poo-method-shape-findings index)
    (macro-runtime-source-witness-findings index)
    (protocol-evidence-findings index)
+   (typed-combinator-style-findings index)
+   (comment-quality-findings index)
+   (controlled-branch-shape-findings index)
    (facade-export-conflict-findings index)))
-
+;;; Boundary:
+;;; - facade-intent-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (facade-intent-findings index)
   (filter-map
    (lambda (file)
@@ -95,14 +104,20 @@
           (not (facade-has-intent-doc? index file))
           (facade-intent-finding file)))
    (project-index-files index)))
-
+;;; Boundary:
+;;; - generic-owner-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (generic-owner-findings index)
   (filter-map
    (lambda (file)
      (let (segment (generic-owner-segment (source-file-path file)))
        (and segment (generic-owner-finding file segment))))
    (project-index-files index)))
-
+;;; Boundary:
+;;; - facade-has-intent-doc? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- ProjectIndex SourceFile
 (def (facade-has-intent-doc? index file)
   (with-catch
    (lambda (_) #f)
@@ -112,12 +127,12 @@
                     (path-expand (source-file-path file)
                                  (project-index-root index)))
                    8)))))
-
+;; Boolean <- SourceLine
 (def (intent-comment? line)
   (let (text (string-trim line))
     (and (string-prefix? ";;;" text)
          (not (string-contains text "-*-")))))
-
+;; TypeFinding <- SourceFile
 (def (facade-intent-finding file)
   (make-type-finding
    (policy-rule-id +agent-intent-rule+)
@@ -127,16 +142,19 @@
                   " lacks an agent-readable intent comment")
    (source-file-path file)
    #f))
-
+;;; Boundary:
+;;; - generic-owner-segment composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; GenericOwnerSegment <- String
 (def (generic-owner-segment path)
   (find (lambda (segment) (path-has-owner-segment? path segment))
         +generic-owner-segments+))
-
+;; Boolean <- String Segment
 (def (path-has-owner-segment? path segment)
   (or (equal? path (string-append "src/" segment ".ss"))
       (string-contains path (string-append "/" segment ".ss"))
       (string-contains path (string-append "/" segment "/"))))
-
+;; TypeFinding <- SourceFile Segment
 (def (generic-owner-finding file segment)
   (make-type-finding
    (policy-rule-id +agent-generic-owner-rule+)
@@ -146,7 +164,10 @@
                   " hides the Gerbil module responsibility")
    (source-file-path file)
    (hash (segment segment))))
-
+;;; Boundary:
+;;; - vague-definition-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (vague-definition-findings index)
   (apply append
          (map (lambda (file)
@@ -156,10 +177,10 @@
                         (vague-definition-finding file definition)))
                  (source-file-definitions file)))
               (project-index-files index))))
-
+;; Boolean <- String
 (def (vague-definition-name? name)
   (member name +vague-definition-names+))
-
+;; TypeFinding <- SourceFile Definition
 (def (vague-definition-finding file definition)
   (make-type-finding
    (policy-rule-id +agent-vague-definition-rule+)
@@ -170,7 +191,10 @@
    (definition-selector definition)
    (hash (definition (definition-name definition))
          (selector (definition-selector definition)))))
-
+;;; Boundary:
+;;; - top-level-executable-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (top-level-executable-findings index)
   (apply append
          (map (lambda (file)
@@ -180,12 +204,15 @@
                         (top-level-executable-finding file call)))
                  (source-file-calls file)))
               (project-index-files index))))
-
+;; Boolean <- ProjectIndex SourceFile CallFact
 (def (top-level-executable-call? index file call)
   (and (not (call-fact-caller call))
        (index-source-runtime-file-path? index (call-fact-path call))
        (not (poo-declarative-call? file call))))
-
+;;; Boundary:
+;;; - poo-declarative-call? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- SourceFile CallFact
 (def (poo-declarative-call? file call)
   (and (poo-source-file? file)
        (ormap (lambda (form)
@@ -193,55 +220,7 @@
                      (equal? (top-form-selector form)
                              (call-fact-selector call))))
               (source-file-forms file))))
-
-(def (poo-source-file? file)
-  (ormap (lambda (import)
-           (string-contains import "clan/poo"))
-         (source-file-imports file)))
-
-(def (poo-capability-active? index)
-  (or (ormap poo-source-file? (project-index-files index))
-      (ormap (lambda (fact)
-               (member (poo-form-fact-role fact)
-                       '("class" "generic" "method")))
-             (project-poo-forms index))
-      (let (package (project-index-package index))
-        (and package
-             (ormap poo-capability-dependency?
-                    (project-package-dependencies package))))))
-
-(def (poo-capability-dependency? dependency)
-  (ormap (lambda (needle)
-           (string-contains dependency needle))
-         +poo-capability-dependencies+))
-
-(def (source-runtime-file-path? path)
-  (and (string-prefix? "src/" path)
-       (string-suffix? ".ss" path)))
-
-(def (index-source-runtime-file-path? index path)
-  (and (string-suffix? ".ss" path)
-       (let* ((package (project-index-package index))
-              (policy (and package
-                           (project-package-source-scope-policy package)))
-              (roots (configured-runtime-roots policy)))
-         (ormap (lambda (root)
-                  (source-path-under-root? path root))
-                roots))))
-
-(def (configured-runtime-roots policy)
-  (cond
-   ((and policy (pair? (source-scope-policy-runtime-roots policy)))
-    (source-scope-policy-runtime-roots policy))
-   ((and policy (pair? (source-scope-policy-roots policy)))
-    (source-scope-policy-roots policy))
-   (else ["src"])))
-
-(def (source-path-under-root? path root)
-  (or (equal? root ".")
-      (equal? path root)
-      (string-prefix? (string-append root "/") path)))
-
+;; TypeFinding <- SourceFile CallFact
 (def (top-level-executable-finding file call)
   (make-type-finding
    (policy-rule-id +agent-top-level-executable-rule+)
@@ -253,14 +232,20 @@
    (hash (callee (call-fact-callee call))
          (selector (call-fact-selector call)))))
 
+;;; Boundary:
+;;; - functional-idiom-advice-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (functional-idiom-advice-findings index)
   (filter-map (cut functional-idiom-advice-finding index <>)
               (project-index-files index)))
-
+;;; Boundary:
+;;; - functional-idiom-advice-finding coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; TypeFinding <- ProjectIndex SourceFile
 (def (functional-idiom-advice-finding index file)
   (and (source-file-path file)
        (index-source-runtime-file-path? index (source-file-path file))
-       (not (file-has-functional-idiom? file))
        (let (fact (manual-loop-control-flow file))
          (and fact
               (make-type-finding
@@ -272,192 +257,64 @@
                (hash (name (control-flow-fact-name fact))
                      (kind (control-flow-fact-kind fact))
                      (selector (control-flow-fact-selector fact))
+                     (caller (or (control-flow-fact-caller fact) ""))
                      (advice "prefer parser-owned functional idioms for pure transforms")
                      (sequenceIdioms +functional-sequence-idioms+)
                      (predicateIdioms +functional-predicate-idioms+)
                      (compositionIdioms +functional-composition-idioms+)
                      (builderIdioms '("with-list-builder"))
+                     (styleGuide "typed-combinator-style")
+                     (styleCommand "asp gerbil-scheme guide --code --topic typed-combinator-style --intent style")
                      (detectedControlContexts
                       (functional-preservation-control-contexts file))
                      (keepNamedLetWhen "IO/stateful control flow, C3-style fixpoint selection, or generator/continuation driver")
-                     (learnedFrom ".data/gerbil-utils/list.ss uses map/filter/fold/cut and keeps named let for C3 selection; generator.ss models coroutine control inversion; bytestring.ss uses for/fold for pure counts and named let for port IO")))))))
-
+                     (learnedFrom ".data/gerbil-utils/list.ss uses small typed-commented helpers with map/filter/fold/cut and keeps named let for C3 selection; generator.ss models coroutine control inversion; bytestring.ss uses for/fold for pure counts and named let for port IO")))))))
+;;; Boundary:
+;;; Manual-loop advice is caller scoped.
+;;; A map/fold in one helper must not hide a separate low-quality loop.
+;; (List ControlFlowFact) <- SourceFile
 (def (manual-loop-control-flow file)
   (find (lambda (fact)
-          (equal? (control-flow-fact-role fact) "manual-loop"))
+          (and (equal? (control-flow-fact-role fact) "manual-loop")
+               (not (caller-has-functional-idiom? file
+                                                  (control-flow-fact-caller fact)))
+               (not (caller-has-reader-boundary? file
+                                                 (control-flow-fact-caller fact)))))
         (source-file-control-flow-forms file)))
-
-(def (file-has-functional-idiom? file)
+;;; Boundary:
+;;; - caller-has-functional-idiom? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- SourceFile Caller
+(def (caller-has-functional-idiom? file caller)
   (ormap (lambda (fact)
-           (member (higher-order-fact-role fact) +functional-idiom-roles+))
+           (and (equal? (or (higher-order-fact-caller fact) "") (or caller ""))
+                (member (higher-order-fact-role fact) +functional-idiom-roles+)))
          (source-file-higher-order-forms file)))
-
+;;; Boundary:
+;;; Reader callees are native parser witnesses for port state and EOF handling.
+;;; The ormap/lambda pair keeps preservation caller-scoped, so one reader loop
+;;; does not suppress unrelated manual-loop repair in the same file.
+;; Boolean <- SourceFile Caller
+(def (caller-has-reader-boundary? file caller)
+  (ormap (lambda (fact)
+           (and (equal? (or (call-fact-caller fact) "") (or caller ""))
+                (member (call-fact-callee fact)
+                        +functional-preservation-reader-callees+)))
+         (source-file-calls file)))
+;;; Boundary:
+;;; - functional-preservation-control-contexts composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; FunctionalPreservationControlContexts <- SourceFile
 (def (functional-preservation-control-contexts file)
   (map control-flow-fact-role
        (filter (lambda (fact)
                  (member (control-flow-fact-role fact)
                          +functional-preservation-control-roles+))
                (source-file-control-flow-forms file))))
-
-(def (poo-direct-writeenv-findings index)
-  (apply append
-         (map (lambda (file)
-                (filter-map
-                 (lambda (call)
-                   (and (direct-writeenv-call? call)
-                        (poo-direct-writeenv-finding file call)))
-                 (source-file-calls file)))
-              (project-index-files index))))
-
-(def (direct-writeenv-call? call)
-  (equal? (call-fact-callee call) "writeenv"))
-
-(def (poo-direct-writeenv-finding file call)
-  (make-type-finding
-   (policy-rule-id +agent-poo-direct-writeenv-rule+)
-   (policy-rule-severity +agent-poo-direct-writeenv-rule+)
-   (source-file-path file)
-   "direct writeenv calls bypass POO IO runtime-source evidence; query search runtime-source writeenv printer hook first"
-   (call-fact-selector call)
-   (hash (callee (call-fact-callee call))
-         (selector (call-fact-selector call)))))
-
-(def (poo-io-runtime-witness-findings index)
-  (filter-map
-   (lambda (file)
-     (and (index-source-runtime-file-path? index (source-file-path file))
-          (poo-io-source-file? file)
-          (poo-io-method-override-file? file)
-          (poo-io-runtime-witness-finding file)))
-   (project-index-files index)))
-
-(def (poo-io-source-file? file)
-  (ormap poo-io-import? (source-file-imports file)))
-
-(def (poo-io-import? import)
-  (or (equal? import ":clan/poo/io")
-      (equal? import "clan/poo/io")
-      (string-contains import "clan/poo/io")))
-
-(def (poo-io-method-override-file? file)
-  (or (ormap (lambda (form)
-               (member (top-form-head form)
-                       ["defmethod" ".defmethod"]))
-             (source-file-forms file))
-      (ormap (lambda (call)
-               (member (call-fact-callee call)
-                       ["defmethod" ".defmethod"]))
-             (source-file-calls file))))
-
-(def (poo-io-runtime-witness-finding file)
-  (make-type-finding
-   (policy-rule-id +agent-poo-io-runtime-witness-rule+)
-   (policy-rule-severity +agent-poo-io-runtime-witness-rule+)
-   (source-file-path file)
-   "POO IO method overrides in src/ need runtime-source-backed writeenv/printer-hook witness coverage before being treated as verified"
-   (source-file-path file)
-   (hash (next "search runtime-source writeenv printer hook")
-         (requiredWitness "writeenv-roundtrip-witness"))))
-
-(def (poo-object-model-findings index)
-  (if (poo-capability-active? index)
-    (apply append
-           (map (lambda (file)
-                  (filter-map
-                   (lambda (call)
-                     (and (manual-object-model-call? index file call)
-                          (poo-object-model-finding file call)))
-                   (source-file-calls file)))
-                (project-index-files index)))
-    '()))
-
-(def (manual-object-model-call? index file call)
-  (and (index-source-runtime-file-path? index (source-file-path file))
-       (null? (source-file-poo-forms file))
-       (member (call-fact-callee call) +manual-object-model-callees+)
-       (call-fact-caller call)
-       (or (string-prefix? "make-" (call-fact-caller call))
-           (string-prefix? "new-" (call-fact-caller call))
-           (string-prefix? "build-" (call-fact-caller call)))))
-
-(def (poo-object-model-finding file call)
-  (make-type-finding
-   (policy-rule-id +agent-poo-object-model-rule+)
-   (policy-rule-severity +agent-poo-object-model-rule+)
-   (source-file-path file)
-   (string-append "manual object constructor " (call-fact-caller call)
-                  " uses " (call-fact-callee call)
-                  " while POO/protocol capability is active; prefer parser-owned defclass/defgeneric/defmethod or cite why a raw data record is intentional")
-   (call-fact-selector call)
-   (hash (constructor (call-fact-caller call))
-         (callee (call-fact-callee call))
-         (selector (call-fact-selector call))
-         (next "search pattern poo class"))))
-
-(def (poo-method-shape-findings index)
-  (apply append
-         (map (lambda (file)
-                (filter-map
-                 (lambda (fact)
-                   (and (equal? (poo-form-fact-role fact) "method")
-                        (let (missing (poo-method-shape-missing index fact))
-                          (and (pair? missing)
-                               (poo-method-shape-finding file fact missing)))))
-                 (source-file-poo-forms file)))
-              (project-index-files index))))
-
-(def (poo-method-shape-missing index fact)
-  (filter identity
-          [(and (blank-string? (poo-form-fact-generic fact)) "generic")
-           (and (not (blank-string? (poo-form-fact-generic fact)))
-                (not (poo-generic-fact-exists? index (poo-form-fact-generic fact)))
-                "defgeneric")
-           (and (blank-string? (poo-form-fact-receiver-type fact)) "receiver-type")
-           (and (not (blank-string? (poo-form-fact-receiver-type fact)))
-                (not (poo-receiver-evidence-exists?
-                      index
-                      (poo-form-fact-receiver-type fact)))
-                "defclass-or-defprotocol")]))
-
-(def (poo-generic-fact-exists? index generic)
-  (ormap
-   (lambda (fact)
-     (and (equal? (poo-form-fact-role fact) "generic")
-          (equal? (poo-form-fact-generic fact) generic)))
-   (project-poo-forms index)))
-
-(def (poo-class-fact-exists? index class-name)
-  (ormap
-   (lambda (fact)
-     (and (equal? (poo-form-fact-role fact) "class")
-          (equal? (poo-form-fact-name fact) class-name)))
-   (project-poo-forms index)))
-
-(def (poo-receiver-evidence-exists? index name)
-  (or (poo-class-fact-exists? index name)
-      (poo-protocol-fact-exists? index name)))
-
-(def (project-poo-forms index)
-  (apply append (map source-file-poo-forms (project-index-files index))))
-
-(def (blank-string? value)
-  (or (not value) (equal? value "")))
-
-(def (poo-method-shape-finding file fact missing)
-  (make-type-finding
-   (policy-rule-id +agent-poo-method-shape-rule+)
-   (policy-rule-severity +agent-poo-method-shape-rule+)
-   (source-file-path file)
-   (string-append "POO method " (poo-form-fact-name fact)
-                  " is missing parser-owned "
-                  (join-missing missing)
-                  " facts; query POO pattern evidence and add defgeneric/defclass/defprotocol structure before extending methods")
-   (poo-form-fact-selector fact)
-   (hash (generic (or (poo-form-fact-generic fact) ""))
-         (receiverType (or (poo-form-fact-receiver-type fact) ""))
-         (missing missing)
-         (next "search pattern poo class protocol"))))
-
+;;; Boundary:
+;;; - macro-runtime-source-witness-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (macro-runtime-source-witness-findings index)
   (if (macro-runtime-source-policy-allows? index)
     '()
@@ -469,29 +326,29 @@
              file
              (car (source-file-macros file)))))
      (project-index-files index))))
-
+;; Boolean <- ProjectIndex
 (def (macro-runtime-source-policy-allows? index)
   (let (policy (project-macro-governance-policy index))
     (and policy
          (macro-runtime-source-explanation-clear? policy)
          (macro-runtime-source-witness-clear? policy))))
-
+;; ProjectMacroGovernancePolicy <- ProjectIndex
 (def (project-macro-governance-policy index)
   (and (project-index-package index)
        (project-package-macro-governance-policy (project-index-package index))))
-
+;; Boolean <- Policy
 (def (macro-runtime-source-explanation-clear? policy)
   (and (macro-governance-policy-explanation policy)
        (fx>= (string-length
               (string-trim (macro-governance-policy-explanation policy)))
              +macro-runtime-source-witness-explanation-min-length+)))
-
+;; Boolean <- Policy
 (def (macro-runtime-source-witness-clear? policy)
   (and (macro-governance-policy-witness policy)
        (fx>= (string-length
               (string-trim (macro-governance-policy-witness policy)))
              +macro-runtime-source-witness-min-length+)))
-
+;; TypeFinding <- SourceFile Fact
 (def (macro-runtime-source-witness-finding file fact)
   (make-type-finding
    (policy-rule-id +agent-macro-runtime-source-witness-rule+)
@@ -505,7 +362,10 @@
          (selector (macro-fact-selector fact))
          (next "search runtime-source macro sugar module-sugar")
          (requiredWitness "gerbil.pkg policy macro-governance witness"))))
-
+;;; Boundary:
+;;; - protocol-evidence-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- ProjectIndex
 (def (protocol-evidence-findings index)
   (apply append
          (map (lambda (file)
@@ -524,23 +384,19 @@
                    (source-file-poo-forms file))
                   '()))
               (project-index-files index))))
-
+;;; Boundary:
+;;; - protocol-context-file? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- SourceFile
 (def (protocol-context-file? file)
   (or (ormap protocol-import? (source-file-imports file))
       (ormap (lambda (fact)
                (equal? (poo-form-fact-role fact) "protocol"))
              (source-file-poo-forms file))))
-
+;; Boolean <- String
 (def (protocol-import? import)
   (and import (string-contains import "protocol")))
-
-(def (poo-protocol-fact-exists? index protocol-name)
-  (ormap
-   (lambda (fact)
-     (and (equal? (poo-form-fact-role fact) "protocol")
-          (equal? (poo-form-fact-name fact) protocol-name)))
-   (project-poo-forms index)))
-
+;; String <- SourceFile Fact
 (def (protocol-evidence-finding file fact)
   (make-type-finding
    (policy-rule-id +agent-protocol-evidence-rule+)
@@ -554,31 +410,30 @@
          (receiverType (poo-form-fact-receiver-type fact))
          (generic (or (poo-form-fact-generic fact) ""))
          (next "search pattern poo protocol"))))
-
-(def (join-missing items)
-  (let lp ((rest items) (out ""))
-    (match rest
-      ([] out)
-      ([item] (string-append out item))
-      ([item . more] (lp more (string-append out item ","))))))
-
+;;; Invariant:
+;;; - facade-export-conflict-findings owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; (List TypeFinding) <- ProjectIndex
 (def (facade-export-conflict-findings index)
-  (let lp ((rest (facade-export-bindings index)) (seen '()) (out '()))
-    (match rest
-      ([binding . more]
-       (let* ((name (car binding))
-              (file (cdr binding))
-              (prior (assoc name seen)))
-         (cond
-          ((and prior
-                (not (equal? (source-file-path file)
-                             (source-file-path (cdr prior)))))
-           (lp more seen
-               (cons (export-conflict-finding name file (cdr prior)) out)))
-          (else
-           (lp more (cons binding seen) out)))))
-      (else (reverse out)))))
-
+  (let ((rest (facade-export-bindings index))
+        (seen '())
+        (out '()))
+    (while (pair? rest)
+      (let* ((binding (car rest))
+             (name (car binding))
+             (file (cdr binding))
+             (prior (assoc name seen)))
+        (if (and prior
+                 (not (equal? (source-file-path file)
+                              (source-file-path (cdr prior)))))
+          (set! out (cons (export-conflict-finding name file (cdr prior)) out))
+          (set! seen (cons binding seen)))
+        (set! rest (cdr rest))))
+    (reverse out)))
+;;; Boundary:
+;;; - facade-export-bindings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List BindingFact) <- ProjectIndex
 (def (facade-export-bindings index)
   (apply append
          (map (lambda (file)
@@ -587,7 +442,7 @@
                        (source-file-exports file))
                   '()))
               (project-index-files index))))
-
+;; TypeFinding <- String SourceFile ControlFlowGroup
 (def (export-conflict-finding name file prior)
   (make-type-finding
    (policy-rule-id +agent-export-conflict-rule+)
@@ -599,9 +454,3 @@
    (hash (export name)
          (firstPath (source-file-path prior))
          (duplicatePath (source-file-path file)))))
-
-(def (take* items count)
-  (let lp ((rest items) (remaining count) (out '()))
-    (cond
-     ((or (null? rest) (fx<= remaining 0)) (reverse out))
-     (else (lp (cdr rest) (fx1- remaining) (cons (car rest) out))))))

@@ -11,7 +11,7 @@
         :unit/snapshot/runtime-source
         :unit/snapshot/self-apply)
 (export snapshot-test)
-
+;; Snapshot
 (def snapshot-test
   (test-suite "gerbil scheme harness snapshots"
     (test-case "provider extension snapshot uses schema field names"

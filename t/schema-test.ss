@@ -3,7 +3,7 @@
         :unit/schema/bundle
         :unit/schema/conformance)
 (export schema-test)
-
+;; SchemaTest
 (def schema-test
   (test-suite "gerbil scheme schema bundle"
     (test-case "tracked schema files exist locally"

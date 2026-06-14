@@ -4,7 +4,7 @@
         :std/test)
 (export check-search-prime-required-envelope
         check-search-prime-semantic-fact-graph)
-
+;; CheckSearchPrimeRequiredEnvelope
 (def (check-search-prime-required-envelope)
   (let* ((index (collect-project "."))
          (packet (search-prime-packet-json index))
@@ -31,7 +31,7 @@
     (check (hash-get packet 'findings) => '())
     (check (length (hash-get packet 'nextActions)) => 1)
     (check (length (hash-get packet 'notes)) => 1)))
-
+;; CheckSearchPrimeSemanticFactGraph
 (def (check-search-prime-semantic-fact-graph)
   (let* ((index (collect-project "."))
          (packet (search-prime-packet-json index)))
@@ -41,17 +41,17 @@
     (check (packet-has-edge-kind? packet "owns") => #t)
     (check (packet-has-edge-kind? packet "activates") => #t)
     (check (packet-has-note-kind? packet "parser") => #t)))
-
+;; Boolean <- Packet String
 (def (packet-has-node-kind? packet kind)
   (ormap (lambda (node)
            (equal? (hash-get node 'kind) kind))
          (hash-get packet 'nodes)))
-
+;; Boolean <- Packet String
 (def (packet-has-edge-kind? packet kind)
   (ormap (lambda (edge)
            (equal? (hash-get edge 'kind) kind))
          (hash-get packet 'edges)))
-
+;; Boolean <- Packet String
 (def (packet-has-note-kind? packet kind)
   (ormap (lambda (note)
            (equal? (hash-get note 'kind) kind))

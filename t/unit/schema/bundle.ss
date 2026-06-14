@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :std/sort
         :std/srfi/13
         :std/test
@@ -7,7 +10,7 @@
         +local-schema-refs+
         schema-ref-closure
         missing-schema-files)
-
+;; ConfigConstant
 (def +schema-files+
   ["semantic-agent-hook-provider-manifest.v1.schema.json"
    "semantic-compare-packet.v1.schema.json"
@@ -26,7 +29,7 @@
    "semantic-source-location.v1.schema.json"
    "semantic-tree-sitter-provenance.v1.schema.json"
    "semantic-type-surface.v1.schema.json"])
-
+;; ConfigConstant
 (def +local-schema-refs+
   ["semantic-content-compaction.v1.schema.json"
    "semantic-handle.v1.schema.json"
@@ -35,16 +38,16 @@
    "semantic-source-location.v1.schema.json"
    "semantic-tree-sitter-provenance.v1.schema.json"
    "semantic-type-surface.v1.schema.json"])
-
+;; SchemaRefClosure
 (def (schema-ref-closure)
   (sort (dedupe-strings
          (append-map schema-local-refs +schema-files+))
         string<?))
-
+;; SchemaLocalRefs <- SourceFile
 (def (schema-local-refs file)
   (collect-local-schema-refs
    (call-with-input-file (schema-path file) read-json)))
-
+;; CollectLocalSchemaRefs <- Value
 (def (collect-local-schema-refs value)
   (cond
    ((hash-table? value)
@@ -59,11 +62,11 @@
    ((list? value)
     (append-map collect-local-schema-refs value))
    (else '())))
-
+;; LocalSchemaRefList <- Ref
 (def (local-schema-ref-list ref)
   (let (path (local-schema-ref-path ref))
     (if path [path] '())))
-
+;; String <- Ref
 (def (local-schema-ref-path ref)
   (if (or (string-prefix? "#" ref)
           (string-prefix? "http://" ref)
@@ -74,20 +77,20 @@
       (if hash-index
         (substring ref 0 hash-index)
         ref))))
-
+;; MissingSchemaFiles <- Files
 (def (missing-schema-files files)
   (filter (lambda (file)
             (not (file-exists? (schema-path file))))
           files))
-
+;; String <- SourceFile
 (def (schema-path file)
   (string-append "schemas/" file))
-
+;; Integer <- (YY <- XX) (List XX)
 (def (append-map proc xs)
   (if (null? xs)
     '()
     (append (proc (car xs)) (append-map proc (cdr xs)))))
-
+;; (List String) <- (List String)
 (def (dedupe-strings xs)
   (let lp ((rest xs) (seen '()) (out '()))
     (match rest

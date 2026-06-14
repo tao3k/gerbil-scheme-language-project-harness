@@ -2,7 +2,8 @@
 ;;; Stable parser facade for the Gerbil Scheme project harness.
 
 (import :parser/core
-        :parser/package)
+        :parser/package
+        :parser/source-class)
 
 (export +source-extensions+
         +config-files+
@@ -13,6 +14,8 @@
         parse-source-file
         project-definitions
         project-calls
+        project-typed-contract-facts
+        project-comment-quality-facts
         find-owner
         definition-name
         definition-kind
@@ -49,6 +52,7 @@
         macro-fact-phase
         macro-fact-pattern-count
         macro-fact-hygienic
+        macro-fact-quality-facets
         macro-fact-selector
         binding-fact-name
         binding-fact-kind
@@ -83,6 +87,7 @@
         higher-order-fact-arities
         higher-order-fact-formals
         higher-order-fact-caller
+        higher-order-quality-facets
         higher-order-fact-selector
         control-flow-fact-name
         control-flow-fact-kind
@@ -93,7 +98,45 @@
         control-flow-fact-caller
         control-flow-fact-binding-count
         control-flow-fact-body-form-count
+        control-flow-quality-facets
         control-flow-fact-selector
+        typed-contract-fact-definition-name
+        typed-contract-fact-definition-kind
+        typed-contract-fact-definition-formals
+        typed-contract-fact-definition-arity
+        typed-contract-fact-path
+        typed-contract-fact-definition-start
+        typed-contract-fact-definition-end
+        typed-contract-fact-comment-start
+        typed-contract-fact-comment-end
+        typed-contract-fact-contract
+        typed-contract-fact-contract-output
+        typed-contract-fact-contract-inputs
+        typed-contract-fact-contract-input-count
+        typed-contract-fact-arity-alignment
+        typed-contract-fact-tokens
+        typed-contract-fact-arrow-count
+        typed-contract-fact-group-count
+        typed-contract-fact-quality
+        typed-contract-fact-reasons
+        typed-contract-fact-quality-facets
+        typed-contract-fact-repair-evidence
+        typed-contract-fact-selector
+        comment-quality-fact-target-kind
+        comment-quality-fact-target-name
+        comment-quality-fact-path
+        comment-quality-fact-target-start
+        comment-quality-fact-target-end
+        comment-quality-fact-comment-start
+        comment-quality-fact-comment-end
+        comment-quality-fact-comment-lines
+        comment-quality-fact-comment-kind
+        comment-quality-fact-quality
+        comment-quality-fact-reasons
+        comment-quality-fact-required
+        comment-quality-fact-context
+        comment-quality-fact-evidence
+        comment-quality-fact-selector
         top-form-kind
         top-form-head
         top-form-path
@@ -117,6 +160,8 @@
         source-file-poo-forms
         source-file-higher-order-forms
         source-file-control-flow-forms
+        source-file-typed-contract-facts
+        source-file-comment-quality-facts
         source-file-parse-error
         project-package-path
         project-package-name
@@ -139,4 +184,5 @@
         agent-policy-disabled-rules
         project-index-root
         project-index-files
-        project-index-package)
+        project-index-package
+        source-path-class)

@@ -1,11 +1,14 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :language/facade
         :snapshot/facade
         :std/test)
 
 (export check-compare-snapshot-fields
         check-compare-snapshot-fixtures)
-
+;; String <- String
 (def (compare-fact-by-id id)
   (let lp ((rest (compare-facts)))
     (match rest
@@ -14,7 +17,7 @@
        (if (equal? (hash-get fact 'id) id)
          fact
          (lp tail))))))
-
+;; Snapshot
 (def (check-compare-snapshot-fields)
   (let (fact (compare-fact-by-id "env-active-documented"))
     (check (compare-search-snapshot
@@ -22,7 +25,7 @@
             [fact]
             (hash-get fact 'next))
            => (snapshot-load "t/snapshots/compare-env-active-documented.ss"))))
-
+;; Snapshot
 (def (check-compare-snapshot-fixtures)
   (let ((fact (compare-fact-by-id "env-active-documented"))
         (compile-fact (compare-fact-by-id "compile-target-runtime-source")))

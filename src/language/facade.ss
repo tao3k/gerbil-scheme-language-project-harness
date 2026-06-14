@@ -2,6 +2,7 @@
 ;;; Stable facade for Gerbil language/runtime/std evidence.
 
 (import :language/evidence
+        :language/capability
         :language/compare)
 
 (export runtime-bin
@@ -10,6 +11,8 @@
         runtime-source-facts
         language-rule-facts
         standard-library-facts
+        capability-posture-facts
+        matching-capability-posture-facts
         compare-facts
         matching-compare-facts
         compare-fact-json

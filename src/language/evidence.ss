@@ -14,24 +14,27 @@
         hygienic-macro-pattern-query?
         hygienic-macro-minimal-forms
         hygienic-macro-failure-cases)
-
+;; RuntimeBin <- String
 (def (runtime-bin name)
   (let ((default-bin (path-expand (string-append "bin/" name) (gerbil-home)))
         (sibling-bin (path-expand (string-append "../bin/" name) (gerbil-home))))
     (if (file-exists? default-bin) default-bin sibling-bin)))
-
+;;; Boundary:
+;;; - runtime-path-normalize composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- String
 (def (runtime-path-normalize path)
   (with-catch
    (lambda (_) path)
    (lambda () (path-normalize path))))
-
+;; GerbilRuntimeTag <- VersionString
 (def (gerbil-runtime-tag version-string)
   (let (start (string-index version-string #\v))
     (and start
          (let* ((tail (substring version-string start (string-length version-string)))
                 (end (string-index tail #\space)))
            (if end (substring tail 0 end) tail)))))
-
+;; String <- String Summary EvidenceGrade Witness Next (List String) Details (List String) AgentScenario String QualitySignals FailureCases
 (def (evidence-fact id summary evidence-grade witness next terms details selectors
                     agent-scenario intent quality-signals failure-cases)
   (hash (id id)
@@ -46,7 +49,10 @@
         (intent intent)
         (qualitySignals quality-signals)
         (failureCases failure-cases)))
-
+;;; Boundary:
+;;; - active-runtime-facts composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List Fact)
 (def (active-runtime-facts)
   (let* ((home (path-normalize (gerbil-home)))
          (gxi (path-normalize (runtime-bin "gxi")))
@@ -82,7 +88,10 @@
        (hash (id "global-path-hardcoding")
              (risk "agent-copies-user-machine-path-into-project-docs-or-code")
              (correction "treat-runtime-path-as-evidence-not-project-config"))])]))
-
+;;; Boundary:
+;;; - runtime-source-facts coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; (List Fact)
 (def (runtime-source-facts)
   (let* ((home (path-normalize (gerbil-home)))
          (gxi (path-normalize (runtime-bin "gxi")))
@@ -264,7 +273,10 @@
        (hash (id "raw-runtime-source-search")
              (risk "agent-clones-gerbil-source-but-searches-it-with-raw-grep")
              (correction "use-asp-managed-runtime-source-index-before-agent-facing-search"))])]))
-
+;;; Boundary:
+;;; - language-rule-facts coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; (List Fact)
 (def (language-rule-facts)
   [(evidence-fact
     "hygienic-macro"
@@ -369,7 +381,10 @@
      (hash (id "inline-control-flow")
            (risk "agent-writes-large-inline-continuation-thread-or-generator-block")
            (correction "extract-named-helper-and-cover-it-with-a-native-unit-test"))])])
-
+;;; Boundary:
+;;; - standard-library-facts coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; (List Fact)
 (def (standard-library-facts)
   [(evidence-fact
     "std/srfi/13"
@@ -467,7 +482,10 @@
     [(hash (id "foreign-test-framework")
            (risk "agent-adds-python-or-non-gerbil-test-wrapper")
            (correction "use-std-test-native-gerbil-test-suite"))])])
-
+;;; Boundary:
+;;; - hygienic-macro-pattern-evidence coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; Boolean <- (List MacroFact)
 (def (hygienic-macro-pattern-evidence terms)
   (and (hygienic-macro-pattern-query? terms)
        (hash (id "hygienic-macro")
@@ -506,7 +524,10 @@
                               "test-backed-query"])
              (witness "parser-and-test-backed-hygienic-macro-pattern")
              (next "search lang hygienic-macro"))))
-
+;;; Boundary:
+;;; - hygienic-macro-minimal-forms coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; Boolean
 (def (hygienic-macro-minimal-forms)
   [(hash (role "macro-definition")
          (symbol "defsyntax")
@@ -533,7 +554,7 @@
                          (operands ["<macro-name>" "<syntax-argument> ..."])
                          (keywords [])))
          (selector "gerbil-runtime-source://src/std/sugar.ss#defsyntax-call"))])
-
+;; Boolean
 (def (hygienic-macro-failure-cases)
   [(hash (id "generated-code-forbidden-form")
          (risk "agent-blindly-emits-defsyntax-syntax-case-or-defrules")
@@ -541,7 +562,7 @@
    (hash (id "racket-macro-assumption")
          (risk "agent-copies-racket-syntax-case-shape-into-gerbil-code")
          (correction "query-gerbil-lang-and-pattern-before-editing-macro-code"))])
-
+;; Boolean <- (List MacroFact)
 (def (hygienic-macro-pattern-query? terms)
   (and (pair? terms)
        (or (member "hygienic-macro" terms)

@@ -11,7 +11,10 @@
         :commands/search
         :constants)
 (export main)
-
+;;; Invariant:
+;;; - main owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Main <- (List XX)
 (def (main . args)
   (match args
     ([] (display +help+) 0)

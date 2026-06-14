@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - module owns an agent-facing surface.
+;;; - Keep contracts, evidence, and failure semantics explicit.
 ;;; Search command adapter.
 
 (import :constants
@@ -18,9 +21,13 @@
 
 (export search-main
         language-evidence-view?
+        language-evidence-index-free-view?
         language-evidence-authority
         language-evidence-next)
-
+;;; Invariant:
+;;; - search-main owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; SearchMain <- (List XX)
 (def (search-main args)
   (match args
     ([] (error "search requires a view"))
@@ -29,9 +36,14 @@
        (begin (print-guide) 0)
        (let* ((root (project-root rest))
               (args (drop-project-root rest))
-              (index (collect-project root))
               (json? (flag? "--json" args)))
          (cond
+          ((equal? view "compare") (emit-compare-search args json?))
+          ((language-evidence-index-free-view? view)
+           (emit-language-evidence-search #f view args json?))
+          (else
+           (let (index (collect-project root))
+             (cond
           ((equal? view "workspace") (emit-workspace index json?))
           ((equal? view "prime") (emit-prime index json?))
           ((equal? view "owner") (emit-owner-search index args json?))
@@ -46,8 +58,11 @@
           ((or (equal? view "fzf") (equal? view "pipe"))
            (emit-fzf-search index args json?))
           ((equal? view "ingest") (emit-ingest index json?))
-          (else (error "unsupported search view" view))))))))
-
+          (else (error "unsupported search view" view)))))))))))
+;;; Boundary:
+;;; - emit-workspace composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex Json
 (def (emit-workspace index json?)
   (if json?
     (write-json-line
@@ -70,7 +85,10 @@
                      " defs=" (length (source-file-definitions file))))
         (take* (project-index-files index) 20))))
   0)
-
+;;; Boundary:
+;;; - emit-prime composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex Json
 (def (emit-prime index json?)
   (if json?
     (write-json-line
@@ -87,13 +105,14 @@
        (lambda (file)
          (displayln "owner:path(" (source-file-path file) ")"
                     " package=" (or (source-file-package file) "-")
+                    " sourceClass=" (source-path-class (source-file-path file))
                     " defs=" (length (source-file-definitions file))
                     " imports=" (length (source-file-imports file))))
        (take* (ranked-files index) 12))
       (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")
       (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")))
   0)
-
+;; String <- ProjectIndex
 (def (emit-package-line index)
   (let (package (project-index-package index))
     (when package
@@ -101,10 +120,13 @@
                  " path=" (project-package-path package)
                  " packageManager=" (project-package-manager package)
                  " dependencies=" (join (project-package-dependencies package) ",")))))
-
+;; (List String) <- ProjectIndex
 (def (emit-extension-lines index)
   (for-each displayln (project-extension-search-lines index)))
-
+;;; Boundary:
+;;; - emit-owner-search composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex (List String) Json
 (def (emit-owner-search index args json?)
   (let* ((positionals (positional-args args))
          (owner (and (pair? positionals) (car positionals))))
@@ -127,10 +149,14 @@
           (write-json-line (source-file-json file))
           (emit-owner file))))
     0))
-
+;;; Boundary:
+;;; - emit-owner composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- SourceFile
 (def (emit-owner file)
   (displayln "[gerbil-owner] path=" (source-file-path file)
              " package=" (or (source-file-package file) "-")
+             " sourceClass=" (source-path-class (source-file-path file))
              " defs=" (length (source-file-definitions file))
              " imports=" (length (source-file-imports file))
              " exports=" (length (source-file-exports file)))
@@ -148,7 +174,10 @@
    (take* (source-file-definitions file) 30))
   (displayln "nextCommand=gerbil-scheme-harness query " (source-file-path file)
              " --term '<symbol>' --workspace . --names-only"))
-
+;;; Boundary:
+;;; - emit-owner-items composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- SourceFile Matches
 (def (emit-owner-items file matches)
   (displayln "[gerbil-owner-items] path=" (source-file-path file)
              " matches=" (length matches))
@@ -158,7 +187,10 @@
                 " name=" (definition-name defn)
                 " selector=" (definition-selector defn)))
    matches))
-
+;;; Boundary:
+;;; - emit-symbol-search composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex (List String) Json
 (def (emit-symbol-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))
@@ -176,7 +208,10 @@
                         " selector=" (definition-selector defn)))
            (take* matches 40)))))
     0))
-
+;;; Boundary:
+;;; - emit-import-search composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex (List XX) Json
 (def (emit-import-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))
@@ -196,7 +231,10 @@
              (displayln "|owner path=" (source-file-path file)))
            (take* matches 40)))))
     0))
-
+;;; Boundary:
+;;; - emit-structural-index composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex Json
 (def (emit-structural-index index json?)
   (let* ((packet (structural-index-packet-json index))
          (file-hashes (hash-get packet 'fileHashes))
@@ -217,16 +255,23 @@
         (displayln "|artifact id=" (hash-get packet 'sourceArtifactId)
                    " schemaId=" (hash-get packet 'schemaId)
                    " rawSourceStored=false")
+        (displayln "|projectionVocabulary facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,typedContractFacts,commentQualityFacts,dependencyUsageFacts"
+                   " consumer=search-capability-posture"
+                   " next=gerbil-scheme-harness search capability posture --view seeds .")
         (for-each
          (lambda (owner)
            (displayln "|owner path=" (hash-get owner 'ownerPath)
                       " kind=" (hash-get owner 'ownerKind)
-                      " authority=" (hash-get owner 'sourceAuthority)))
+                      " authority=" (hash-get owner 'sourceAuthority)
+                      " sourceClass=" (source-path-class (hash-get owner 'ownerPath))))
          (take* owners 20))
         (emit-structural-syntax-fact-lines syntax-facts)
         (displayln "nextCommand=gerbil-scheme-harness search structural --json ."))))
   0)
-
+;;; Boundary:
+;;; - emit-fzf-search composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex (List XX) Json
 (def (emit-fzf-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))
@@ -240,16 +285,20 @@
            (lambda (file)
              (displayln "|owner path=" (source-file-path file)
                         " package=" (or (source-file-package file) "-")
+                        " sourceClass=" (source-path-class (source-file-path file))
                         " defs=" (length (source-file-definitions file))))
            (take* matches 24))
           (when (pair? matches)
             (displayln "recommendedNext=gerbil-scheme-harness search owner "
                        (source-file-path (car matches)) " --view seeds .")))))
     0))
-
+;; Boolean <- View
 (def (language-evidence-view? view)
-  (and (member view ["extension" "env" "runtime-source" "lang" "std" "pattern"]) #t))
-
+  (and (member view ["extension" "env" "runtime-source" "lang" "std" "pattern" "capability"]) #t))
+;; Boolean <- View
+(def (language-evidence-index-free-view? view)
+  (and (member view ["env" "runtime-source" "lang" "std"]) #t))
+;; String <- Namespace
 (def (language-evidence-authority namespace)
   (cond
    ((equal? namespace "extension") "ecosystem-extension")
@@ -258,17 +307,21 @@
    ((equal? namespace "lang") "language-rules")
    ((equal? namespace "std") "standard-library")
    ((equal? namespace "pattern") "executable-pattern")
+   ((equal? namespace "capability") "project-capability-posture")
    (else "unknown")))
-
+;; String <- Namespace Query
 (def (language-evidence-next namespace query)
   (string-append "search " namespace " " query))
-
+;; String
 (def +semantic-runtime-source-acquisition-schema-id+
   "agent.semantic-protocols.semantic-runtime-source-acquisition")
-
+;; String
 (def +semantic-compare-packet-schema-id+
   "agent.semantic-protocols.semantic-compare-packet")
-
+;;; Boundary:
+;;; - runtime-source-acquisition-packet-json coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; Json <- Namespace Authority Grade Query (List XX) Next
 (def (runtime-source-acquisition-packet-json namespace authority grade query facts next)
   (let* ((fact (and (pair? facts) (car facts)))
          (details (if fact (hash-get fact 'details) (hash)))
@@ -313,7 +366,10 @@
           (missing (if fact [] ["runtime-source-fact"]))
           (witness (if fact (hash-get fact 'witness) "pending"))
           (next next))))
-
+;;; Boundary:
+;;; - emit-extension-search composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex (List XX) Json
 (def (emit-extension-search index args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (join positionals " ") "-"))
@@ -340,7 +396,10 @@
          matches)
         (displayln "next=" (extension-evidence-next positionals matches))))
     0))
-
+;;; Boundary:
+;;; - matching-extension-facts composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List Fact) <- ProjectIndex (List XX)
 (def (matching-extension-facts index terms)
   (let (facts (project-extension-facts index))
     (if (null? terms)
@@ -349,14 +408,17 @@
                 (ormap (cut extension-fact-matches-term? fact <>)
                        terms))
               facts))))
-
+;;; Boundary:
+;;; - extension-fact-matches-term? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- ExtensionFact SearchTerm
 (def (extension-fact-matches-term? fact term)
   (or (string-contains (extension-fact-name fact) term)
       (ormap (cut string-contains <> term)
              (extension-fact-dependencies fact))
       (ormap (cut string-contains <> term)
              (extension-fact-capabilities fact))))
-
+;; String <- (List String) Matches
 (def (extension-evidence-next terms matches)
   (let ((extension-name (if (pair? matches)
                           (extension-fact-name (car matches))
@@ -365,7 +427,10 @@
                  (join (cdr terms) " ")
                  "<api|syntax|pattern>")))
     (string-append "search pattern " extension-name " " focus)))
-
+;;; Boundary:
+;;; - emit-pattern-search coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; Unit <- ProjectIndex (List XX) Json
 (def (emit-pattern-search index args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (join positionals " ") "-"))
@@ -408,11 +473,14 @@
           (displayln "|missing " (join missing ",")))
         (displayln "next=" next)))
     0))
-
+;; String <- ProjectIndex (List String)
 (def (pattern-evidence index terms)
   (or (poo-pattern-evidence index terms)
       (hygienic-macro-pattern-evidence terms)))
-
+;;; Boundary:
+;;; - emit-pattern-lines composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List String) <- Pattern
 (def (emit-pattern-lines pattern)
   (let* ((missing (pattern-missing pattern))
          (quality (if (null? missing) "verified" "partial")))
@@ -446,7 +514,10 @@
                " selectorCount=" (length (hash-get pattern 'selectors))
                " formCount=" (length (hash-get pattern 'minimalForms))
                " failureCaseCount=" (length (hash-get pattern 'failureCases)))))
-
+;;; Boundary:
+;;; - emit-compare-search composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- (List XX) Json
 (def (emit-compare-search args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (join positionals " ") "-"))
@@ -487,7 +558,7 @@
           (for-each emit-compare-line facts))
         (displayln "next=" next)))
     0))
-
+;; Unit <- CompareFact
 (def (emit-compare-line fact)
   (let ((left (hash-get fact 'left))
         (right (hash-get fact 'right)))
@@ -509,12 +580,12 @@
                " intent=" (hash-get fact 'intent))
     (for-each emit-failure-case-line (hash-get fact 'failureCases))
     (for-each emit-quality-signal-line (hash-get fact 'qualitySignals))))
-
+;; PatternMissing <- Pattern
 (def (pattern-missing pattern)
   (if (and pattern (hash-key? pattern 'missing))
     (hash-get pattern 'missing)
     []))
-
+;; String <- SourceRef
 (def (source-ref-summary source-ref)
   (string-append
    (hash-get source-ref 'kind)
@@ -524,12 +595,15 @@
    (hash-get source-ref 'dependency)
    ":"
    (hash-get source-ref 'pathPolicy)))
-
+;;; Boundary:
+;;; - emit-language-evidence-search coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; String <- ProjectIndex Namespace (List String) Json
 (def (emit-language-evidence-search index namespace args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (join positionals " ") "-"))
          (authority (language-evidence-authority namespace))
-         (facts (matching-language-evidence-facts namespace positionals))
+         (facts (matching-language-evidence-facts index namespace positionals))
          (grade (if (null? facts) "unknown" "fact"))
          (next (if (null? facts)
                  (language-evidence-next namespace query)
@@ -558,24 +632,34 @@
           (for-each emit-language-evidence-line facts))
         (displayln "next=" next)))
     0))
-
-(def (matching-language-evidence-facts namespace terms)
+;;; Boundary:
+;;; - matching-language-evidence-facts composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- ProjectIndex Namespace (List String)
+(def (matching-language-evidence-facts index namespace terms)
   (let (facts
         (cond
          ((equal? namespace "env") (active-runtime-facts))
          ((equal? namespace "runtime-source") (runtime-source-facts))
          ((equal? namespace "lang") (language-rule-facts))
          ((equal? namespace "std") (standard-library-facts))
+         ((equal? namespace "capability") (capability-posture-facts index))
          (else [])))
     (filter (cut evidence-fact-matches-terms? <> terms) facts)))
-
+;;; Boundary:
+;;; - evidence-fact-matches-terms? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- LanguageEvidenceFact (List SearchTerm)
 (def (evidence-fact-matches-terms? fact terms)
   (or (null? terms)
       (ormap (lambda (term)
                (ormap (cut string-contains <> term)
                       (hash-get fact 'terms)))
              terms)))
-
+;;; Boundary:
+;;; - emit-language-evidence-line composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- LanguageEvidenceFact
 (def (emit-language-evidence-line fact)
   (displayln "|fact id=" (hash-get fact 'id)
              " evidenceGrade=" (hash-get fact 'evidenceGrade)
@@ -608,7 +692,11 @@
     (when (hash-key? details 'selectorResolver)
       (emit-selector-resolver-line (hash-get details 'selectorResolver)))
     (for-each emit-source-example-line (detail-list details 'sourceExamples))
-    (for-each emit-source-comment-line (detail-list details 'sourceComments)))
+    (for-each emit-source-comment-line (detail-list details 'sourceComments))
+    (when (hash-key? details 'capability)
+      (displayln "|capability name=" (hash-get details 'capability)
+                 " status=" (hash-get details 'status)
+                 " policyRules=" (join-or-dash (hash-get details 'policyRules)))))
   (for-each
    (lambda (selector)
      (displayln "|selector role=" (hash-get selector 'role)
@@ -617,27 +705,30 @@
    (hash-get fact 'selectors))
   (for-each emit-failure-case-line (hash-get fact 'failureCases))
   (for-each emit-quality-signal-line (hash-get fact 'qualitySignals)))
-
+;; String <- Failure
 (def (emit-failure-case-line failure)
   (displayln "|failureCase id=" (hash-get failure 'id)
              " risk=" (failure-risk failure)
              " correction=" (failure-correction failure)))
-
+;; String <- Failure
 (def (failure-risk failure)
   (cond
    ((hash-key? failure 'risk) (hash-get failure 'risk))
    ((hash-key? failure 'riskKind) (hash-get failure 'riskKind))
    (else "unknown")))
-
+;; String <- Failure
 (def (failure-correction failure)
   (cond
    ((hash-key? failure 'correction) (hash-get failure 'correction))
    ((hash-key? failure 'correctiveAction) (hash-get failure 'correctiveAction))
    (else "unknown")))
-
+;; String <- Signal
 (def (emit-quality-signal-line signal)
   (displayln "|qualitySignal id=" signal))
-
+;;; Boundary:
+;;; - emit-ingest composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Unit <- ProjectIndex Json
 (def (emit-ingest index json?)
   (let* ((stdin-text (read-all-as-string (current-input-port)))
          (matches (filter (lambda (file)

@@ -1,291 +1,1290 @@
 (parserSourceFile
-  (path "t/fixtures/parser/complex-syntax.ss")
-  (definitions
-   ((definition
-     (name "with-widget")
-     (kind "defrule")
-     (formals ("value" "body"))
-     (selector "t/fixtures/parser/complex-syntax.ss:9-11"))
-    (definition
-     (name "capture-safe")
-     (kind "defsyntax")
-     (formals ("stx"))
-     (selector "t/fixtures/parser/complex-syntax.ss:13-17"))
-    (definition
-     (name "<Widget>")
-     (kind "defclass")
-     (formals ())
-     (selector "t/fixtures/parser/complex-syntax.ss:19-19"))
-    (definition
-     (name ":render")
-     (kind "defgeneric")
-     (formals ())
-     (selector "t/fixtures/parser/complex-syntax.ss:21-21"))
-    (definition
-     (name "<Renderable>")
-     (kind "defprotocol")
-     (formals ())
-     (selector "t/fixtures/parser/complex-syntax.ss:23-23"))
-    (definition
-     (name ":render")
-     (kind "defmethod")
-     (formals ())
-     (selector "t/fixtures/parser/complex-syntax.ss:25-31"))
-    (definition
-     (name "make-widget")
-     (kind "def")
-     (formals ("name" "rest"))
-     (selector "t/fixtures/parser/complex-syntax.ss:33-36"))
-    (definition
-     (name "dispatch")
-     (kind "def")
-     (formals ("value"))
-     (selector "t/fixtures/parser/complex-syntax.ss:38-41"))
-    (definition
-     (name "select")
-     (kind "def")
-     (formals ())
-     (selector "t/fixtures/parser/complex-syntax.ss:43-46"))))
-  (moduleImports
-   ((moduleImport
-     (module ":std/misc/hash")
-     (phase "runtime")
-     (modifier "except-in")
-     (symbols ("hash-copy"))
-     (selector "t/fixtures/parser/complex-syntax.ss:6-6"))
-    (moduleImport
-     (module ":std/misc/list")
-     (phase "runtime")
-     (modifier "rename-in")
-     (symbols ("foldl" "fold-left"))
-     (selector "t/fixtures/parser/complex-syntax.ss:5-5"))
-    (moduleImport
-     (module ":std/stxutil")
-     (phase "syntax")
-     (modifier "for-syntax")
-     (symbols ())
-     (selector "t/fixtures/parser/complex-syntax.ss:4-4"))
-    (moduleImport
-     (module ":std/text/json")
-     (phase "runtime")
-     (modifier "only-in")
-     (symbols ("read-json"))
-     (selector "t/fixtures/parser/complex-syntax.ss:3-3"))
-    (moduleImport
-     (module ":std/sugar")
-     (phase "runtime")
-     (modifier "direct")
-     (symbols ())
-     (selector "t/fixtures/parser/complex-syntax.ss:2-2"))))
-  (macros
-   ((macro
-     (name "with-widget")
-     (kind "defrule")
-     (transformer "macro-transformer")
-     (phase "syntax")
-     (patternCount 1)
-     (hygienicSyntax #t)
-     (selector "t/fixtures/parser/complex-syntax.ss:9-11"))
-    (macro
-     (name "capture-safe")
-     (kind "defsyntax")
-     (transformer "syntax-case")
-     (phase "syntax")
-     (patternCount 0)
-     (hygienicSyntax #t)
-     (selector "t/fixtures/parser/complex-syntax.ss:13-17"))))
-  (bindings
-   ((binding
-     (name "body")
-     (kind "macro-formal")
-     (scope "with-widget")
-     (valueType "unknown")
-     (selector "t/fixtures/parser/complex-syntax.ss:9-11"))
-    (binding
-     (name "value")
-     (kind "macro-formal")
-     (scope "with-widget")
-     (valueType "unknown")
-     (selector "t/fixtures/parser/complex-syntax.ss:9-11"))
-    (binding
-     (name "stx")
-     (kind "macro-formal")
-     (scope "capture-safe")
-     (valueType "unknown")
-     (selector "t/fixtures/parser/complex-syntax.ss:13-17"))
-    (binding
-     (name "n")
-     (kind "let*")
-     (scope ":render")
-     (valueType "number")
-     (selector "t/fixtures/parser/complex-syntax.ss:28-28"))
-    (binding
-     (name "again")
-     (kind "let*")
-     (scope ":render")
-     (valueType "string")
-     (selector "t/fixtures/parser/complex-syntax.ss:27-27"))
-    (binding
-     (name "label")
-     (kind "let*")
-     (scope ":render")
-     (valueType "string")
-     (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
-    (binding
-     (name "count")
-     (kind "let")
-     (scope "make-widget")
-     (valueType "number")
-     (selector "t/fixtures/parser/complex-syntax.ss:34-34"))
-    (binding
-     (name "rest")
-     (kind "formal")
-     (scope "make-widget")
-     (valueType "unknown")
-     (selector "t/fixtures/parser/complex-syntax.ss:33-36"))
-    (binding
-     (name "name")
-     (kind "formal")
-     (scope "make-widget")
-     (valueType "unknown")
-     (selector "t/fixtures/parser/complex-syntax.ss:33-36"))
-    (binding
-     (name "value")
-     (kind "formal")
-     (scope "dispatch")
-     (valueType "unknown")
-     (selector "t/fixtures/parser/complex-syntax.ss:38-41"))))
-  (pooForms
-   ((pooForm
-     (name "<Widget>")
-     (kind "defclass")
-     (role "class")
-     (generic "")
-     (receiver "")
-     (receiverType "")
-     (supers (":object"))
-     (slots ("name" "count"))
-     (options ("transparent:"))
-     (specializers ())
-     (specializerTypes ())
-     (selector "t/fixtures/parser/complex-syntax.ss:19-19"))
-    (pooForm
-     (name ":render")
-     (kind "defgeneric")
-     (role "generic")
-     (generic ":render")
-     (receiver "")
-     (receiverType "")
-     (supers ())
-     (slots ())
-     (options ())
-     (specializers ())
-     (specializerTypes ())
-     (selector "t/fixtures/parser/complex-syntax.ss:21-21"))
-    (pooForm
-     (name "<Renderable>")
-     (kind "defprotocol")
-     (role "protocol")
-     (generic "")
-     (receiver "")
-     (receiverType "")
-     (supers ())
-     (slots ())
-     (options ())
-     (specializers ())
-     (specializerTypes ())
-     (selector "t/fixtures/parser/complex-syntax.ss:23-23"))
-    (pooForm
-     (name ":render")
-     (kind "defmethod")
-     (role "method")
-     (generic ":render")
-     (receiver "widget")
-     (receiverType "<Widget>")
-     (supers ())
-     (slots ())
-     (options ())
-     (specializers ("widget:<Widget>"))
-     (specializerTypes ("<Widget>"))
-     (selector "t/fixtures/parser/complex-syntax.ss:25-31"))))
-  (higherOrderForms
-   ((higherOrderForm
-     (name "case-lambda")
-     (kind "case-lambda")
-     (role "multi-arity-function")
-     (operandCount 2)
-     (arities (0 1))
-     (formals ("x"))
-     (caller "select")
-     (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
-  (calls
-   ((call
-     (callee ":render")
-     (arity 1)
-     (caller ":render")
-     (arguments ("widget"))
-     (argumentTypes ("unknown"))
-     (selector "t/fixtures/parser/complex-syntax.ss:31-31"))
-    (call
-     (callee "open-input-string")
-     (arity 1)
-     (caller ":render")
-     (arguments ("{}"))
-     (argumentTypes ("string"))
-     (selector "t/fixtures/parser/complex-syntax.ss:30-30"))
-    (call
-     (callee "read-json")
-     (arity 1)
-     (caller ":render")
-     (arguments ("(open-input-string {})"))
-     (argumentTypes ("unknown"))
-     (selector "t/fixtures/parser/complex-syntax.ss:30-30"))
-    (call
-     (callee "displayln")
-     (arity 1)
-     (caller ":render")
-     (arguments ("again"))
-     (argumentTypes ("string"))
-     (selector "t/fixtures/parser/complex-syntax.ss:29-29"))
-    (call
-     (callee "make-<Widget>")
-     (arity 2)
-     (caller "make-widget")
-     (arguments ("name" "count"))
-     (argumentTypes ("unknown" "number"))
-     (selector "t/fixtures/parser/complex-syntax.ss:36-36"))
-    (call
-     (callee "with-widget")
-     (arity 2)
-     (caller "make-widget")
-     (arguments ("name" "(make-<Widget> name count)"))
-     (argumentTypes ("unknown" "unknown"))
-     (selector "t/fixtures/parser/complex-syntax.ss:35-36"))
-    (call
-     (callee "make-widget")
-     (arity 1)
-     (caller "dispatch")
-     (arguments ("fallback"))
-     (argumentTypes ("string"))
-     (selector "t/fixtures/parser/complex-syntax.ss:41-41"))
-    (call
-     (callee "make-widget")
-     (arity 1)
-     (caller "dispatch")
-     (arguments ("s"))
-     (argumentTypes ("unknown"))
-     (selector "t/fixtures/parser/complex-syntax.ss:40-40"))
-    (call
-     (callee "dispatch")
-     (arity 1)
-     (caller "select")
-     (arguments ("x"))
-     (argumentTypes ("unknown"))
-     (selector "t/fixtures/parser/complex-syntax.ss:46-46"))
-    (call
-     (callee "make-widget")
-     (arity 1)
-     (caller "select")
-     (arguments ("empty"))
-     (argumentTypes ("string"))
-     (selector "t/fixtures/parser/complex-syntax.ss:45-45")))))
+ (path "t/fixtures/parser/complex-syntax.ss")
+ (definitions
+  ((definition
+    (name "with-widget")
+    (kind "defrule")
+    (formals ("value" "body"))
+    (arity 2)
+    (selector "t/fixtures/parser/complex-syntax.ss:14-16"))
+   (definition
+    (name "capture-safe")
+    (kind "defsyntax")
+    (formals ("stx"))
+    (arity 1)
+    (selector "t/fixtures/parser/complex-syntax.ss:18-22"))
+   (definition
+    (name "<Widget>")
+    (kind "defclass")
+    (formals ())
+    (arity 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:24-24"))
+   (definition
+    (name ":render")
+    (kind "defgeneric")
+    (formals ())
+    (arity 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
+   (definition
+    (name "<Renderable>")
+    (kind "defprotocol")
+    (formals ())
+    (arity 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:28-28"))
+   (definition
+    (name ":render")
+    (kind "defmethod")
+    (formals ())
+    (arity 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:30-36"))
+   (definition
+    (name "make-widget")
+    (kind "def")
+    (formals ("name" "rest"))
+    (arity 2)
+    (selector "t/fixtures/parser/complex-syntax.ss:38-41"))
+   (definition
+    (name "dispatch")
+    (kind "def")
+    (formals ("value"))
+    (arity 1)
+    (selector "t/fixtures/parser/complex-syntax.ss:43-46"))
+   (definition
+    (name "select")
+    (kind "def")
+    (formals ("x"))
+    (arity 1)
+    (selector "t/fixtures/parser/complex-syntax.ss:48-51"))))
+ (moduleImports
+  ((moduleImport
+    (module ":std/misc/path")
+    (phase "template")
+    (modifier "for-template")
+    (symbols ())
+    (selector "t/fixtures/parser/complex-syntax.ss:11-11"))
+   (moduleImport
+    (module ":std/misc/repr")
+    (phase "phase:1")
+    (modifier "phi:")
+    (symbols ())
+    (selector "t/fixtures/parser/complex-syntax.ss:10-10"))
+   (moduleImport
+    (module ":std/misc/hash")
+    (phase "runtime")
+    (modifier "except-in")
+    (symbols ("hash-copy"))
+    (selector "t/fixtures/parser/complex-syntax.ss:9-9"))
+   (moduleImport
+    (module ":std/misc/list")
+    (phase "runtime")
+    (modifier "rename-in")
+    (symbols ("foldl" "fold-left"))
+    (selector "t/fixtures/parser/complex-syntax.ss:8-8"))
+   (moduleImport
+    (module ":std/stxutil")
+    (phase "syntax")
+    (modifier "for-syntax")
+    (symbols ())
+    (selector "t/fixtures/parser/complex-syntax.ss:7-7"))
+   (moduleImport
+    (module ":std/text/json")
+    (phase "runtime")
+    (modifier "only-in")
+    (symbols ("read-json"))
+    (selector "t/fixtures/parser/complex-syntax.ss:6-6"))
+   (moduleImport
+    (module ":std/sugar")
+    (phase "runtime")
+    (modifier "direct")
+    (symbols ())
+    (selector "t/fixtures/parser/complex-syntax.ss:5-5"))))
+ (macros ((macro (name "with-widget")
+                 (kind "defrule")
+                 (transformer "macro-transformer")
+                 (phase "syntax")
+                 (patternCount 1)
+                 (hygienicSyntax #t)
+                 (qualityFacets ("hygienic-macro" "macro-sugar"))
+                 (selector "t/fixtures/parser/complex-syntax.ss:14-16"))
+          (macro (name "capture-safe")
+                 (kind "defsyntax")
+                 (transformer "syntax-case")
+                 (phase "syntax")
+                 (patternCount 0)
+                 (hygienicSyntax #t)
+                 (qualityFacets
+                  ("hygienic-macro"
+                   "syntax-case-transformer"
+                   "syntax-template-witness"))
+                 (selector "t/fixtures/parser/complex-syntax.ss:18-22"))))
+ (bindings
+  ((binding (name "body")
+            (kind "macro-formal")
+            (scope "with-widget")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:14-16"))
+   (binding (name "value")
+            (kind "macro-formal")
+            (scope "with-widget")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:14-16"))
+   (binding (name "stx")
+            (kind "macro-formal")
+            (scope "capture-safe")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:18-22"))
+   (binding (name "n")
+            (kind "let*")
+            (scope ":render")
+            (valueType "number")
+            (selector "t/fixtures/parser/complex-syntax.ss:33-33"))
+   (binding (name "again")
+            (kind "let*")
+            (scope ":render")
+            (valueType "string")
+            (selector "t/fixtures/parser/complex-syntax.ss:32-32"))
+   (binding (name "label")
+            (kind "let*")
+            (scope ":render")
+            (valueType "string")
+            (selector "t/fixtures/parser/complex-syntax.ss:31-31"))
+   (binding (name "count")
+            (kind "let")
+            (scope "make-widget")
+            (valueType "number")
+            (selector "t/fixtures/parser/complex-syntax.ss:39-39"))
+   (binding (name "rest")
+            (kind "formal")
+            (scope "make-widget")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:38-41"))
+   (binding (name "name")
+            (kind "formal")
+            (scope "make-widget")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:38-41"))
+   (binding (name "value")
+            (kind "formal")
+            (scope "dispatch")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:43-46"))
+   (binding (name "x")
+            (kind "formal")
+            (scope "select")
+            (valueType "unknown")
+            (selector "t/fixtures/parser/complex-syntax.ss:48-51"))))
+ (pooForms
+  ((pooForm (name "<Widget>")
+            (kind "defclass")
+            (role "class")
+            (generic "")
+            (receiver "")
+            (receiverType "")
+            (supers (":object"))
+            (slots ("name" "count"))
+            (options ("transparent:"))
+            (specializers ())
+            (specializerTypes ())
+            (selector "t/fixtures/parser/complex-syntax.ss:24-24"))
+   (pooForm (name ":render")
+            (kind "defgeneric")
+            (role "generic")
+            (generic ":render")
+            (receiver "")
+            (receiverType "")
+            (supers ())
+            (slots ())
+            (options ())
+            (specializers ())
+            (specializerTypes ())
+            (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
+   (pooForm (name "<Renderable>")
+            (kind "defprotocol")
+            (role "protocol")
+            (generic "")
+            (receiver "")
+            (receiverType "")
+            (supers ())
+            (slots ())
+            (options ())
+            (specializers ())
+            (specializerTypes ())
+            (selector "t/fixtures/parser/complex-syntax.ss:28-28"))
+   (pooForm (name ":render")
+            (kind "defmethod")
+            (role "method")
+            (generic ":render")
+            (receiver "widget")
+            (receiverType "<Widget>")
+            (supers ())
+            (slots ())
+            (options ())
+            (specializers ("widget:<Widget>"))
+            (specializerTypes ("<Widget>"))
+            (selector "t/fixtures/parser/complex-syntax.ss:30-36"))))
+ (higherOrderForms
+  ((higherOrderForm
+    (name "case-lambda")
+    (kind "case-lambda")
+    (role "multi-arity-function")
+    (operandCount 2)
+    (arities (0 1))
+    (formals ("x"))
+    (caller "select")
+    (qualityFacets ("case-lambda-optimization-boundary"))
+    (selector "t/fixtures/parser/complex-syntax.ss:49-51"))))
+ (controlFlowForms
+  ((controlFlowForm
+    (name "match")
+    (kind "match")
+    (role "pattern-branch")
+    (caller "dispatch")
+    (bindingCount 0)
+    (bodyFormCount 2)
+    (qualityFacets ("extensible-match-dsl"))
+    (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
+ (typedContractFacts
+  ((typedContractFact
+    (definition "with-widget")
+    (definitionKind "defrule")
+    (definitionFormals ("value" "body"))
+    (definitionArity 2)
+    (contract "String <- Value SourceLine")
+    (contractOutput "String")
+    (contractInputs ("Value" "SourceLine"))
+    (contractInputCount 2)
+    (arityAlignment "aligned")
+    (tokens ("String" "Value" "SourceLine"))
+    (quality "domain-transform")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "with-widget")
+      (definitionKind "defrule")
+      (definitionFormals ("value" "body"))
+      (definitionArity 2)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (14 16))
+      (selector "t/fixtures/parser/complex-syntax.ss:14-16")
+      (contract "String <- Value SourceLine")
+      (quality "domain-transform")
+      (qualityFacets
+       ("contract-valid"
+        "domain-transform"
+        "aligned"
+        "arity-bearing-definition"))
+      (matchedCalls ())
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 1)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:13-13"))
+   (typedContractFact
+    (definition "capture-safe")
+    (definitionKind "defsyntax")
+    (definitionFormals ("stx"))
+    (definitionArity 1)
+    (contract "CaptureSafe <- Stx")
+    (contractOutput "CaptureSafe")
+    (contractInputs ("Stx"))
+    (contractInputCount 1)
+    (arityAlignment "aligned")
+    (tokens ("CaptureSafe" "Stx"))
+    (quality "domain-transform")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "capture-safe")
+      (definitionKind "defsyntax")
+      (definitionFormals ("stx"))
+      (definitionArity 1)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (18 22))
+      (selector "t/fixtures/parser/complex-syntax.ss:18-22")
+      (contract "CaptureSafe <- Stx")
+      (quality "domain-transform")
+      (qualityFacets
+       ("contract-valid"
+        "domain-transform"
+        "aligned"
+        "arity-bearing-definition"))
+      (matchedCalls ())
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 1)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:17-17"))
+   (typedContractFact
+    (definition "<Widget>")
+    (definitionKind "defclass")
+    (definitionFormals ())
+    (definitionArity 0)
+    (contract "String")
+    (contractOutput "String")
+    (contractInputs ())
+    (contractInputCount 0)
+    (arityAlignment "declaration")
+    (tokens ("String"))
+    (quality "declaration-contract")
+    (reasons ())
+    (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "<Widget>")
+      (definitionKind "defclass")
+      (definitionFormals ())
+      (definitionArity 0)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (24 24))
+      (selector "t/fixtures/parser/complex-syntax.ss:24-24")
+      (contract "String")
+      (quality "declaration-contract")
+      (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+      (matchedCalls ())
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 0)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:23-23"))
+   (typedContractFact
+    (definition ":render")
+    (definitionKind "defgeneric")
+    (definitionFormals ())
+    (definitionArity 0)
+    (contract "Integer")
+    (contractOutput "Integer")
+    (contractInputs ())
+    (contractInputCount 0)
+    (arityAlignment "declaration")
+    (tokens ("Integer"))
+    (quality "declaration-contract")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition ":render")
+      (definitionKind "defgeneric")
+      (definitionFormals ())
+      (definitionArity 0)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (26 26))
+      (selector "t/fixtures/parser/complex-syntax.ss:26-26")
+      (contract "Integer")
+      (quality "declaration-contract")
+      (qualityFacets
+       ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+      (matchedCalls
+       ((repairCall
+         (kind "call")
+         (name ":render")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:36-36"))
+        (repairCall
+         (kind "call")
+         (name "open-input-string")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+        (repairCall
+         (kind "call")
+         (name "read-json")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+        (repairCall
+         (kind "call")
+         (name "displayln")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:34-34"))))
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 0)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:25-25"))
+   (typedContractFact
+    (definition "<Renderable>")
+    (definitionKind "defprotocol")
+    (definitionFormals ())
+    (definitionArity 0)
+    (contract "Integer")
+    (contractOutput "Integer")
+    (contractInputs ())
+    (contractInputCount 0)
+    (arityAlignment "declaration")
+    (tokens ("Integer"))
+    (quality "declaration-contract")
+    (reasons ())
+    (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "<Renderable>")
+      (definitionKind "defprotocol")
+      (definitionFormals ())
+      (definitionArity 0)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (28 28))
+      (selector "t/fixtures/parser/complex-syntax.ss:28-28")
+      (contract "Integer")
+      (quality "declaration-contract")
+      (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+      (matchedCalls ())
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 0)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:27-27"))
+   (typedContractFact
+    (definition ":render")
+    (definitionKind "defmethod")
+    (definitionFormals ())
+    (definitionArity 0)
+    (contract "Integer")
+    (contractOutput "Integer")
+    (contractInputs ())
+    (contractInputCount 0)
+    (arityAlignment "declaration")
+    (tokens ("Integer"))
+    (quality "declaration-contract")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition ":render")
+      (definitionKind "defmethod")
+      (definitionFormals ())
+      (definitionArity 0)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (30 36))
+      (selector "t/fixtures/parser/complex-syntax.ss:30-36")
+      (contract "Integer")
+      (quality "declaration-contract")
+      (qualityFacets
+       ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+      (matchedCalls
+       ((repairCall
+         (kind "call")
+         (name ":render")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:36-36"))
+        (repairCall
+         (kind "call")
+         (name "open-input-string")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+        (repairCall
+         (kind "call")
+         (name "read-json")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+        (repairCall
+         (kind "call")
+         (name "displayln")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:34-34"))))
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 0)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:29-29"))
+   (typedContractFact
+    (definition "make-widget")
+    (definitionKind "def")
+    (definitionFormals ("name" "rest"))
+    (definitionArity 2)
+    (contract "String <- String (List String)")
+    (contractOutput "String")
+    (contractInputs ("String" "(List String)"))
+    (contractInputCount 2)
+    (arityAlignment "aligned")
+    (tokens ("String" "String" "List" "String"))
+    (quality "grouped-transform")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid"
+      "grouped-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "call-backed"
+      "combinator-candidate"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "make-widget")
+      (definitionKind "def")
+      (definitionFormals ("name" "rest"))
+      (definitionArity 2)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (38 41))
+      (selector "t/fixtures/parser/complex-syntax.ss:38-41")
+      (contract "String <- String (List String)")
+      (quality "grouped-transform")
+      (qualityFacets
+       ("contract-valid"
+        "grouped-transform"
+        "aligned"
+        "arity-bearing-definition"
+        "call-backed"
+        "combinator-candidate"))
+      (matchedCalls
+       ((repairCall
+         (kind "call")
+         (name "make-<Widget>")
+         (arity 2)
+         (selector "t/fixtures/parser/complex-syntax.ss:41-41"))
+        (repairCall
+         (kind "call")
+         (name "with-widget")
+         (arity 2)
+         (selector "t/fixtures/parser/complex-syntax.ss:40-41"))))
+      (matchedHigherOrder ())
+      (matchedControlFlow ())
+      (allowedMoves
+       ("add-or-expand-adjacent-typed-contract-block"
+        "extract-predicate-mapper-or-reducer-helper"
+        "compose-with-map-filter-fold-cut-curry-or-compose"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 1)
+    (groupCount 2)
+    (selector "t/fixtures/parser/complex-syntax.ss:37-37"))
+   (typedContractFact
+    (definition "dispatch")
+    (definitionKind "def")
+    (definitionFormals ("value"))
+    (definitionArity 1)
+    (contract "Dispatch <- Value")
+    (contractOutput "Dispatch")
+    (contractInputs ("Value"))
+    (contractInputCount 1)
+    (arityAlignment "aligned")
+    (tokens ("Dispatch" "Value"))
+    (quality "domain-transform")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "call-backed"
+      "combinator-candidate"
+      "control-flow:pattern-branch"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "dispatch")
+      (definitionKind "def")
+      (definitionFormals ("value"))
+      (definitionArity 1)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (43 46))
+      (selector "t/fixtures/parser/complex-syntax.ss:43-46")
+      (contract "Dispatch <- Value")
+      (quality "domain-transform")
+      (qualityFacets
+       ("contract-valid"
+        "domain-transform"
+        "aligned"
+        "arity-bearing-definition"
+        "call-backed"
+        "combinator-candidate"
+        "control-flow:pattern-branch"))
+      (matchedCalls
+       ((repairCall
+         (kind "call")
+         (name "make-widget")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:46-46"))
+        (repairCall
+         (kind "call")
+         (name "make-widget")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:45-45"))))
+      (matchedHigherOrder ())
+      (matchedControlFlow
+       ((repairControlFlow
+         (kind "control-flow")
+         (name "match")
+         (role "pattern-branch")
+         (bindingCount 0)
+         (bodyFormCount 2)
+         (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
+      (allowedMoves
+       ("add-or-expand-adjacent-typed-contract-block"
+        "extract-predicate-mapper-or-reducer-helper"
+        "compose-with-map-filter-fold-cut-curry-or-compose"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 1)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:42-42"))
+   (typedContractFact
+    (definition "select")
+    (definitionKind "def")
+    (definitionFormals ("x"))
+    (definitionArity 1)
+    (contract "Widget <- Value")
+    (contractOutput "Widget")
+    (contractInputs ("Value"))
+    (contractInputCount 1)
+    (arityAlignment "aligned")
+    (tokens ("Widget" "Value"))
+    (quality "domain-transform")
+    (reasons ())
+    (qualityFacets
+     ("contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "call-backed"
+      "higher-order-used"
+      "combinator-backed"))
+    (repairEvidence
+     (repairEvidence
+      (factSource "native-parser")
+      (trigger "typed-combinator-style")
+      (definition "select")
+      (definitionKind "def")
+      (definitionFormals ("x"))
+      (definitionArity 1)
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineSpan (48 51))
+      (selector "t/fixtures/parser/complex-syntax.ss:48-51")
+      (contract "Widget <- Value")
+      (quality "domain-transform")
+      (qualityFacets
+       ("contract-valid"
+        "domain-transform"
+        "aligned"
+        "arity-bearing-definition"
+        "call-backed"
+        "higher-order-used"
+        "combinator-backed"))
+      (matchedCalls
+       ((repairCall
+         (kind "call")
+         (name "dispatch")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:51-51"))
+        (repairCall
+         (kind "call")
+         (name "make-widget")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:50-50"))))
+      (matchedHigherOrder
+       ((repairHigherOrder
+         (kind "higher-order")
+         (name "case-lambda")
+         (role "multi-arity-function")
+         (operandCount 2)
+         (selector "t/fixtures/parser/complex-syntax.ss:49-51"))))
+      (matchedControlFlow ())
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
+      (forbiddenMoves
+       ("change-public-export-without-policy-evidence"
+        "rewrite-io-or-runtime-boundary-without-witness"
+        "replace-macro-transformer-without-runtime-source-witness"))
+      (witnessNeeded ("parser-snapshot-or-policy-check"))
+      (agentRepairMode
+       "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
+    (arrowCount 1)
+    (groupCount 0)
+    (selector "t/fixtures/parser/complex-syntax.ss:47-47"))))
+ (commentQualityFacts
+  ((commentQualityFact
+    (targetKind "module")
+    (targetName "t/fixtures/parser/complex-syntax.ss")
+    (context "module")
+    (commentKind "boundary")
+    (quality "engineering-grade")
+    (required #t)
+    (reasons ())
+    (commentLines
+     ("Boundary:"
+      "- test owner records policy expectations."
+      "- Keep typed contracts and fixture intent explicit."))
+    (targetStart 1)
+    (targetEnd 1)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "module")
+      (path "t/fixtures/parser/complex-syntax.ss")
+      (lineCount 51)
+      (existingCommentLineCount 3)
+      (commentFocus
+       "module responsibility, public boundary, package/import/export assumptions, and parser/policy ownership")
+      (commentQuestions
+       ("What responsibility does this module own for the harness?"
+        "Which package/import/export or runtime boundary must future edits preserve?"
+        "Which parser-owned facts or policy outputs should an agent trust from this owner?"))
+      (agentRepairMode
+       "generate as many adjacent engineering comment lines as needed from parser evidence; completeness and confidence matter more than line count")))
+    (selector "t/fixtures/parser/complex-syntax.ss:1-3"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "with-widget")
+    (context "macro")
+    (commentKind "contract-only")
+    (quality "weak")
+    (required #t)
+    (reasons ("contract-only-is-not-engineering-comment"))
+    (commentLines ("String <- Value SourceLine"))
+    (targetStart 14)
+    (targetEnd 16)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "with-widget")
+      (definitionKind "defrule")
+      (definitionFormals ("value" "body"))
+      (definitionArity 2)
+      (lineSpan 3)
+      (context "macro")
+      (existingCommentLineCount 1)
+      (matchedFactCount 1)
+      (matchedFacts
+       ((matchedFact
+         (factKind "macro")
+         (name "with-widget")
+         (formKind "defrule")
+         (transformer "macro-transformer")
+         (phase "syntax")
+         (patternCount 1)
+         (hygienicSyntax #t)
+         (qualityFacets ("hygienic-macro" "macro-sugar"))
+         (selector "t/fixtures/parser/complex-syntax.ss:14-16"))))
+      (commentFocus
+       "macro expansion boundary, hygiene assumptions, runtime-source witness, and safe edit constraints")
+      (commentQuestions
+       ("What expansion or hygiene boundary does this macro enforce?"
+        "Which runtime-source witness should be checked before editing the transformer?"
+        "What generated shape or phase assumption would break downstream policy?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:14-16")))
+    (selector "t/fixtures/parser/complex-syntax.ss:13-13"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "capture-safe")
+    (context "macro")
+    (commentKind "contract-only")
+    (quality "weak")
+    (required #t)
+    (reasons ("contract-only-is-not-engineering-comment"))
+    (commentLines ("CaptureSafe <- Stx"))
+    (targetStart 18)
+    (targetEnd 22)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "capture-safe")
+      (definitionKind "defsyntax")
+      (definitionFormals ("stx"))
+      (definitionArity 1)
+      (lineSpan 5)
+      (context "macro")
+      (existingCommentLineCount 1)
+      (matchedFactCount 1)
+      (matchedFacts
+       ((matchedFact
+         (factKind "macro")
+         (name "capture-safe")
+         (formKind "defsyntax")
+         (transformer "syntax-case")
+         (phase "syntax")
+         (patternCount 0)
+         (hygienicSyntax #t)
+         (qualityFacets
+          ("hygienic-macro"
+           "syntax-case-transformer"
+           "syntax-template-witness"))
+         (selector "t/fixtures/parser/complex-syntax.ss:18-22"))))
+      (commentFocus
+       "macro expansion boundary, hygiene assumptions, runtime-source witness, and safe edit constraints")
+      (commentQuestions
+       ("What expansion or hygiene boundary does this macro enforce?"
+        "Which runtime-source witness should be checked before editing the transformer?"
+        "What generated shape or phase assumption would break downstream policy?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:18-22")))
+    (selector "t/fixtures/parser/complex-syntax.ss:17-17"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "<Widget>")
+    (context "poo")
+    (commentKind "weak")
+    (quality "weak")
+    (required #t)
+    (reasons ("weak-engineering-comment"))
+    (commentLines ("String"))
+    (targetStart 24)
+    (targetEnd 24)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "<Widget>")
+      (definitionKind "defclass")
+      (definitionFormals ())
+      (definitionArity 0)
+      (lineSpan 1)
+      (context "poo")
+      (existingCommentLineCount 1)
+      (matchedFactCount 1)
+      (matchedFacts
+       ((matchedFact
+         (factKind "poo")
+         (name "<Widget>")
+         (formKind "defclass")
+         (role "class")
+         (generic "")
+         (receiver "")
+         (receiverType "")
+         (supers (":object"))
+         (slots ("name" "count"))
+         (specializers ())
+         (specializerTypes ())
+         (selector "t/fixtures/parser/complex-syntax.ss:24-24"))))
+      (commentFocus
+       "object/protocol/generic invariant, method specializers, and runtime witness boundary")
+      (commentQuestions
+       ("What object, generic, method, or protocol contract is being implemented?"
+        "Which receiver, specializer, slot, or protocol evidence constrains the edit?"
+        "What runtime witness proves this is not a loose alist/hash object encoding?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:24-24")))
+    (selector "t/fixtures/parser/complex-syntax.ss:23-23"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName ":render")
+    (context "poo")
+    (commentKind "weak")
+    (quality "weak")
+    (required #t)
+    (reasons ("weak-engineering-comment"))
+    (commentLines ("Integer"))
+    (targetStart 26)
+    (targetEnd 26)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition ":render")
+      (definitionKind "defgeneric")
+      (definitionFormals ())
+      (definitionArity 0)
+      (lineSpan 1)
+      (context "poo")
+      (existingCommentLineCount 1)
+      (matchedFactCount 2)
+      (matchedFacts
+       ((matchedFact
+         (factKind "poo")
+         (name ":render")
+         (formKind "defgeneric")
+         (role "generic")
+         (generic ":render")
+         (receiver "")
+         (receiverType "")
+         (supers ())
+         (slots ())
+         (specializers ())
+         (specializerTypes ())
+         (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
+        (matchedFact
+         (factKind "poo")
+         (name ":render")
+         (formKind "defmethod")
+         (role "method")
+         (generic ":render")
+         (receiver "widget")
+         (receiverType "<Widget>")
+         (supers ())
+         (slots ())
+         (specializers ("widget:<Widget>"))
+         (specializerTypes ("<Widget>"))
+         (selector "t/fixtures/parser/complex-syntax.ss:30-36"))))
+      (commentFocus
+       "object/protocol/generic invariant, method specializers, and runtime witness boundary")
+      (commentQuestions
+       ("What object, generic, method, or protocol contract is being implemented?"
+        "Which receiver, specializer, slot, or protocol evidence constrains the edit?"
+        "What runtime witness proves this is not a loose alist/hash object encoding?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:26-26")))
+    (selector "t/fixtures/parser/complex-syntax.ss:25-25"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "<Renderable>")
+    (context "poo")
+    (commentKind "weak")
+    (quality "weak")
+    (required #t)
+    (reasons ("weak-engineering-comment"))
+    (commentLines ("Integer"))
+    (targetStart 28)
+    (targetEnd 28)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "<Renderable>")
+      (definitionKind "defprotocol")
+      (definitionFormals ())
+      (definitionArity 0)
+      (lineSpan 1)
+      (context "poo")
+      (existingCommentLineCount 1)
+      (matchedFactCount 1)
+      (matchedFacts
+       ((matchedFact
+         (factKind "poo")
+         (name "<Renderable>")
+         (formKind "defprotocol")
+         (role "protocol")
+         (generic "")
+         (receiver "")
+         (receiverType "")
+         (supers ())
+         (slots ())
+         (specializers ())
+         (specializerTypes ())
+         (selector "t/fixtures/parser/complex-syntax.ss:28-28"))))
+      (commentFocus
+       "object/protocol/generic invariant, method specializers, and runtime witness boundary")
+      (commentQuestions
+       ("What object, generic, method, or protocol contract is being implemented?"
+        "Which receiver, specializer, slot, or protocol evidence constrains the edit?"
+        "What runtime witness proves this is not a loose alist/hash object encoding?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:28-28")))
+    (selector "t/fixtures/parser/complex-syntax.ss:27-27"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName ":render")
+    (context "poo")
+    (commentKind "weak")
+    (quality "weak")
+    (required #t)
+    (reasons ("weak-engineering-comment"))
+    (commentLines ("Integer"))
+    (targetStart 30)
+    (targetEnd 36)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition ":render")
+      (definitionKind "defmethod")
+      (definitionFormals ())
+      (definitionArity 0)
+      (lineSpan 7)
+      (context "poo")
+      (existingCommentLineCount 1)
+      (matchedFactCount 2)
+      (matchedFacts
+       ((matchedFact
+         (factKind "poo")
+         (name ":render")
+         (formKind "defgeneric")
+         (role "generic")
+         (generic ":render")
+         (receiver "")
+         (receiverType "")
+         (supers ())
+         (slots ())
+         (specializers ())
+         (specializerTypes ())
+         (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
+        (matchedFact
+         (factKind "poo")
+         (name ":render")
+         (formKind "defmethod")
+         (role "method")
+         (generic ":render")
+         (receiver "widget")
+         (receiverType "<Widget>")
+         (supers ())
+         (slots ())
+         (specializers ("widget:<Widget>"))
+         (specializerTypes ("<Widget>"))
+         (selector "t/fixtures/parser/complex-syntax.ss:30-36"))))
+      (commentFocus
+       "object/protocol/generic invariant, method specializers, and runtime witness boundary")
+      (commentQuestions
+       ("What object, generic, method, or protocol contract is being implemented?"
+        "Which receiver, specializer, slot, or protocol evidence constrains the edit?"
+        "What runtime witness proves this is not a loose alist/hash object encoding?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:30-36")))
+    (selector "t/fixtures/parser/complex-syntax.ss:29-29"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "make-widget")
+    (context "definition")
+    (commentKind "contract-only")
+    (quality "weak")
+    (required #f)
+    (reasons ("contract-only-is-not-engineering-comment"))
+    (commentLines ("String <- String (List String)"))
+    (targetStart 38)
+    (targetEnd 41)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "make-widget")
+      (definitionKind "def")
+      (definitionFormals ("name" "rest"))
+      (definitionArity 2)
+      (lineSpan 4)
+      (context "definition")
+      (existingCommentLineCount 1)
+      (matchedFactCount 0)
+      (matchedFacts ())
+      (commentFocus
+       "definition purpose, stable invariant, and non-obvious edit boundary")
+      (commentQuestions
+       ("What stable responsibility does this definition own?"
+        "Which invariant or boundary is not obvious from the code mechanics?"
+        "What parser fact should an agent use before rewriting this owner?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:38-41")))
+    (selector "t/fixtures/parser/complex-syntax.ss:37-37"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "dispatch")
+    (context "control-flow")
+    (commentKind "contract-only")
+    (quality "weak")
+    (required #t)
+    (reasons ("contract-only-is-not-engineering-comment"))
+    (commentLines ("Dispatch <- Value"))
+    (targetStart 43)
+    (targetEnd 46)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "dispatch")
+      (definitionKind "def")
+      (definitionFormals ("value"))
+      (definitionArity 1)
+      (lineSpan 4)
+      (context "control-flow")
+      (existingCommentLineCount 1)
+      (matchedFactCount 1)
+      (matchedFacts
+       ((matchedFact
+         (factKind "control-flow")
+         (name "match")
+         (formKind "match")
+         (role "pattern-branch")
+         (caller "dispatch")
+         (bindingCount 0)
+         (bodyFormCount 2)
+         (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
+      (commentFocus
+       "state/control driver, branch invariants, loop or continuation reason, and exit conditions")
+      (commentQuestions
+       ("What state, IO, generator, branch, or continuation driver requires explicit control flow?"
+        "Which binding and body-shape facts bound the loop or match nesting?"
+        "What exit or fallback condition should repairs preserve?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:43-46")))
+    (selector "t/fixtures/parser/complex-syntax.ss:42-42"))
+   (commentQualityFact
+    (targetKind "definition")
+    (targetName "select")
+    (context "higher-order")
+    (commentKind "contract-only")
+    (quality "weak")
+    (required #t)
+    (reasons ("contract-only-is-not-engineering-comment"))
+    (commentLines ("Widget <- Value"))
+    (targetStart 48)
+    (targetEnd 51)
+    (parserEvidence
+     (commentEvidence
+      (factSource "native-parser")
+      (targetKind "definition")
+      (definition "select")
+      (definitionKind "def")
+      (definitionFormals ("x"))
+      (definitionArity 1)
+      (lineSpan 4)
+      (context "higher-order")
+      (existingCommentLineCount 1)
+      (matchedFactCount 1)
+      (matchedFacts
+       ((matchedFact
+         (factKind "higher-order")
+         (name "case-lambda")
+         (formKind "case-lambda")
+         (role "multi-arity-function")
+         (operandCount 2)
+         (arities (0 1))
+         (formals ("x"))
+         (caller "select")
+         (selector "t/fixtures/parser/complex-syntax.ss:49-51"))))
+      (commentFocus
+       "expression-level data flow, combinator choice, arity shape, and why the transform is safe")
+      (commentQuestions
+       ("What data-flow transform does this expression-level combinator encode?"
+        "Which arity/formal evidence makes map/filter/fold/cut/compose appropriate?"
+        "What invariant would be hidden if this became a hand-written loop?"))
+      (agentRepairMode
+       "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
+      (selector "t/fixtures/parser/complex-syntax.ss:48-51")))
+    (selector "t/fixtures/parser/complex-syntax.ss:47-47"))))
+ (calls ((call (callee ":render")
+               (arity 1)
+               (caller ":render")
+               (arguments ("widget"))
+               (argumentTypes ("unknown"))
+               (selector "t/fixtures/parser/complex-syntax.ss:36-36"))
+         (call (callee "open-input-string")
+               (arity 1)
+               (caller ":render")
+               (arguments ("{}"))
+               (argumentTypes ("string"))
+               (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+         (call (callee "read-json")
+               (arity 1)
+               (caller ":render")
+               (arguments ("(open-input-string {})"))
+               (argumentTypes ("unknown"))
+               (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+         (call (callee "displayln")
+               (arity 1)
+               (caller ":render")
+               (arguments ("again"))
+               (argumentTypes ("string"))
+               (selector "t/fixtures/parser/complex-syntax.ss:34-34"))
+         (call (callee "make-<Widget>")
+               (arity 2)
+               (caller "make-widget")
+               (arguments ("name" "count"))
+               (argumentTypes ("unknown" "number"))
+               (selector "t/fixtures/parser/complex-syntax.ss:41-41"))
+         (call (callee "with-widget")
+               (arity 2)
+               (caller "make-widget")
+               (arguments ("name" "(make-<Widget> name count)"))
+               (argumentTypes ("unknown" "unknown"))
+               (selector "t/fixtures/parser/complex-syntax.ss:40-41"))
+         (call (callee "make-widget")
+               (arity 1)
+               (caller "dispatch")
+               (arguments ("fallback"))
+               (argumentTypes ("string"))
+               (selector "t/fixtures/parser/complex-syntax.ss:46-46"))
+         (call (callee "make-widget")
+               (arity 1)
+               (caller "dispatch")
+               (arguments ("s"))
+               (argumentTypes ("unknown"))
+               (selector "t/fixtures/parser/complex-syntax.ss:45-45"))
+         (call (callee "dispatch")
+               (arity 1)
+               (caller "select")
+               (arguments ("x"))
+               (argumentTypes ("unknown"))
+               (selector "t/fixtures/parser/complex-syntax.ss:51-51"))
+         (call (callee "make-widget")
+               (arity 1)
+               (caller "select")
+               (arguments ("empty"))
+               (argumentTypes ("string"))
+               (selector "t/fixtures/parser/complex-syntax.ss:50-50")))))

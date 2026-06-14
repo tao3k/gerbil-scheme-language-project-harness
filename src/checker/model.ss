@@ -15,20 +15,21 @@
         +whitelist-rule+
         +macro-governance-rule+
         +forbidden-form-rule+)
-
+;; CheckerRuleStruct
 (defstruct checker-rule (id severity))
+;; CheckerEvidenceStruct
 (defstruct checker-evidence (callee expected actual selector signature))
-
+;; Integer
 (def +arity-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-A001" "error"))
-
+;; TypeSpec
 (def +type-mismatch-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-T001" "error"))
-
+;; ConfigConstant
 (def +whitelist-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-W001" "error"))
-
+;; ConfigConstant
 (def +macro-governance-rule+
   (make-checker-rule "GERBIL-SCHEME-CHECKER-W002" "error"))
-
+;; String
 (def +forbidden-form-rule+ +macro-governance-rule+)

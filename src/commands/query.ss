@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - module owns an agent-facing surface.
+;;; - Keep contracts, evidence, and failure semantics explicit.
 ;;; Query command adapter.
 
 (import :parser/facade
@@ -9,7 +12,10 @@
         :support/io)
 
 (export query-main)
-
+;;; Boundary:
+;;; - query-main composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; QueryMain <- (List XX)
 (def (query-main args)
   (let* ((workspace (or (option "--workspace" args) (project-root args)))
          (json? (flag? "--json" args))
@@ -60,10 +66,13 @@
                    (else
                     (emit-owner-items file matches))))
                 0)))))))))
-
+;; Boolean <- ProjectIndex String
 (def (owner-path-exists? workspace owner)
   (file-exists? (path-expand owner workspace)))
-
+;;; Boundary:
+;;; - emit-owner-items composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- SourceFile Matches
 (def (emit-owner-items file matches)
   (displayln "[gerbil-owner-items] path=" (source-file-path file)
              " matches=" (length matches))

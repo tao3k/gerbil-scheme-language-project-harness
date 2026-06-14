@@ -8,7 +8,7 @@
 (export check-evidence-graph-packet
         check-evidence-analysis-request-packet
         check-evidence-registry-and-guide)
-
+;; String
 (def (check-evidence-graph-packet)
   (let* ((packet (evidence-graph-packet "."))
          (summary (hash-get packet 'summary))
@@ -33,7 +33,7 @@
     (check (hash-get (hash-get (car (hash-get packet 'gaps)) 'fields)
                      'nextCommand)
            => "gerbil-scheme-harness check --changed .")))
-
+;; String
 (def (check-evidence-analysis-request-packet)
   (let* ((packet (evidence-analysis-request-packet "."))
          (summary (hash-get packet 'summary))
@@ -49,7 +49,7 @@
     (check (hash-get graph 'graphId) => "gerbil-scheme.evidence.graph")
     (check (hash-get packet 'seedIds) => ["gerbil-scheme:owner:gerbil.pkg"])
     (check (analysis-graph-has-edge-relation? graph "requires-evidence") => #t)))
-
+;; String
 (def (check-evidence-registry-and-guide)
   (let* ((registry (language-registry "."))
          (language (car (hash-get registry 'languages)))
@@ -102,36 +102,36 @@
     (check (guide-has-fragment? guide "evidence graph --json") => #t)
     (check (guide-has-fragment? guide "evidence analyze --json") => #t)
     (check (guide-has-fragment? guide "search structural --json") => #t)))
-
+;; Boolean <- Packet String
 (def (packet-has-node-kind? packet kind)
   (ormap (lambda (node)
            (equal? (hash-get node 'kind) kind))
          (hash-get packet 'nodes)))
-
+;; Boolean <- Methods Method
 (def (method-registered? methods method)
   (not (not (member method methods))))
-
+;; Boolean <- Packet String
 (def (packet-has-edge-kind? packet kind)
   (ormap (lambda (edge)
            (equal? (hash-get edge 'kind) kind))
          (hash-get packet 'edges)))
-
+;; Boolean <- Graph Relation
 (def (analysis-graph-has-edge-relation? graph relation)
   (ormap (lambda (edge)
            (equal? (hash-get edge 'relation) relation))
          (hash-get graph 'edges)))
-
+;; Boolean <- Guide Fragment
 (def (guide-has-fragment? guide fragment)
   (ormap (lambda (line)
            (not (not (string-contains line fragment))))
          guide))
-
+;; Boolean <- Schemas SchemaId String
 (def (schema-registered? schemas schema-id path)
   (ormap (lambda (schema)
            (and (equal? (hash-get schema 'schemaId) schema-id)
                 (equal? (hash-get schema 'path) path)))
          schemas))
-
+;; Boolean <- Descriptors Method SchemaId
 (def (descriptor-output-schema? descriptors method schema-id)
   (ormap (lambda (descriptor)
            (and (equal? (hash-get descriptor 'method) method)

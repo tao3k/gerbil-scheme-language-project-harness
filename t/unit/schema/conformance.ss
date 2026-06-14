@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :commands/info
         :commands/search
         :std/misc/ports
@@ -11,10 +14,10 @@
         check-extension-pattern-json-schema-conformance
         check-compare-json-schema-conformance
         check-structural-index-json-schema-conformance)
-
+;; Json <- Table Key
 (def (json-get table key)
   (hash-get table key))
-
+;; Json <- (List XX)
 (def (search-json args)
   (let* ((status #f)
          (output
@@ -24,7 +27,7 @@
                 (set! status (search-main args)))))))
     (check status => 0)
     (call-with-input-string output read-json)))
-
+;; Json <- (List XX)
 (def (info-json args)
   (let* ((status #f)
          (output
@@ -34,10 +37,10 @@
                 (set! status (info-main args)))))))
     (check status => 0)
     (call-with-input-string output read-json)))
-
+;; Json <- SourceFile
 (def (schema-json file)
   (call-with-input-file (string-append "schemas/" file) read-json))
-
+;; Integer <- Packet SchemaFile
 (def (check-packet-conforms-to-schema! packet schema-file)
   (let (schema (schema-json schema-file))
     (check (missing-required-fields packet schema) => [])
@@ -45,13 +48,13 @@
      (lambda (entry)
        (check (json-get packet (car entry)) => (cdr entry)))
      (top-level-const-fields schema))))
-
+;; Boolean <- Rules String
 (def (has-rule-id? rules id)
   (cond
    ((null? rules) #f)
    ((equal? (json-get (car rules) "id") id) #t)
    (else (has-rule-id? (cdr rules) id))))
-
+;; Json
 (def (check-info-json-schema-conformance)
   (let* ((packet (info-json ["--json" "."]))
          (steering (json-get packet "agentSteering"))
@@ -66,12 +69,12 @@
     (check (string-prefix? "./bin/gerbil-scheme-harness check"
                            (json-get commands "check"))
            => #t)))
-
+;; MissingRequiredFields <- Packet Schema
 (def (missing-required-fields packet schema)
   (filter (lambda (key)
             (not (hash-key? packet key)))
           (json-get schema "required")))
-
+;; TopLevelConstFields <- Schema
 (def (top-level-const-fields schema)
   (filter-map
    (lambda (entry)
@@ -80,7 +83,7 @@
             (hash-key? property "const")
             (cons (car entry) (json-get property "const")))))
    (hash->list (json-get schema "properties"))))
-
+;; Json
 (def (check-runtime-source-json-schema-conformance)
   (let* ((packet (search-json ["runtime-source" "writeenv" "printer" "hook" "--json" "."]))
          (source-ref (json-get packet "sourceRef"))
@@ -106,7 +109,7 @@
     (check (not (null? (json-get fact "selectors"))) => #t)
     (check (not (null? (json-get packet "failureCases"))) => #t)
     (check (not (null? (json-get packet "qualitySignals"))) => #t)))
-
+;; Json
 (def (check-extension-pattern-json-schema-conformance)
   (let* ((packet (search-json ["pattern" "poo" "json" "fallback" "--json" "."]))
          (mapping (json-get packet "patternMapping"))
@@ -123,7 +126,7 @@
     (check (not (null? (json-get mapping "minimalForms"))) => #t)
     (check (not (null? (json-get mapping "failureCases"))) => #t)
     (check (not (null? (json-get mapping "qualitySignals"))) => #t)))
-
+;; Json
 (def (check-compare-json-schema-conformance)
   (let* ((packet (search-json ["compare" "env" "active" "documented" "--json" "."]))
          (comparisons (json-get packet "comparisons"))
@@ -141,7 +144,7 @@
     (check (json-get right "status") => "non-authoritative")
     (check (not (null? (json-get comparison "failureCases"))) => #t)
     (check (not (null? (json-get comparison "qualitySignals"))) => #t)))
-
+;; Integer
 (def (check-structural-index-json-schema-conformance)
   (let* ((packet (search-json ["structural" "--json" "."]))
          (syntax-facts (json-get packet "syntaxFacts"))
@@ -183,14 +186,14 @@
            => [0 1])
     (check (json-get (json-get map-fact "fields") "operandCount")
            => 2)))
-
+;; SyntaxFactJson <- (List SyntaxFactJson) SyntaxFactKind SyntaxFactName
 (def (find-syntax-fact facts kind name)
   (or (find (lambda (fact)
               (and (equal? (json-get fact "kind") kind)
                    (equal? (json-get fact "name") name)))
             facts)
       (error "syntax fact not found" kind name)))
-
+;; FindSyntaxFactField <- (List XX) String String String Expected
 (def (find-syntax-fact-field facts kind name field expected)
   (or (find (lambda (fact)
               (and (equal? (json-get fact "kind") kind)

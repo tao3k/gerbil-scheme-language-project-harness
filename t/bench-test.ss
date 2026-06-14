@@ -1,16 +1,19 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :std/test
         :commands/bench
         :std/misc/ports
         (only-in :std/text/json read-json))
 (export bench-test)
-
+;; Json <- Table Key
 (def (json-get table key)
   (hash-get table key))
-
+;; BenchOutput <- (List XX)
 (def (bench-output args)
   (bench-output/status args 0))
-
+;; Status <- (List XX) ExpectedStatus
 (def (bench-output/status args expected-status)
   (let* ((status #f)
          (output
@@ -20,10 +23,10 @@
                 (set! status (bench-main args)))))))
     (check status => expected-status)
     output))
-
+;; Boolean <- OutputPort Fragment
 (def (contains? output fragment)
   (and (string-contains output fragment) #t))
-
+;; BenchTest
 (def bench-test
   (test-suite "gerbil scheme harness bench"
     (test-case "bench text output records verification hot paths"
@@ -32,7 +35,8 @@
         (check (contains? output "|bench name=collect-project") => #t)
         (check (contains? output "|bench name=type-check") => #t)
         (check (contains? output "|bench name=search-prime-packet") => #t)
-        (check (contains? output "|bench name=structural-index-packet") => #t)))
+        (check (contains? output "|bench name=structural-index-packet") => #t)
+        (check (contains? output "|bench name=structural-compact-syntax-render") => #t)))
     (test-case "bench json output is a CI verification receipt"
       (let* ((output (bench-output ["--json" "--iterations" "1" "--max-total-ms" "60000" "."]))
              (packet (call-with-input-string output read-json))
@@ -44,7 +48,7 @@
         (check (json-get packet "iterations") => 1)
         (check (>= (json-get packet "files") 1) => #t)
         (check (>= (json-get packet "definitions") 1) => #t)
-        (check (length benchmarks) => 4)
+        (check (length benchmarks) => 5)
         (check (json-get first-benchmark "name") => "collect-project")
         (check (>= (json-get first-benchmark "durationMs") 0) => #t)
         (check (>= (json-get first-benchmark "averageMicros") 0) => #t)

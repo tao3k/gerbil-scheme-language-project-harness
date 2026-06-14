@@ -8,7 +8,10 @@
 (export compare-facts
         matching-compare-facts
         compare-fact-json)
-
+;;; Boundary:
+;;; - compare-facts coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; (List Fact)
 (def (compare-facts)
   (let* ((runtime-fact (car (active-runtime-facts)))
          (details (hash-get runtime-fact 'details))
@@ -78,7 +81,10 @@
              (hash (id "nightly-assumption")
                    (risk "agent-treats-nightly-features-as-available-on-the-active-stable-runtime")
                    (correction "verify-active-gxi-gsc-and-matching-source-before-nightly-feature-guidance"))])))))
-
+;;; Boundary:
+;;; - matching-compare-facts composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List CompareFact) <- (List CompareFact)
 (def (matching-compare-facts terms)
   (let (facts (compare-facts))
     (if (null? terms)
@@ -87,24 +93,33 @@
         (if (compare-compile-query? terms)
           (focus-compare-fact "compile-target-runtime-source" matches)
           matches)))))
-
+;;; Boundary:
+;;; - compare-compile-query? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- (List SearchTerm)
 (def (compare-compile-query? terms)
   (ormap (lambda (term)
            (or (string-contains "compile compiler gsc target requested source checkout nightly" term)
                (string-prefix? "v0." term)
                (string-prefix? "0." term)))
          terms))
-
+;;; Boundary:
+;;; - focus-compare-fact composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; CompareFact <- CompareAxis (List CompareFact)
 (def (focus-compare-fact id facts)
   (let (focused (filter (lambda (fact) (equal? (hash-get fact 'id) id)) facts))
     (if (null? focused) facts focused)))
-
+;;; Boundary:
+;;; - compare-fact-matches-terms? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- CompareFact (List SearchTerm)
 (def (compare-fact-matches-terms? fact terms)
   (ormap (lambda (term)
            (ormap (cut string-contains <> term)
                   (hash-get fact 'terms)))
          terms))
-
+;; Json <- Fact
 (def (compare-fact-json fact)
   (hash (id (hash-get fact 'id))
         (summary (hash-get fact 'summary))

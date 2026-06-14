@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - module owns an agent-facing surface.
+;;; - Keep contracts, evidence, and failure semantics explicit.
 ;;; Evidence graph command output.
 
 (import :constants
@@ -10,16 +13,22 @@
 (export evidence-main
         evidence-graph-packet
         evidence-analysis-request-packet)
-
+;; String
 (def +evidence-graph-schema-id+
   "agent.semantic-protocols.semantic-evidence-graph")
+;; String
 (def +evidence-graph-protocol-id+
   "agent.semantic-protocols.evidence-graph")
+;; String
 (def +graph-turbo-request-schema-id+
   "agent.semantic-protocols.semantic-graph-turbo-request")
+;; String
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
-
+;;; Invariant:
+;;; - evidence-main owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; String <- (List String)
 (def (evidence-main args)
   (match args
     ([] (error "expected evidence <graph|analyze>"))
@@ -40,11 +49,14 @@
              (write-json-line packet)
              (display-evidence-analysis-request packet)))))
        0))))
-
+;; String <- (List String)
 (def (evidence-project-root args)
   (let (workspace (option "--workspace" args))
     (if workspace workspace (project-root args))))
-
+;;; Boundary:
+;;; - evidence-graph-packet coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; String <- String
 (def (evidence-graph-packet root)
   (let* ((index (collect-project root))
          (owner-path (evidence-owner-path index))
@@ -100,7 +112,10 @@
      (edges edges)
      (gaps gaps)
      (fields (hash (next "pipe JSON to `asp graph render --packet - --view seeds`"))))))
-
+;;; Boundary:
+;;; - evidence-analysis-request-packet coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; String <- String
 (def (evidence-analysis-request-packet root)
   (let* ((graph (evidence-graph-packet root))
          (analysis-graph (evidence-analysis-graph graph))
@@ -136,7 +151,7 @@
      (summary request-summary)
      (graphs [analysis-graph])
      (fields (hash (next "pipe JSON to `asp graph render --packet - --view seeds`"))))))
-
+;; String <- Packet
 (def (display-evidence-graph packet)
   (let (summary (hash-get packet 'summary))
     (displayln "evidence-graph nodes=" (hash-get summary 'nodes)
@@ -145,7 +160,7 @@
                " claims=" (hash-get summary 'claims)
                " stale-items=" (hash-get summary 'staleItems)
                " gaps=" (hash-get summary 'gaps))))
-
+;; String <- Packet
 (def (display-evidence-analysis-request packet)
   (let (summary (hash-get packet 'summary))
     (displayln "evidence-analysis profile=" (hash-get packet 'profile)
@@ -157,7 +172,7 @@
                " stale-items=" (hash-get summary 'staleItems)
                " gaps=" (hash-get summary 'gaps)
                " next=\"asp graph render --packet - --view seeds\"")))
-
+;; String <- ProjectIndex
 (def (evidence-owner-path index)
   (let (package (project-index-package index))
     (cond
@@ -165,10 +180,10 @@
      ((pair? (project-index-files index))
       (source-file-path (car (project-index-files index))))
      (else "."))))
-
+;; String <- Prefix Value
 (def (evidence-node-id prefix value)
   (string-append prefix ":" value))
-
+;; String <- NodeId String Label OwnerPath Status Fields
 (def (evidence-node node-id kind label owner-path status fields)
   (hash (nodeId node-id)
         (kind kind)
@@ -179,13 +194,13 @@
                         (line 1)
                         (column 0)))
         (fields fields)))
-
+;; String <- EdgeId String FromNodeId ToNodeId
 (def (evidence-edge edge-id kind from-node-id to-node-id)
   (hash (edgeId edge-id)
         (kind kind)
         (fromNodeId from-node-id)
         (toNodeId to-node-id)))
-
+;; String <- Nodes Edges Gaps
 (def (evidence-summary nodes edges gaps)
   (hash (nodes (length nodes))
         (edges (length edges))
@@ -193,35 +208,37 @@
         (claims (count-node-kind nodes "invariant-candidate"))
         (staleItems 0)
         (gaps (length gaps))))
-
+;;; Invariant:
+;;; - count-node-kind owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Integer <- Nodes String
 (def (count-node-kind nodes kind)
-  (let lp ((rest nodes) (count 0))
-    (match rest
-      ([] count)
-      ([node . more]
-       (lp more (if (equal? (hash-get node 'kind) kind)
-                  (fx1+ count)
-                  count))))))
-
+  (length (filter (lambda (node)
+                    (equal? (hash-get node 'kind) kind))
+                  nodes)))
+;; String
 (def (evidence-producer)
   (hash (languageId +language-id+)
         (providerId +provider-id+)
         (namespace "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness")))
-
+;; String <- ProjectIndex
 (def (evidence-project index)
   (let ((root (project-index-root index))
         (package (project-index-package index)))
     (hash (root root)
           (package (if package (project-package-name package) "gerbil-scheme-project"))
           (fields (hash)))))
-
+;;; Boundary:
+;;; - evidence-analysis-graph composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- Graph
 (def (evidence-analysis-graph graph)
   (hash (graphId (hash-get graph 'graphId))
         (summary (hash-get graph 'summary))
         (nodes (map evidence-analysis-node (hash-get graph 'nodes)))
         (edges (map evidence-analysis-edge (hash-get graph 'edges)))
         (gaps (hash-get graph 'gaps))))
-
+;; String <- Node
 (def (evidence-analysis-node node)
   (let* ((location (hash-get node 'location))
          (path (hash-get node 'ownerPath))
@@ -236,19 +253,22 @@
           (startLine line)
           (endLine line)
           (fields (hash-get node 'fields)))))
-
+;; String <- Edge
 (def (evidence-analysis-edge edge)
   (hash (source (hash-get edge 'fromNodeId))
         (target (hash-get edge 'toNodeId))
         (relation (hash-get edge 'kind))
         (fields (hash (edgeId (hash-get edge 'edgeId))))))
-
+;;; Boundary:
+;;; - evidence-analysis-seed-ids composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- Graph
 (def (evidence-analysis-seed-ids graph)
   (map (lambda (node) (hash-get node 'id))
        (filter (lambda (node)
                  (equal? (hash-get node 'role) "owner"))
                (hash-get graph 'nodes))))
-
+;; String <- String
 (def (evidence-node-role kind)
   (cond
    ((equal? kind "owner") "owner")

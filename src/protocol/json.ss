@@ -6,6 +6,7 @@
         :extensions/facade
         :parser/facade
         :parser/query
+        :policy/repair
         :protocol/structural-facts
         :support/list
         :std/misc/ports
@@ -30,16 +31,22 @@
         finding-json
         parse-error-json
         write-json-line)
-
+;; String
 (def +semantic-search-schema-id+
   "agent.semantic-protocols.semantic-search-packet")
+;; Integer
 (def +semantic-structural-index-schema-id+
   "agent.semantic-protocols.semantic-structural-index")
+;; String
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
+;; ConfigConstant
 (def +semantic-namespace+
   "agent.semantic-protocols.gerbil-scheme")
-
+;;; Boundary:
+;;; - source-file-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Json <- SourceFile
 (def (source-file-json file)
   (hash (path (source-file-path file))
         (package (source-file-package file))
@@ -60,7 +67,7 @@
          (map control-flow-json (source-file-control-flow-forms file)))
         (forms (map top-form-json (source-file-forms file)))
         (parseError (source-file-parse-error file))))
-
+;; Json <- Package
 (def (project-package-json package)
   (and package
        (hash (path (project-package-path package))
@@ -79,14 +86,14 @@
                            (agentPolicy
                             (agent-policy-json
                              (project-package-agent-policy package))))))))
-
+;; Json <- Policy
 (def (test-directory-policy-json policy)
   (and policy
        (hash (allowedDirectories
               (test-directory-policy-allowed-directories policy))
              (explanation
               (test-directory-policy-explanation policy)))))
-
+;; Json <- Policy
 (def (macro-governance-policy-json policy)
   (and policy
        (hash (allowGenerated
@@ -95,7 +102,7 @@
               (macro-governance-policy-explanation policy))
              (witness
               (macro-governance-policy-witness policy)))))
-
+;; String <- Policy
 (def (source-scope-policy-json policy)
   (and policy
        (hash (roots
@@ -106,14 +113,17 @@
               (source-scope-policy-exclude-directories policy))
              (explanation
               (source-scope-policy-explanation policy)))))
-
+;; Json <- Policy
 (def (agent-policy-json policy)
   (and policy
        (hash (enabledRules
               (agent-policy-enabled-rules policy))
              (disabledRules
               (agent-policy-disabled-rules policy)))))
-
+;;; Boundary:
+;;; - pattern-mapping-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Json <- Pattern
 (def (pattern-mapping-json pattern)
   (and pattern
        (hash (id (hash-get pattern 'id))
@@ -131,24 +141,24 @@
                                  (hash-get pattern 'failureCases)))
              (qualitySignals (hash-get pattern 'qualitySignals))
              (witness (hash-get pattern 'witness)))))
-
+;; Selector <- String
 (def (pattern-selector-json selector)
   (hash (role (hash-get selector 'role))
         (symbol (hash-get selector 'symbol))
         (selector (hash-get selector 'selector))))
-
+;; Json <- Form
 (def (pattern-form-json form)
   (hash (role (hash-get form 'role))
         (symbol (hash-get form 'symbol))
         (selector (hash-get form 'selector))
         (template (pattern-form-template-json
                    (hash-get form 'template)))))
-
+;; Json <- Template
 (def (pattern-form-template-json template)
   (hash (head (hash-get template 'head))
         (operands (hash-get template 'operands))
         (keywords (hash-get template 'keywords))))
-
+;; Json <- Failure
 (def (pattern-failure-case-json failure)
   (let (packet (hash (id (hash-get failure 'id))))
     (if (hash-key? failure 'riskKind)
@@ -165,7 +175,10 @@
                  (hash-get failure 'selectors)
                  []))
     packet))
-
+;;; Boundary:
+;;; - search-prime-packet-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Json <- ProjectIndex
 (def (search-prime-packet-json index)
   (let* ((owners (take* (ranked-files index) 100))
          (package (project-index-package index))
@@ -202,7 +215,10 @@
       (hash-put! packet 'projectPackage (project-package-json package)))
     (hash-put! packet 'extensions (map extension-fact-json extensions))
     packet))
-
+;;; Boundary:
+;;; - structural-index-packet-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex
 (def (structural-index-packet-json index)
   (let* ((generation-id (structural-index-generation-id index))
          (artifact-id (string-append "structural-index/" generation-id ".json"))
@@ -228,12 +244,18 @@
      (syntaxFacts (json-rows-by-id
                    (append-map* structural-syntax-fact-json files)))
      (dependencyUsages (append-map* structural-dependency-json files)))))
-
+;;; Boundary:
+;;; - json-rows-by-id composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- Rows
 (def (json-rows-by-id rows)
   (sort rows
         (lambda (a b)
           (string<? (hash-get a 'id) (hash-get b 'id)))))
-
+;;; Boundary:
+;;; - structural-index-generation-id composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex
 (def (structural-index-generation-id index)
   (string-append
    +language-id+
@@ -244,12 +266,15 @@
                      "|"))
               0
               16)))
-
+;; Json <- ProjectIndex SourceFile
 (def (structural-file-hash-json index file)
   (hash (path (source-file-path file))
         (sha256 (structural-file-fingerprint index file))
         (source "native-parser-fingerprint")))
-
+;;; Boundary:
+;;; - structural-file-fingerprint composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; StructuralFileFingerprint <- ProjectIndex SourceFile
 (def (structural-file-fingerprint index file)
   (with-catch
    (lambda (_)
@@ -260,7 +285,10 @@
              (path-expand (source-file-path file)
                           (project-index-root index)))
             "\n")))))
-
+;;; Boundary:
+;;; - structural-file-fact-string composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- SourceFile
 (def (structural-file-fact-string file)
   (join [(source-file-path file)
          (number->string (source-file-line-count file))
@@ -276,7 +304,10 @@
          (join (map higher-order-fact-name
                     (source-file-higher-order-forms file)) ",")]
         "|"))
-
+;;; Boundary:
+;;; - structural-owner-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Json <- SourceFile
 (def (structural-owner-json file)
   (hash (ownerPath (source-file-path file))
         (ownerKind "source")
@@ -293,7 +324,10 @@
                                    (source-file-imports file)
                                    (map definition-name
                                         (source-file-definitions file)))))))
-
+;;; Boundary:
+;;; - structural-symbol-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Json <- SourceFile
 (def (structural-symbol-json file)
   (map (lambda (defn)
          (hash (ownerPath (definition-path defn))
@@ -310,13 +344,16 @@
                                    (definition-kind defn)
                                    (definition-path defn)]))))
        (source-file-definitions file)))
-
+;; StructuralQualifiedName <- SourceFile Definition
 (def (structural-qualified-name file defn)
   (let (ns (or (source-file-namespace file)
                (source-file-package file)
                (source-file-path file)))
     (string-append ns "::" (definition-name defn))))
-
+;;; Boundary:
+;;; - structural-dependency-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- SourceFile
 (def (structural-dependency-json file)
   (append
    (map (lambda (module-ref)
@@ -325,7 +362,7 @@
    (map (lambda (include-ref)
           (structural-dependency-row file include-ref "native-parser-include"))
         (source-file-includes file))))
-
+;; Integer <- SourceFile ModuleRef Source
 (def (structural-dependency-row file module-ref source)
   (hash (ownerPath (source-file-path file))
         (packageName module-ref)
@@ -335,18 +372,24 @@
         (source source)
         (sourceLocator (string-append (source-file-path file) ":1:1"))
         (queryKeys (dedupe [module-ref (source-file-path file) source]))))
-
+;; Json <- ProjectIndex
 (def (search-header-json index)
   (hash (kind "search-prime")
         (fields (hash (parser "core-read-module")
                       (files (length (project-index-files index)))
                       (definitions (length (project-definitions index)))))))
-
+;;; Boundary:
+;;; - search-prime-nodes composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; SearchPrimeNodes <- Package Extensions (List XX)
 (def (search-prime-nodes package extensions owners)
   (append (if package (list (package-node-json package)) '())
           (map extension-node-json extensions)
           (map-indexed owner-node-json owners)))
-
+;;; Boundary:
+;;; - search-prime-edges composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; SearchPrimeEdges <- Package Extensions (List XX)
 (def (search-prime-edges package extensions owners)
   (if package
     (append (map (lambda (extension)
@@ -360,16 +403,16 @@
                          (to (owner-node-id owner))))
                  owners))
     '()))
-
+;; String <- Package
 (def (package-node-id package)
   (string-append "package:" (project-package-name package)))
-
+;; String <- Extension
 (def (extension-node-id extension)
   (string-append "extension:" (extension-fact-name extension)))
-
+;; String <- SourceFile
 (def (owner-node-id file)
   (string-append "owner:" (source-file-path file)))
-
+;; Json <- Package
 (def (package-node-json package)
   (hash (id (package-node-id package))
         (kind "package")
@@ -377,7 +420,7 @@
         (fields (hash (name (project-package-name package))
                       (packageManager (project-package-manager package))
                       (dependencies (project-package-dependencies package))))))
-
+;; Json <- Extension
 (def (extension-node-json extension)
   (hash (id (extension-node-id extension))
         (kind "extension")
@@ -388,27 +431,27 @@
                       (package (extension-fact-package extension))
                       (dependencies (extension-fact-dependencies extension))
                       (capabilities (extension-fact-capabilities extension))))))
-
+;; Json <- SourceFile Integer
 (def (owner-node-json file rank)
   (hash (id (owner-node-id file))
         (kind "owner")
         (path (source-file-path file))
         (rank rank)
         (fields (owner-fields-json file))))
-
+;; Json <- SourceFile
 (def (owner-json file)
   (hash (path (source-file-path file))
         (role "source")
         (public #t)
         (exports (source-file-exports file))
         (fields (owner-fields-json file))))
-
+;; Json <- SourceFile
 (def (owner-fields-json file)
   (hash (package (or (source-file-package file) ""))
         (definitions (length (source-file-definitions file)))
         (imports (length (source-file-imports file)))
         (includes (length (source-file-includes file)))))
-
+;; Json <- SourceFile Integer
 (def (owner-hit-json file rank)
   (hash (kind "owner")
         (ownerPath (source-file-path file))
@@ -416,11 +459,11 @@
         (score rank)
         (reason "ranked-owner")
         (fields (owner-fields-json file))))
-
+;; Json <- SourceFile
 (def (owner-location-json file)
   (hash (path (source-file-path file))
         (lineRange (owner-line-range file))))
-
+;; OwnerLineRange <- SourceFile
 (def (owner-line-range file)
   (let (definitions (source-file-definitions file))
     (if (null? definitions)
@@ -429,29 +472,28 @@
         (string-append (number->string (definition-start first))
                        ":"
                        (number->string (definition-end first)))))))
-
+;; Integer <- (YY <- XX) (List XX)
 (def (append-map* proc xs)
   (if (null? xs)
     '()
     (append (proc (car xs)) (append-map* proc (cdr xs)))))
-
+;; StableHex64 <- SourceLine
 (def (stable-hex64 text)
   (let (chunk (left-pad-hex (number->string (stable-hash text) 16) 16))
     (string-append chunk chunk chunk chunk)))
-
+;; StableHash <- SourceLine
 (def (stable-hash text)
-  (let lp ((chars (string->list text)) (hash 2166136261))
-    (match chars
-      ([] hash)
-      ([ch . rest]
-       (lp rest (modulo (+ (* hash 16777619) (char->integer ch))
-                        4294967296))))))
-
+  (foldl (lambda (ch hash)
+           (modulo (+ (* hash 16777619) (char->integer ch))
+                   4294967296))
+         2166136261
+         (string->list text)))
+;; LeftPadHex <- SourceLine Width
 (def (left-pad-hex text width)
   (if (fx>= (string-length text) width)
     text
     (left-pad-hex (string-append "0" text) width)))
-
+;; Json <- Definition
 (def (definition-json defn)
   (hash (name (definition-name defn))
         (kind (definition-kind defn))
@@ -461,7 +503,10 @@
         (formals (definition-formals defn))
         (arity (definition-arity defn))
         (selector (definition-selector defn))))
-
+;;; Boundary:
+;;; - call-json composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Json <- CallFact
 (def (call-json call)
   (hash (callee (call-fact-callee call))
         (arity (call-fact-arity call))
@@ -473,7 +518,7 @@
                             (call-fact-argument-types call)))
         (caller (or (call-fact-caller call) ""))
         (selector (call-fact-selector call))))
-
+;; Json <- Fact
 (def (module-import-json fact)
   (hash (module (module-import-fact-module fact))
         (phase (module-import-fact-phase fact))
@@ -484,7 +529,7 @@
         (start (module-import-fact-start fact))
         (end (module-import-fact-end fact))
         (selector (module-import-fact-selector fact))))
-
+;; Json <- Fact
 (def (macro-json fact)
   (hash (name (macro-fact-name fact))
         (kind (macro-fact-kind fact))
@@ -495,8 +540,9 @@
         (phase (macro-fact-phase fact))
         (patternCount (macro-fact-pattern-count fact))
         (hygienicSyntax (macro-fact-hygienic fact))
+        (qualityFacets (macro-fact-quality-facets fact))
         (selector (macro-fact-selector fact))))
-
+;; Json <- Fact
 (def (binding-json fact)
   (hash (name (binding-fact-name fact))
         (kind (binding-fact-kind fact))
@@ -506,7 +552,7 @@
         (scope (binding-fact-scope fact))
         (valueType (or (binding-fact-value-type fact) "unknown"))
         (selector (binding-fact-selector fact))))
-
+;; Json <- Fact
 (def (poo-form-json fact)
   (hash (name (poo-form-fact-name fact))
         (kind (poo-form-fact-kind fact))
@@ -523,7 +569,7 @@
         (specializers (poo-form-fact-specializers fact))
         (specializerTypes (poo-form-fact-specializer-types fact))
         (selector (poo-form-fact-selector fact))))
-
+;; Json <- Fact
 (def (higher-order-json fact)
   (hash (name (higher-order-fact-name fact))
         (kind (higher-order-fact-kind fact))
@@ -535,8 +581,9 @@
         (arities (higher-order-fact-arities fact))
         (formals (higher-order-fact-formals fact))
         (caller (or (higher-order-fact-caller fact) ""))
+        (qualityFacets (higher-order-quality-facets fact))
         (selector (higher-order-fact-selector fact))))
-
+;; Json <- ControlFlowFact
 (def (control-flow-json fact)
   (hash (name (control-flow-fact-name fact))
         (kind (control-flow-fact-kind fact))
@@ -547,8 +594,9 @@
         (caller (or (control-flow-fact-caller fact) ""))
         (bindingCount (control-flow-fact-binding-count fact))
         (bodyFormCount (control-flow-fact-body-form-count fact))
+        (qualityFacets (control-flow-quality-facets fact))
         (selector (control-flow-fact-selector fact))))
-
+;; Json <- Form
 (def (top-form-json form)
   (hash (kind (top-form-kind form))
         (head (top-form-head form))
@@ -556,20 +604,24 @@
         (start (top-form-start form))
         (end (top-form-end form))
         (selector (top-form-selector form))))
-
+;; Json <- TypeFinding
 (def (finding-json finding)
-  (hash (ruleId (type-finding-rule-id finding))
-        (severity (type-finding-severity finding))
-        (path (type-finding-path finding))
-        (message (type-finding-message finding))
-        (selector (type-finding-selector finding))
-        (details (type-finding-details finding))))
-
+  (let ((packet (hash (ruleId (type-finding-rule-id finding))
+                      (severity (type-finding-severity finding))
+                      (path (type-finding-path finding))
+                      (message (type-finding-message finding))
+                      (selector (type-finding-selector finding))
+                      (details (type-finding-details finding))))
+        (repair (finding-agent-repair-json finding)))
+    (when repair
+      (hash-put! packet 'agentRepair repair))
+    packet))
+;; Json <- SourceFile
 (def (parse-error-json file)
   (hash (path (source-file-path file))
         (ruleId "GERBIL-SCHEME-READ-R001")
         (message (source-file-parse-error file))))
-
+;; String <- Obj
 (def (write-json-line obj)
   (write-json obj)
   (newline))

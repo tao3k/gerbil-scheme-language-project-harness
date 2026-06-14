@@ -1,0 +1,142 @@
+;;; -*- Gerbil -*-
+;;; Parser-owned definition and callable formal shape extraction.
+;;; Boundary:
+;;; - This owner is the single source for callable shape facts used by arity, typed-contract, and agent policy.
+;;; - Keep extraction datum-only so macro/source traversal never leaks mutable source windows into policy evidence.
+;;; Invariant:
+;;; - Definition and formal recovery must stay deterministic across value, list, method, and macro-style heads.
+
+(import :parser/support)
+
+(export definition-name-datums
+        definition-formal-names
+        definition-formal-arity
+        definition-formal-datums
+        formal-tail-datums)
+
+;;; Boundary:
+;;; - Definition name extraction normalizes Gerbil's value, list, method, and macro definition heads.
+;;; - Keep this owner purely datum-shaped so syntax traversal can compose it without source-state coupling.
+;; (List Symbol) <- Datum
+(def (definition-name-datums datum)
+  (let ((head (car datum))
+        (second (safe-cadr datum)))
+    (cond
+     ((member head '(def def* define))
+      (cond
+       ((symbol? second) [second])
+       ((and (pair? second) (symbol? (car second))) [(car second)])
+       (else '())))
+     ((eq? head 'define-values)
+      (if (list? second) (filter symbol? second) '()))
+     ((eq? head 'defmethod)
+      (definition-method-name-datums second))
+     ((member head '(defclass .defclass defgeneric .defgeneric
+                     .defmethod defsyntax defsyntax-for-match defrules defrule
+                     defn def-stx defsyntax-stx defsyntax-stx/form))
+      (definition-method-name-datums second))
+     ((symbol? second) [second])
+     (else '()))))
+
+;;; Boundary:
+;;; - Gerbil POO method heads may wrap the generic name in @method syntax.
+;;; - Keep overload/name recovery here so duplicate-type and POO policy see the same generic owner.
+;; (List Symbol) <- Datum
+(def (definition-method-name-datums datum)
+  (cond
+   ((symbol? datum) [datum])
+   ((and (pair? datum)
+         (eq? (car datum) '@method)
+         (symbol? (safe-cadr datum)))
+    [(safe-cadr datum)])
+   ((and (pair? datum) (symbol? (car datum))) [(car datum)])
+   (else '())))
+
+;;; Boundary:
+;;; - Formal names are value evidence for typed-contract alignment, not a source rendering surface.
+;;; - Preserve only symbol formals so rest arguments and case-lambda clauses stay parser-owned facts.
+;; (List String) <- Datum Symbol
+(def (definition-formal-names datum name)
+  (filter-map
+   (lambda (formal)
+     (and (symbol? formal) (datum->string formal)))
+   (definition-formal-datums datum name)))
+
+;;; Boundary:
+;;; - Arity is derived from parser-owned formal evidence so contract policy and call facts share one shape source.
+;;; - Unknown or non-callable value definitions intentionally stay false instead of inventing a zero-arity contract.
+;; Integer <- Datum Symbol
+(def (definition-formal-arity datum name)
+  (let (formals (definition-formal-datums datum name))
+    (and formals (length formals))))
+
+;;; Boundary:
+;;; - Callable shape must cover both list-style definitions and value-style lambda/case-lambda definitions.
+;;; - Case-lambda clauses are unioned as evidence because downstream policy checks alignment, not overload dispatch.
+;; (List Symbol) <- Datum Symbol
+(def (definition-formal-datums datum name)
+  (let ((head (car datum))
+        (second (safe-cadr datum))
+        (third (safe-caddr datum)))
+    (cond
+     ((member head '(def def* define defmethod .defmethod
+                     defsyntax defsyntax-for-match defrule
+                     defn def-stx defsyntax-stx defsyntax-stx/form))
+      (cond
+       ((and (pair? second) (eq? (car second) name))
+        (formal-tail-datums (cdr second)))
+       ((and (member head '(def def* define))
+             (symbol? second)
+             (eq? second name))
+        (definition-value-formal-datums third))
+       (else '())))
+     (else '()))))
+
+;;; Boundary:
+;;; - Value-style definitions encode callable shape in the assigned expression instead of the definition head.
+;;; - Lambda and case-lambda expose declared formals directly.
+;;; - Cut and cute expose placeholder-driven callable arity without inventing source names.
+;;; - Other value definitions intentionally return no callable shape.
+;; (List Symbol) <- Datum
+(def (definition-value-formal-datums datum)
+  (cond
+   ((and (pair? datum) (eq? (car datum) 'lambda))
+    (formal-tail-datums (safe-cadr datum)))
+   ((and (pair? datum) (eq? (car datum) 'case-lambda))
+    (dedupe
+     (apply append
+            (map (lambda (clause)
+                   (formal-tail-datums (car clause)))
+                 (filter pair? (safe-cdr datum))))))
+   ((and (pair? datum) (member (car datum) '(cut cute)))
+    (cut-placeholder-datums (safe-cdr datum)))
+   (else '())))
+
+;;; Boundary:
+;;; - Cut placeholder arity belongs to the outer partial-application form.
+;;; - Nested cut and cute forms own their placeholders, so outer arity ignores those subtrees.
+;; (List Symbol) <- Obj
+(def (cut-placeholder-datums obj)
+  (cond
+   ((null? obj) '())
+   ((and (symbol? obj) (member obj '(<> <...>))) [obj])
+   ((and (pair? obj) (member (car obj) '(cut cute))) '())
+   ((pair? obj)
+    (append (cut-placeholder-datums (car obj))
+            (cut-placeholder-datums (cdr obj))))
+   (else '())))
+
+;;; Boundary:
+;;; - Formal tail extraction preserves dotted/rest and ordinary list formals as algebraic symbols.
+;;; - Ellipsis is syntax shape, not a callable argument name, so it is skipped before policy alignment.
+;; (List Symbol) <- Obj
+(def (formal-tail-datums tail)
+  (cond
+   ((null? tail) '())
+   ((symbol? tail) [tail])
+   ((pair? tail)
+    (let (head (car tail))
+      (if (and (symbol? head) (not (eq? head '...)))
+        (cons head (formal-tail-datums (cdr tail)))
+        (formal-tail-datums (cdr tail)))))
+   (else '())))

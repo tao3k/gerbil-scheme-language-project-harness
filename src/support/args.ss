@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - module owns an agent-facing surface.
+;;; - Keep contracts, evidence, and failure semantics explicit.
 ;;; Command-line argument helpers.
 
 (import :gerbil/gambit
@@ -12,23 +15,30 @@
         project-root
         drop-project-root
         file-directory?)
-
+;; ConfigConstant
 (def +boolean-flags+ '("--json" "--code" "--names-only" "--changed" "--full" "--more"))
+;; ConfigConstant
 (def +value-options+
   '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"
     "--iterations" "--max-total-ms" "--whitelist"
     "--topic" "--intent" "--role" "--level" "--rule" "--finding" "--limit"))
-
+;; Boolean <- Flag (List XX)
 (def (flag? flag args)
   (member flag args))
-
+;;; Invariant:
+;;; - option owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Option <- Flag (List String)
 (def (option flag args)
   (match args
     ([] #f)
     ([hd value . rest]
      (if (equal? hd flag) value (option flag (cons value rest))))
     ([_] #f)))
-
+;;; Invariant:
+;;; - options owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; (List String) <- Flag (List String)
 (def (options flag args)
   (match args
     ([] '())
@@ -37,7 +47,10 @@
        (cons value (options flag rest))
        (options flag (cons value rest))))
     ([_] '())))
-
+;;; Boundary:
+;;; - positional-args composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List String) <- (List String)
 (def (positional-args args)
   (let (state
         (foldl (lambda (arg state)
@@ -53,13 +66,13 @@
                (cons '() #f)
                args))
     (reverse (car state))))
-
+;; ProjectRoot <- (List String)
 (def (project-root args)
   (let (pos (positional-args args))
     (if (and (pair? pos) (file-directory? (last pos)))
       (last pos)
       ".")))
-
+;; DropProjectRoot <- (List String)
 (def (drop-project-root args)
   (let* ((pos (positional-args args))
          (root? (and (pair? pos) (file-directory? (last pos))))
@@ -67,7 +80,10 @@
     (if root?
       (drop-positional-index args root-index)
       args)))
-
+;;; Boundary:
+;;; - drop-positional-index composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- (List XX) TargetIndex
 (def (drop-positional-index args target-index)
   (let (state
         (foldl (lambda (arg state)
@@ -90,7 +106,10 @@
                ['() 0 #f]
                args))
     (reverse (car state))))
-
+;;; Boundary:
+;;; - file-directory? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- String
 (def (file-directory? path)
   (with-catch
    (lambda (_) #f)

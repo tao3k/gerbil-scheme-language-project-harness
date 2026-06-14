@@ -3,16 +3,17 @@
 
 (import :constants
         :parser/facade
+        :policy/catalog
         :protocol/json
         :support/args)
 
 (export info-main
         info-packet
         display-info-packet)
-
+;; String
 (def +info-schema-id+
   "agent.semantic-protocols.gerbil-scheme-harness-info")
-
+;; JsonPacket <- String
 (def (info-packet root)
   (let* ((index (collect-project root))
          (package (project-index-package index)))
@@ -27,14 +28,14 @@
           (configurableInterface (configurable-interface-json))
           (agentSteering (agent-steering-json))
           (closureCommands (closure-commands-json)))))
-
+;; Json <- Package
 (def (package-info-json package)
   (and package
        (hash (path (project-package-path package))
              (name (project-package-name package))
              (packageManager (project-package-manager package))
              (dependencies (project-package-dependencies package)))))
-
+;; Json
 (def (configurable-interface-json)
   (hash (sourceScope
          (hash (owner "gerbil.pkg policy")
@@ -44,34 +45,16 @@
         (agentPolicy
          (hash (owner "gerbil.pkg policy")
                (fields ["enabled-rules" "disabled-rules"])))))
-
+;; Json
 (def (agent-steering-json)
-  (hash (facts ["macroFacts"
-                "bindingFacts"
-                "pooFormFacts"
-                "higherOrderFacts"
-                "controlFlowFacts"
-                "dependencyUsageFacts"])
-        (rules
-         [(hash (id "GERBIL-SCHEME-AGENT-R008")
-                (topic "poo-method-shape")
-                (requires "defgeneric plus defclass or defprotocol receiver evidence"))
-          (hash (id "GERBIL-SCHEME-AGENT-R009")
-                (topic "functional-data-transform")
-                (prefers "map/filter/fold/for/fold/cut for pure transforms")
-                (keepsNamedLetWhen "IO/state/generator/continuation driver"))
-          (hash (id "GERBIL-SCHEME-AGENT-R011")
-                (topic "macro-runtime-source-witness")
-                (next "search runtime-source macro sugar module-sugar"))
-          (hash (id "GERBIL-SCHEME-AGENT-R012")
-                (topic "protocol-evidence")
-                (next "search pattern poo protocol"))])))
-
+  (hash (facts (agent-steering-facts))
+        (rules (agent-steering-rule-json))))
+;; Json
 (def (closure-commands-json)
   (hash (selfApply "GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss")
         (check "./bin/gerbil-scheme-harness check .")
         (bench "./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .")))
-
+;; JsonPacket <- Packet
 (def (display-info-packet packet)
   (displayln "[gerbil-info] language=" (hash-get packet 'languageId)
              " provider=" (hash-get packet 'providerId)
@@ -86,12 +69,12 @@
   (displayln "|interface build-scope=build.ss defbuild-script targets -> runtime-roots when explicit source-scope is absent")
   (displayln "|interface agent-policy=gerbil.pkg-policy fields=enabled-rules,disabled-rules")
   (displayln "|agent-steering facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,dependencyUsageFacts")
-  (displayln "|agent-steering rules=GERBIL-SCHEME-AGENT-R008,R009,R011,R012")
+  (displayln "|agent-steering rules=" (agent-steering-rule-id-string))
   (let (closure (hash-get packet 'closureCommands))
     (displayln "|closure self-apply=" (hash-get closure 'selfApply))
     (displayln "|closure check=" (hash-get closure 'check))
     (displayln "|closure bench=" (hash-get closure 'bench))))
-
+;; InfoMain <- (List XX)
 (def (info-main args)
   (let* ((root (project-root args))
          (json? (flag? "--json" args))

@@ -11,14 +11,20 @@
 
 (export extension-packet-snapshot
         search-prime-snapshot)
-
+;;; Boundary:
+;;; - extension-packet-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; JsonPacket <- ProjectIndex
 (def (extension-packet-snapshot index)
   (list 'extensionPacket
         (project-package-snapshot (project-index-package index))
         (list 'extensions
               (map extension-fact-snapshot (project-extension-facts index)))
         (list 'searchLines (project-extension-search-lines index))))
-
+;;; Boundary:
+;;; - search-prime-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- ProjectIndex
 (def (search-prime-snapshot index)
   (let* ((owners (take* (ranked-files index) 100))
          (package (project-index-package index))
@@ -56,7 +62,7 @@
                 (list (list 'note
                             (list 'kind "parser")
                             (list 'message "core-read-module native Scheme reader facts")))))))
-
+;; Snapshot <- ProjectIndex
 (def (search-header-snapshot index)
   (list 'header
         (list 'kind "search-prime")
@@ -64,12 +70,18 @@
               (list 'parser "core-read-module")
               (list 'files (length (project-index-files index)))
               (list 'definitions (length (project-definitions index))))))
-
+;;; Boundary:
+;;; - search-prime-node-snapshots composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Package Extensions (List XX)
 (def (search-prime-node-snapshots package extensions owners)
   (append (if package (list (package-node-snapshot package)) '())
           (map extension-node-snapshot extensions)
           (map-indexed owner-node-snapshot owners)))
-
+;;; Boundary:
+;;; - search-prime-edge-snapshots composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Package Extensions (List XX)
 (def (search-prime-edge-snapshots package extensions owners)
   (if package
     (append (map (lambda (extension)
@@ -85,16 +97,16 @@
                          (list 'to (owner-node-id owner))))
                  owners))
     '()))
-
+;; String <- Package
 (def (package-node-id package)
   (string-append "package:" (project-package-name package)))
-
+;; String <- Extension
 (def (extension-node-id extension)
   (string-append "extension:" (extension-fact-name extension)))
-
+;; String <- SourceFile
 (def (owner-node-id file)
   (string-append "owner:" (source-file-path file)))
-
+;; Snapshot <- Package
 (def (package-node-snapshot package)
   (list 'node
         (list 'id (package-node-id package))
@@ -104,7 +116,7 @@
               (list 'name (project-package-name package))
               (list 'packageManager (project-package-manager package))
               (list 'dependencies (snapshot-list (project-package-dependencies package))))))
-
+;; Snapshot <- Extension
 (def (extension-node-snapshot extension)
   (list 'node
         (list 'id (extension-node-id extension))
@@ -117,7 +129,7 @@
               (list 'package (extension-fact-package extension))
               (list 'dependencies (snapshot-list (extension-fact-dependencies extension)))
               (list 'capabilities (snapshot-list (extension-fact-capabilities extension))))))
-
+;; Snapshot <- SourceFile Integer
 (def (owner-node-snapshot file rank)
   (list 'node
         (list 'id (owner-node-id file))
@@ -125,7 +137,7 @@
         (list 'path (source-file-path file))
         (list 'rank rank)
         (owner-fields-snapshot file)))
-
+;; Snapshot <- SourceFile
 (def (owner-snapshot file)
   (list 'owner
         (list 'path (source-file-path file))
@@ -133,14 +145,14 @@
         (list 'public #t)
         (list 'exports (source-file-exports file))
         (owner-fields-snapshot file)))
-
+;; Snapshot <- SourceFile
 (def (owner-fields-snapshot file)
   (list 'fields
         (list 'package (or (source-file-package file) ""))
         (list 'definitions (length (source-file-definitions file)))
         (list 'imports (length (source-file-imports file)))
         (list 'includes (length (source-file-includes file)))))
-
+;; Snapshot <- SourceFile Integer
 (def (owner-hit-snapshot file rank)
   (list 'hit
         (list 'kind "owner")
@@ -149,12 +161,12 @@
         (list 'score rank)
         (list 'reason "ranked-owner")
         (owner-fields-snapshot file)))
-
+;; Snapshot <- SourceFile
 (def (owner-location-snapshot file)
   (list 'location
         (list 'path (source-file-path file))
         (list 'lineRange (owner-line-range file))))
-
+;; OwnerLineRange <- SourceFile
 (def (owner-line-range file)
   (let (definitions (source-file-definitions file))
     (if (null? definitions)

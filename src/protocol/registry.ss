@@ -6,7 +6,10 @@
         :std/sugar)
 
 (export language-registry)
-
+;;; Boundary:
+;;; - language-registry coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; LanguageRegistry <- String
 (def (language-registry root)
   (hash
    (registryId "agent.semantic-protocols.semantic-language-registry")

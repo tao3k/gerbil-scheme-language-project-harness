@@ -13,26 +13,32 @@
         run-type-checks/signatures
         run-type-checks/whitelist
         source-file-type-findings)
-
+;;; Boundary:
+;;; - type-status composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Status <- (List XX)
 (def (type-status findings)
   (if (ormap non-info-finding? findings) "fail" "pass"))
-
+;; Boolean <- TypeFinding
 (def (non-info-finding? finding)
   (not (equal? (type-finding-severity finding) "info")))
-
+;; (List TypeFinding) <- ProjectIndex
 (def (run-type-checks index)
   (run-type-checks/signatures index '()))
-
+;; (List TypeFinding) <- ProjectIndex NativeSignatures
 (def (run-type-checks/signatures index signatures)
   (run-type-checks/whitelist index signatures '()))
-
+;;; Boundary:
+;;; - run-type-checks/whitelist composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex NativeSignatures Whitelist
 (def (run-type-checks/whitelist index signatures whitelist)
   (append
    (apply append (map source-file-type-findings (project-index-files index)))
    (type-env-findings (build-type-env/signatures index signatures))
    (run-checker-checks/whitelist index signatures whitelist)
    (run-policy-checks index)))
-
+;; (List TypeFinding) <- SourceFile
 (def (source-file-type-findings file)
   (let (error (source-file-parse-error file))
     (if error
@@ -43,10 +49,13 @@
                           (source-file-path file)
                           #f)]
       '())))
-
+;;; Boundary:
+;;; - type-env-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- (List TypeFinding)
 (def (type-env-findings bindings)
   (map duplicate-binding-finding (duplicate-type-bindings bindings)))
-
+;; TypeFinding <- Duplicate
 (def (duplicate-binding-finding duplicate)
   (let ((binding (car duplicate))
         (prior (cadr duplicate)))

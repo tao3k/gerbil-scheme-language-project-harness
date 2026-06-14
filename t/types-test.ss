@@ -3,7 +3,7 @@
         :parser/facade
         :types/facade)
 (export types-test)
-
+;; TypeSpec
 (def types-test
   (test-suite "gerbil scheme harness types"
     (test-case "reader errors become type pipeline findings"
@@ -103,6 +103,12 @@
              (method (make-type-binding ":render" "defmethod" (make-type-unknown)
                                         '() 0 "same.ss" "same.ss:2-4")))
         (check (duplicate-type-bindings [generic method]) => '())))
+    (test-case "poo method overloads are not duplicate type bindings"
+      (let* ((first (make-type-binding ":render" "defmethod" (make-type-unknown)
+                                       '() 0 "same.ss" "same.ss:2-4"))
+             (second (make-type-binding ":render" "defmethod" (make-type-unknown)
+                                        '() 0 "same.ss" "same.ss:5-7")))
+        (check (duplicate-type-bindings [first second]) => '())))
     (test-case "same definition names in different owners are distinct"
       (let* ((first (make-type-binding "answer" "definition" (make-type-unknown)
                                        '() 0 "first.ss" "first.ss:1-1"))

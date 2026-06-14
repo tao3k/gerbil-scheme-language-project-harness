@@ -3,10 +3,14 @@
 
 (export dedupe
         take*
+        take-at-most
         map-indexed
         last
         join)
-
+;;; Boundary:
+;;; - dedupe composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Dedupe <- (List XX)
 (def (dedupe xs)
   (let (state
         (foldl (lambda (item state)
@@ -18,7 +22,10 @@
                (cons '() '())
                xs))
     (reverse (cdr state))))
-
+;;; Boundary:
+;;; - take* composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Take <- (List XX) N
 (def (take* xs n)
   (let (state
         (foldl (lambda (item state)
@@ -30,7 +37,13 @@
                (cons n '())
                xs))
     (reverse (cdr state))))
-
+;; TakeAtMost <- (List XX) N
+(def (take-at-most xs n)
+  (take* xs n))
+;;; Boundary:
+;;; - map-indexed composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- (YY <- XX) (List XX)
 (def (map-indexed proc xs)
   (let (state
         (foldl (lambda (item state)
@@ -40,10 +53,13 @@
                (cons 1 '())
                xs))
     (reverse (cdr state))))
-
+;; Last <- (List XX)
 (def (last xs)
   (if (null? (cdr xs)) (car xs) (last (cdr xs))))
-
+;;; Invariant:
+;;; - join owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Join <- (List XX) Sep
 (def (join xs sep)
   (match xs
     ([] "")

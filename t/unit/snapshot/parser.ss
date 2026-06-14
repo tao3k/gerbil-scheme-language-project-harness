@@ -4,7 +4,7 @@
         :std/test)
 
 (export check-parser-complex-native-facts-snapshot)
-
+;; Snapshot
 (def (check-parser-complex-native-facts-snapshot)
   (let (file (parse-source-file "." "t/fixtures/parser/complex-syntax.ss"))
     (check (parser-source-file-snapshot file)

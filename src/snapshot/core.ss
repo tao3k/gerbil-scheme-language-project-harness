@@ -6,7 +6,6 @@
         :extensions/facade
         :parser/facade
         :snapshot/support
-        :support/time
         :std/srfi/13
         :types/facade)
 
@@ -24,15 +23,16 @@
         registry-snapshot
         compare-fact-snapshot
         compare-search-snapshot
-        parser-source-file-snapshot
         self-apply-findings-snapshot
         finding-snapshot
-        bench-report-snapshot
         check-report-snapshot)
-
+;;; Invariant:
+;;; - snapshot-load owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Snapshot <- String
 (def (snapshot-load path)
   (call-with-input-file path read))
-
+;; Snapshot <- Package
 (def (project-package-snapshot package)
   (list 'projectPackage
         (list 'path (project-package-path package))
@@ -44,7 +44,7 @@
                (project-package-source-scope-policy package))
               (agent-policy-snapshot
                (project-package-agent-policy package)))))
-
+;; String <- Policy
 (def (source-scope-policy-snapshot policy)
   (list 'sourceScopePolicy
         (if policy
@@ -53,14 +53,14 @@
                 (list 'excludeDirectories (snapshot-list (source-scope-policy-exclude-directories policy)))
                 (list 'explanation (source-scope-policy-explanation policy)))
           '())))
-
+;; Snapshot <- Policy
 (def (agent-policy-snapshot policy)
   (list 'agentPolicy
         (if policy
           (list (list 'enabledRules (snapshot-list (agent-policy-enabled-rules policy)))
                 (list 'disabledRules (snapshot-list (agent-policy-disabled-rules policy))))
           '())))
-
+;; Snapshot <- Fact
 (def (extension-fact-snapshot fact)
   (list 'providerExtension
         (list 'name (extension-fact-name fact))
@@ -70,7 +70,10 @@
         (list 'package (extension-fact-package fact))
         (list 'dependencies (snapshot-list (extension-fact-dependencies fact)))
         (list 'capabilities (snapshot-list (extension-fact-capabilities fact)))))
-
+;;; Boundary:
+;;; - extension-search-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Query Matches Next
 (def (extension-search-snapshot query matches next)
   (list 'extensionSearch
         (list 'namespace "extension")
@@ -79,7 +82,10 @@
         (list 'query query)
         (list 'matches (map extension-fact-snapshot matches))
         (list 'next next)))
-
+;;; Boundary:
+;;; - pattern-evidence-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- Pattern
 (def (pattern-evidence-snapshot pattern)
   (list 'pattern
         (list 'id (hash-get pattern 'id))
@@ -101,7 +107,7 @@
         (list 'qualitySignals
               (snapshot-list (hash-get pattern 'qualitySignals)))
         (list 'witness (hash-get pattern 'witness))))
-
+;; Snapshot <- SourceRef
 (def (source-ref-snapshot source-ref)
   (list 'sourceRef
         (list 'kind (hash-get source-ref 'kind))
@@ -111,26 +117,26 @@
         (list 'repository (hash-get source-ref 'repository))
         (list 'pathPolicy (hash-get source-ref 'pathPolicy))
         (list 'selectorScheme (hash-get source-ref 'selectorScheme))))
-
+;; Selector <- String
 (def (pattern-selector-snapshot selector)
   (list 'selector
         (list 'role (hash-get selector 'role))
         (list 'symbol (hash-get selector 'symbol))
         (list 'selector (hash-get selector 'selector))))
-
+;; Snapshot <- Form
 (def (pattern-form-snapshot form)
   (list 'form
         (list 'role (hash-get form 'role))
         (list 'symbol (hash-get form 'symbol))
         (pattern-form-template-snapshot (hash-get form 'template))
         (list 'selector (hash-get form 'selector))))
-
+;; Snapshot <- Template
 (def (pattern-form-template-snapshot template)
   (list 'template
         (list 'head (hash-get template 'head))
         (list 'operands (snapshot-list (hash-get template 'operands)))
         (list 'keywords (snapshot-list (hash-get template 'keywords)))))
-
+;; Snapshot <- Failure
 (def (pattern-failure-case-snapshot failure)
   (list 'failureCase
         (list 'id (hash-get failure 'id))
@@ -146,7 +152,7 @@
         (if (hash-key? failure 'selectors)
           (list 'selectors (snapshot-list (hash-get failure 'selectors)))
           (list 'selectors '()))))
-
+;; Snapshot <- Query Pattern Missing Next
 (def (pattern-search-snapshot query pattern missing next)
   (let (missing-items (snapshot-list missing))
     (list 'patternSearch
@@ -162,7 +168,10 @@
           (list 'missing missing-items)
           (list 'witness (if pattern (hash-get pattern 'witness) "pending"))
           (list 'next next))))
-
+;;; Boundary:
+;;; - runtime-source-fact-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Fact
 (def (runtime-source-fact-snapshot fact)
   (let* ((details (hash-get fact 'details))
          (source-ref (hash-get details 'sourceRef))
@@ -191,7 +200,7 @@
                      (hash-get fact 'failureCases)))
           (list 'qualitySignals
                 (snapshot-list (hash-get fact 'qualitySignals))))))
-
+;; Snapshot <- SourceRef
 (def (runtime-source-ref-snapshot source-ref)
   (list 'sourceRef
         (list 'kind (hash-get source-ref 'kind))
@@ -200,38 +209,41 @@
         (list 'checkoutPolicy (hash-get source-ref 'checkoutPolicy))
         (list 'statePathPolicy (hash-get source-ref 'statePathPolicy))
         (list 'selectorScheme (hash-get source-ref 'selectorScheme))))
-
+;; Snapshot <- Acquisition
 (def (runtime-source-acquisition-snapshot acquisition)
   (list 'acquisition
         (list 'owner (hash-get acquisition 'owner))
         (list 'operation (hash-get acquisition 'operation))
         (list 'stateNamespace (hash-get acquisition 'stateNamespace))
         (list 'indexOwner (hash-get acquisition 'indexOwner))))
-
+;; Selector <- String
 (def (evidence-selector-snapshot selector)
   (list 'selector
         (list 'role (hash-get selector 'role))
         (list 'symbol (hash-get selector 'symbol))
         (list 'selector (hash-get selector 'selector))))
-
+;; String <- Failure
 (def (evidence-failure-case-snapshot failure)
   (list 'failureCase
         (list 'id (hash-get failure 'id))
         (list 'risk (failure-risk-snapshot failure))
         (list 'correction (failure-correction-snapshot failure))))
-
+;; String <- Failure
 (def (failure-risk-snapshot failure)
   (cond
    ((hash-key? failure 'risk) (hash-get failure 'risk))
    ((hash-key? failure 'riskKind) (hash-get failure 'riskKind))
    (else "unknown")))
-
+;; String <- Failure
 (def (failure-correction-snapshot failure)
   (cond
    ((hash-key? failure 'correction) (hash-get failure 'correction))
    ((hash-key? failure 'correctiveAction) (hash-get failure 'correctiveAction))
    (else "unknown")))
-
+;;; Boundary:
+;;; - runtime-source-search-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Query (List XX) Next
 (def (runtime-source-search-snapshot query facts next)
   (list 'runtimeSourceSearch
         (list 'namespace "runtime-source")
@@ -249,7 +261,10 @@
                          "pending"
                          (hash-get (car facts) 'witness)))
         (list 'next next)))
-
+;;; Boundary:
+;;; - language-evidence-fact-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- LanguageEvidenceFact
 (def (language-evidence-fact-snapshot fact)
   (list 'languageEvidenceFact
         (list 'id (hash-get fact 'id))
@@ -268,7 +283,7 @@
                    (hash-get fact 'failureCases)))
         (list 'qualitySignals
               (snapshot-list (hash-get fact 'qualitySignals)))))
-
+;; String <- Details
 (def (language-evidence-details-snapshot details)
   (cons 'details
         (append
@@ -291,37 +306,40 @@
          (snapshot-detail-string details 'testDirectory)
          (snapshot-detail-list details 'policyRules)
          (snapshot-detail-string details 'styleDoc))))
-
+;; String <- Details Key
 (def (snapshot-detail-string details key)
   (if (hash-key? details key)
     [(list key (hash-get details key))]
     '()))
-
+;; Snapshot <- Details Key
 (def (snapshot-detail-list details key)
   (if (hash-key? details key)
     [(list key (snapshot-list (hash-get details key)))]
     '()))
-
+;; Snapshot <- Details Key
 (def (snapshot-detail-list-value details key)
   (if (hash-key? details key)
     (hash-get details key)
     []))
-
+;; Snapshot <- Details Key SnapshotProc
 (def (snapshot-detail-object details key snapshot-proc)
   (if (hash-key? details key)
     [(snapshot-proc (hash-get details key))]
     '()))
-
+;;; Boundary:
+;;; - snapshot-detail-objects composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Details Key SnapshotProc
 (def (snapshot-detail-objects details key snapshot-proc)
   (if (hash-key? details key)
     [(list key (map snapshot-proc (hash-get details key)))]
     '()))
-
+;; Snapshot <- Label Details SnapshotProc
 (def (optional-snapshot label details snapshot-proc)
   (if (hash-key? details label)
     (snapshot-proc (hash-get details label))
     (list label #f)))
-
+;; Selector <- Resolver
 (def (selector-resolver-snapshot resolver)
   (list 'selectorResolver
         (list 'scheme (hash-get resolver 'scheme))
@@ -330,7 +348,7 @@
         (list 'selectorFormat (hash-get resolver 'selectorFormat))
         (list 'output (hash-get resolver 'output))
         (list 'indexOwner (hash-get resolver 'indexOwner))))
-
+;; Snapshot <- Example
 (def (source-example-snapshot example)
   (list 'sourceExample
         (list 'id (hash-get example 'id))
@@ -339,13 +357,13 @@
         (list 'selector (hash-get example 'selector))
         (source-example-form-snapshot (hash-get example 'form))
         (list 'commentMode (hash-get example 'commentMode))))
-
+;; Snapshot <- Form
 (def (source-example-form-snapshot form)
   (list 'form
         (list 'head (hash-get form 'head))
         (list 'operands (snapshot-list (hash-get form 'operands)))
         (list 'keywords (snapshot-list (hash-get form 'keywords)))))
-
+;; Snapshot <- Comment
 (def (source-comment-snapshot comment)
   (list 'sourceComment
         (list 'id (hash-get comment 'id))
@@ -353,7 +371,10 @@
         (list 'extractor (hash-get comment 'extractor))
         (list 'summary (hash-get comment 'summary))
         (list 'fallback (hash-get comment 'fallback))))
-
+;;; Boundary:
+;;; - language-evidence-search-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; String <- Namespace Authority Query (List String) Next
 (def (language-evidence-search-snapshot namespace authority query facts next)
   (list 'languageEvidenceSearch
         (list 'namespace namespace)
@@ -362,11 +383,14 @@
         (list 'query query)
         (list 'facts (map language-evidence-fact-snapshot facts))
         (list 'next next)))
-
+;; String <- (List String)
 (def (guide-snapshot lines)
   (list 'guide
         (list 'lines (snapshot-list lines))))
-
+;;; Boundary:
+;;; - registry-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Registry
 (def (registry-snapshot registry)
   (let* ((language (car (hash-get registry 'languages)))
          (schemas (hash-get language 'schemas))
@@ -380,20 +404,23 @@
           (list 'schemas (map schema-registry-entry-snapshot schemas))
           (list 'methodDescriptors
                 (map method-descriptor-snapshot descriptors)))))
-
+;; Snapshot <- Schema
 (def (schema-registry-entry-snapshot schema)
   (list 'schema
         (list 'schemaId (hash-get schema 'schemaId))
         (list 'schemaVersion (hash-get schema 'schemaVersion))
         (list 'path (hash-get schema 'path))))
-
+;; Snapshot <- Descriptor
 (def (method-descriptor-snapshot descriptor)
   (list 'methodDescriptor
         (list 'method (hash-get descriptor 'method))
         (list 'command (hash-get descriptor 'command))
         (list 'outputSchemaIds
               (snapshot-list (hash-get descriptor 'outputSchemaIds)))))
-
+;;; Boundary:
+;;; - compare-fact-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Fact
 (def (compare-fact-snapshot fact)
   (list 'comparison
         (list 'id (hash-get fact 'id))
@@ -411,7 +438,7 @@
                    (hash-get fact 'failureCases)))
         (list 'qualitySignals
               (snapshot-list (hash-get fact 'qualitySignals)))))
-
+;; String <- Label Side
 (def (compare-side-snapshot label side)
   (cons label
         (append
@@ -427,7 +454,10 @@
          (snapshot-detail-list side 'targetVersions)
          (snapshot-detail-string side 'compileMode)
          (snapshot-detail-string side 'stateNamespace))))
-
+;;; Boundary:
+;;; - compare-search-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- Query (List XX) Next
 (def (compare-search-snapshot query facts next)
   (list 'compareSearch
         (list 'namespace "compare")
@@ -443,109 +473,16 @@
                          "pending"
                          (hash-get (car facts) 'witness)))
         (list 'next next)))
-
-(def (parser-source-file-snapshot file)
-  (list 'parserSourceFile
-        (list 'path (source-file-path file))
-        (list 'definitions
-              (map parser-definition-snapshot
-                   (source-file-definitions file)))
-        (list 'moduleImports
-              (map parser-module-import-snapshot
-                   (source-file-module-imports file)))
-        (list 'macros
-              (map parser-macro-snapshot
-                   (source-file-macros file)))
-        (list 'bindings
-              (map parser-binding-snapshot
-                   (source-file-bindings file)))
-        (list 'pooForms
-              (map parser-poo-form-snapshot
-                   (source-file-poo-forms file)))
-        (list 'higherOrderForms
-              (map parser-higher-order-form-snapshot
-                   (source-file-higher-order-forms file)))
-        (list 'calls
-              (map parser-call-snapshot
-                   (source-file-calls file)))))
-
-(def (parser-definition-snapshot defn)
-  (list 'definition
-        (list 'name (definition-name defn))
-        (list 'kind (definition-kind defn))
-        (list 'formals (snapshot-list (definition-formals defn)))
-        (list 'selector (definition-selector defn))))
-
-(def (parser-module-import-snapshot fact)
-  (list 'moduleImport
-        (list 'module (module-import-fact-module fact))
-        (list 'phase (module-import-fact-phase fact))
-        (list 'modifier (module-import-fact-modifier fact))
-        (list 'symbols (snapshot-list (module-import-fact-symbols fact)))
-        (list 'selector (module-import-fact-selector fact))))
-
-(def (parser-macro-snapshot fact)
-  (list 'macro
-        (list 'name (macro-fact-name fact))
-        (list 'kind (macro-fact-kind fact))
-        (list 'transformer (macro-fact-transformer fact))
-        (list 'phase (macro-fact-phase fact))
-        (list 'patternCount (macro-fact-pattern-count fact))
-        (list 'hygienicSyntax (macro-fact-hygienic fact))
-        (list 'selector (macro-fact-selector fact))))
-
-(def (parser-binding-snapshot fact)
-  (list 'binding
-        (list 'name (binding-fact-name fact))
-        (list 'kind (binding-fact-kind fact))
-        (list 'scope (binding-fact-scope fact))
-        (list 'valueType (or (binding-fact-value-type fact) "unknown"))
-        (list 'selector (binding-fact-selector fact))))
-
-(def (parser-poo-form-snapshot fact)
-  (list 'pooForm
-        (list 'name (poo-form-fact-name fact))
-        (list 'kind (poo-form-fact-kind fact))
-        (list 'role (poo-form-fact-role fact))
-        (list 'generic (or (poo-form-fact-generic fact) ""))
-        (list 'receiver (or (poo-form-fact-receiver fact) ""))
-        (list 'receiverType (or (poo-form-fact-receiver-type fact) ""))
-        (list 'supers (snapshot-list (poo-form-fact-supers fact)))
-        (list 'slots (snapshot-list (poo-form-fact-slots fact)))
-        (list 'options (snapshot-list (poo-form-fact-options fact)))
-        (list 'specializers (snapshot-list (poo-form-fact-specializers fact)))
-        (list 'specializerTypes (snapshot-list (poo-form-fact-specializer-types fact)))
-        (list 'selector (poo-form-fact-selector fact))))
-
-(def (parser-higher-order-form-snapshot fact)
-  (list 'higherOrderForm
-        (list 'name (higher-order-fact-name fact))
-        (list 'kind (higher-order-fact-kind fact))
-        (list 'role (higher-order-fact-role fact))
-        (list 'operandCount (higher-order-fact-operand-count fact))
-        (list 'arities (snapshot-list (higher-order-fact-arities fact)))
-        (list 'formals (snapshot-list (higher-order-fact-formals fact)))
-        (list 'caller (or (higher-order-fact-caller fact) ""))
-        (list 'selector (higher-order-fact-selector fact))))
-
-(def (parser-call-snapshot fact)
-  (list 'call
-        (list 'callee (call-fact-callee fact))
-        (list 'arity (call-fact-arity fact))
-        (list 'caller (or (call-fact-caller fact) ""))
-        (list 'arguments (snapshot-list (call-fact-arguments fact)))
-        (list 'argumentTypes
-              (snapshot-list
-               (map (lambda (type) (or type "unknown"))
-                    (call-fact-argument-types fact))))
-        (list 'selector (call-fact-selector fact))))
-
+;; Snapshot <- TypeFinding
 (def (finding-snapshot finding)
   [(type-finding-rule-id finding)
    (type-finding-path finding)
    (type-finding-selector finding)
    (type-finding-message finding)])
-
+;;; Boundary:
+;;; - self-apply-findings-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- (List TypeFinding)
 (def (self-apply-findings-snapshot findings)
   (list 'selfApplyFindings
         (list 'languageId +language-id+)
@@ -553,71 +490,13 @@
         (list 'status (type-status findings))
         (list 'findingCount (length findings))
         (list 'findings (map finding-snapshot findings))))
-
+;;; Boundary:
+;;; - check-report-snapshot composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Snapshot <- ProjectIndex (List TypeFinding)
 (def (check-report-snapshot index findings)
   (list 'checkReport
         (list 'languageId +language-id+)
         (list 'providerId +provider-id+)
         (list 'status (type-status findings))
         (list 'findings (map finding-snapshot findings))))
-
-(def (bench-packet-has-key? packet key)
-  (or (hash-key? packet key)
-      (hash-key? packet (symbol->string key))))
-
-(def (bench-packet-get packet key)
-  (if (hash-key? packet key)
-    (hash-get packet key)
-    (hash-get packet (symbol->string key))))
-
-(def (bench-step-snapshot benchmark)
-  (list 'bench
-        (list 'name (bench-packet-get benchmark 'name))
-        (list 'iterations (bench-packet-get benchmark 'iterations))
-        (list 'durationMs (duration-state
-                            (bench-packet-get benchmark 'durationMs)))
-        (list 'averageMicros (duration-state
-                               (bench-packet-get benchmark 'averageMicros)))
-        (list 'averageMs (duration-state
-                           (bench-packet-get benchmark 'averageMs)))))
-
-(def (bench-performance-finding-snapshot finding)
-  (list 'finding
-        (list 'kind (bench-packet-get finding 'kind))
-        (list 'severity (bench-packet-get finding 'severity))
-        (list 'summary (bench-packet-get finding 'summary))
-        (list 'totalMs (duration-state
-                         (bench-packet-get finding 'totalMs)))
-        (list 'maxTotalMs (bench-packet-get finding 'maxTotalMs))
-        (list 'exceededByMs (duration-state
-                              (bench-packet-get finding 'exceededByMs)))
-        (list 'slowestBenchmarkName
-              (bench-packet-get finding 'slowestBenchmarkName))
-        (list 'slowestBenchmarkDurationMs
-              (duration-state
-               (bench-packet-get finding 'slowestBenchmarkDurationMs)))))
-
-(def (bench-report-snapshot packet)
-  (list 'benchReport
-        (list 'languageId +language-id+)
-        (list 'providerId +provider-id+)
-        (list 'schemaId (bench-packet-get packet 'schemaId))
-        (list 'status (bench-packet-get packet 'status))
-        (list 'iterations (bench-packet-get packet 'iterations))
-        (list 'maxTotalMs (if (bench-packet-has-key? packet 'maxTotalMs)
-                            (bench-packet-get packet 'maxTotalMs)
-                            #f))
-        (list 'totalMs (duration-state
-                         (bench-packet-get packet 'totalMs)))
-        (list 'files (bench-packet-get packet 'files))
-        (list 'definitions (bench-packet-get packet 'definitions))
-        (list 'findings (bench-packet-get packet 'findings))
-        (list 'performanceFindings
-              (map bench-performance-finding-snapshot
-                   (bench-packet-get packet 'performanceFindings)))
-        (list 'slowestBenchmark
-              (bench-step-snapshot
-               (bench-packet-get packet 'slowestBenchmark)))
-        (list 'benchmarks
-              (map bench-step-snapshot
-                   (bench-packet-get packet 'benchmarks)))))

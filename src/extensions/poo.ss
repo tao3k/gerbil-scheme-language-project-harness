@@ -20,22 +20,25 @@
         poo-pattern-selectors
         poo-pattern-minimal-forms
         poo-pattern-failure-cases)
-
+;; ConfigConstant
 (def +poo-extension-name+ "poo")
+;; ConfigConstant
 (def +poo-extension-activation+ "gerbil.pkg")
+;; Integer
 (def +poo-dependency-mode+ "required")
+;; ConfigConstant
 (def +poo-package-tokens+
   '("poo" "clan/poo" "gerbil-poo" "git.cons.io/mighty-gerbils/gerbil-poo"))
-
+;; Boolean <- ProjectIndex
 (def (poo-extension-active? index)
   (project-package-depends-on? (project-index-package index)
                                poo-package-token?))
-
+;; Boolean <- String
 (def (poo-package-token? token)
   (and token
        (or (member token +poo-package-tokens+)
            (string-suffix? "/gerbil-poo" token))))
-
+;; (List String)
 (def (poo-extension-capability-names)
   '("object-system"
     "metaobject-protocol"
@@ -43,7 +46,7 @@
     "policy-protocol"
     "macro-governance"
     "user-override-witness"))
-
+;; Fact <- ProjectIndex
 (def (poo-extension-fact index)
   (and (poo-extension-active? index)
        (let (package (project-index-package index))
@@ -54,17 +57,17 @@
                               (project-package-name package)
                               (project-package-dependencies package)
                               (poo-extension-capability-names)))))
-
+;; (List String) <- ProjectIndex
 (def (poo-extension-search-lines index)
   (let (fact (poo-extension-fact index))
     (if fact
       [(extension-fact-search-line fact)]
       '())))
-
+;; Json <- ProjectIndex
 (def (poo-extension-json index)
   (let (fact (poo-extension-fact index))
     (and fact (extension-fact-json fact))))
-
+;; PooSourceRef <- ProjectIndex
 (def (poo-source-ref index)
   (hash (kind "package-manager-download")
         (manager "gxpkg")
@@ -73,7 +76,10 @@
         (repository "git.cons.io/mighty-gerbils/gerbil-poo")
         (pathPolicy "runtime-resolved")
         (selectorScheme "gerbil-poo-logical-symbol")))
-
+;;; Boundary:
+;;; - poo-extension-dependency composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex
 (def (poo-extension-dependency index)
   (let* ((package (project-index-package index))
          (matches (if package
@@ -83,7 +89,7 @@
     (if (pair? matches)
       (car matches)
       "git.cons.io/mighty-gerbils/gerbil-poo")))
-
+;; String <- ProjectIndex (List PooFormFact)
 (def (poo-pattern-evidence index terms)
   (and (poo-pattern-query? terms)
        (poo-extension-fact index)
@@ -102,12 +108,12 @@
                (witness (poo-pattern-witness kind))
                (missing (poo-pattern-missing kind))
                (next (poo-pattern-next kind))))))
-
+;; Boolean <- (List PooFormFact)
 (def (poo-pattern-query? terms)
   (and (pair? terms)
        (or (equal? (car terms) +poo-extension-name+)
            (member +poo-extension-name+ terms))))
-
+;; String <- (List PooFormFact)
 (def (poo-pattern-kind terms)
   (cond
    ((poo-pattern-term-any? terms ["trace" "debug" "trace-poo"
@@ -131,16 +137,19 @@
                                   "compose-proto*" "instantiate-proto"])
     'prototype-composition)
    (else 'object-system)))
-
+;;; Boundary:
+;;; - poo-pattern-term-any? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- (List PooFormFact) Needles
 (def (poo-pattern-term-any? terms needles)
   (and (pair? terms)
        (ormap (lambda (needle) (member needle terms)) needles)))
-
+;; PooPatternFocus <- String (List PooFormFact)
 (def (poo-pattern-focus kind terms)
   (if (and (pair? terms) (pair? (cdr terms)))
     (join (cdr terms) " ")
     (poo-pattern-default-focus kind)))
-
+;; String <- String
 (def (poo-pattern-id kind)
   (case kind
     ((prototype-composition) "poo-prototype-composition")
@@ -151,7 +160,7 @@
     ((type-validation) "poo-type-validation-sealed")
     ((c3-mro) "poo-c3-mro-regression")
     (else "poo-object-system")))
-
+;; PooPatternDefaultFocus <- String
 (def (poo-pattern-default-focus kind)
   (case kind
     ((prototype-composition) "prototype composition")
@@ -162,7 +171,7 @@
     ((type-validation) "sealed type validation")
     ((c3-mro) "c3 mro slot order")
     (else "object-system")))
-
+;; (List String) <- String
 (def (poo-pattern-source-owners kind)
   (case kind
     ((prototype-composition) ["proto.ss"])
@@ -177,7 +186,7 @@
            "proto.ss"
            ":gerbil/runtime/c3"
            "src/gerbil/test/c3-test.ss"])))
-
+;; PooPatternAgentScenario <- String
 (def (poo-pattern-agent-scenario kind)
   (case kind
     ((prototype-composition) "agent-composes-poo-prototypes-without-knowing-proto-order")
@@ -188,7 +197,7 @@
     ((type-validation) "agent-defines-poo-class-without-sealed-type-validation")
     ((c3-mro) "agent-writes-poo-inheritance-without-knowing-c3-linearization")
     (else "agent-does-not-know-gerbil-poo-object-system")))
-
+;; PooPatternIntent <- String
 (def (poo-pattern-intent kind)
   (case kind
     ((prototype-composition) "query-proto-composition-source-before-composing-object-prototypes")
@@ -199,7 +208,10 @@
     ((type-validation) "query-sealed-class-and-validate-witness-before-writing-type-checked-poo-classes")
     ((c3-mro) "force-agent-to-query-poo-and-runtime-c3-witnesses-before-editing-inheritance")
     (else "write-gerbil-poo-object-system-without-racket-or-generic-scheme-guessing")))
-
+;;; Boundary:
+;;; - poo-pattern-selectors coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; Selector
 (def (poo-pattern-selectors (kind 'object-system))
   (case kind
     ((prototype-composition)
@@ -314,7 +326,10 @@
       (hash (role "real-project-semantic-test")
             (symbol "c3-test")
             (selector "gerbil-runtime-test://src/gerbil/test/c3-test.ss#c3-test"))])))
-
+;;; Boundary:
+;;; - poo-pattern-minimal-forms coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; Integer
 (def (poo-pattern-minimal-forms (kind 'object-system))
   (case kind
     ((prototype-composition)
@@ -509,7 +524,10 @@
                                        "#(__class <base-slots> ... <class-slots> ...)"])
                             (keywords [])))
             (selector "gerbil-runtime-test://src/gerbil/test/c3-test.ss#slot-computation-order"))])))
-
+;;; Boundary:
+;;; - poo-pattern-failure-cases coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; PooPatternFailureCases
 (def (poo-pattern-failure-cases (kind 'object-system))
   (case kind
     ((prototype-composition)
@@ -636,7 +654,10 @@
             (selectors ["gerbil-runtime://c3.ss#class-precedence-list"
                         "gerbil-runtime-test://src/gerbil/test/c3-test.ss#c3-test"
                         "gerbil-runtime-test://src/gerbil/test/c3-test.ss#slot-computation-order"]))])))
-
+;;; Boundary:
+;;; - poo-pattern-quality-signals coordinates multiple evidence fields.
+;;; - Keep packet shape and invariants stable.
+;; PooPatternQualitySignals <- String
 (def (poo-pattern-quality-signals kind)
   (case kind
     ((prototype-composition)
@@ -666,7 +687,7 @@
      ["active-extension-fact" "dependency-backed-mapping" "real-project-c3-test"
       "mro-linearization-witness" "slot-order-witness" "minimal-forms"
       "failure-cases"])))
-
+;; PooPatternWitness <- String
 (def (poo-pattern-witness kind)
   (case kind
     ((prototype-composition) "runtime-prototype-composition-witness")
@@ -677,7 +698,7 @@
     ((type-validation) "real-project-sealed-type-validation-witness")
     ((c3-mro) "real-project-c3-and-slot-order-witness")
     (else "dependency-backed-poo-mapping")))
-
+;; PooPatternMissing <- String
 (def (poo-pattern-missing kind)
   (case kind
     ((prototype-composition) [])
@@ -687,7 +708,7 @@
     ((lens) [])
     ((type-validation) [])
     (else [])))
-
+;; String <- String
 (def (poo-pattern-next kind)
   (case kind
     ((prototype-composition) "search pattern poo prototype composition witness")
@@ -698,7 +719,7 @@
     ((type-validation) "search pattern poo sealed validate")
     ((c3-mro) "search extension poo pattern c3")
     (else "search extension poo syntax")))
-
+;; Boolean <- Suffix SourceLine
 (def (string-suffix? suffix text)
   (let ((suffix-length (string-length suffix))
         (text-length (string-length text)))

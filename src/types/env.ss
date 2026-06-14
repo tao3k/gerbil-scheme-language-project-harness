@@ -2,6 +2,7 @@
 ;;; Type environment facts derived from parser-owned definitions.
 
 (import :parser/facade
+        :std/sugar
         :types/model
         :types/signatures)
 
@@ -24,24 +25,31 @@
         build-param-type-env
         build-param-type-env/signatures
         duplicate-type-bindings)
-
+;; TypeBindingStruct
 (defstruct type-binding (name kind type formals arity path selector))
+;; TypeParamBindingStruct
 (defstruct type-param-binding (function-name name type path selector))
-
+;; TypeSpec <- ProjectIndex
 (def (build-type-env index)
   (build-type-env/signatures index '()))
-
+;;; Boundary:
+;;; - build-type-env/signatures composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; TypeSpec <- ProjectIndex NativeSignatures
 (def (build-type-env/signatures index signatures)
   (map (cut definition->type-binding <> signatures)
        (project-definitions index)))
-
+;; TypeSpec <- ProjectIndex
 (def (build-param-type-env index)
   (build-param-type-env/signatures index '()))
-
+;;; Boundary:
+;;; - build-param-type-env/signatures composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; TypeSpec <- ProjectIndex NativeSignatures
 (def (build-param-type-env/signatures index signatures)
   (append-map (cut definition->param-type-bindings <> signatures)
               (project-definitions index)))
-
+;; TypeSpec <- Definition NativeSignatures
 (def (definition->type-binding defn signatures)
   (make-type-binding (definition-name defn)
                      (definition-kind defn)
@@ -51,13 +59,13 @@
                      (definition-arity defn)
                      (definition-path defn)
                      (definition-selector defn)))
-
+;; (List BindingFact) <- Definition NativeSignatures
 (def (definition->param-type-bindings defn signatures)
   (let (signature-type (signature-type-for (definition-name defn) signatures))
     (if signature-type
       (signature-formal-bindings defn signature-type)
       '())))
-
+;; (List BindingFact) <- Definition SignatureType
 (def (signature-formal-bindings defn signature-type)
   (let (formals (definition-formals defn))
     (case (type-kind signature-type)
@@ -74,53 +82,62 @@
                                       (length formals)))
          '()))
       (else '()))))
-
+;;; Invariant:
+;;; - param-bindings owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; (List BindingFact) <- Definition Formals ParamTypes
 (def (param-bindings defn formals param-types)
-  (let lp ((names formals) (types param-types) (out '()))
-    (cond
-     ((or (null? names) (null? types)) (reverse out))
-     ((useful-param-type? (car types))
-      (lp (cdr names)
-          (cdr types)
-          (cons (make-type-param-binding (definition-name defn)
-                                         (car names)
-                                         (car types)
-                                         (definition-path defn)
-                                         (definition-selector defn))
-                out)))
-     (else (lp (cdr names) (cdr types) out)))))
-
+  (filter-map
+   (lambda (param)
+     (let ((name (car param))
+           (type (cdr param)))
+       (and (useful-param-type? type)
+            (make-type-param-binding (definition-name defn)
+                                     name
+                                     type
+                                     (definition-path defn)
+                                     (definition-selector defn)))))
+   (map cons formals param-types)))
+;; Boolean <- Type
 (def (useful-param-type? type)
   (not (member (type-kind type) '(unknown any))))
-
+;;; Invariant:
+;;; - repeat-type owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; TypeSpec <- Type Integer
 (def (repeat-type type count)
-  (let lp ((remaining count) (out '()))
-    (if (<= remaining 0)
-      (reverse out)
-      (lp (- remaining 1) (cons type out)))))
-
+  (make-list count type))
+;;; Invariant:
+;;; - append-map owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Integer <- (YY <- XX) (List XX)
 (def (append-map fn items)
-  (let lp ((rest items) (out '()))
-    (match rest
-      ([] (reverse out))
-      ([item . more]
-       (lp more (append-reverse (fn item) out))))))
-
-(def (append-reverse items out)
-  (let lp ((rest items) (acc out))
-    (match rest
-      ([] acc)
-      ([item . more] (lp more (cons item acc))))))
-
+  (foldr (lambda (item out) (append (fn item) out)) '() items))
+;;; Boundary:
+;;; - duplicate-type-bindings is a keyed fold over path/name/kind triples.
+;;; - State keeps seen bindings and duplicate pairs separate for repair output.
+;; (List BindingFact) <- (List Definition)
 (def (duplicate-type-bindings bindings)
-  (let lp ((rest bindings) (seen '()) (dupes '()))
-    (match rest
-      ([] (reverse dupes))
-      ([binding . more]
-       (let* ((key (list (type-binding-path binding)
-                         (type-binding-name binding)
-                         (type-binding-kind binding)))
-              (prior (assoc key seen)))
-         (if prior
-           (lp more seen (cons [binding (cdr prior)] dupes))
-           (lp more (cons (cons key binding) seen) dupes)))))))
+  (let (state
+        (foldl (lambda (binding state)
+                 (if (poo-method-type-binding? binding)
+                   state
+                   (let* ((seen (car state))
+                          (dupes (cdr state))
+                          (key (list (type-binding-path binding)
+                                     (type-binding-name binding)
+                                     (type-binding-kind binding)))
+                          (prior (assoc key seen)))
+                     (if prior
+                       (cons seen (cons [binding (cdr prior)] dupes))
+                       (cons (cons (cons key binding) seen) dupes)))))
+               (cons '() '())
+               bindings))
+    (reverse (cdr state))))
+
+;;; Boundary:
+;;; - POO methods are overload/specializer entries under one generic, not duplicate definitions.
+;;; - Keep duplicate type checks focused on owners where a same-name binding really shadows evidence.
+;; Boolean <- TypeBinding
+(def (poo-method-type-binding? binding)
+  (member (type-binding-kind binding) '("defmethod" ".defmethod")))

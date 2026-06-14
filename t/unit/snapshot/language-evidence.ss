@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :commands/guide
         :language/facade
         :protocol/registry
@@ -8,7 +11,7 @@
 (export check-language-evidence-snapshot-fields
         check-language-evidence-snapshot-fixtures
         check-guide-and-registry-snapshot-fixtures)
-
+;; String <- (List String) String
 (def (fact-by-id facts id)
   (let lp ((rest facts))
     (match rest
@@ -17,7 +20,7 @@
        (if (equal? (hash-get fact 'id) id)
          fact
          (lp tail))))))
-
+;; String
 (def (check-language-evidence-snapshot-fields)
   (let (fact (fact-by-id (standard-library-facts) "std/text/json"))
     (check (language-evidence-search-snapshot
@@ -58,7 +61,7 @@
                                     "read-json-capability"
                                     "only-in-minimal-import")))))
                 (next "search std json")))))
-
+;; String
 (def (check-language-evidence-snapshot-fixtures)
   (let ((env-fact (fact-by-id (active-runtime-facts) "active-gerbil-runtime"))
         (module-fact (fact-by-id (language-rule-facts) "module-import"))
@@ -84,7 +87,7 @@
             [std-json-fact]
             (hash-get std-json-fact 'next))
            => (snapshot-load "t/snapshots/language-std-json.ss"))))
-
+;; String
 (def (check-guide-and-registry-snapshot-fixtures)
   (check (guide-snapshot (guide-lines))
          => (snapshot-load "t/snapshots/search-guide.ss"))

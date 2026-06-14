@@ -10,7 +10,10 @@
 (export load-call-whitelist
         run-whitelist-checks
         call-whitelist-finding)
-
+;;; Boundary:
+;;; - load-call-whitelist composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; ParsedData <- String
 (def (load-call-whitelist path)
   (call-with-input-file path
     (lambda (port)
@@ -23,7 +26,10 @@
                       (string-prefix? ";" trimmed))
                 (lp out)
                 (lp (cons trimmed out))))))))))
-
+;;; Boundary:
+;;; - run-whitelist-checks composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex Whitelist
 (def (run-whitelist-checks index whitelist)
   (let (allowed (append whitelist (project-definition-names index)))
     (filter-map
@@ -31,13 +37,16 @@
        (and (not (allowed-callee? (call-fact-callee call) allowed))
             (call-whitelist-finding call)))
      (project-calls index))))
-
+;;; Boundary:
+;;; - project-definition-names composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List String) <- ProjectIndex
 (def (project-definition-names index)
   (map definition-name (project-definitions index)))
-
+;; Boolean <- Callee Allowed
 (def (allowed-callee? callee allowed)
   (member callee allowed))
-
+;; TypeFinding <- CallFact
 (def (call-whitelist-finding call)
   (let (selector (call-fact-selector call))
     (make-type-finding

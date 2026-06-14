@@ -8,7 +8,10 @@
         :support/args)
 
 (export agent-main)
-
+;;; Invariant:
+;;; - agent-main owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; AgentMain <- (List XX)
 (def (agent-main args)
   (match args
     (["doctor" . rest]

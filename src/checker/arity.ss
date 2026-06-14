@@ -11,20 +11,26 @@
 (export run-arity-checks
         call-arity-finding)
 
-(def (run-arity-checks index signatures)
-  (filter-map
-   (lambda (call)
-     (let (signature (signature-type-for (call-fact-callee call) signatures))
-       (and signature (call-arity-finding call signature))))
-   (project-calls index)))
+;; (Maybe TypeFinding) <- NativeSignatures CallFact
+(def (call-arity-finding/known-signature signatures call)
+  (let (signature (signature-type-for (call-fact-callee call) signatures))
+    (and signature (call-arity-finding call signature))))
 
+;;; Boundary:
+;;; - run-arity-checks composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex NativeSignatures
+(def (run-arity-checks index signatures)
+  (filter-map (cut call-arity-finding/known-signature signatures <>)
+              (project-calls index)))
+;; (Maybe TypeFinding) <- CallFact NativeSignatures
 (def (call-arity-finding call signature)
   (and (eq? (type-kind signature) 'function)
        (let* ((expected (length (type-params signature)))
               (actual (call-fact-arity call)))
          (and (not (fx= expected actual))
               (arity-mismatch-finding call expected actual signature)))))
-
+;; TypeFinding <- CallFact ExpectedArity ActualArity NativeSignatures
 (def (arity-mismatch-finding call expected actual signature)
   (let ((evidence
          (make-checker-evidence

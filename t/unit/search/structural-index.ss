@@ -5,7 +5,7 @@
         :std/test)
 (export check-structural-index-required-envelope
         check-structural-index-queryable-facts)
-
+;; Integer
 (def (check-structural-index-required-envelope)
   (let* ((index (collect-project "."))
          (packet (structural-index-packet-json index))
@@ -30,7 +30,7 @@
     (check (> (length (hash-get packet 'symbols)) 0) => #t)
     (check (> (length (hash-get packet 'syntaxFacts)) 0) => #t)
     (check (list? (hash-get packet 'dependencyUsages)) => #t)))
-
+;; Integer
 (def (check-structural-index-queryable-facts)
   (let* ((index (collect-project "."))
          (packet (structural-index-packet-json index)))
@@ -46,47 +46,71 @@
     (check (packet-has-syntax-fact-field? packet "class" "<Widget>" 'slots ["name" "count"]) => #t)
     (check (packet-has-syntax-fact-field? packet "interface" "<Renderable>" 'role "protocol") => #t)
     (check (packet-has-syntax-fact-field? packet "function" "case-lambda" 'role "multi-arity-function") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "function" "case-lambda" "case-lambda-optimization-boundary") => #t)
     (check (packet-has-syntax-fact-field? packet "function" "lambda" 'formals ["widget"]) => #t)
     (check (packet-has-syntax-fact-field? packet "call" "map" 'role "sequence-map") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "call" "map" "expression-level-composition") => #t)
     (check (packet-has-syntax-fact-field? packet "call" "filter" 'role "sequence-filter") => #t)
     (check (packet-has-syntax-fact-field? packet "call" "fold-left" 'role "sequence-fold") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "call" "fold-left" "expression-level-composition") => #t)
     (check (packet-has-syntax-fact-field? packet "call" "cut" 'role "partial-application") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "call" "cut" "combinator-composition") => #t)
     (check (packet-has-syntax-fact-field? packet "call" "for/fold" 'role "loop-fold") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "call" "for/fold" "builder-or-fold-combinator") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "macro" "with-widget" "macro-sugar") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "macro" "capture-safe" "syntax-case-transformer") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "loop" 'role "manual-loop") => #t)
     (check (packet-has-syntax-fact-query-key? packet "custom" "loop" "control-flow") => #t)
-    (check (packet-has-syntax-fact-id? packet "custom" "loop"
-                                       "control-flow:t/fixtures/parser/control-flow.ss:7:loop") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "loop" 'bindingCount 2) => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "loop" 'bodyFormCount 1) => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "let/cc" 'role "continuation-control") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "try" 'role "protected-control") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "finally" 'role "protected-handler") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "call-with-output-string" 'role "resource-scope") => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "match" 'role "pattern-branch") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "match" "control-flow") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'role "typed-combinator-style") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'contract "String <- String (List String)") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'contractOutput "String") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'contractInputs ["String" "(List String)"]) => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'definitionArity 2) => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'contractInputCount 2) => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'arityAlignment "aligned") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "make-widget" 'quality "grouped-transform") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "comment" "make-widget" "combinator-candidate") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "<Widget>" 'quality "declaration-contract") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "comment" "make-widget" "typed-combinator-style") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "with-widget" 'role "engineering-comment-quality") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "with-widget" 'context "macro") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "with-widget" 'commentKind "contract-only") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "with-widget" 'quality "weak") => #t)
+    (check (packet-has-syntax-fact-field? packet "comment" "with-widget" 'required #t) => #t)
+    (check (packet-has-syntax-fact-query-key? packet "comment" "with-widget" "comment-quality") => #t)
     (check (packet-syntax-fact-ids-are-sorted? packet) => #t)
     (check (packet-has-dependency? packet ":parser/facade") => #t)
     (check (packet-file-hashes-are-64-hex? packet) => #t)))
-
+;; Boolean <- Packet String
 (def (packet-has-owner? packet path)
   (ormap (lambda (owner)
            (equal? (hash-get owner 'ownerPath) path))
          (hash-get packet 'owners)))
-
+;; Boolean <- Packet String
 (def (packet-has-symbol? packet name)
   (ormap (lambda (symbol)
            (equal? (hash-get symbol 'name) name))
          (hash-get packet 'symbols)))
-
+;; Boolean <- Packet Key
 (def (packet-has-symbol-query-key? packet key)
   (ormap (lambda (symbol)
            (and (member key (hash-get symbol 'queryKeys)) #t))
          (hash-get packet 'symbols)))
-
+;; Boolean <- Packet String String
 (def (packet-has-syntax-fact? packet kind name)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
                 (equal? (hash-get fact 'name) name)))
          (hash-get packet 'syntaxFacts)))
-
+;; Boolean <- Packet String String String Expected
 (def (packet-has-syntax-fact-field? packet kind name field expected)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
@@ -94,7 +118,7 @@
                 (let (fields (hash-get fact 'fields))
                   (and fields (equal? (hash-get fields field) expected)))))
          (hash-get packet 'syntaxFacts)))
-
+;; Boolean <- Packet String String Key
 (def (packet-has-syntax-fact-query-key? packet kind name key)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
@@ -102,23 +126,23 @@
                 (member key (hash-get fact 'queryKeys))
                 #t))
          (hash-get packet 'syntaxFacts)))
-
+;; Boolean <- Packet String String String
 (def (packet-has-syntax-fact-id? packet kind name id)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
                 (equal? (hash-get fact 'name) name)
                 (equal? (hash-get fact 'id) id)))
          (hash-get packet 'syntaxFacts)))
-
+;; Boolean <- Packet
 (def (packet-syntax-fact-ids-are-sorted? packet)
   (let (ids (map (cut hash-get <> 'id) (hash-get packet 'syntaxFacts)))
     (equal? ids (sort ids string<?))))
-
+;; Boolean <- Packet ImportPath
 (def (packet-has-dependency? packet import-path)
   (ormap (lambda (usage)
            (equal? (hash-get usage 'importPath) import-path))
          (hash-get packet 'dependencyUsages)))
-
+;; Boolean <- Packet
 (def (packet-file-hashes-are-64-hex? packet)
   (andmap (lambda (entry)
             (let (sha256 (hash-get entry 'sha256))

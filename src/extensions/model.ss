@@ -16,9 +16,9 @@
         extension-fact-capabilities
         extension-fact-json
         extension-fact-search-line)
-
+;; ExtensionFactStruct
 (defstruct extension-fact (name activation dependency-mode package-manager package dependencies capabilities))
-
+;; Json <- Fact
 (def (extension-fact-json fact)
   (hash (name (extension-fact-name fact))
         (activation (extension-fact-activation fact))
@@ -27,7 +27,7 @@
         (package (extension-fact-package fact))
         (dependencies (extension-fact-dependencies fact))
         (capabilities (extension-fact-capabilities fact))))
-
+;; String <- ExtensionFact
 (def (extension-fact-search-line fact)
   (string-append
    "|extension name="

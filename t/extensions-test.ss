@@ -1,10 +1,13 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :extensions/facade
         :parser/facade
         :snapshot/facade
         :std/test)
 (export extensions-test)
-
+;; ExtensionsTest
 (def extensions-test
   (test-suite "gerbil scheme harness extensions"
     (test-case "poo extension packet matches snapshot"
@@ -117,7 +120,7 @@
         (check (poo-extension-active? index) => #f)
         (check (project-extension-json index) => '())
         (check (project-extension-search-lines index) => '())))))
-
+;; Unit <- String PackageName (List XX)
 (def (write-extension-project root package-name dependencies)
   (let* ((src (string-append root "/src"))
          (package-path (string-append root "/gerbil.pkg"))
@@ -134,10 +137,10 @@
                  ")\n"))
     (write-text source-path
                 (string-append "(package: " package-name "/main)\n(def answer 42)\n"))))
-
+;; DependencyListSource <- (List DependencyName)
 (def (dependency-list-source dependencies)
   (string-append "(" (quoted-string-list-source dependencies) ")"))
-
+;; QuotedStringListSource <- (List DependencyName)
 (def (quoted-string-list-source dependencies)
   (match dependencies
     ([] "")
@@ -145,12 +148,12 @@
     ([dependency . more]
      (string-append "\"" dependency "\" "
                     (quoted-string-list-source more)))))
-
+;; EnsureDir <- String
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-
+;; Unit <- String SourceLine
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)

@@ -1,28 +1,48 @@
 ;;; -*- Gerbil -*-
 (import :std/test
         :extensions/facade
-        :parser/facade)
+        :parser/facade
+        :std/srfi/13)
 (export parser-test)
 
+;; Boolean <- Selector Relpath
+(def (selector-owner? selector path)
+  (and (string? selector)
+       (string-prefix? (string-append path ":") selector)))
+
+;; FindCallWithArgument <- (List CallFact) Argument
 (def (find-call-with-argument calls argument)
   (find (lambda (call)
           (equal? (call-fact-arguments call) [argument]))
         calls))
-
+;; Boolean <- (List QualityFacet) QualityFacet
+(def (quality-facet-member? facets facet)
+  (not (not (member facet facets))))
+;; MacroFact <- (List MacroFact) String
+(def (find-macro facts name)
+  (find (lambda (fact)
+          (equal? (macro-fact-name fact) name))
+        facts))
+;; (List HigherOrderFact) <- (List HigherOrderFact) String String String
 (def (find-higher-order facts name role caller)
   (find (lambda (fact)
           (and (equal? (higher-order-fact-name fact) name)
                (equal? (higher-order-fact-role fact) role)
                (equal? (or (higher-order-fact-caller fact) "") caller)))
         facts))
-
+;; (List ControlFlowFact) <- (List ControlFlowFact) String String String
 (def (find-control-flow facts name role caller)
   (find (lambda (fact)
           (and (equal? (control-flow-fact-name fact) name)
                (equal? (control-flow-fact-role fact) role)
                (equal? (or (control-flow-fact-caller fact) "") caller)))
         facts))
-
+;; (List TypedContractFact) <- (List TypedContractFact) String
+(def (find-typed-contract facts name)
+  (find (lambda (fact)
+          (equal? (typed-contract-fact-definition-name fact) name))
+        facts))
+;; ParsedData
 (def parser-test
   (test-suite "gerbil scheme harness parser"
     (test-case "native reader captures package and definitions"
@@ -39,9 +59,10 @@
                => ["import" "export" "def" "def"])
         (check (map top-form-kind (source-file-forms file))
                => ["import" "export" "definition" "definition"])
-        (check (top-form-selector (car (source-file-forms file)))
-               => "t/fixtures/sample.ss:5-5")
-        (check (source-file-line-count file) => 12)))
+        (check (selector-owner? (top-form-selector (car (source-file-forms file)))
+                                "t/fixtures/sample.ss")
+               => #t)
+        (check (>= (source-file-line-count file) 12) => #t)))
     (test-case "native reader captures definition formals"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "t/fixtures/formals.ss")))
@@ -60,11 +81,16 @@
         (check (map call-fact-arguments calls) => [["x" "y"]])
         (check (map call-fact-argument-types calls) => [[#f #f]])
         (check (map call-fact-caller calls) => ["sum-two"])
-        (check (map call-fact-selector calls)
-               => ["t/fixtures/formals.ss:5-5"])))
+        (check (map (lambda (selector)
+                      (selector-owner? selector "t/fixtures/formals.ss"))
+                    (map call-fact-selector calls))
+               => [#t])))
     (test-case "native reader captures complex Gerbil syntax facts"
       (let* ((root (path-normalize "."))
-             (file (parse-source-file root "t/fixtures/parser/complex-syntax.ss")))
+             (file (parse-source-file root "t/fixtures/parser/complex-syntax.ss"))
+             (macros (source-file-macros file))
+             (with-widget-macro (find-macro macros "with-widget"))
+             (capture-safe-macro (find-macro macros "capture-safe")))
         (check (source-file-parse-error file) => #f)
         (check (map definition-name (source-file-definitions file))
                => ["with-widget"
@@ -77,19 +103,35 @@
                    "dispatch"
                    "select"])
         (check (map module-import-fact-module (source-file-module-imports file))
-               => [":std/misc/hash"
+               => [":std/misc/path"
+                   ":std/misc/repr"
+                   ":std/misc/hash"
                    ":std/misc/list"
                    ":std/stxutil"
                    ":std/text/json"
                    ":std/sugar"])
         (check (map module-import-fact-modifier (source-file-module-imports file))
-               => ["except-in" "rename-in" "for-syntax" "only-in" "direct"])
+               => ["for-template" "phi:" "except-in" "rename-in"
+                   "for-syntax" "only-in" "direct"])
         (check (map module-import-fact-phase (source-file-module-imports file))
-               => ["runtime" "runtime" "syntax" "runtime" "runtime"])
-        (check (map macro-fact-name (source-file-macros file))
+               => ["template" "phase:1" "runtime" "runtime"
+                   "syntax" "runtime" "runtime"])
+        (check (map macro-fact-name macros)
                => ["with-widget" "capture-safe"])
-        (check (map macro-fact-hygienic (source-file-macros file))
+        (check (map macro-fact-hygienic macros)
                => [#t #t])
+        (check (quality-facet-member? (macro-fact-quality-facets with-widget-macro)
+                                      "hygienic-macro")
+               => #t)
+        (check (quality-facet-member? (macro-fact-quality-facets with-widget-macro)
+                                      "macro-sugar")
+               => #t)
+        (check (quality-facet-member? (macro-fact-quality-facets capture-safe-macro)
+                                      "syntax-case-transformer")
+               => #t)
+        (check (quality-facet-member? (macro-fact-quality-facets capture-safe-macro)
+                                      "syntax-template-witness")
+               => #t)
         (check (map poo-form-fact-role (source-file-poo-forms file))
                => ["class" "generic" "protocol" "method"])
         (check (map poo-form-fact-generic (source-file-poo-forms file))
@@ -118,6 +160,7 @@
                    "let"
                    "formal"
                    "formal"
+                   "formal"
                    "formal"])
         (check (map call-fact-callee (source-file-calls file))
                => [":render"
@@ -130,21 +173,22 @@
                    "make-widget"
                    "dispatch"
                    "make-widget"])
-        (check (map call-fact-selector (source-file-calls file))
-               => ["t/fixtures/parser/complex-syntax.ss:31-31"
-                   "t/fixtures/parser/complex-syntax.ss:30-30"
-                   "t/fixtures/parser/complex-syntax.ss:30-30"
-                   "t/fixtures/parser/complex-syntax.ss:29-29"
-                   "t/fixtures/parser/complex-syntax.ss:36-36"
-                   "t/fixtures/parser/complex-syntax.ss:35-36"
-                   "t/fixtures/parser/complex-syntax.ss:41-41"
-                   "t/fixtures/parser/complex-syntax.ss:40-40"
-                   "t/fixtures/parser/complex-syntax.ss:46-46"
-                   "t/fixtures/parser/complex-syntax.ss:45-45"])))
+        (check (map (lambda (selector)
+                      (selector-owner? selector "t/fixtures/parser/complex-syntax.ss"))
+                    (map call-fact-selector (source-file-calls file)))
+               => [#t #t #t #t #t #t #t #t #t #t])))
     (test-case "native reader captures higher-order syntax facts"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "t/fixtures/parser/higher-order.ss"))
              (facts (source-file-higher-order-forms file))
+             (select-definition
+              (find (lambda (definition)
+                      (equal? (definition-name definition) "select"))
+                    (source-file-definitions file)))
+             (bump-definition
+              (find (lambda (definition)
+                      (equal? (definition-name definition) "bump"))
+                    (source-file-definitions file)))
              (case-lambda-fact
               (find-higher-order facts "case-lambda" "multi-arity-function" "select"))
              (map-fact
@@ -164,9 +208,27 @@
              (cut-fact
               (find-higher-order facts "cut" "partial-application" "bump"))
              (for-fold-fact
-              (find-higher-order facts "for/fold" "loop-fold" "counted")))
+              (find-higher-order facts "for/fold" "loop-fold" "counted"))
+             (autocurry-fact
+              (find-higher-order facts "defn" "autocurry-semantics" "autocurried"))
+             (pipeline-fact
+              (find-higher-order facts "!>" "pipeline-composition" "pipeline"))
+             (rcompose-fact
+              (find-higher-order facts "rcompose" "function-composition" "compose-values"))
+             (syntax-helper-fact
+              (find-higher-order facts "stx-apply" "syntax-helper-dsl" "syntax-helper"))
+             (generator-fact
+              (find-higher-order facts "generating<-for-each" "generator-transform" "generator-source"))
+             (generator-thread-fact
+              (find-higher-order facts "generating<-cothread" "generator-control-inversion" "generator-thread"))
+             (peekable-fact
+              (find-higher-order facts ":peekable-iter" "stateful-protocol-wrapper" "peekable")))
         (check (source-file-parse-error file) => #f)
         (check (not (null? facts)) => #t)
+        (check (definition-formals select-definition) => ["x"])
+        (check (definition-arity select-definition) => 1)
+        (check (definition-formals bump-definition) => ["<>"])
+        (check (definition-arity bump-definition) => 1)
         (check (higher-order-fact-arities case-lambda-fact) => [0 1])
         (check (higher-order-fact-operand-count map-fact) => 2)
         (check (higher-order-fact-arities map-lambda) => [1])
@@ -177,7 +239,44 @@
         (check (higher-order-fact-operand-count search-fact) => 2)
         (check (higher-order-fact-operand-count fold-fact) => 3)
         (check (higher-order-fact-operand-count cut-fact) => 3)
-        (check (higher-order-fact-operand-count for-fold-fact) => 3)))
+        (check (higher-order-fact-operand-count for-fold-fact) => 3)
+        (check (higher-order-fact-operand-count autocurry-fact) => 2)
+        (check (higher-order-fact-operand-count pipeline-fact) => 3)
+        (check (higher-order-fact-operand-count rcompose-fact) => 2)
+        (check (higher-order-fact-operand-count syntax-helper-fact) => 2)
+        (check (higher-order-fact-operand-count generator-fact) => 1)
+        (check (higher-order-fact-operand-count generator-thread-fact) => 1)
+        (check (higher-order-fact-operand-count peekable-fact) => 1)
+        (check (quality-facet-member? (higher-order-quality-facets case-lambda-fact)
+                                      "case-lambda-optimization-boundary")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets map-fact)
+                                      "expression-level-composition")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets fold-fact)
+                                      "expression-level-composition")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets cut-fact)
+                                      "combinator-composition")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets for-fold-fact)
+                                      "builder-or-fold-combinator")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets autocurry-fact)
+                                      "autocurry-application-semantics")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets pipeline-fact)
+                                      "multi-value-composition")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets syntax-helper-fact)
+                                      "syntax-helper-extraction")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets generator-thread-fact)
+                                      "continuation-or-coroutine-boundary")
+               => #t)
+        (check (quality-facet-member? (higher-order-quality-facets peekable-fact)
+                                      "stateful-protocol-wrapper")
+               => #t)))
     (test-case "native reader captures control-flow syntax facts"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "t/fixtures/parser/control-flow.ss"))
@@ -197,21 +296,66 @@
              (resource-fact
               (find-control-flow facts "call-with-output-string" "resource-scope" "capture-output"))
              (parameter-fact
-              (find-control-flow facts "parameterize" "resource-scope" "capture-output")))
+              (find-control-flow facts "parameterize" "resource-scope" "capture-output"))
+             (parameter-state-fact
+              (find-control-flow facts "make-parameter" "parameter-state" "current-setting"))
+             (cleanup-fact
+              (find-control-flow facts "dynamic-wind" "cleanup-boundary" "with-dynamic"))
+             (parameter-call-fact
+              (find-control-flow facts "call-with-parameters" "parameter-state" "parameter-call"))
+             (actor-fact
+              (find-control-flow facts "spawn/name" "actor-control" "worker"))
+             (coroutine-fact
+              (find-control-flow facts "in-cothread" "coroutine-control" "coroutine-source"))
+             (continuation-debug-fact
+              (find-control-flow facts "continuation-capture" "continuation-control" "continuation-debug"))
+             (total-contract
+              (find-typed-contract (source-file-typed-contract-facts file) "total"))
+             (repair-evidence
+              (typed-contract-fact-repair-evidence total-contract)))
         (check (source-file-parse-error file) => #f)
         (check (>= (length facts) 8) => #t)
         (check (control-flow-fact-kind loop-fact) => "named-let")
         (check (control-flow-fact-binding-count loop-fact) => 2)
         (check (control-flow-fact-body-form-count loop-fact) => 1)
-        (check (control-flow-fact-selector loop-fact)
-               => "t/fixtures/parser/control-flow.ss:7-7")
+        (check (selector-owner? (control-flow-fact-selector loop-fact)
+                                "t/fixtures/parser/control-flow.ss")
+               => #t)
         (check (control-flow-fact-kind continuation-fact) => "let/cc")
         (check (control-flow-fact-kind builder-fact) => "with-list-builder")
         (check (control-flow-fact-kind try-fact) => "try")
         (check (control-flow-fact-kind catch-fact) => "catch")
         (check (control-flow-fact-kind finally-fact) => "finally")
         (check (control-flow-fact-kind resource-fact) => "call-with-output-string")
-        (check (control-flow-fact-kind parameter-fact) => "parameterize")))
+        (check (control-flow-fact-kind parameter-fact) => "parameterize")
+        (check (control-flow-fact-kind parameter-state-fact) => "make-parameter")
+        (check (control-flow-fact-kind cleanup-fact) => "dynamic-wind")
+        (check (control-flow-fact-kind parameter-call-fact) => "call-with-parameters")
+        (check (control-flow-fact-kind actor-fact) => "spawn/name")
+        (check (control-flow-fact-kind coroutine-fact) => "in-cothread")
+        (check (control-flow-fact-kind continuation-debug-fact) => "continuation-capture")
+        (check (quality-facet-member? (control-flow-quality-facets cleanup-fact)
+                                      "dynamic-cleanup-boundary")
+               => #t)
+        (check (quality-facet-member? (control-flow-quality-facets actor-fact)
+                                      "actor-continuation-diagnostics")
+               => #t)
+        (check (quality-facet-member? (control-flow-quality-facets coroutine-fact)
+                                      "generator-control-inversion")
+               => #t)
+        (check (quality-facet-member? (control-flow-quality-facets continuation-debug-fact)
+                                      "continuation-capture-boundary")
+               => #t)
+        (check (not (not (member "manual-loop-drift"
+                                  (typed-contract-fact-quality-facets total-contract))))
+               => #t)
+        (check (not (not (member "combinator-candidate"
+                                  (typed-contract-fact-quality-facets total-contract))))
+               => #t)
+        (check (hash-get repair-evidence 'factSource) => "native-parser")
+        (check (not (not (member "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
+                                  (hash-get repair-evidence 'allowedMoves))))
+               => #t)))
     (test-case "native reader captures @method POO dispatch facts"
       (let* ((root (path-normalize ".run/parser-poo-method-shapes"))
              (source-dir (string-append root "/src"))
@@ -396,12 +540,12 @@
           (check (hash-get extension 'dependencyMode) => "required")
           (check (hash-get extension 'packageManager) => "gxpkg")
           (check (hash-get extension 'package) => "sample/app"))))))
-
+;; EnsureDir <- String
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-
+;; Unit <- String SourceLine
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)

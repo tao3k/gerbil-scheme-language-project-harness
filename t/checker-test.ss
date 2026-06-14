@@ -1,11 +1,14 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :gerbil/gambit
         :std/test
         :checker/facade
         :parser/facade
         :types/facade)
 (export checker-test)
-
+;; CheckerTest
 (def checker-test
   (test-suite "gerbil scheme harness checker"
     (test-case "arity checker reports signature mismatches from native calls"
@@ -24,7 +27,7 @@
                => "GERBIL-SCHEME-CHECKER-A001")
         (check (type-finding-severity finding) => "error")
         (check (type-finding-selector finding)
-               => "t/fixtures/formals.ss:5-5")
+               => "t/fixtures/formals.ss:8-8")
         (check (type-finding-message finding)
                => "arity mismatch for +: expected 3, got 2")))
     (test-case "native whitelist checker rejects unlisted external calls"
@@ -165,7 +168,7 @@
              (rule-ids (map type-finding-rule-id findings)))
         (check (not (not (member "GERBIL-SCHEME-CHECKER-T001" rule-ids)))
                => #t)))))
-
+;; Unit <- String
 (def (write-whitelist-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -177,7 +180,7 @@
                 ";;; -*- Gerbil -*-\n(def (safe x) (allowed x))\n(def (unsafe x) (danger x))\n")
     (write-text whitelist-path
                 "; comment lines are ignored\nallowed\n\n")))
-
+;; Unit <- String
 (def (write-harness-macro-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss")))
@@ -186,7 +189,7 @@
     (ensure-dir src)
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax unsafe-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
-
+;; Unit <- String MaybePackageSource
 (def (write-generated-macro-project root . maybe-package-source)
   (let* ((generated (string-append root "/generated"))
          (source-path (string-append generated "/sample.ss"))
@@ -199,7 +202,7 @@
       (delete-file-if-exists package-path))
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax generated-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
-
+;; Unit <- String
 (def (write-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -211,7 +214,7 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-number n) (needs-string n))\n(def (use-string s) (needs-string s))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string))\n (use-number . (function (number) number))\n (use-string . (function (string) string)))\n")))
-
+;; Unit <- String
 (def (write-literal-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -223,7 +226,7 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def good (needs-string \"ok\"))\n(def bad (needs-string 10))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
-
+;; Unit <- String
 (def (write-local-binding-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -235,7 +238,7 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let)\n  (let ((value \"ok\") (bad 10))\n    (needs-string value)\n    (needs-string bad)))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
-
+;; Unit <- String
 (def (write-local-alias-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -247,19 +250,19 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let-star)\n  (let* ((value \"ok\")\n         (alias value)\n         (bad 10)\n         (bad-alias bad))\n    (needs-string alias)\n    (needs-string bad-alias)))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
-
+;; EnsureDir <- String
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-
+;; Unit <- String SourceLine
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)
    (lambda () (delete-file path)))
   (call-with-output-file path
     (lambda (port) (display text port))))
-
+;; DeleteFileIfExists <- String
 (def (delete-file-if-exists path)
   (with-catch
    (lambda (_) #f)

@@ -2,7 +2,7 @@
 (import :snapshot/facade
         :std/test)
 (export check-empty-check-report-snapshot)
-
+;; Snapshot
 (def (check-empty-check-report-snapshot)
   (check (check-report-snapshot #f '())
          => '(checkReport

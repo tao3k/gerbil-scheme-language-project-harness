@@ -1,4 +1,7 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :extensions/facade
         :parser/facade
         :snapshot/facade
@@ -11,7 +14,7 @@
         check-pattern-search-snapshot-partial-missing-fields
         check-pattern-search-snapshot-fixtures
         check-pattern-search-snapshot-source-gap-fixtures)
-
+;; Fact
 (def (sample-poo-extension-fact)
   (make-extension-fact "poo"
                        "gerbil.pkg"
@@ -25,7 +28,7 @@
                         "policy-protocol"
                         "macro-governance"
                         "user-override-witness"]))
-
+;; SamplePooC3Pattern
 (def (sample-poo-c3-pattern)
   (hash (id "poo-c3-mro-regression")
         (extension "poo")
@@ -96,7 +99,7 @@
                          "slot-order-witness"
                          "failure-cases"])
         (witness "real-project-c3-and-slot-order-witness")))
-
+;; Snapshot
 (def (check-extension-snapshot-schema-fields)
   (let (fact (sample-poo-extension-fact))
     (check (extension-fact-snapshot fact)
@@ -108,7 +111,7 @@
                 (package "sample/app")
                 (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
                 (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness"))))))
-
+;; Snapshot
 (def (check-extension-search-snapshot-schema-fields)
   (let (fact (sample-poo-extension-fact))
     (check (extension-search-snapshot "poo syntax"
@@ -129,7 +132,7 @@
                    (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
                    (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness")))))
                 (next "search pattern poo syntax")))))
-
+;; Snapshot
 (def (check-pattern-search-snapshot-quality-fields)
   (let (pattern (hash (id "poo-object-system")
                       (extension "poo")
@@ -320,7 +323,7 @@
                 (missing ())
                 (witness "dependency-backed-poo-mapping")
                 (next "search extension poo syntax")))))
-
+;; Snapshot
 (def (check-pattern-search-snapshot-c3-mro-fields)
   (let (pattern (sample-poo-c3-pattern))
     (check (pattern-search-snapshot "poo c3 mro slot order"
@@ -419,7 +422,7 @@
                 (missing ())
                 (witness "real-project-c3-and-slot-order-witness")
                 (next "search extension poo pattern c3")))))
-
+;; Snapshot
 (def (check-pattern-search-snapshot-partial-missing-fields)
   (let (pattern (sample-poo-c3-pattern))
     (check (pattern-search-snapshot "poo c3 without runtime test index"
@@ -520,7 +523,7 @@
                           "slot-order-witness-refresh"))
                 (witness "real-project-c3-and-slot-order-witness")
                 (next "search runtime-source c3-test")))))
-
+;; Snapshot
 (def (check-pattern-search-snapshot-fixtures)
   (let (pattern (sample-poo-c3-pattern))
     (check (pattern-search-snapshot "poo c3 mro slot order"
@@ -534,7 +537,7 @@
                                      "slot-order-witness-refresh"]
                                     "search runtime-source c3-test")
            => (snapshot-load "t/snapshots/poo-c3-mro-partial.ss"))))
-
+;; Snapshot
 (def (check-pattern-search-snapshot-source-gap-fixtures)
   (let* ((index (collect-project "."))
          (prototype (poo-pattern-evidence index ["poo" "prototype" "compose-proto"]))

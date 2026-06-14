@@ -6,13 +6,16 @@
         +semantic-extension-pattern-mapping-schema-id+
         +display-name+
         +help+)
-
+;; String
 (def +language-id+ "gerbil-scheme")
+;; String
 (def +provider-id+ "gerbil-scheme-harness")
+;; String
 (def +semantic-extension-pattern-mapping-schema-id+
   "agent.semantic-protocols.semantic-extension-pattern-mapping")
+;; Unit
 (def +display-name+ "Gerbil Scheme Harness")
-
+;; ConfigConstant
 (def +help+
   "gerbil-scheme-harness - Gerbil Scheme semantic search and project harness
 

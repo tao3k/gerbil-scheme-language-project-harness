@@ -4,7 +4,8 @@
 (import :policy/agent
         :policy/core
         :policy/model
-        :policy/modularity)
+        :policy/modularity
+        :policy/repair)
 
 (export make-policy-rule
         policy-rule-id
@@ -27,6 +28,15 @@
         +agent-poo-object-model-rule+
         +agent-macro-runtime-source-witness-rule+
         +agent-protocol-evidence-rule+
+        +agent-typed-combinator-style-rule+
+        +agent-controlled-branch-shape-rule+
+        repairable-finding?
+        repairable-findings
+        agent-repair-report-json
+        agent-repair-summary-parts
+        finding-agent-repair-json
+        finding-agent-repair-parts
+        finding-guide-detail-parts
         run-policy-checks
         run-modularity-policy
         +max-source-line-count+
@@ -50,4 +60,6 @@
         poo-method-shape-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
+        typed-combinator-style-finding
+        controlled-branch-shape-finding
         facade-export-conflict-findings)

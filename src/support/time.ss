@@ -8,19 +8,19 @@
         average-duration-ms
         average-duration-micros
         duration-state)
-
+;; Integer
 (def (monotonic-ms)
   (inexact->exact (floor (* 1000.0 (##current-time-point)))))
-
+;; Integer <- StartMs EndMs
 (def (duration-ms start-ms end-ms)
   (- end-ms start-ms))
-
+;; Integer <- TotalMs Iterations
 (def (average-duration-ms total-ms iterations)
   (quotient total-ms iterations))
-
+;; Integer <- TotalMs Iterations
 (def (average-duration-micros total-ms iterations)
   (quotient (* total-ms 1000) iterations))
-
+;; DurationState <- RawDuration
 (def (duration-state value)
   (if (and (number? value) (>= value 0))
     "measured"

@@ -1,9 +1,12 @@
 ;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
 (import :gerbil/gambit
         :std/test
         :commands/query)
 (export query-test)
-
+;; QueryTest
 (def query-test
   (test-suite "gerbil scheme harness query"
     (test-case "selector query is a first-class code read"
@@ -67,7 +70,7 @@
                   (cdr result)
                   "workspace=..")))
                => #t)))))
-
+;; QueryOutput <- (List XX)
 (def (query-output args)
   (let (exit-code #f)
     (let (output

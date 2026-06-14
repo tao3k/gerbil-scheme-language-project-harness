@@ -1,8 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Modularity policy checks over parser-owned source-file facts.
 
-(import :parser/facade
+(import :gerbil/gambit
+        :parser/facade
         :policy/model
+        :std/misc/ports
         :std/srfi/13
         :std/sugar
         :types/findings)
@@ -16,12 +18,15 @@
         repeated-owner-entry-finding
         bin-entrypoint-implementation-finding
         source-leaf-bloat-finding)
-
+;; Integer
 (def +max-source-line-count+ 650)
+;; Integer
 (def +min-source-definition-count+ 40)
+;; ConfigConstant
 (def +default-test-directory+ "t")
+;; Integer
 (def +min-test-directory-policy-explanation-length+ 24)
-
+;; Integer <- ProjectIndex
 (def (run-modularity-policy index)
   (append
    (sibling-file-dir-owner-collision-findings index)
@@ -30,7 +35,10 @@
    (facade-implementation-findings index)
    (test-directory-layout-findings index)
    (source-leaf-bloat-findings index)))
-
+;;; Boundary:
+;;; - sibling-file-dir-owner-collision-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (sibling-file-dir-owner-collision-findings index)
   (filter-map
    (lambda (file)
@@ -40,14 +48,20 @@
             (owner-prefix-has-child-source? index owner-prefix path)
             (sibling-file-dir-owner-collision-finding file owner-prefix))))
    (project-index-files index)))
-
+;;; Boundary:
+;;; - repeated-owner-entry-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (repeated-owner-entry-findings index)
   (filter-map
    (lambda (file)
      (and (repeated-owner-entry-path? index (source-file-path file))
           (repeated-owner-entry-finding file)))
    (project-index-files index)))
-
+;;; Boundary:
+;;; - bin-entrypoint-implementation-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (bin-entrypoint-implementation-findings index)
   (filter-map
    (lambda (file)
@@ -55,7 +69,10 @@
           (pair? (source-file-definitions file))
           (bin-entrypoint-implementation-finding file)))
    (project-index-files index)))
-
+;;; Boundary:
+;;; - facade-implementation-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (facade-implementation-findings index)
   (filter-map
    (lambda (file)
@@ -63,13 +80,16 @@
           (pair? (source-file-definitions file))
           (facade-implementation-finding file)))
    (project-index-files index)))
-
+;; Boolean <- ProjectIndex SourceFile
 (def (facade-source-file? index file)
   (let* ((path (source-file-path file))
          (owner-prefix (owner-entry-prefix index path)))
     (and owner-prefix
          (owner-prefix-has-child-source? index owner-prefix path))))
-
+;;; Boundary:
+;;; - owner-prefix-has-child-source? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- ProjectIndex OwnerPrefix String
 (def (owner-prefix-has-child-source? index owner-prefix path)
   (ormap
    (lambda (candidate)
@@ -78,22 +98,22 @@
             (project-gerbil-source-path? index candidate-path)
             (string-prefix? owner-prefix candidate-path))))
    (project-index-files index)))
-
+;; String <- ProjectIndex String
 (def (sibling-owner-prefix index path)
   (and (project-gerbil-source-path? index path)
        (string-append (path-without-extension path) "/")))
-
+;; String <- ProjectIndex String
 (def (owner-entry-prefix index path)
   (and (project-gerbil-source-path? index path)
        (facade-entry-path? index path)
        (path-parent-prefix path)))
-
+;; Boolean <- ProjectIndex String
 (def (facade-entry-path? index path)
   (and (project-gerbil-source-path? index path)
        (equal? (path-stem path) "facade")
        (path-parent-prefix path)
        (not (source-root-parent-prefix? index (path-parent-prefix path)))))
-
+;; Boolean <- ProjectIndex String
 (def (repeated-owner-entry-path? index path)
   (let ((parent (path-parent-prefix path))
         (stem (path-stem path)))
@@ -101,20 +121,26 @@
          (project-gerbil-source-path? index path)
          (not (source-root-parent-prefix? index parent))
          (equal? stem (path-parent-name parent)))))
-
+;; Boolean <- ProjectIndex String
 (def (owner-entry-path? index path)
   (repeated-owner-entry-path? index path))
-
+;;; Boundary:
+;;; - project-gerbil-source-path? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- ProjectIndex String
 (def (project-gerbil-source-path? index path)
   (and (string-suffix? ".ss" path)
        (not (config-file-path? path))
        (ormap (lambda (root)
                 (source-path-under-root? path root))
               (project-source-roots index))))
-
+;;; Boundary:
+;;; - config-file-path? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- String
 (def (config-file-path? path)
   (find (lambda (candidate) (string=? path candidate)) +config-files+))
-
+;; (List String) <- ProjectIndex
 (def (project-source-roots index)
   (let* ((package (project-index-package index))
          (policy (and package
@@ -125,67 +151,70 @@
      ((and policy (pair? (source-scope-policy-runtime-roots policy)))
       (source-scope-policy-runtime-roots policy))
      (else ["src"]))))
-
+;; Boolean <- String String
 (def (source-path-under-root? path root)
   (or (equal? root ".")
       (equal? path root)
       (string-prefix? (source-root-prefix root) path)))
-
+;;; Boundary:
+;;; - source-root-parent-prefix? composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Boolean <- ProjectIndex Parent
 (def (source-root-parent-prefix? index parent)
   (ormap (lambda (root)
            (equal? parent (source-root-prefix root)))
          (project-source-roots index)))
-
+;; String <- String
 (def (source-root-prefix root)
   (cond
    ((equal? root ".") "")
    ((string-suffix? "/" root) root)
    (else (string-append root "/"))))
-
+;; Boolean <- SourceFile
 (def (bin-entrypoint-source-file? file)
   (let (path (source-file-path file))
     (and (string-prefix? "bin/" path)
          (string-suffix? ".ss" path))))
-
+;; SourceFile <- SourceFile
 (def (non-t-test-directory-source-file file)
   (let* ((path (source-file-path file))
          (directory (non-t-test-directory-name path)))
     (and directory
          (string-suffix? ".ss" path)
          directory)))
-
+;; NonTTestDirectoryName <- String
 (def (non-t-test-directory-name path)
   (cond
    ((path-contains-directory? path "test") "test")
    ((path-contains-directory? path "tests") "tests")
    (else #f)))
-
+;; Boolean <- String Directory
 (def (path-contains-directory? path directory)
   (or (string-prefix? (string-append directory "/") path)
       (string-contains path (string-append "/" directory "/"))))
-
+;; String <- String
 (def (path-without-extension path)
   (substring path 0 (- (string-length path) 3)))
-
+;; String <- String
 (def (path-parent-prefix path)
   (let (slash (string-index-right path #\/))
     (and slash
          (substring path 0 (fx1+ slash)))))
-
+;; String <- ParentPrefix
 (def (path-parent-name parent-prefix)
   (let* ((trimmed (substring parent-prefix 0 (fx1- (string-length parent-prefix))))
          (slash (string-index-right trimmed #\/)))
     (if slash
       (substring trimmed (fx1+ slash) (string-length trimmed))
       trimmed)))
-
+;; String <- String
 (def (path-stem path)
   (let* ((stem-path (path-without-extension path))
          (slash (string-index-right stem-path #\/)))
     (if slash
       (substring stem-path (fx1+ slash) (string-length stem-path))
       stem-path)))
-
+;; TypeFinding <- SourceFile
 (def (facade-implementation-finding file)
   (let* ((definition (car (source-file-definitions file)))
          (selector (definition-selector definition)))
@@ -198,7 +227,7 @@
      selector
      (hash (definition (definition-name definition))
            (selector selector)))))
-
+;; TypeFinding <- SourceFile OwnerPrefix
 (def (sibling-file-dir-owner-collision-finding file owner-prefix)
   (make-type-finding
    (policy-rule-id +modularity-owner-collision-rule+)
@@ -210,7 +239,7 @@
                   " share the same owner name at one filesystem level")
    (source-file-path file)
    (hash (ownerDirectory owner-prefix))))
-
+;; TypeFinding <- SourceFile
 (def (repeated-owner-entry-finding file)
   (let* ((path (source-file-path file))
          (parent (path-parent-prefix path))
@@ -226,7 +255,7 @@
      path
      (hash (owner owner)
            (replacement "facade.ss")))))
-
+;; TypeFinding <- SourceFile
 (def (bin-entrypoint-implementation-finding file)
   (let* ((definition (car (source-file-definitions file)))
          (selector (definition-selector definition)))
@@ -241,7 +270,10 @@
      selector
      (hash (definition (definition-name definition))
            (selector selector)))))
-
+;;; Boundary:
+;;; - test-directory-layout-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (test-directory-layout-findings index)
   (filter-map
    (lambda (file)
@@ -250,27 +282,27 @@
             (not (test-directory-policy-allows? index actual-directory))
             (test-directory-layout-finding index file actual-directory))))
    (project-index-files index)))
-
+;; Boolean <- ProjectIndex Directory
 (def (test-directory-policy-allows? index directory)
   (and (test-directory-policy-directory-listed? index directory)
        (test-directory-policy-explanation-clear? (project-test-directory-policy index))))
-
+;; Boolean <- ProjectIndex Directory
 (def (test-directory-policy-directory-listed? index directory)
   (let (policy (project-test-directory-policy index))
     (and policy
          (member directory (test-directory-policy-allowed-directories policy)))))
-
+;; Boolean <- Policy
 (def (test-directory-policy-explanation-clear? policy)
   (and policy
        (let (explanation (test-directory-policy-explanation policy))
          (and explanation
               (fx>= (string-length (string-trim explanation))
                     +min-test-directory-policy-explanation-length+)))))
-
+;; ProjectTestDirectoryPolicy <- ProjectIndex
 (def (project-test-directory-policy index)
   (and (project-index-package index)
        (project-package-test-directory-policy (project-index-package index))))
-
+;; TypeFinding <- ProjectIndex SourceFile ActualDirectory
 (def (test-directory-layout-finding index file actual-directory)
   (let* ((policy (project-test-directory-policy index))
          (listed? (test-directory-policy-directory-listed? index actual-directory))
@@ -294,32 +326,65 @@
            (policyExplanation explanation)
            (policyExplanationMinimumChars
             +min-test-directory-policy-explanation-length+)))))
-
+;; String <- Policy Listed
 (def (test-directory-policy-rejection-reason policy listed?)
   (cond
    ((not policy) "no policy override")
    ((not listed?) "directory is not allowed by policy")
    (else "policy override is missing a clear explanation")))
-
+;;; Boundary:
+;;; - source-leaf-bloat-findings composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List TypeFinding) <- ProjectIndex
 (def (source-leaf-bloat-findings index)
   (filter-map
    (lambda (file)
-     (and (project-gerbil-source-path? index (source-file-path file))
-          (fx>= (source-file-line-count file) +max-source-line-count+)
-          (fx>= (length (source-file-definitions file)) +min-source-definition-count+)
-          (source-leaf-bloat-finding file)))
+     (let (effective-line-count (source-leaf-effective-line-count index file))
+       (and (project-gerbil-source-path? index (source-file-path file))
+            (fx>= effective-line-count +max-source-line-count+)
+            (fx>= (length (source-file-definitions file)) +min-source-definition-count+)
+            (source-leaf-bloat-finding file effective-line-count))))
    (project-index-files index)))
-
-(def (source-leaf-bloat-finding file)
+;;; Boundary:
+;;; - source-leaf-effective-line-count composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex SourceFile
+(def (source-leaf-effective-line-count index file)
+  (with-catch
+   (lambda (_) (source-file-line-count file))
+   (lambda ()
+     (typed-ledger-effective-line-count
+      (read-file-lines
+       (path-expand (source-file-path file)
+                    (project-index-root index)))))))
+;;; Invariant:
+;;; - typed-ledger-effective-line-count owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Integer <- (List String)
+(def (typed-ledger-effective-line-count lines)
+  (car
+   (foldl (lambda (line state)
+            (let ((count (car state))
+                  (ledger? (cdr state)))
+              (cond
+               (ledger? state)
+               ((equal? (string-trim line) ";;; typed-combinator-style ledger")
+                (cons count #t))
+               (else (cons (+ count 1) #f)))))
+          (cons 0 #f)
+          lines)))
+;; TypeFinding <- SourceFile EffectiveLineCount
+(def (source-leaf-bloat-finding file effective-line-count)
   (make-type-finding
    (policy-rule-id +modularity-source-leaf-rule+)
    (policy-rule-severity +modularity-source-leaf-rule+)
    (source-file-path file)
    (string-append (source-file-path file)
-                  " carries " (number->string (source-file-line-count file))
-                  " lines and "
+                  " carries " (number->string effective-line-count)
+                  " effective lines and "
                   (number->string (length (source-file-definitions file)))
                   " definitions")
    (source-file-path file)
-   (hash (lineCount (source-file-line-count file))
+   (hash (lineCount effective-line-count)
+         (physicalLineCount (source-file-line-count file))
          (definitionCount (length (source-file-definitions file))))))

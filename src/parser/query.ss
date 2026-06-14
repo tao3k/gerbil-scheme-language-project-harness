@@ -9,7 +9,10 @@
 (export matching-definitions
         ranked-files
         ranked-query-files)
-
+;;; Boundary:
+;;; - matching-definitions composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; (List Definition) <- (List Definition) (List Definition)
 (def (matching-definitions definitions terms)
   (if (null? terms)
     definitions
@@ -20,13 +23,19 @@
                                  (string-downcase term)))
               terms))
      definitions)))
-
+;;; Boundary:
+;;; - ranked-files composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex
 (def (ranked-files index)
   (sort (project-index-files index)
         (lambda (a b)
           (> (length (source-file-definitions a))
              (length (source-file-definitions b))))))
-
+;;; Boundary:
+;;; - ranked-query-files composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- ProjectIndex Query
 (def (ranked-query-files index query)
   (let* ((terms (query-terms query))
          (scored
@@ -40,7 +49,7 @@
                (lambda (left right)
                  (ranked-query-file>? (car left) (cdr left)
                                       (car right) (cdr right)))))))
-
+;; Boolean <- Left LeftScore Right RightScore
 (def (ranked-query-file>? left left-score right right-score)
   (cond
    ((> left-score right-score) #t)
@@ -50,21 +59,21 @@
    ((< (length (source-file-definitions left))
        (length (source-file-definitions right))) #f)
    (else (string<? (source-file-path left) (source-file-path right)))))
-
+;;; Invariant:
+;;; - source-file-query-score owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; Integer <- SourceFile (List SourceFile)
 (def (source-file-query-score file terms)
   (let (haystack (string-downcase (source-file-query-haystack file)))
-    (let lp ((rest terms) (score 0))
-      (match rest
-        ([term . more]
-         (lp more
-             (if (string-contains haystack term)
-               (+ score 1)
-               score)))
-        (else score)))))
-
+    (length (filter (cut string-contains haystack <>)
+                    terms))))
+;; SourceFileQueryHaystack <- SourceFile
 (def (source-file-query-haystack file)
   (join (source-file-query-terms file) " "))
-
+;;; Boundary:
+;;; - source-file-query-terms composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- SourceFile
 (def (source-file-query-terms file)
   (filter searchable-term?
           (append
@@ -93,17 +102,17 @@
                         (source-file-control-flow-forms file))
            (append-map* call-query-terms
                         (source-file-calls file)))))
-
+;; Integer <- Definition
 (def (definition-query-terms defn)
   [(definition-name defn)
    (definition-kind defn)
    (definition-selector defn)])
-
+;; Integer <- Form
 (def (top-form-query-terms form)
   [(top-form-head form)
    (top-form-kind form)
    (top-form-selector form)])
-
+;; Integer <- String
 (def (module-import-query-terms import)
   (append ["import" "module-import"
            (module-import-fact-module import)
@@ -112,7 +121,7 @@
            (module-import-fact-alias import)
            (module-import-fact-selector import)]
           (module-import-fact-symbols import)))
-
+;; Integer <- Macro
 (def (macro-query-terms macro)
   ["macro"
    (macro-fact-name macro)
@@ -120,7 +129,7 @@
    (macro-fact-transformer macro)
    (macro-fact-phase macro)
    (macro-fact-selector macro)])
-
+;; Integer <- Binding
 (def (binding-query-terms binding)
   ["binding"
    (binding-fact-name binding)
@@ -128,7 +137,7 @@
    (binding-fact-scope binding)
    (binding-fact-value-type binding)
    (binding-fact-selector binding)])
-
+;; (List SearchTerm) <- PooFormFact
 (def (poo-query-terms fact)
   (append ["poo"
            "object-system"
@@ -144,7 +153,7 @@
           (poo-form-fact-options fact)
           (poo-form-fact-specializers fact)
           (poo-form-fact-specializer-types fact)))
-
+;; (List SearchTerm) <- HigherOrderFact
 (def (higher-order-query-terms fact)
   ["higher-order"
    (higher-order-fact-name fact)
@@ -152,7 +161,7 @@
    (higher-order-fact-role fact)
    (higher-order-fact-caller fact)
    (higher-order-fact-selector fact)])
-
+;; Integer <- ControlFlowFact
 (def (control-flow-query-terms fact)
   ["control-flow"
    (control-flow-fact-name fact)
@@ -160,46 +169,43 @@
    (control-flow-fact-role fact)
    (control-flow-fact-caller fact)
    (control-flow-fact-selector fact)])
-
+;;; Boundary:
+;;; - call-query-terms composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- CallFact
 (def (call-query-terms call)
   (append ["call"
            (call-fact-callee call)
            (call-fact-caller call)
            (call-fact-selector call)]
           (filter searchable-term? (call-fact-argument-types call))))
-
+;;; Boundary:
+;;; - query-terms composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- Query
 (def (query-terms query)
   (map string-downcase
        (filter searchable-term? (split-query query))))
-
+;;; Invariant:
+;;; - split-query owns branch/iteration semantics.
+;;; - Preserve exit conditions and fallback order.
+;; SplitQuery <- Query
 (def (split-query query)
-  (let (len (string-length query))
-    (let lp ((i 0) (start #f) (out '()))
-      (cond
-       ((>= i len)
-        (reverse
-         (if start
-           (cons (substring query start i) out)
-           out)))
-       ((query-separator? (string-ref query i))
-        (lp (+ i 1)
-            #f
-            (if start
-              (cons (substring query start i) out)
-              out)))
-       (start (lp (+ i 1) start out))
-       (else (lp (+ i 1) i out))))))
-
+  (string-tokenize query))
+;; Boolean <- Char
 (def (query-separator? char)
   (or (char=? char #\space)
       (char=? char #\tab)
       (char=? char #\newline)
       (char=? char #\return)
       (char=? char #\|)))
-
+;;; Boundary:
+;;; - append-map* composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; Integer <- (YY <- XX) Values
 (def (append-map* proc values)
   (apply append (map proc values)))
-
+;; Boolean <- SearchTerm
 (def (searchable-term? value)
   (and value
        (string? value)

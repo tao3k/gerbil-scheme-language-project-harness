@@ -2,7 +2,10 @@
 ;;; Stable facade for provider snapshot projections.
 
 (import :snapshot/core
-        :snapshot/graph)
+        (only-in :snapshot/bench bench-report-snapshot)
+        (only-in :snapshot/parser parser-source-file-snapshot)
+        (only-in :snapshot/graph extension-packet-snapshot
+                                 search-prime-snapshot))
 
 (export snapshot-load
         project-package-snapshot
