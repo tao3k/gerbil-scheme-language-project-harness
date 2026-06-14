@@ -143,7 +143,6 @@
         "call",
         "constant",
         "doc",
-        "comment",
         "heading",
         "property",
         "drawer",

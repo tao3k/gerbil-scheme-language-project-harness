@@ -1,0 +1,134 @@
+name: Release provider binary
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish assets to"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-14
+            target: aarch64-apple-darwin
+    env:
+      BINARY: gerbil-scheme-harness
+      GERBIL_PREFIX: ${{ github.workspace }}/.ci/gerbil/source-v0.18.2
+      GERBIL_REF: v0.18.2
+      GERBIL_SRC: ${{ github.workspace }}/.ci/gerbil-src/source-v0.18.2
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      TARGET: ${{ matrix.target }}
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ca-certificates \
+            git \
+            jq \
+            libsqlite3-dev \
+            libssl-dev \
+            openssl \
+            sqlite3 \
+            zlib1g-dev
+
+      - name: Install macOS system dependencies
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+        run: |
+          brew unlink gambit-scheme || true
+          brew unlink ghostscript || true
+          brew install jq openssl sqlite zlib
+
+      - name: Cache Gerbil install
+        id: gerbil-cache
+        uses: actions/cache@v4
+        with:
+          path: .ci/gerbil/source-v0.18.2
+          key: gerbil-release-${{ runner.os }}-${{ runner.arch }}-${{ env.GERBIL_REF }}
+          restore-keys: |
+            gerbil-release-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build Gerbil
+        if: steps.gerbil-cache.outputs.cache-hit != 'true'
+        run: |
+          build_cores() {
+            nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2
+          }
+          mkdir -p "$(dirname "$GERBIL_SRC")" "$(dirname "$GERBIL_PREFIX")"
+          rm -rf "$GERBIL_SRC" "$GERBIL_PREFIX"
+          git clone https://git.cons.io/mighty-gerbils/gerbil "$GERBIL_SRC"
+          cd "$GERBIL_SRC"
+          git checkout "$GERBIL_REF"
+          ./configure --prefix="$GERBIL_PREFIX"
+          echo "(def (gerbil-version-string) \"release-${GERBIL_REF}\")" > src/gerbil/runtime/version.ss
+          . ./build-env.sh
+          for target in prepare gambit boot-gxi stage0 stage1 stdlib libgerbil lang r7rs-large srfi tools; do
+            GERBIL_BUILD_CORES="$(build_cores)" ./src/build.sh "$target"
+          done
+          ./install.sh
+
+      - name: Activate Gerbil
+        run: |
+          echo "$GERBIL_PREFIX/bin" >> "$GITHUB_PATH"
+          "$GERBIL_PREFIX/bin/gxi" -e '(displayln "gerbil-ready")'
+
+      - name: Install Gerbil package dependencies from gerbil.pkg
+        run: |
+          gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
+          gxpkg deps --install
+
+      - name: Package provider binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf package
+          mkdir -p package/bin package/src
+          cp bin/gerbil-scheme-harness package/bin/gerbil-scheme-harness
+          cp bin/gerbil-scheme-harness.ss package/bin/gerbil-scheme-harness.ss
+          cp -R src/. package/src/
+          cp gerbil.pkg package/gerbil.pkg
+          chmod +x "package/bin/${BINARY}"
+          asset="${BINARY}-${TARGET}.tar.gz"
+          tar -czf "$asset" -C package .
+          python - "$asset" <<'PY'
+          import hashlib
+          import pathlib
+          import sys
+
+          asset = pathlib.Path(sys.argv[1])
+          digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+          pathlib.Path(f"{asset}.sha256").write_text(f"{digest}  {asset.name}\n")
+          PY
+
+      - name: Publish release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 \
+            || gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes "Provider binary release $RELEASE_TAG" \
+            || gh release view "$RELEASE_TAG" >/dev/null
+          gh release upload "$RELEASE_TAG" "${BINARY}-${TARGET}.tar.gz" "${BINARY}-${TARGET}.tar.gz.sha256" --clobber
