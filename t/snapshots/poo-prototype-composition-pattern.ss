@@ -75,7 +75,8 @@
    (qualitySignals ("dependency-backed-mapping"
                     "proto-source"
                     "composition-order"
-                    "runtime-prototype-composition-witness"))
+                    "runtime-prototype-composition-witness"
+                    "poo-prototype-object-extension"))
    (witness "runtime-prototype-composition-witness")))
  (missing ())
  (witness "runtime-prototype-composition-witness")

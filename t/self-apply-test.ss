@@ -77,7 +77,7 @@
             (lambda (out)
               (parameterize ((current-output-port out))
                 (set! status
-                  (bench-main ["--json" "--iterations" "1" "--max-total-ms" "60000" "."])))))))
+                  (bench-main ["--json" "--iterations" "1" "--max-total-ms" "60000" "--max-interface-ms" "50" "."])))))))
     (check status => 0)
     (call-with-input-string output read-json)))
 ;; SelfApplyTest

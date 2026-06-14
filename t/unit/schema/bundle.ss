@@ -92,10 +92,14 @@
     (append (proc (car xs)) (append-map proc (cdr xs)))))
 ;; (List String) <- (List String)
 (def (dedupe-strings xs)
-  (let lp ((rest xs) (seen '()) (out '()))
-    (match rest
-      ([] (reverse out))
-      ([hd . tl]
-       (if (member hd seen)
-         (lp tl seen out)
-         (lp tl (cons hd seen) (cons hd out)))))))
+  (reverse
+   (cdr
+    (foldl (lambda (item state)
+             (let ((seen (car state))
+                   (out (cdr state)))
+               (if (member item seen)
+                 state
+                 (cons (cons item seen)
+                       (cons item out)))))
+           (cons '() '())
+           xs))))

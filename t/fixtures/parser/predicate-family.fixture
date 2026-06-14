@@ -1,0 +1,28 @@
+;;; -*- Gerbil -*-
+(package: sample/predicate-family)
+
+;; Boolean <- EventSyntaxFact
+(def (created-event? fact)
+  (let (fields (hash-get fact 'fields))
+    (and fields
+         (equal? (field-string fields 'role) "created"))))
+
+;; Boolean <- EventSyntaxFact
+(def (paid-event? fact)
+  (let (fields (hash-get fact 'fields))
+    (and fields
+         (member (field-string fields 'role) '("paid" "settled")))))
+
+;; Boolean <- EventSyntaxFact
+(def (cancelled-event? fact)
+  (let (fields (hash-get fact 'fields))
+    (and fields
+         (equal? (field-string fields 'role) "cancelled"))))
+
+;; (List EventId) <- (List EventSyntaxFact)
+(def (collect-ids rows)
+  (let loop ((rest rows) (out []))
+    (if (null? rest)
+      (reverse out)
+      (loop (cdr rest)
+            (cons (hash-get (car rest) 'id) out)))))

@@ -27,6 +27,20 @@
   (with-catch
    (lambda (_) path)
    (lambda () (path-normalize path))))
+;;; Boundary:
+;;; - Runtime evidence must prove active tool identity without leaking checkout paths.
+;;; - ASP-owned .data paths are implementation details, not agent-facing guidance.
+;; PublicPath <- RuntimePath
+(def (runtime-public-path path)
+  (cond
+   ((not path) path)
+   ((string-contains path ".data/gerbil/build")
+    (string-append "<asp-managed-gerbil-runtime>/"
+                   (path-strip-directory path)))
+   ((string-contains path ".data/gerbil")
+    (string-append "<asp-managed-gerbil-source>/"
+                   (path-strip-directory path)))
+   (else path)))
 ;; GerbilRuntimeTag <- VersionString
 (def (gerbil-runtime-tag version-string)
   (let (start (string-index version-string #\v))
@@ -58,9 +72,14 @@
          (gxi (path-normalize (runtime-bin "gxi")))
          (gsc (path-normalize (runtime-bin "gsc")))
          (paths (map runtime-path-normalize (load-path)))
+         (public-home (runtime-public-path home))
+         (public-gxi (runtime-public-path gxi))
+         (public-gsc (runtime-public-path gsc))
+         (public-paths (map runtime-public-path paths))
          (missing-paths (filter (lambda (path)
                                   (not (file-exists? path)))
                                 paths))
+         (public-missing-paths (map runtime-public-path missing-paths))
          (witness (if (and (file-exists? gxi) (file-exists? gsc))
                     "gerbil-home-gxi-gsc-load-path-resolved"
                     "gerbil-home-load-path-resolved")))
@@ -70,14 +89,15 @@
       "fact"
       witness
       "search env load-path"
-      ["env" "runtime" "gxi" "gsc" "gerbil-home" "load-path" home gxi gsc]
-      (hash (gerbilHome home)
-            (gxi gxi)
-            (gsc gsc)
+      ["env" "runtime" "gxi" "gsc" "gerbil-home" "load-path"
+       public-home public-gxi public-gsc]
+      (hash (gerbilHome public-home)
+            (gxi public-gxi)
+            (gsc public-gsc)
             (gxiExists (file-exists? gxi))
             (gscExists (file-exists? gsc))
-            (loadPath paths)
-            (loadPathMissing missing-paths))
+            (loadPath public-paths)
+            (loadPathMissing public-missing-paths))
       []
       "agent-needs-active-gerbil-runtime-before-import-or-macro-claims"
       "discover-active-gxi-gsc-and-load-path-before-writing-gerbil-code"
@@ -95,6 +115,8 @@
 (def (runtime-source-facts)
   (let* ((home (path-normalize (gerbil-home)))
          (gxi (path-normalize (runtime-bin "gxi")))
+         (public-home (runtime-public-path home))
+         (public-gxi (runtime-public-path gxi))
          (version-string (gerbil-system-version-string))
          (tag (or (gerbil-runtime-tag version-string) "unknown-runtime-tag"))
          (runtime-resolver
@@ -112,8 +134,8 @@
       "active-runtime-version-to-source-acquisition-plan"
       "search runtime-source macro sugar module-sugar"
       ["runtime-source" "source" "source-facts" "runtime" "version" "clone" "checkout" "macro" "gerbil" "std" "sugar" "std/sugar" "defrule" "defsyntax-call" "module-sugar" "module" "import" "export" "only-in" "except-in" "rename-in" "rename-out" "for-syntax" "ranking" "source-ranking" "bootstrap" "stub" "bootstrap-stub" tag version-string]
-      (hash (runtime (hash (gerbilHome home)
-                           (gxi gxi)
+      (hash (runtime (hash (gerbilHome public-home)
+                           (gxi public-gxi)
                            (systemVersion version-string)
                            (tag tag)))
             (sourceRef (hash (kind "runtime-version-source")
@@ -206,8 +228,8 @@
       "active-runtime-version-to-writeenv-source-acquisition-plan"
       "search runtime-source writeenv printer hook"
       ["runtime-source" "source" "runtime" "version" "writeenv" "printer" "printer-hook" "hook" "write" "write-object" ":wr" "wr" "poo" "io" "serialization" "ranking" "source-ranking" "bootstrap" "stub" "bootstrap-stub" tag version-string]
-      (hash (runtime (hash (gerbilHome home)
-                           (gxi gxi)
+      (hash (runtime (hash (gerbilHome public-home)
+                           (gxi public-gxi)
                            (systemVersion version-string)
                            (tag tag)))
             (sourceRef (hash (kind "runtime-version-source")
@@ -491,6 +513,7 @@
        (hash (id "hygienic-macro")
              (extension "gerbil-scheme")
              (focus "syntax-case/defsyntax")
+             (origin "provider")
              (sourceRef (hash (kind "provider-source")
                               (manager "native-provider")
                               (package "gerbil-scheme-language-project-harness")

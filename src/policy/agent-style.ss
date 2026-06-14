@@ -3,6 +3,7 @@
 
 (import :parser/facade
         :policy/agent-support
+        :policy/agent-style-shape
         :policy/model
         :std/srfi/13
         :std/sugar
@@ -12,7 +13,9 @@
 (export typed-combinator-style-findings
         typed-combinator-style-finding
         controlled-branch-shape-findings
-        controlled-branch-shape-finding)
+        controlled-branch-shape-finding
+        predicate-family-combinator-findings
+        predicate-family-combinator-finding)
 ;; (List String)
 (def +typed-combinator-style-higher-order-roles+
   '("partial-application" "function-curry" "function-composition"
@@ -55,7 +58,8 @@
               (repair-evidence
                (typed-combinator-style-repair-evidence file))
               (quality-repair-triggered?
-               (typed-combinator-style-quality-repair-triggered? quality-facets))
+               (and (typed-combinator-style-quality-repair-source-file? file)
+                    (typed-combinator-style-quality-repair-triggered? quality-facets)))
               (module-engineering-comment?
                (source-file-has-engineering-module-comment? file))
               (implementation-evidence-callers
@@ -94,7 +98,8 @@
                      [(> missing-count 0)
                       (> invalid-typed-comment-count 0)
                       missing-implementation-evidence?
-                      implementation-coverage-insufficient?])
+                      implementation-coverage-insufficient?
+                      quality-repair-triggered?])
               (make-type-finding
                (policy-rule-id +agent-typed-combinator-style-rule+)
                (policy-rule-severity +agent-typed-combinator-style-rule+)
@@ -104,6 +109,7 @@
                                                invalid-typed-comment-count
                                                missing-implementation-evidence?
                                                implementation-coverage-insufficient?
+                                               quality-repair-triggered?
                                                covered-definition-count
                                                function-definition-count
                                                minimum-covered-definition-count)
@@ -203,6 +209,14 @@
          (ormap (lambda (accept?) (accept? path))
                 [(cut index-source-runtime-file-path? index <>)
                  (cut string-prefix? "t/" <>)]))))
+
+;;; Quality-trigger scope excludes parser fixtures: fixture owners intentionally
+;;; encode bad and unusual syntax that policy tests assert elsewhere.
+;; Boolean <- SourceFile
+(def (typed-combinator-style-quality-repair-source-file? file)
+  (let (path (source-file-path file))
+    (and path
+         (not (string-prefix? "t/fixtures/" path)))))
 ;; Boolean <- Nat Nat Nat Nat Nat
 (def (typed-combinator-style-missing-implementation-evidence? definition-count valid-typed-comment-count invalid-typed-comment-count missing-count implementation-evidence-count module-engineering-comment?)
   (and (> definition-count 1)
@@ -296,6 +310,10 @@
   (filter identity
           [(and (member "expression-level-composition" quality-facets)
                 "prefer map/filter/filter-map/fold pipelines; extract predicate, mapper, or reducer helpers before rewriting loops")
+           (and (member "manual-loop-drift" quality-facets)
+                "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness")
+           (and (member "over-abstracted-contract-risk" quality-facets)
+                "replace abstract grouped contracts with concrete domain/result names or add parser-owned callsite evidence")
            (and (member "combinator-composition" quality-facets)
                 "prefer cut/curry/rcurry/compose helper composition when arity evidence already matches")
            (and (member "case-lambda-optimization-boundary" quality-facets)
@@ -310,8 +328,8 @@
   (map typed-contract-fact-repair-evidence
        (source-file-typed-contract-facts file)))
 
-;;; Quality facets can explain improvement opportunities without failing check.
-;;; Hard findings come from missing/invalid contracts or insufficient evidence.
+;;; Quality facets are parser-owned repair triggers, not passive advice.
+;;; The policy turns manual-loop drift into warnings so self-apply can repair.
 ;; Boolean <- (List QualityFacet)
 (def (typed-combinator-style-quality-repair-triggered? quality-facets)
   (not
@@ -348,154 +366,10 @@
         (caller (or (call-fact-caller fact) ""))
         (selector (call-fact-selector fact))))
 ;;; Boundary:
-;;; - controlled-branch-shape-findings composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
-(def (controlled-branch-shape-findings index)
-  (apply append
-         (map (cut file-controlled-branch-shape-findings index <>)
-              (project-index-files index))))
-;;; Boundary:
-;;; - file-controlled-branch-shape-findings composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex SourceFile
-(def (file-controlled-branch-shape-findings index file)
-  (if (index-source-runtime-file-path? index (source-file-path file))
-    (filter-map (cut controlled-branch-shape-finding file <>)
-                (controlled-branch-shape-groups
-                 (filter controlled-branch-shape-control-flow?
-                         (source-file-control-flow-forms file))))
-    '()))
-;; Boolean <- ControlFlowFact
-(def (pattern-branch-control-flow? fact)
-  (equal? (control-flow-fact-role fact) "pattern-branch"))
-;; Boolean <- ControlFlowFact
-(def (manual-loop-control-flow? fact)
-  (equal? (control-flow-fact-role fact) "manual-loop"))
-;;; Boundary:
-;;; - controlled-branch-shape-control-flow? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- ControlFlowFact
-(def (controlled-branch-shape-control-flow? fact)
-  (ormap (lambda (predicate) (predicate fact))
-         [pattern-branch-control-flow?
-          manual-loop-control-flow?]))
-;;; Boundary:
-;;; - controlled-branch-shape-groups composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List ControlFlowGroup) <- (List ControlFlowFact)
-(def (controlled-branch-shape-groups facts)
-  (foldl (lambda (fact groups)
-           (add-control-flow-shape-group groups fact))
-         '()
-         facts))
-;; (List ControlFlowGroup) <- (List ControlFlowGroup) ControlFlowFact
-(def (add-control-flow-shape-group groups fact)
-  (let* ((key (control-flow-shape-group-key fact))
-         (prior (assoc key groups)))
-    (if prior
-      (cons (cons key (cons fact (cdr prior)))
-            (remove-control-flow-shape-group key groups))
-      (cons (cons key [fact]) groups))))
-;;; Boundary:
-;;; - remove-control-flow-shape-group composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List ControlFlowGroup) <- ControlFlowCaller (List ControlFlowGroup)
-(def (remove-control-flow-shape-group key groups)
-  (filter (lambda (group) (not (equal? (car group) key))) groups))
-;; (List ControlFlowFact) <- ControlFlowFact
-(def (control-flow-shape-group-key fact)
-  (or (control-flow-fact-caller fact) "<top-level>"))
-;;; Boundary:
-;;; - controlled-branch-shape-kind composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- ControlFlowGroup
-(def (controlled-branch-shape-kind group)
-  (let* ((facts (cdr group))
-         (pattern-facts (filter pattern-branch-control-flow? facts))
-         (manual-loop-facts (filter state-selector-manual-loop? facts)))
-    (cond
-     ((> (length pattern-facts) 1) "repeated-pattern-branch")
-     ((and (pair? pattern-facts) (pair? manual-loop-facts))
-      "pattern-branch-with-manual-loop")
-     (else #f))))
-;; Boolean <- ControlFlowFact
-(def (state-selector-manual-loop? fact)
-  (and (manual-loop-control-flow? fact)
-       (>= (control-flow-fact-binding-count fact) 4)
-       (<= (control-flow-fact-line-span fact) 24)))
-;; Integer <- ControlFlowFact
-(def (control-flow-fact-line-span fact)
-  (fx1+ (- (control-flow-fact-end fact)
-           (control-flow-fact-start fact))))
-;;; Boundary:
-;;; - controlled-branch-shape-finding composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; TypeFinding <- SourceFile ControlFlowGroup
-(def (controlled-branch-shape-finding file group)
-  (let (shape-kind (controlled-branch-shape-kind group))
-    (and shape-kind
-         (let* ((caller (car group))
-                (facts (cdr group))
-                (pattern-facts (filter pattern-branch-control-flow? facts))
-                (manual-loop-facts (filter state-selector-manual-loop? facts))
-                (first-fact (earliest-control-flow-fact facts)))
-           (make-type-finding
-            (policy-rule-id +agent-controlled-branch-shape-rule+)
-            (policy-rule-severity +agent-controlled-branch-shape-rule+)
-            (source-file-path file)
-            (controlled-branch-shape-message caller shape-kind)
-            (control-flow-fact-selector first-fact)
-            (controlled-branch-shape-details
-             caller
-             shape-kind
-             pattern-facts
-             manual-loop-facts
-             first-fact))))))
-
-;; PolicyDetails <- String String ControlFlowFacts ControlFlowFacts ControlFlowFact
-(def (controlled-branch-shape-details caller shape-kind pattern-facts manual-loop-facts first-fact)
-  (hash (caller caller)
-        (shape shape-kind)
-        (matchCount (length pattern-facts))
-        (manualLoopCount (length manual-loop-facts))
-        (selector (control-flow-fact-selector first-fact))
-        (evidence "parser-owned controlFlowFacts role=pattern-branch plus manual-loop bindingCount>=4")
-        (advice "do not refactor opportunistically; wait for this policy finding, preserve behavior, and use guide code for controlled branch shape")
-        (styleGuide "controlled-branch-shape")
-        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
-        (rewriteScope "same caller or extracted helper only")
-        (qualityReference "gerbil-utils")
-        (functionShape "small selector/predicate/helper first; keep match branches shallow and expression-returning")
-        (agentRepairStandard "rewrite toward gerbil-utils style: extract branch selectors, replace stateful named-let with fold/filter-map when pure, keep IO/state drivers explicit")
-        (expressionLevelRewrite "turn repeated match plus accumulator shape into a named predicate/mapper/reducer pipeline before changing behavior")
-        (next "guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")))
-;; Message <- String String
-(def (controlled-branch-shape-message caller shape-kind)
-  (cond
-   ((equal? shape-kind "pattern-branch-with-manual-loop")
-    (string-append "caller " caller
-                   " combines match state destructuring with a named-let loop; keep the repair policy-driven, split the selector/update step or use a bounded pipeline before editing for style or performance"))
-   (else
-    (string-append "caller " caller
-                   " has repeated match branches; keep the repair policy-driven, split nested branch logic into named helpers or a bounded selector pipeline before editing for style or performance"))))
-;;; Boundary:
-;;; - earliest-control-flow-fact composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; ControlFlowFact <- (NonEmptyList ControlFlowFact)
-(def (earliest-control-flow-fact facts)
-  (foldl (lambda (fact earliest)
-           (if (< (control-flow-fact-start fact)
-                  (control-flow-fact-start earliest))
-             fact
-             earliest))
-         (car facts)
-         (cdr facts)))
-;;; Boundary:
 ;;; - typed-combinator-style-message coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; Message <- DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Nat Nat Nat
-(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? covered-definition-count function-definition-count minimum-covered-definition-count)
+;; Message <- DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Boolean Nat Nat Nat
+(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? quality-repair-triggered? covered-definition-count function-definition-count minimum-covered-definition-count)
   (string-append
    "Scheme source owner has "
    (number->string definition-count)
@@ -518,6 +392,9 @@
       (number->string function-definition-count)
       " arity-bearing definitions, below minimum "
       (number->string minimum-covered-definition-count))
+     "")
+   (if quality-repair-triggered?
+     "; parser-owned quality facets require repair toward compact expression-level composition"
      "")
    "; typed-combinator-style has three criteria: adjacent Haskell-like transform signature block such as ;; (Z <- YY) <- (Z <- XX YY) XX, compact expression-level composition, and optimization-boundary comments for specialized branches"))
 ;; Integer <- Integer Integer

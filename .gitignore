@@ -3,7 +3,9 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.gerbil/
 __pycache__/
 *.egg-info/
 dist/
-build/
+.build/
+build

@@ -1,0 +1,757 @@
+;;; -*- Gerbil -*-
+;;; Gerbil-poo pattern specs and accessors for extension search packets.
+;;; Boundary:
+;;; - Owns source-backed pattern families and selector/schema payloads.
+;;; - Keeps :extensions/poo focused on activation and origin dispatch.
+
+(import (only-in :clan/poo/object .@ .def)
+        :support/list)
+
+(export poo-pattern-id
+        poo-pattern-focus
+        poo-pattern-source-owners
+        poo-pattern-agent-scenario
+        poo-pattern-agent-steering
+        poo-pattern-intent
+        poo-pattern-selectors
+        poo-pattern-minimal-forms
+        poo-pattern-failure-cases
+        poo-pattern-quality-signals
+        poo-pattern-witness
+        poo-pattern-missing
+        poo-pattern-next)
+
+;;; Pattern specs are Gerbil POO objects: specialized pattern families are
+;;; prototype extensions over the object-system packet shape, while renderers
+;;; keep the same hash/list protocol for search consumers.
+;; SourceSelector <- Role Symbol Selector
+(def (poo-selector role symbol selector)
+  (hash (role role)
+        (symbol symbol)
+        (selector selector)))
+;; FormTemplate <- Head Operands Keywords
+(def (poo-form-template head operands keywords)
+  (hash (head head)
+        (operands operands)
+        (keywords keywords)))
+;; FormMapping <- Role Symbol Head Operands Keywords Selector
+(def (poo-form-mapping role symbol head operands keywords selector)
+  (hash (role role)
+        (symbol symbol)
+        (template (poo-form-template head operands keywords))
+        (selector selector)))
+;; FailureCase <- Id RiskKind BadPattern CorrectiveAction Selectors
+(def (poo-failure-case id risk-kind bad-pattern corrective-action selectors)
+  (hash (id id)
+        (riskKind risk-kind)
+        (badPattern bad-pattern)
+        (correctiveAction corrective-action)
+        (selectors selectors)))
+
+;; PatternSpec
+(.def +poo-object-system-pattern-spec+
+  id: "poo-object-system"
+  defaultFocus: "object-system"
+  sourceOwners: ["object.ss"
+                 "mop.ss"
+                 "proto.ss"
+                 ":gerbil/runtime/c3"
+                 "src/gerbil/test/c3-test.ss"]
+  agentScenario: "agent-does-not-know-gerbil-poo-object-system"
+  agentSteering: "follow the emitted selectors and minimal forms before writing Gerbil POO code; avoid Racket class or generic Scheme object guesses"
+  intent: "write-gerbil-poo-object-system-without-racket-or-generic-scheme-guessing"
+  selectors:
+      [(poo-selector "class-definition"
+                     "defclass"
+                     "gerbil-poo://object.ss#defclass")
+       (poo-selector "generic-definition"
+                     ".defgeneric"
+                     "gerbil-poo://mop.ss#.defgeneric")
+       (poo-selector "method-dispatch"
+                     "defmethod"
+                     "gerbil-poo://mop.ss#defmethod")
+       (poo-selector "protocol-composition"
+                     "proto"
+                     "gerbil-poo://mop.ss#proto")
+       (poo-selector "prototype-composition"
+                     "compose-proto"
+                     "gerbil-poo://proto.ss#compose-proto")
+       (poo-selector "method-resolution-order"
+                     "class-precedence-list"
+                     "gerbil-runtime://c3.ss#class-precedence-list")
+       (poo-selector "real-project-semantic-test"
+                     "c3-test"
+                     "gerbil-runtime-test://src/gerbil/test/c3-test.ss#c3-test")]
+  minimalForms:
+      [(poo-form-mapping "class-definition"
+                         "defclass"
+                         "defclass"
+                         ["(<Class> <Base>)" "(<slot> ...)"]
+                         ["transparent: #t"]
+                         "gerbil-poo://object.ss#defclass")
+       (poo-form-mapping "generic-definition"
+                         ".defgeneric"
+                         ".defgeneric"
+                         ["(<generic> <type> <arg>)"]
+                         ["slot: .<slot>"]
+                         "gerbil-poo://mop.ss#.defgeneric")
+       (poo-form-mapping "method-dispatch"
+                         "defmethod"
+                         "defmethod"
+                         ["(@@method <generic> <type>)"
+                          "(lambda (self) ...)"]
+                         []
+                         "gerbil-poo://mop.ss#defmethod")
+       (poo-form-mapping "protocol-composition"
+                         "compose-proto"
+                         "compose-proto"
+                         ["<proto-a>" "<proto-b>"]
+                         []
+                         "gerbil-poo://proto.ss#compose-proto")
+       (poo-form-mapping "mro-regression-test"
+                         "class-precedence-list"
+                         "check"
+                         ["(map ##type-name (class-precedence-list <Class>::t))"
+                          "'(<Class> <Base> ... object t)"]
+                         []
+                         "gerbil-runtime-test://src/gerbil/test/c3-test.ss#class-inheritance")
+       (poo-form-mapping "slot-order-regression-test"
+                         "class-type-slot-vector"
+                         "check"
+                         ["(class-type-slot-vector <Class>::t)"
+                          "#(__class <base-slots> ... <class-slots> ...)"]
+                         []
+                         "gerbil-runtime-test://src/gerbil/test/c3-test.ss#slot-computation-order")]
+  failureCases:
+      [(poo-failure-case "racket-class-syntax"
+                         "dialect-confusion"
+                         "racket-class-or-generic-scheme-object"
+                         "use-poo-form-mapping"
+                         ["gerbil-poo://object.ss#defclass"
+                          "gerbil-poo://mop.ss#.defgeneric"
+                          "gerbil-poo://mop.ss#defmethod"])
+       (poo-failure-case "missing-extension-activation"
+                         "inactive-extension"
+                         "poo-forms-without-gerbil.pkg-dependency"
+                         "query-extension-before-pattern"
+                         ["gerbil.pkg"])
+       (poo-failure-case "method-without-generic"
+                         "incomplete-method-contract"
+                         "defmethod-without-generic-slot-contract"
+                         "follow-generic-and-method-mappings-together"
+                         ["gerbil-poo://mop.ss#.defgeneric"
+                          "gerbil-poo://mop.ss#defmethod"])
+       (poo-failure-case "unchecked-mro-assumption"
+                         "semantic-regression-gap"
+                         "class-hierarchy-without-c3-or-slot-order-test"
+                         "add-c3-linearization-and-slot-vector-witnesses"
+                         ["gerbil-runtime://c3.ss#class-precedence-list"
+                          "gerbil-runtime-test://src/gerbil/test/c3-test.ss#c3-test"
+                          "gerbil-runtime-test://src/gerbil/test/c3-test.ss#slot-computation-order"])]
+  qualitySignals: ["active-extension-fact" "dependency-backed-mapping"
+                   "real-project-c3-test" "mro-linearization-witness"
+                   "slot-order-witness" "minimal-forms" "failure-cases"]
+  witness: "dependency-backed-poo-mapping"
+  missing: []
+  next: "search extension poo syntax")
+
+;; PatternSpec
+(.def (+poo-dependency-protocol-adapter-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-rationaldict-adapter"
+  defaultFocus: "rationaldict dependency protocol adapter"
+  sourceOwners: ["rationaldict.ss" "table.ss" "type.ss"]
+  agentScenario: "agent-wraps-dependency-primitives-without-a-typed-protocol-adapter"
+  agentSteering: "dependency already owns the storage primitives; build a typed protocol adapter with exact only-in imports, define-type Key/Value/validate/serialization/equality slots, derived table/set/list capabilities, and generic contract tests"
+  intent: "query-rationaldict-adapter-shape-before-writing-dependency-backed-table-or-dict-boundaries"
+  selectors:
+       [(hash (role "typed-protocol-adapter")
+              (symbol "RationalDict.")
+              (selector "gerbil-poo://rationaldict.ss#RationalDict."))
+        (hash (role "derived-set-adapter")
+              (symbol "RationalSet")
+              (selector "gerbil-poo://rationaldict.ss#RationalSet"))
+        (hash (role "table-protocol")
+              (symbol "methods.table")
+              (selector "gerbil-poo://table.ss#methods.table"))
+        (hash (role "typed-validation-boundary")
+              (symbol ".validate")
+              (selector "gerbil-poo://rationaldict.ss#RationalDict..validate"))
+        (hash (role "serialization-boundary")
+              (symbol ".sexp<-")
+              (selector "gerbil-poo://rationaldict.ss#RationalDict..sexp<-"))
+        (hash (role "equality-boundary")
+              (symbol ".=?")
+              (selector "gerbil-poo://rationaldict.ss#RationalDict..=?"))]
+  minimalForms:
+       [(hash (role "typed-protocol-adapter")
+              (symbol "RationalDict.")
+              (template (hash (head "define-type")
+                              (operands ["(RationalDict. @ [methods.table] Value)"
+                                         "Key: Rational"
+                                         "Value: Any"])
+                              (keywords [".validate" ".empty" ".ref" ".acons"
+                                         ".<-list" ".list<-" ".sexp<-" ".=?"])))
+              (selector "gerbil-poo://rationaldict.ss#RationalDict."))
+        (hash (role "exact-dependency-import")
+              (symbol "only-in")
+              (template (hash (head "only-in")
+                              (operands [":clan/pure/dict/rationaldict"
+                                         "rationaldict-put rationaldict-ref rationaldict->list list->rationaldict rationaldict=?"])
+                              (keywords ["precise-import-surface"])))
+              (selector "gerbil-poo://rationaldict.ss#import:rationaldict"))
+        (hash (role "derived-set-adapter")
+              (symbol "RationalSet")
+              (template (hash (head "define-type")
+                              (operands ["(RationalSet @ [Set<-Table.])"
+                                         "Table: {(:: @T RationalDict.) Key: Elt Value: Unit}"])
+                              (keywords [".list<-" ".min-elt" ".max-elt"])))
+              (selector "gerbil-poo://rationaldict.ss#RationalSet"))
+        (hash (role "generic-contract-witness")
+              (symbol "table-contract-tests")
+              (template (hash (head "table-contract-tests")
+                              (operands ["<AdapterType>" "<sample-key>" "<sample-value>"])
+                              (keywords ["t/ owner" "not line-number fixture"])))
+              (selector "gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"))]
+  failureCases:
+       [(hash (id "manual-hash-or-alist-adapter")
+              (riskKind "dependency-boundary-bypass")
+              (badPattern "hand-written-hash-or-alist-object-when-dependency-provides-dict-primitives")
+              (correctiveAction "follow-rationaldict-define-type-adapter-shape")
+              (selectors ["gerbil-poo://rationaldict.ss#RationalDict."
+                          "gerbil-poo://table.ss#methods.table"]))
+        (hash (id "scattered-primitive-calls")
+              (riskKind "adapter-boundary-missing")
+              (badPattern "call-rationaldict-primitives-from-many-owners-without-a-stable-protocol-surface")
+              (correctiveAction "centralize-primitives-behind-define-type-slots")
+              (selectors ["gerbil-poo://rationaldict.ss#import:rationaldict"
+                          "gerbil-poo://rationaldict.ss#RationalDict."]))
+        (hash (id "line-number-contract-witness")
+              (riskKind "fragile-test-witness")
+              (badPattern "satisfy-adapter-policy-with-line-number-or-single-check-fixture")
+              (correctiveAction "add-generic-table-or-protocol-contract-tests")
+              (selectors ["gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"]))]
+  qualitySignals: ["dependency-backed-mapping" "rationaldict-source-example"
+                   "precise-only-in-import" "define-type-protocol-slots"
+                   "validation-serialization-equality-boundaries"
+                   "table-derived-set-capability"
+                   "generic-contract-witness-required"
+                   "poo-prototype-object-extension"]
+  witness: "gerbil-poo-rationaldict-adapter-source-shape"
+  next: "search pattern poo rationaldict adapter")
+
+;; PatternSpec
+(.def (+poo-prototype-composition-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-prototype-composition"
+  defaultFocus: "prototype composition"
+  sourceOwners: ["proto.ss"]
+  agentScenario: "agent-composes-poo-prototypes-without-knowing-proto-order"
+  intent: "query-proto-composition-source-before-composing-object-prototypes"
+  selectors:
+       [(poo-selector "prototype-instantiation"
+                      "instantiate-proto"
+                      "gerbil-poo://proto.ss#instantiate-proto")
+        (poo-selector "prototype-composition"
+                      "compose-proto"
+                      "gerbil-poo://proto.ss#compose-proto")
+        (poo-selector "prototype-composition-list"
+                      "compose-proto*"
+                      "gerbil-poo://proto.ss#compose-proto*")]
+  minimalForms:
+       [(poo-form-mapping "prototype-instantiation"
+                          "instantiate-proto"
+                          "instantiate-proto"
+                          ["<proto>" "<base-object>"]
+                          []
+                          "gerbil-poo://proto.ss#instantiate-proto")
+        (poo-form-mapping "prototype-composition"
+                          "compose-proto"
+                          "compose-proto"
+                          ["<proto-a>" "<proto-b>"]
+                          []
+                          "gerbil-poo://proto.ss#compose-proto")
+        (poo-form-mapping "prototype-composition-list"
+                          "compose-proto*"
+                          "compose-proto*"
+                          ["[<proto-a> <proto-b> ...]"]
+                          []
+                          "gerbil-poo://proto.ss#compose-proto*")]
+  failureCases:
+       [(poo-failure-case "proto-order-confusion"
+                          "composition-order"
+                          "compose-proto-with-reversed-base-and-extension-order"
+                          "follow-compose-proto-source-order-before-editing"
+                          ["gerbil-poo://proto.ss#compose-proto"
+                           "gerbil-poo://proto.ss#compose-proto*"])
+        (poo-failure-case "missing-prototype-runtime-witness"
+                          "untested-composition"
+                          "prototype-stack-without-instantiation-witness"
+                          "add-instantiate-proto-behavior-snapshot"
+                          ["gerbil-poo://proto.ss#instantiate-proto"])]
+  qualitySignals: ["dependency-backed-mapping" "proto-source"
+                   "composition-order" "runtime-prototype-composition-witness"
+                   "poo-prototype-object-extension"]
+  witness: "runtime-prototype-composition-witness"
+  missing: []
+  next: "search pattern poo prototype composition witness")
+
+;; PatternSpec
+(.def (+poo-trace-debug-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-trace-debug"
+  defaultFocus: "trace debug computed slot"
+  sourceOwners: ["debug.ss" "object.ss"]
+  agentScenario: "agent-traces-poo-methods-without-preserving-computed-slot-superfun"
+  intent: "query-trace-poo-and-computed-slot-wrapper-before-adding-debug-tracing"
+  selectors:
+  [(hash (role "trace-function-wrapper")
+         (symbol "traced-function")
+         (selector "gerbil-poo://debug.ss#traced-function"))
+   (hash (role "trace-inherited-slot")
+         (symbol "trace-inherited-slot")
+         (selector "gerbil-poo://debug.ss#trace-inherited-slot"))
+   (hash (role "trace-poo-wrapper")
+         (symbol "trace-poo")
+         (selector "gerbil-poo://debug.ss#trace-poo"))
+   (hash (role "computed-slot-wrapper")
+         (symbol "$computed-slot-spec")
+         (selector "gerbil-poo://debug.ss#trace-inherited-slot"))]
+  minimalForms:
+  [(hash (role "trace-function-wrapper")
+         (symbol "traced-function")
+         (template (hash (head "traced-function")
+                         (operands ["`(.@ ,name ,slot-name)" "<procedure>"])
+                         (keywords [])))
+         (selector "gerbil-poo://debug.ss#traced-function"))
+   (hash (role "trace-inherited-slot")
+         (symbol "trace-inherited-slot")
+         (template (hash (head "trace-inherited-slot")
+                         (operands ["<poo-name>" "'<slot-symbol>"])
+                         (keywords [])))
+         (selector "gerbil-poo://debug.ss#trace-inherited-slot"))
+   (hash (role "computed-slot-trace")
+         (symbol "$computed-slot-spec")
+         (template (hash (head "$computed-slot-spec")
+                         (operands ["(lambda (self superfun) ...)"])
+                         (keywords ["call-superfun-before-wrapping"])))
+         (selector "gerbil-poo://debug.ss#trace-inherited-slot"))
+   (hash (role "trace-poo-wrapper")
+         (symbol "trace-poo")
+         (template (hash (head "trace-poo")
+                         (operands ["<poo>" "<name>"])
+                         (keywords [])))
+         (selector "gerbil-poo://debug.ss#trace-poo"))]
+  failureCases:
+  [(hash (id "trace-without-superfun")
+         (riskKind "computed-slot-contract")
+         (badPattern "trace-wrapper-that-never-calls-inherited-superfun")
+         (correctiveAction "call-superfun-inside-trace-inherited-slot-before-wrapping")
+         (selectors ["gerbil-poo://debug.ss#trace-inherited-slot"]))
+   (hash (id "eager-trace-wrapper")
+         (riskKind "debug-tracing-semantics")
+         (badPattern "wraps-slot-value-before-computed-slot-inheritance-runs")
+         (correctiveAction "use-$computed-slot-spec-to-delay-inherited-slot-wrapper")
+         (selectors ["gerbil-poo://debug.ss#trace-inherited-slot"
+                     "gerbil-poo://object.ss#apply-slot-spec"]))
+   (hash (id "trace-mutates-source-poo")
+         (riskKind "debug-object-isolation")
+         (badPattern "mutates-original-poo-while-adding-trace-slots")
+         (correctiveAction "create-traced-variant-with-trace-poo-wrapper")
+         (selectors ["gerbil-poo://debug.ss#trace-poo"
+                     "gerbil-poo://debug.ss#trace-inherited-slot"]))]
+  qualitySignals: ["dependency-backed-mapping" "debug-source"
+                   "computed-slot-source" "superfun-chain-source"
+                   "trace-wrapper-source" "runtime-trace-poo-witness"]
+  witness: "runtime-trace-poo-witness"
+  next: "search pattern poo trace runtime witness")
+
+;; PatternSpec
+(.def (+poo-slot-cache-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-slot-cache-computed"
+  defaultFocus: "slot cache computed slot"
+  sourceOwners: ["object.ss" "mop.ss"]
+  agentScenario: "agent-adds-computed-poo-slot-without-cache-or-superfun-semantics"
+  intent: "query-slot-cache-and-apply-slot-spec-before-adding-computed-slots"
+  selectors:
+  [(hash (role "slot-spec-application")
+         (symbol "apply-slot-spec")
+         (selector "gerbil-poo://object.ss#apply-slot-spec"))
+   (hash (role "slot-cache-read")
+         (symbol ".ref")
+         (selector "gerbil-poo://object.ss#.ref"))
+   (hash (role "slot-cache-read-existing")
+         (symbol ".ref/cached")
+         (selector "gerbil-poo://object.ss#.ref/cached"))
+   (hash (role "slot-lens")
+         (symbol "slot-lens")
+         (selector "gerbil-poo://mop.ss#slot-lens"))
+   (hash (role "real-project-slot-cache-test")
+         (symbol "putslot-test")
+         (selector "gerbil-poo-test://t/object-test.ss#testing-putslot"))]
+  minimalForms:
+  [(hash (role "computed-slot")
+         (symbol "computed-slot-spec")
+         (template (hash (head "computed-slot-spec")
+                         (operands ["(lambda (self superfun) ...)"])
+                         (keywords [])))
+         (selector "gerbil-poo://object.ss#apply-slot-spec"))
+   (hash (role "slot-cache-read")
+         (symbol ".ref")
+         (template (hash (head ".ref")
+                         (operands ["<object>" "<slot-symbol>"])
+                         (keywords [])))
+         (selector "gerbil-poo://object.ss#.ref"))
+   (hash (role "slot-cache-read-existing")
+         (symbol ".ref/cached")
+         (template (hash (head ".ref/cached")
+                         (operands ["<object>" "<slot-symbol>" "<default>"])
+                         (keywords [])))
+         (selector "gerbil-poo://object.ss#.ref/cached"))
+   (hash (role "slot-cache-regression-test")
+         (symbol "putslot-test")
+         (template (hash (head "check")
+                         (operands ["(.@ <object> <computed-slot>)"
+                                    "'<expected-cached-value>"])
+                         (keywords [])))
+         (selector "gerbil-poo-test://t/object-test.ss#testing-putslot"))]
+  failureCases:
+  [(hash (id "uncached-slot-side-effect")
+         (riskKind "slot-cache-semantics")
+         (badPattern "computed-slot-with-side-effects-assumed-to-run-every-ref")
+         (correctiveAction "use-ref-cache-and-ref-cached-selectors")
+         (selectors ["gerbil-poo://object.ss#.ref"
+                     "gerbil-poo://object.ss#.ref/cached"]))
+   (hash (id "missing-superfun-chain")
+         (riskKind "computed-slot-contract")
+         (badPattern "computed-slot-ignores-superfun")
+         (correctiveAction "follow-apply-slot-spec-superfun-form")
+         (selectors ["gerbil-poo://object.ss#apply-slot-spec"]))]
+  qualitySignals: ["dependency-backed-mapping" "apply-slot-spec-source"
+                   "ref-cache-source" "real-project-slot-cache-test"
+                   "superfun-witness"]
+  witness: "real-project-slot-cache-witness"
+  next: "search pattern poo slot cache computed")
+
+;; PatternSpec
+(.def (+poo-io-json-fallback-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-io-json-fallback"
+  defaultFocus: "io json print fallback"
+  sourceOwners: ["io.ss" "mop.ss" "object.ss"]
+  agentScenario: "agent-customizes-poo-serialization-without-json-or-print-fallbacks"
+  intent: "query-poo-io-fallbacks-before-overriding-json-or-print-behavior"
+  selectors:
+  [(hash (role "print-fallback")
+         (symbol "@method :pr")
+         (selector "gerbil-poo://io.ss#@method:pr"))
+   (hash (role "writeenv-fallback")
+         (symbol "@method :wr")
+         (selector "gerbil-poo://io.ss#@method:wr-object"))
+   (hash (role "json-fallback")
+         (symbol "@method :json")
+         (selector "gerbil-poo://io.ss#@method:json"))
+   (hash (role "json-writer")
+         (symbol "@method :write-json")
+         (selector "gerbil-poo://io.ss#@method:write-json"))
+   (hash (role "typed-value-writer")
+         (symbol "TV")
+         (selector "gerbil-poo://io.ss#@method:wr-TV"))
+   (hash (role "writeenv-runtime-boundary")
+         (symbol "writeenv")
+         (selector "gerbil-runtime://builtin#writeenv"))
+   (hash (role "writeenv-method-dispatch-witness")
+         (symbol "method-ref")
+         (selector "gerbil-poo-witness://t/unit/poo/runtime-witness.ss#writeenv-method-dispatch"))
+   (hash (role "object-value-mapping")
+         (symbol "map-object-values")
+         (selector "gerbil-poo://mop.ss#map-object-values"))]
+  minimalForms:
+  [(hash (role "print-fallback")
+         (symbol "@method :pr")
+         (template (hash (head "defmethod")
+                         (operands ["(@method :pr object)"
+                                    "(lambda (self port options) ...)"])
+                         (keywords [])))
+         (selector "gerbil-poo://io.ss#@method:pr"))
+   (hash (role "writeenv-fallback")
+         (symbol "@method :wr")
+         (template (hash (head "defmethod")
+                         (operands ["(@method :wr object)"
+                                    "(lambda (self writeenv) ...)"])
+                         (keywords [])))
+         (selector "gerbil-poo://io.ss#@method:wr-object"))
+   (hash (role "json-fallback")
+         (symbol "@method :json")
+         (template (hash (head "defmethod")
+                         (operands ["(@method :json object)"
+                                    "(lambda (self) ...)"])
+                         (keywords [])))
+         (selector "gerbil-poo://io.ss#@method:json"))
+   (hash (role "json-writer")
+         (symbol "@method :write-json")
+         (template (hash (head "defmethod")
+                         (operands ["(@method :write-json object)"
+                                    "(lambda (self port) ...)"])
+                         (keywords [])))
+         (selector "gerbil-poo://io.ss#@method:write-json"))
+   (hash (role "typed-value-writer")
+         (symbol "TV")
+         (template (hash (head "defmethod")
+                         (operands ["(@method :wr TV)"
+                                    "(lambda (self writeenv) ...)"])
+                         (keywords ["write-object" ".json<-" ".string<-" ".sexp<-"])))
+         (selector "gerbil-poo://io.ss#@method:wr-TV"))
+   (hash (role "writeenv-method-dispatch-witness")
+         (symbol "method-ref")
+         (template (hash (head "method-ref")
+                         (operands ["<object-or-TV>" "`:wr"])
+                         (keywords [])))
+         (selector "gerbil-poo-witness://t/unit/poo/runtime-witness.ss#writeenv-method-dispatch"))]
+  failureCases:
+  [(hash (id "json-fallback-bypass")
+         (riskKind "serialization-contract")
+         (badPattern "manual-json-writer-that-skips-type-json<-and-sexp")
+         (correctiveAction "follow-json-fallback-order-before-overriding")
+         (selectors ["gerbil-poo://io.ss#@method:json"
+                     "gerbil-poo://io.ss#@method:write-json"]))
+   (hash (id "print-representation-bypass")
+         (riskKind "display-contract")
+         (badPattern "manual-printer-that-skips-print-representation-and-sexp")
+         (correctiveAction "follow-pr-fallback-order-before-overriding")
+         (selectors ["gerbil-poo://io.ss#@method:pr"]))
+   (hash (id "typed-value-writer-bypass")
+         (riskKind "typed-value-serialization-contract")
+         (badPattern "manual-TV-printer-that-skips-write-object-json-string-sexp-precedence")
+         (correctiveAction "follow-TV-writeenv-fallback-order-before-specializing")
+         (selectors ["gerbil-poo://io.ss#@method:wr-TV"
+                     "gerbil-poo://io.ss#@method:wr-object"]))
+   (hash (id "direct-writeenv-construction")
+         (riskKind "runtime-internal-boundary")
+         (badPattern "agent-constructs-writeenv-or-calls-:wr-directly")
+         (correctiveAction "use-write-json-pr-or-method-ref-dispatch-witness-until-writeenv-roundtrip-is-owned")
+         (selectors ["gerbil-runtime://builtin#writeenv"
+                     "gerbil-poo-witness://t/unit/poo/runtime-witness.ss#writeenv-method-dispatch"]))
+   (hash (id "write-printer-hook-assumption")
+         (riskKind "printer-hook-contract")
+         (badPattern "agent-assumes-write-output-roundtrips-through-poo-:wr")
+         (correctiveAction "treat-writeenv-roundtrip-as-missing-until-a-runtime-owner-exposes-a-stable-writeenv-entrypoint")
+         (selectors ["gerbil-poo://io.ss#@method:wr-object"
+                     "gerbil-poo://io.ss#@method:wr-TV"
+                     "gerbil-runtime://builtin#writeenv"]))]
+  qualitySignals: ["dependency-backed-mapping" "json-fallback-source"
+                   "print-fallback-source" "writeenv-fallback-source"
+                   "typed-value-writer-source" "json-roundtrip-witness"
+                   "print-fallback-witness" "writeenv-method-dispatch-witness"
+                   "writeenv-roundtrip-witness-required"]
+  witness: "runtime-json-print-writeenv-method-source-backed-io-fallback"
+  missing: ["writeenv-roundtrip-witness"]
+  next: "search runtime-source writeenv printer hook")
+
+;; PatternSpec
+(.def (+poo-lens-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-lens-slot"
+  defaultFocus: "lens slot-lens"
+  sourceOwners: ["mop.ss" "t/mop-test.ss"]
+  agentScenario: "agent-updates-poo-slots-without-lens-composition-semantics"
+  intent: "query-slot-lens-and-lens-compose-before-writing-functional-slot-updates"
+  selectors:
+  [(hash (role "lens-class")
+         (symbol "Lens")
+         (selector "gerbil-poo://mop.ss#Lens"))
+   (hash (role "lens-slot")
+         (symbol "slot-lens")
+         (selector "gerbil-poo://mop.ss#slot-lens"))
+   (hash (role "lens-compose")
+         (symbol ".compose")
+         (selector "gerbil-poo://mop.ss#Lens.compose"))
+   (hash (role "real-project-lens-test")
+         (symbol "Lenses")
+         (selector "gerbil-poo-test://t/mop-test.ss#Lenses"))]
+  minimalForms:
+  [(hash (role "slot-lens")
+         (symbol "slot-lens")
+         (template (hash (head "slot-lens")
+                         (operands ["'<slot-symbol>"])
+                         (keywords [])))
+         (selector "gerbil-poo://mop.ss#slot-lens"))
+   (hash (role "lens-compose")
+         (symbol ".compose")
+         (template (hash (head ".call")
+                         (operands ["<lens>" ".compose" "<nested-lens>"])
+                         (keywords [])))
+         (selector "gerbil-poo://mop.ss#Lens.compose"))
+   (hash (role "lens-regression-test")
+         (symbol "Lenses")
+         (template (hash (head "check-equal?")
+                         (operands ["(.alist (.call Lens .modify (slot-lens '<slot>) <fn> <object>))"
+                                    "'((<slot> . <value>) ...)"])
+                         (keywords [])))
+         (selector "gerbil-poo-test://t/mop-test.ss#Lenses"))]
+  failureCases:
+  [(hash (id "imperative-slot-update")
+         (riskKind "functional-update-contract")
+         (badPattern "manual-slot-mutation-instead-of-slot-lens")
+         (correctiveAction "use-slot-lens-and-lens-compose")
+         (selectors ["gerbil-poo://mop.ss#slot-lens"
+                     "gerbil-poo://mop.ss#Lens.compose"]))]
+  qualitySignals: ["dependency-backed-mapping" "lens-source"
+                   "slot-lens-source" "real-project-lens-test"
+                   "functional-update-witness"]
+  witness: "real-project-lens-witness"
+  next: "search pattern poo lens slot-lens")
+
+;; PatternSpec
+(.def (+poo-type-validation-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-type-validation-sealed"
+  defaultFocus: "sealed type validation"
+  sourceOwners: ["mop.ss" "t/mop-test.ss"]
+  agentScenario: "agent-defines-poo-class-without-sealed-type-validation"
+  intent: "query-sealed-class-and-validate-witness-before-writing-type-checked-poo-classes"
+  selectors:
+  [(hash (role "class-descriptor")
+         (symbol "Class.")
+         (selector "gerbil-poo://mop.ss#Class."))
+   (hash (role "function-validator")
+         (symbol "Function.")
+         (selector "gerbil-poo://mop.ss#Function."))
+   (hash (role "generic-slot-validator")
+         (symbol "slot-checker")
+         (selector "gerbil-poo://mop.ss#slot-checker"))
+   (hash (role "real-project-validation-test")
+         (symbol "mop-test")
+         (selector "gerbil-poo-test://t/mop-test.ss#sealed-type-validation"))]
+  minimalForms:
+  [(hash (role "sealed-class-definition")
+         (symbol "define-type")
+         (template (hash (head "define-type")
+                         (operands ["(<Class> @ <Base>)"
+                                    "slots: =>.+ {<slot>: {type: <Type>} ...}"])
+                         (keywords ["sealed: #t"])))
+         (selector "gerbil-poo://mop.ss#Class."))
+   (hash (role "generic-slot-validator")
+         (symbol ".defgeneric")
+         (template (hash (head ".defgeneric")
+                         (operands ["(<accessor> x)"])
+                         (keywords ["slot: <slot>" "default: <value>"])))
+         (selector "gerbil-poo://mop.ss#slot-checker"))
+   (hash (role "validation-regression-test")
+         (symbol "validate")
+         (template (hash (head "validate")
+                         (operands ["<Type>" "<object>"])
+                         (keywords [])))
+         (selector "gerbil-poo-test://t/mop-test.ss#sealed-type-validation"))]
+  failureCases:
+  [(hash (id "missing-required-typed-slot")
+         (riskKind "type-validation-gap")
+         (badPattern "class-instance-created-without-required-typed-slot")
+         (correctiveAction "validate-against-real-mop-test-required-slot-failures")
+         (selectors ["gerbil-poo-test://t/mop-test.ss#sealed-type-validation"
+                     "gerbil-poo://mop.ss#Class."]))
+   (hash (id "sealed-extra-slot-assumption")
+         (riskKind "sealed-class-contract")
+         (badPattern "sealed-class-accepts-extra-slots")
+         (correctiveAction "respect-Class.-sealed-effective-slots-check")
+         (selectors ["gerbil-poo://mop.ss#Class."
+                     "gerbil-poo-test://t/mop-test.ss#sealed-type-validation"]))
+   (hash (id "unchecked-function-arity")
+         (riskKind "function-validation-contract")
+         (badPattern "function-slot-without-arity-or-type-validation")
+         (correctiveAction "use-Function.-validate-row-witness")
+         (selectors ["gerbil-poo://mop.ss#Function."]))]
+  qualitySignals: ["dependency-backed-mapping" "class-descriptor-source"
+                   "function-validator-source" "real-project-mop-test"
+                   "sealed-type-witness" "validation-negative-witness"]
+  witness: "real-project-sealed-type-validation-witness"
+  next: "search pattern poo sealed validate")
+
+;; PatternSpec
+(.def (+poo-c3-mro-pattern-spec+ @ +poo-object-system-pattern-spec+)
+  id: "poo-c3-mro-regression"
+  defaultFocus: "c3 mro slot order"
+  sourceOwners: ["object.ss" ":gerbil/runtime/c3" "src/gerbil/test/c3-test.ss"]
+  agentScenario: "agent-writes-poo-inheritance-without-knowing-c3-linearization"
+  intent: "force-agent-to-query-poo-and-runtime-c3-witnesses-before-editing-inheritance"
+  qualitySignals: ["active-extension-fact" "dependency-backed-mapping"
+                   "real-project-c3-test" "mro-linearization-witness"
+                   "slot-order-witness" "failure-cases"]
+  witness: "real-project-c3-and-slot-order-witness"
+  next: "search extension poo pattern c3")
+
+;; PatternSpecRegistry
+(def +poo-pattern-spec-registry+
+  (list (cons 'dependency-protocol-adapter +poo-dependency-protocol-adapter-pattern-spec+)
+        (cons 'prototype-composition +poo-prototype-composition-pattern-spec+)
+        (cons 'trace-debug +poo-trace-debug-pattern-spec+)
+        (cons 'slot-cache +poo-slot-cache-pattern-spec+)
+        (cons 'io-json-fallback +poo-io-json-fallback-pattern-spec+)
+        (cons 'lens +poo-lens-pattern-spec+)
+        (cons 'type-validation +poo-type-validation-pattern-spec+)
+        (cons 'c3-mro +poo-c3-mro-pattern-spec+)
+        (cons 'object-system +poo-object-system-pattern-spec+)))
+
+;; PatternSpec <- Kind
+(def (poo-pattern-spec kind)
+  (let (entry (assq kind +poo-pattern-spec-registry+))
+    (and entry (cdr entry))))
+
+;; Value <- Kind Slot
+(def (poo-pattern-spec-slot kind slot)
+  (let (spec (poo-pattern-spec kind))
+    (and spec
+         (case slot
+           ((id) (.@ spec id))
+           ((defaultFocus) (.@ spec defaultFocus))
+           ((sourceOwners) (.@ spec sourceOwners))
+           ((agentScenario) (.@ spec agentScenario))
+           ((agentSteering) (.@ spec agentSteering))
+           ((intent) (.@ spec intent))
+           ((selectors) (.@ spec selectors))
+           ((minimalForms) (.@ spec minimalForms))
+           ((failureCases) (.@ spec failureCases))
+           ((qualitySignals) (.@ spec qualitySignals))
+           ((witness) (.@ spec witness))
+           ((missing) (.@ spec missing))
+           ((next) (.@ spec next))
+           (else #f)))))
+
+;; PooPatternFocus <- String (List PooFormFact)
+(def (poo-pattern-focus kind terms)
+  (if (and (pair? terms) (pair? (cdr terms)))
+    (join (cdr terms) " ")
+    (poo-pattern-default-focus kind)))
+;; String <- String
+(def (poo-pattern-id kind)
+  (poo-pattern-spec-slot kind 'id))
+;; PooPatternDefaultFocus <- String
+(def (poo-pattern-default-focus kind)
+  (poo-pattern-spec-slot kind 'defaultFocus))
+;; (List String) <- String
+(def (poo-pattern-source-owners kind)
+  (poo-pattern-spec-slot kind 'sourceOwners))
+;; PooPatternAgentScenario <- String
+(def (poo-pattern-agent-scenario kind)
+  (poo-pattern-spec-slot kind 'agentScenario))
+;; AgentSteering <- String
+(def (poo-pattern-agent-steering kind)
+  (poo-pattern-spec-slot kind 'agentSteering))
+;; PooPatternIntent <- String
+(def (poo-pattern-intent kind)
+  (poo-pattern-spec-slot kind 'intent))
+;; Selector
+(def (poo-pattern-selectors (kind 'object-system))
+  (poo-pattern-spec-slot kind 'selectors))
+;; Integer
+(def (poo-pattern-minimal-forms (kind 'object-system))
+  (poo-pattern-spec-slot kind 'minimalForms))
+;; PooPatternFailureCases
+(def (poo-pattern-failure-cases (kind 'object-system))
+  (poo-pattern-spec-slot kind 'failureCases))
+;; PooPatternQualitySignals <- String
+(def (poo-pattern-quality-signals kind)
+  (poo-pattern-spec-slot kind 'qualitySignals))
+;; PooPatternWitness <- String
+(def (poo-pattern-witness kind)
+  (poo-pattern-spec-slot kind 'witness))
+;; PooPatternMissing <- String
+(def (poo-pattern-missing kind)
+  (poo-pattern-spec-slot kind 'missing))
+;; String <- String
+(def (poo-pattern-next kind)
+  (poo-pattern-spec-slot kind 'next))

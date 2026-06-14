@@ -39,7 +39,7 @@
              " extractor=" (hash-get comment 'extractor)
              " summary=" (hash-get comment 'summary)
              " fallback=" (hash-get comment 'fallback)))
-;; (List String) <- (List String)
+;; Unit <- (List SyntaxFact)
 (def (emit-structural-syntax-fact-lines facts)
   (for-each emit-syntax-fact-line
             (ranked-syntax-facts facts)))
@@ -69,6 +69,13 @@
                " arities=" (field-list-string fields 'arities)
                " formals=" (field-list-string fields 'formals)
                " caller=" (field-string fields 'caller)
+               " dependency=" (field-string fields 'dependency)
+               " importedSymbols=" (field-list-string fields 'importedSymbols)
+               " usedSymbols=" (field-list-string fields 'usedSymbols)
+               " protocolRefs=" (field-list-string fields 'protocolRefs)
+               " derivedCapabilities=" (field-list-string fields 'derivedCapabilities)
+               " manualObjectEncodingRisk=" (field-string fields 'manualObjectEncodingRisk)
+               " genericContractWitnessKind=" (field-string fields 'genericContractWitnessKind)
                " contract=" (field-string fields 'contract)
                " contractOutput=" (field-string fields 'contractOutput)
                " contractInputs=" (field-list-string fields 'contractInputs)
@@ -99,9 +106,10 @@
 ;;; Boundary:
 ;;; - ranked-syntax-fact-predicates composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List Predicate) <- Void
+;; (List SyntaxFactPredicate)
 (def (ranked-syntax-fact-predicates)
   [poo-syntax-fact?
+   dependency-adapter-quality-syntax-fact?
    invalid-typed-contract-syntax-fact?
    higher-order-syntax-fact?
    typed-contract-syntax-fact?
@@ -113,7 +121,7 @@
 ;;; Invariant:
 ;;; - ranked-syntax-state-output owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; (List SyntaxFact) <- State
+;; SyntaxFactList <- RankedSyntaxState
 (def (ranked-syntax-state-output state)
   (match state
     ([seen out remaining] out)))
@@ -121,7 +129,7 @@
 ;;; Boundary:
 ;;; - select-ranked-syntax-facts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- (List XX) (Boolean <- XX) State
+;; RankedSyntaxState <- (List SyntaxFact) SyntaxFactPredicate RankedSyntaxState
 (def (select-ranked-syntax-facts facts predicate state)
   (foldl (lambda (fact state)
            (select-ranked-syntax-fact predicate fact state))
@@ -131,7 +139,7 @@
 ;;; Invariant:
 ;;; - select-ranked-syntax-fact owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; State <- Predicate SyntaxFact State
+;; RankedSyntaxState <- SyntaxFactPredicate SyntaxFact RankedSyntaxState
 (def (select-ranked-syntax-fact predicate fact state)
   (match state
     ([seen out remaining]
@@ -140,58 +148,64 @@
          [(cons id seen) (cons fact out) (- remaining 1)]
          state)))))
 
-;; Boolean <- Predicate (List String) Integer SyntaxFact
+;; Boolean <- SyntaxFactPredicate (List SyntaxFactId) Integer SyntaxFact
 (def (ranked-syntax-fact-selected? predicate seen remaining fact)
   (and (> remaining 0)
        (predicate fact)
        (not (member (hash-get fact 'id) seen))))
+
+;;; Predicate selectors share the same syntax field accessor so role and
+;;; quality checks stay expression-level instead of re-opening the fields hash
+;;; in each predicate branch.
+;; String <- SyntaxFact Key
+(def (syntax-fact-field-string fact key)
+  (field-string (hash-get fact 'fields) key))
+
+;; Boolean <- SyntaxFact Key (List String)
+(def (syntax-fact-field-member? fact key values)
+  (member (syntax-fact-field-string fact key) values))
+
+;; Boolean <- SyntaxFact Key String
+(def (syntax-fact-field=? fact key expected)
+  (equal? (syntax-fact-field-string fact key) expected))
+
+;; Boolean <- SyntaxFact Key (List String)
+(def (syntax-fact-value-member? fact key values)
+  (member (hash-get fact key) values))
+
 ;; Boolean <- SyntaxFact
 (def (poo-syntax-fact? fact)
-  (let (fields (hash-get fact 'fields))
-    (and fields
-         (member (field-string fields 'role)
-                 '("class" "generic" "protocol" "method")))))
+  (syntax-fact-field-member? fact 'role '("class" "generic" "protocol" "method")))
+;; Boolean <- SyntaxFact
+(def (dependency-adapter-quality-syntax-fact? fact)
+  (syntax-fact-field=? fact 'role "dependency-protocol-adapter"))
 ;; Boolean <- SyntaxFact
 (def (macro-or-import-syntax-fact? fact)
-  (member (hash-get fact 'kind) '("macro" "import")))
+  (syntax-fact-value-member? fact 'kind '("macro" "import")))
 ;; Boolean <- SyntaxFact
 (def (higher-order-syntax-fact? fact)
-  (let (fields (hash-get fact 'fields))
-    (and fields
-         (member (field-string fields 'role)
-                 '("anonymous-function"
-                   "multi-arity-function"
-                   "partial-application"
-                   "loop-fold"
-                   "sequence-map"
-                   "sequence-filter"
-                   "sequence-fold")))))
+  (syntax-fact-field-member? fact 'role
+                             '("anonymous-function"
+                               "multi-arity-function"
+                               "partial-application"
+                               "loop-fold"
+                               "sequence-map"
+                               "sequence-filter"
+                               "sequence-fold")))
 ;; Boolean <- SyntaxFact
 (def (typed-contract-syntax-fact? fact)
-  (let (fields (hash-get fact 'fields))
-    (and fields
-         (equal? (field-string fields 'role)
-                 "typed-combinator-style"))))
+  (syntax-fact-field=? fact 'role "typed-combinator-style"))
 ;; Boolean <- SyntaxFact
 (def (invalid-typed-contract-syntax-fact? fact)
-  (let (fields (hash-get fact 'fields))
-    (and fields
-         (equal? (field-string fields 'role)
-                 "typed-combinator-style")
-         (equal? (field-string fields 'quality) "invalid"))))
+  (and (typed-contract-syntax-fact? fact)
+       (syntax-fact-field=? fact 'quality "invalid")))
 ;; Boolean <- SyntaxFact
 (def (comment-quality-syntax-fact? fact)
-  (let (fields (hash-get fact 'fields))
-    (and fields
-         (equal? (field-string fields 'role)
-                 "engineering-comment-quality"))))
+  (syntax-fact-field=? fact 'role "engineering-comment-quality"))
 ;; Boolean <- SyntaxFact
 (def (weak-comment-quality-syntax-fact? fact)
-  (let (fields (hash-get fact 'fields))
-    (and fields
-         (equal? (field-string fields 'role)
-                 "engineering-comment-quality")
-         (member (field-string fields 'quality) '("absent" "weak")))))
+  (and (comment-quality-syntax-fact? fact)
+       (syntax-fact-field-member? fact 'quality '("absent" "weak"))))
 ;; String <- Fields Key
 (def (field-string fields key)
   (if (and fields (hash-key? fields key))

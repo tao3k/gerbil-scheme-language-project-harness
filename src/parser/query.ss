@@ -100,6 +100,8 @@
                         (source-file-higher-order-forms file))
            (append-map* control-flow-query-terms
                         (source-file-control-flow-forms file))
+           (append-map* dependency-adapter-quality-query-terms
+                        (source-file-dependency-adapter-quality-facts file))
            (append-map* call-query-terms
                         (source-file-calls file)))))
 ;; Integer <- Definition
@@ -169,6 +171,31 @@
    (control-flow-fact-role fact)
    (control-flow-fact-caller fact)
    (control-flow-fact-selector fact)])
+
+;; (List SearchTerm) <- DependencyAdapterQualityFact
+(def (dependency-adapter-quality-query-terms fact)
+  (append ["dependency-adapter-quality"
+           "dependency-protocol-adapter"
+           "adapter"
+           "protocol-adapter"
+           (dependency-adapter-quality-fact-name fact)
+           (dependency-adapter-quality-fact-kind fact)
+           (dependency-adapter-quality-fact-role fact)
+           (dependency-adapter-quality-fact-dependency fact)
+           (dependency-adapter-quality-fact-quality fact)
+           (dependency-adapter-quality-fact-advice fact)
+           (dependency-adapter-quality-fact-selector fact)]
+          (dependency-adapter-quality-fact-imports fact)
+          (dependency-adapter-quality-fact-imported-symbols fact)
+          (dependency-adapter-quality-fact-used-symbols fact)
+          (dependency-adapter-quality-fact-protocol-refs fact)
+          (dependency-adapter-quality-fact-slots fact)
+          (dependency-adapter-quality-fact-derived-capabilities fact)
+          (dependency-adapter-quality-fact-quality-facets fact)
+          (dependency-adapter-quality-fact-missing-evidence fact)
+          [(dependency-adapter-quality-fact-manual-object-encoding-risk fact)
+           (dependency-adapter-quality-fact-generic-contract-witness-kind fact)]))
+
 ;;; Boundary:
 ;;; - call-query-terms composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

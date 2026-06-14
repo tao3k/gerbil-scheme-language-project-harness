@@ -30,6 +30,9 @@
         +agent-protocol-evidence-rule+
         +agent-typed-combinator-style-rule+
         +agent-controlled-branch-shape-rule+
+        +agent-comment-quality-rule+
+        +agent-predicate-family-combinator-rule+
+        +agent-dependency-protocol-adapter-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -62,4 +65,6 @@
         protocol-evidence-finding
         typed-combinator-style-finding
         controlled-branch-shape-finding
+        predicate-family-combinator-finding
+        dependency-protocol-adapter-finding
         facade-export-conflict-findings)

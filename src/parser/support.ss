@@ -14,10 +14,13 @@
         datum-list-items
         stx-list-items
         drop*
-        list-safe-cadr
-        list-safe-caddr
-        metadata-head?
-        safe-cadr
+	        list-safe-cadr
+	        list-safe-caddr
+	        metadata-head?
+	        form-datum-head
+	        form-metadata-value
+	        form-next-rest
+	        safe-cadr
         safe-caddr
         safe-cdr
         safe-cddr
@@ -85,6 +88,27 @@
 ;; Boolean <- Head
 (def (metadata-head? head)
   (member head '(package package: prelude: namespace: import export include)))
+;; Head <- Datum
+(def (form-datum-head datum)
+  (cond
+   ((pair? datum) (car datum))
+   ((metadata-atom-datum? datum) datum)
+   (else #f)))
+;; Boolean <- Datum
+(def (metadata-atom-datum? datum)
+  (member datum '(package: prelude: namespace:)))
+;; MetadataValue <- Datum Rest
+(def (form-metadata-value datum rest)
+  (cond
+   ((pair? datum) (safe-cadr datum))
+   ((and (metadata-atom-datum? datum) (pair? rest))
+    (syntax->datum (car rest)))
+   (else #f)))
+;; Rest <- Datum Rest
+(def (form-next-rest datum rest)
+  (if (and (metadata-atom-datum? datum) (pair? (cdr rest)))
+    (cddr rest)
+    (cdr rest)))
 ;; SafeCadr <- Obj
 (def (safe-cadr obj)
   (and (pair? obj) (pair? (cdr obj)) (cadr obj)))

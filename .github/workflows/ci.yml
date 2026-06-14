@@ -11,7 +11,7 @@ jobs:
   native:
     name: Native Gerbil harness (${{ matrix.os }}, ${{ matrix.gerbil-label }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
@@ -89,8 +89,18 @@ jobs:
           "$GERBIL_PREFIX/bin/gxi" -e '(displayln "gerbil-ready")'
           "$GERBIL_PREFIX/bin/gxpkg" list
 
+      - name: Cache Gerbil package dependencies
+        id: gerbil-pkg-cache
+        uses: actions/cache@v4
+        with:
+          path: .gerbil
+          key: gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-${{ hashFiles('gerbil.pkg') }}
+          restore-keys: |
+            gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-
+
       - name: Install Gerbil package dependencies from gerbil.pkg
         run: |
+          gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
           gxpkg deps --install
 
       - name: Run Gerbil test suites
@@ -113,7 +123,7 @@ jobs:
             .status == "pass" and
             (.totalMs | type == "number") and
             (.slowestBenchmark.durationMs | type == "number") and
-            (.benchmarks | length) == 4 and
+            (.benchmarks | length) == 5 and
             all(.benchmarks[]; (.durationMs | type == "number") and .durationMs >= 0)
           '
 

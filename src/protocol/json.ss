@@ -7,6 +7,7 @@
         :parser/facade
         :parser/query
         :policy/repair
+        :protocol/structural-index
         :protocol/structural-facts
         :support/list
         :std/misc/ports
@@ -19,6 +20,8 @@
         project-package-json
         search-prime-packet-json
         structural-index-packet-json
+        structural-index-artifact-packet-json
+        native-syntax-owner-facts-packet-json
         pattern-mapping-json
         definition-json
         call-json
@@ -28,6 +31,7 @@
         binding-json
         poo-form-json
         higher-order-json
+        dependency-adapter-quality-json
         top-form-json
         finding-json
         parse-error-json
@@ -35,9 +39,6 @@
 ;; String
 (def +semantic-search-schema-id+
   "agent.semantic-protocols.semantic-search-packet")
-;; Integer
-(def +semantic-structural-index-schema-id+
-  "agent.semantic-protocols.semantic-structural-index")
 ;; String
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
@@ -67,6 +68,9 @@
          (map higher-order-json (source-file-higher-order-forms file)))
         (controlFlowForms
          (map control-flow-json (source-file-control-flow-forms file)))
+        (dependencyAdapterQualityFacts
+         (map dependency-adapter-quality-json
+              (source-file-dependency-adapter-quality-facts file)))
         (forms (map top-form-json (source-file-forms file)))
         (parseError (source-file-parse-error file))))
 ;; Json <- Package
@@ -128,21 +132,28 @@
 ;; Json <- Pattern
 (def (pattern-mapping-json pattern)
   (and pattern
-       (hash (id (hash-get pattern 'id))
-             (extension (hash-get pattern 'extension))
-             (focus (hash-get pattern 'focus))
-             (sourceRef (hash-get pattern 'sourceRef))
-             (sourceOwners (hash-get pattern 'sourceOwners))
-             (agentScenario (hash-get pattern 'agentScenario))
-             (intent (hash-get pattern 'intent))
-             (selectors (map pattern-selector-json
-                             (hash-get pattern 'selectors)))
-             (minimalForms (map pattern-form-json
-                                (hash-get pattern 'minimalForms)))
-             (failureCases (map pattern-failure-case-json
-                                 (hash-get pattern 'failureCases)))
-             (qualitySignals (hash-get pattern 'qualitySignals))
-             (witness (hash-get pattern 'witness)))))
+       (let (packet
+             (hash (id (hash-get pattern 'id))
+                   (extension (hash-get pattern 'extension))
+                   (focus (hash-get pattern 'focus))
+                   (origin (hash-get pattern 'origin))
+                   (sourceRef (hash-get pattern 'sourceRef))
+                   (sourceOwners (hash-get pattern 'sourceOwners))
+                   (agentScenario (hash-get pattern 'agentScenario))
+                   (intent (hash-get pattern 'intent))
+                   (selectors (map pattern-selector-json
+                                   (hash-get pattern 'selectors)))
+                   (minimalForms (map pattern-form-json
+                                      (hash-get pattern 'minimalForms)))
+                   (failureCases (map pattern-failure-case-json
+                                       (hash-get pattern 'failureCases)))
+                   (qualitySignals (hash-get pattern 'qualitySignals))
+                   (witness (hash-get pattern 'witness))))
+         (when (hash-key? pattern 'via)
+           (hash-put! packet 'via (hash-get pattern 'via)))
+         (when (hash-key? pattern 'importWitness)
+           (hash-put! packet 'importWitness (hash-get pattern 'importWitness)))
+         packet)))
 ;; Selector <- String
 (def (pattern-selector-json selector)
   (hash (role (hash-get selector 'role))
@@ -217,163 +228,6 @@
       (hash-put! packet 'projectPackage (project-package-json package)))
     (hash-put! packet 'extensions (map extension-fact-json extensions))
     packet))
-;;; Boundary:
-;;; - structural-index-packet-json composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex
-(def (structural-index-packet-json index)
-  (let* ((generation-id (structural-index-generation-id index))
-         (artifact-id (string-append "structural-index/" generation-id ".json"))
-         (files (project-index-files index)))
-    (hash
-     (schemaId +semantic-structural-index-schema-id+)
-     (schemaVersion "1")
-     (protocolId +semantic-language-protocol-id+)
-     (protocolVersion "1")
-     (generationId generation-id)
-     (languageId +language-id+)
-     (providerId +provider-id+)
-     (providerVersion "0.1.0")
-     (exportMethod "index/structural")
-     (projectRoot (project-index-root index))
-     (packageRoot ".")
-     (sourceAuthority "native-parser")
-     (sourceArtifactId artifact-id)
-     (rawSourceStored #f)
-     (fileHashes (map (cut structural-file-hash-json index <>) files))
-     (owners (map structural-owner-json files))
-     (symbols (append-map* structural-symbol-json files))
-     (syntaxFacts (json-rows-by-id
-                   (append-map* structural-syntax-fact-json files)))
-     (dependencyUsages (append-map* structural-dependency-json files)))))
-;;; Boundary:
-;;; - json-rows-by-id composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- Rows
-(def (json-rows-by-id rows)
-  (sort rows
-        (lambda (a b)
-          (string<? (hash-get a 'id) (hash-get b 'id)))))
-;;; Boundary:
-;;; - structural-index-generation-id composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex
-(def (structural-index-generation-id index)
-  (string-append
-   +language-id+
-   "-structural-"
-   (substring (stable-hex64
-               (join (map (cut structural-file-fingerprint index <>)
-                          (project-index-files index))
-                     "|"))
-              0
-              16)))
-;; Json <- ProjectIndex SourceFile
-(def (structural-file-hash-json index file)
-  (hash (path (source-file-path file))
-        (sha256 (structural-file-fingerprint index file))
-        (source "native-parser-fingerprint")))
-;;; Boundary:
-;;; - structural-file-fingerprint composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; StructuralFileFingerprint <- ProjectIndex SourceFile
-(def (structural-file-fingerprint index file)
-  (with-catch
-   (lambda (_)
-     (stable-hex64 (structural-file-fact-string file)))
-   (lambda ()
-     (stable-hex64
-      (join (read-file-lines
-             (path-expand (source-file-path file)
-                          (project-index-root index)))
-            "\n")))))
-;;; Boundary:
-;;; - structural-file-fact-string composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- SourceFile
-(def (structural-file-fact-string file)
-  (join [(source-file-path file)
-         (number->string (source-file-line-count file))
-         (or (source-file-package file) "")
-         (or (source-file-namespace file) "")
-         (join (source-file-imports file) ",")
-         (join (source-file-exports file) ",")
-         (join (map definition-name (source-file-definitions file)) ",")
-         (join (map call-fact-callee (source-file-calls file)) ",")
-         (join (map macro-fact-name (source-file-macros file)) ",")
-         (join (map binding-fact-name (source-file-bindings file)) ",")
-         (join (map poo-form-fact-name (source-file-poo-forms file)) ",")
-         (join (map higher-order-fact-name
-                    (source-file-higher-order-forms file)) ",")]
-        "|"))
-;;; Boundary:
-;;; - structural-owner-json composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Json <- SourceFile
-(def (structural-owner-json file)
-  (hash (ownerPath (source-file-path file))
-        (ownerKind "source")
-        (sourceAuthority "native-parser")
-        (location (hash (path (source-file-path file))
-                        (lineRange (string-append
-                                    "1:"
-                                    (number->string
-                                     (max 1 (source-file-line-count file)))))))
-        (queryKeys (dedupe (append [(source-file-path file)]
-                                   (if (source-file-package file)
-                                     [(source-file-package file)]
-                                     '())
-                                   (source-file-imports file)
-                                   (map definition-name
-                                        (source-file-definitions file)))))))
-;;; Boundary:
-;;; - structural-symbol-json composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Json <- SourceFile
-(def (structural-symbol-json file)
-  (map (lambda (defn)
-         (hash (ownerPath (definition-path defn))
-               (name (definition-name defn))
-               (qualifiedName (structural-qualified-name file defn))
-               (kind (definition-kind defn))
-               (visibility (if (member (definition-name defn)
-                                       (source-file-exports file))
-                             "public"
-                             "private"))
-               (sourceLocator (definition-selector defn))
-               (queryKeys (dedupe [(definition-name defn)
-                                   (structural-qualified-name file defn)
-                                   (definition-kind defn)
-                                   (definition-path defn)]))))
-       (source-file-definitions file)))
-;; StructuralQualifiedName <- SourceFile Definition
-(def (structural-qualified-name file defn)
-  (let (ns (or (source-file-namespace file)
-               (source-file-package file)
-               (source-file-path file)))
-    (string-append ns "::" (definition-name defn))))
-;;; Boundary:
-;;; - structural-dependency-json composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- SourceFile
-(def (structural-dependency-json file)
-  (append
-   (map (lambda (module-ref)
-          (structural-dependency-row file module-ref "native-parser-import"))
-        (source-file-imports file))
-   (map (lambda (include-ref)
-          (structural-dependency-row file include-ref "native-parser-include"))
-        (source-file-includes file))))
-;; Integer <- SourceFile ModuleRef Source
-(def (structural-dependency-row file module-ref source)
-  (hash (ownerPath (source-file-path file))
-        (packageName module-ref)
-        (apiName module-ref)
-        (importPath module-ref)
-        (manifestPath "gerbil.pkg")
-        (source source)
-        (sourceLocator (string-append (source-file-path file) ":1:1"))
-        (queryKeys (dedupe [module-ref (source-file-path file) source]))))
 ;; Json <- ProjectIndex
 (def (search-header-json index)
   (hash (kind "search-prime")
@@ -474,27 +328,6 @@
         (string-append (number->string (definition-start first))
                        ":"
                        (number->string (definition-end first)))))))
-;; Integer <- (YY <- XX) (List XX)
-(def (append-map* proc xs)
-  (if (null? xs)
-    '()
-    (append (proc (car xs)) (append-map* proc (cdr xs)))))
-;; StableHex64 <- SourceLine
-(def (stable-hex64 text)
-  (let (chunk (left-pad-hex (number->string (stable-hash text) 16) 16))
-    (string-append chunk chunk chunk chunk)))
-;; StableHash <- SourceLine
-(def (stable-hash text)
-  (foldl (lambda (ch hash)
-           (modulo (+ (* hash 16777619) (char->integer ch))
-                   4294967296))
-         2166136261
-         (string->list text)))
-;; LeftPadHex <- SourceLine Width
-(def (left-pad-hex text width)
-  (if (fx>= (string-length text) width)
-    text
-    (left-pad-hex (string-append "0" text) width)))
 ;; Json <- Definition
 (def (definition-json defn)
   (hash (name (definition-name defn))
@@ -609,6 +442,42 @@
         (bodyFormCount (control-flow-fact-body-form-count fact))
         (qualityFacets (control-flow-quality-facets fact))
         (selector (control-flow-fact-selector fact))))
+
+;;; Boundary:
+;;; - JSON projection is the stable API surface for R017 evidence.
+;;; - Policy, guide, and structural owner facts consume these fields.
+;;; - Field names must stay aligned with schema snapshots.
+;;; - Parser internals may evolve without changing downstream packet keys.
+;; Json <- DependencyAdapterQualityFact
+(def (dependency-adapter-quality-json fact)
+  (hash (name (dependency-adapter-quality-fact-name fact))
+        (kind (dependency-adapter-quality-fact-kind fact))
+        (path (dependency-adapter-quality-fact-path fact))
+        (start (dependency-adapter-quality-fact-start fact))
+        (end (dependency-adapter-quality-fact-end fact))
+        (role (dependency-adapter-quality-fact-role fact))
+        (dependency (dependency-adapter-quality-fact-dependency fact))
+        (imports (dependency-adapter-quality-fact-imports fact))
+        (importedSymbols
+         (dependency-adapter-quality-fact-imported-symbols fact))
+        (usedSymbols (dependency-adapter-quality-fact-used-symbols fact))
+        (protocolRefs
+         (dependency-adapter-quality-fact-protocol-refs fact))
+        (slots (dependency-adapter-quality-fact-slots fact))
+        (derivedCapabilities
+         (dependency-adapter-quality-fact-derived-capabilities fact))
+        (manualObjectEncodingRisk
+         (dependency-adapter-quality-fact-manual-object-encoding-risk fact))
+        (genericContractWitnessKind
+         (dependency-adapter-quality-fact-generic-contract-witness-kind fact))
+        (quality (dependency-adapter-quality-fact-quality fact))
+        (qualityFacets
+         (dependency-adapter-quality-fact-quality-facets fact))
+        (missingEvidence
+         (dependency-adapter-quality-fact-missing-evidence fact))
+        (advice (dependency-adapter-quality-fact-advice fact))
+        (selector (dependency-adapter-quality-fact-selector fact))))
+
 ;; Json <- Form
 (def (top-form-json form)
   (hash (kind (top-form-kind form))

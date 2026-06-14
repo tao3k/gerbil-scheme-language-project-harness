@@ -1,0 +1,425 @@
+#+title: 11.07 Parser Policy Function Quality Audit
+#+date: 2026-06-13
+#+filetags: :gerbil-scheme:harness:parser:policy:function-quality:research:
+#+startup: overview
+
+* Scope
+
+This audit reviews the current research documents and the live Gerbil Scheme
+harness implementation from three angles:
+
+- parser completeness for native Gerbil engineering facts;
+- source quality compared with the =.data/gerbil-utils= style target;
+- policy monitoring quality, especially when several parser-owned facts apply
+  to one function at the same time.
+
+The target is not to ask the agent to "write better Scheme" from memory.  The
+target is to make native parser facts, policy findings, guide exemplars,
+search projection, snapshots, self-apply, and bench all push the agent toward
+Gerbil-quality code.
+
+* Evidence
+
+Commands used during this audit:
+
+#+begin_src shell
+asp org search toc docs/10-19-research
+asp org query --from-hook direct-source-read --selector docs/10-19-research/11.05-gerbil-scheme-harness-engineering-audit.org:234-478 docs/10-19-research
+asp org query --from-hook direct-source-read --selector docs/10-19-research/11.06-current-quality-gap-register.org:44-220 docs/10-19-research
+asp rg -query 'GERBIL-SCHEME-AGENT-R016|quality-shape|predicate-family' -query 'typed-combinator|controlled-branch|comment-quality' src t docs/10-19-research
+asp rg -query 'predicateFamilyFacts|fieldAccessPatternFacts|booleanConditionFacts|loopDriverFacts' -query 'structural|snapshot|search|packet|projection' src t
+asp rg -query 'quality-profile|function-quality|multi-layer|multilayer|correlat|priority|finding group|findingGroup' src t docs/10-19-research
+asp gerbil-scheme query --selector src/parser/quality-shape.ss:1-420 --workspace . --code
+asp gerbil-scheme query --selector src/protocol/quality-shape-facts.ss:1-220 --workspace . --code
+asp gerbil-scheme query --selector src/protocol/structural-facts.ss:1-140 --workspace . --code
+asp gerbil-scheme query --selector src/snapshot/parser.ss:40-82 --workspace . --code
+asp gerbil-scheme query --selector src/policy/agent-style-shape.ss:1-140 --workspace . --code
+asp gerbil-scheme query --selector src/policy/repair.ss:1-180 --workspace . --code
+asp gerbil-scheme query --selector src/types/findings.ss:1-180 --workspace . --code
+#+end_src
+
+Important evidence:
+
+- =docs/10-19-research/11.05-gerbil-scheme-harness-engineering-audit.org=
+  already identified the right long-term shape: capability posture, rule
+  catalog centralization, search vocabulary, macro witness, POO opportunity
+  rules, and structural performance profiling.
+- =docs/10-19-research/11.06-current-quality-gap-register.org= records
+  closure for the 1-7 lane, but it predates the newest predicate-family /
+  quality-shape layer.  It lists R013-R015 as protected, while the current
+  code has also added R016.
+- =src/parser/quality-shape.ss= now produces native =predicateFamilyFacts=,
+  =fieldAccessPatternFacts=, =booleanConditionFacts=, and =loopDriverFacts=.
+- =src/protocol/structural-facts.ss= includes those quality facts in the
+  structural packet, and =src/snapshot/parser.ss= includes them in parser
+  snapshots.
+- =src/policy/agent-style-shape.ss= turns parser-owned predicate-family facts
+  into =GERBIL-SCHEME-AGENT-R016= findings with agent repair evidence.
+- =src/policy/repair.ss= still reports aggregate repair counts and per-finding
+  guide routes.  It does not group findings by function or compute a repair
+  order when several rules hit the same owner/function.
+
+* Current State
+
+** What is now strong
+
+The latest implementation moved in the right direction.  The new quality-shape
+parser does not hard-code the style rewrite in policy.  It first derives native
+facts:
+
+- repeated predicate families over the same subject;
+- repeated field access patterns;
+- individual boolean predicate condition facts;
+- named-let loop-driver classification.
+
+Those facts then flow into:
+
+- parser snapshots;
+- structural fact JSON;
+- search query keys;
+- R016 policy findings;
+- guide routing and agent repair commands.
+
+This is the correct architecture.  Policy is no longer the parser.  Policy
+consumes parser-owned facts and tells the agent when a style repair is allowed.
+
+The implementation quality has also improved.  =src/parser/quality-shape.ss=
+uses small reducers, =filter-map=, =foldl=, query-key projection helpers, and
+explicit repair evidence.  It is closer to the =gerbil-utils= style than the
+older match/let-loop-heavy code.
+
+** What is still not good enough
+
+The current system still does not have a first-class function quality profile.
+
+Right now each family is separate:
+
+- typed contracts know about contract/comment shape;
+- comment quality knows about evidence and required comments;
+- control-flow facts know branch and loop shapes;
+- quality-shape facts know predicate families and field access repetition;
+- repair metadata knows per-finding guide routes.
+
+That is not enough for agent steering.  A real generated function can be weak
+in several dimensions at once: no type contract, poor comment, manual loop,
+predicate drift, repeated field access, and nested branch shape.  The agent
+should not receive five unrelated warnings and guess the repair strategy.  The
+harness should provide one parser-owned function profile and one policy-owned
+repair plan.
+
+* Parser Completeness Audit
+
+** Completed parser facts
+
+These facts are materially implemented and projected:
+
+| Fact family | Parser owner | Structural/snapshot status | Policy status |
+|-------------+--------------+----------------------------+---------------|
+| Module imports/exports | =src/parser/syntax.ss= and extracted owners | stable structural facts | used by package/source policy |
+| Macro forms | parser macro facts | structural facts | R011 witness policy |
+| POO/protocol forms | POO parser facts | structural facts | R008/R010/R012 |
+| Higher-order forms | higher-order parser facts | structural facts | R009/R013 |
+| Control-flow forms | control-flow parser facts | structural facts | R014 |
+| Typed contracts | typed-contract parser facts | snapshots/search | R013 |
+| Comment quality | comment-quality parser facts | snapshots/search | R015 |
+| Predicate family | =src/parser/quality-shape.ss= | structural/snapshot | R016 |
+| Field access pattern | =src/parser/quality-shape.ss= | structural/snapshot | R016 evidence |
+| Boolean condition | =src/parser/quality-shape.ss= | structural/snapshot | R016 evidence |
+| Loop driver | =src/parser/quality-shape.ss= | structural/snapshot | R014/R016 adjacent evidence |
+
+** Missing parser facts
+
+The next missing layer is not another isolated rule.  It is a =functionQualityProfile=.
+
+Proposed native fact:
+
+#+begin_src text
+functionQualityProfile
+  ownerPath
+  definitionName
+  selector
+  exported?
+  role: public-api | internal-helper | predicate | driver | macro-helper | protocol-method | facade
+  arity
+  formals
+  typedContractCoverage
+  commentCoverage
+  controlFlowShape
+  higherOrderShape
+  predicateFamilyRefs
+  fieldAccessPatternRefs
+  loopDriverRefs
+  macroWitnessRefs
+  pooProtocolRefs
+  qualityFacets
+  parserConfidence
+  preservationReasons
+  suggestedRepairClass
+#+end_src
+
+This profile should be assembled by the parser/protocol layer from existing
+facts.  It should not be guessed in policy.  Policy can then rank, suppress, or
+merge findings using one stable function-level packet.
+
+Additional parser gaps:
+
+- match depth and nested branch readability are still only indirectly covered
+  by control-flow facts.  The parser should expose branch depth, repeated
+  branch head shape, and repeated branch body shape.
+- pure transform confidence is coarse.  =loopDriverFacts= distinguishes
+  pure-transform, IO-reader, higher-order boundary, and state-driver candidate,
+  but it does not yet expose accumulator names, reducer shape, or side-effect
+  callees.
+- macro witness coverage is still policy/guide-oriented.  The parser should
+  expose a macro owner to runtime-source witness relationship when available.
+- protocol and method shape should be correlated with function definitions so
+  a method body can receive quality feedback without losing its POO boundary.
+
+* Code Quality Audit
+
+** Improved areas
+
+=src/parser/quality-shape.ss= is now a useful exemplar:
+
+- small exported fact producers;
+- reducers localized to parser ownership;
+- stable grouping before policy thresholds;
+- repair details derived from native fact fields;
+- conservative loop-driver classification.
+
+This is the right direction for making agents write more Gerbil-like code.
+
+** Remaining style gaps
+
+The code is still below the =gerbil-utils= quality target in a few places:
+
+- Repeated remove-and-recons group reducers appear in predicate grouping,
+  field-access grouping, and call counting.  The shape is readable, but a
+  small shared grouping/frequency combinator would be closer to the
+  =gerbil-utils= compact style.
+- Comments are sometimes generated as rigid boundary statements for simple
+  helpers.  R015 should reward information density, not comment presence.  A
+  simple one-line helper should not need a mechanical multi-line comment, while
+  a semantic contract can use several lines when necessary.
+- =parser/facade.ss= did not answer a =quality= owner query cleanly during the
+  audit.  The quality-shape layer is wired through core, but the facade/search
+  vocabulary should make this feature easier for agents to discover.
+- The R016 repair payload is good for one rule, but the project lacks a shared
+  repair planner.  Multiple findings can point at the same function without a
+  combined strategy.
+
+* Search And Document Discoverability
+
+The research docs are becoming a source of truth, but they are not yet a good
+agent-facing index.
+
+Observed gaps:
+
+- The combined fzf-style research query for parser completeness, function
+  quality, and multi-layer monitoring did not surface strong document matches
+  before this report.
+- This report adds the missing document vocabulary for =quality-profile=,
+  =function-quality=, =multi-layer=, =multilayer=, =correlation=,
+  =functionQualityProfile=, =findingGroup=, and =repairPlan=, but the provider
+  still needs a stronger multi-term search bridge.
+- CamelCase packet field names such as =predicateFamilyFacts= and
+  =loopDriverFacts= are present in snapshots, but broad search did not
+  discover them reliably.
+
+Required fix:
+
+- Add a search/document vocabulary bridge that maps agent language to protocol
+  field names:
+  - =function quality= -> =functionQualityProfile=
+  - =multi-layer policy= -> =findingGroup= / =repairPlan=
+  - =predicate drift= -> =predicateFamilyFacts=
+  - =selector helper= -> =fieldAccessPatternFacts=
+  - =manual loop drift= -> =loopDriverFacts=
+  - =comment contract= -> =commentQualityFacts=
+  - =typed combinator= -> =typedContractFacts= + =higherOrderFacts=
+
+* Policy Monitoring Audit
+
+** What works
+
+Current agent repair is useful:
+
+- it reports when repair is active;
+- it counts repairable warnings/errors;
+- it gives each finding an =agentRepair.nextCommand= route;
+- rule guide routes are centralized through the catalog.
+
+This is enough for "a finding happened, go read the guide".
+
+** What does not work yet
+
+It is not enough for "several facts describe one weak function".
+
+Current =TypeFinding= shape:
+
+#+begin_src text
+rule-id
+severity
+path
+message
+selector
+details
+#+end_src
+
+Current repair report shape:
+
+#+begin_src text
+status
+repairableFindings
+repairableWarnings
+repairableErrors
+trigger
+instruction
+#+end_src
+
+Missing repair-plan shape:
+
+#+begin_src text
+agentRepair
+  status
+  trigger
+  findingGroups
+    ownerPath
+    definitionName
+    selector
+    rules
+    severityMax
+    primaryRepairClass
+    suppressedRules
+    requiredWitnesses
+    preservationReasons
+    nextCommand
+    repairOrder
+    agentInstruction
+#+end_src
+
+Without this grouping layer, the agent can over-edit.  For example, a function
+with R013 typed-combinator drift, R014 controlled branch shape, R015 comment
+quality, and R016 predicate-family drift should receive one plan:
+
+1. collect guide evidence for the primary repair class;
+2. preserve runtime/IO/macro/protocol boundaries;
+3. extract selector helpers or predicate combinators if R016 is primary;
+4. restore type contract and comment evidence after code shape is stable;
+5. rerun check/self-apply/bench.
+
+* Recommended Implementation Plan
+
+** P0: Add parser-owned =functionQualityProfile=
+
+Owner candidates:
+
+- =src/parser/function-quality.ss=
+- =src/protocol/function-quality-facts.ss=
+- snapshot support under =src/snapshot/parser.ss=
+
+Inputs:
+
+- definitions;
+- calls;
+- higher-order facts;
+- control-flow facts;
+- typed contract facts;
+- comment quality facts;
+- quality-shape facts;
+- macro/POO/protocol facts.
+
+Output:
+
+- stable structural fact IDs;
+- query keys with both protocol names and agent vocabulary;
+- snapshot rows;
+- tests that assert facts by selector/name, not line-count constants.
+
+** P1: Add policy finding groups
+
+Owner candidates:
+
+- =src/policy/repair.ss=
+- =src/types/findings.ss=
+
+Add a small grouping model:
+
+- group by owner path + definition name or selector overlap;
+- rank primary rule by severity, witness risk, and repair class;
+- suppress dependent findings only inside the repair group, not globally;
+- expose grouped JSON and compact text.
+
+This keeps the agent from fixing comments before code shape, or flattening a
+loop that parser evidence classifies as an IO/runtime driver.
+
+** P2: Add search vocabulary aliases
+
+Owner candidates:
+
+- structural fact query-key helpers;
+- search projection/guide topic catalog;
+- research doc headings and tags.
+
+Add aliases for:
+
+- =function-quality=
+- =quality-profile=
+- =finding-group=
+- =repair-plan=
+- =multi-layer-policy=
+- =predicate-family-combinator=
+- =selector-helper=
+- =gerbil-utils-combinator-style=
+
+The goal is that the agent can ask a natural engineering question and land on
+the protocol fact instead of doing broad lexical search.
+
+** P3: Refine comment-quality policy
+
+R015 should become information-density driven:
+
+- allow multi-line comments and type contracts when the parser evidence is
+  complex;
+- avoid mechanical comments on tiny self-explanatory helpers;
+- prefer parser facts and quality profiles over "add one comment line" advice.
+
+Comment repair should happen after structural repair when both fire on the
+same function.
+
+** P4: Replace remaining brittle test expectations
+
+Keep selectors, names, rule IDs, fact IDs, query keys, and stable snapshot
+fields as test oracles.  Avoid adding new fixed line-count constants except for
+owner-size/modularity policy, where the count itself is the policy signal.
+
+** P5: Close through self-apply/check/bench
+
+The loop is closed only when:
+
+#+begin_src shell
+GERBIL_LOADPATH=src:t gxtest -v t/parser-test.ss t/policy-test.ss t/search-test.ss t/snapshot-test.ss t/schema-test.ss
+GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss t/bench-test.ss
+./bin/gerbil-scheme-harness check --json .
+./bin/gerbil-scheme-harness self-apply --json .
+./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .
+#+end_src
+
+The important receipt is not "tests pass" alone.  The important receipt is that
+the same function-quality facts drive search, policy, repair, snapshot, and
+bench without hidden Rust-side or ad hoc string heuristics.
+
+* Bottom Line
+
+The harness has crossed the first important boundary: R016 and quality-shape
+facts are parser-owned, projected, and policy-consumed.  That is the right
+architecture.
+
+The next boundary is function-level correlation.  The harness should not keep
+adding isolated warnings.  It needs a native =functionQualityProfile= and a
+policy =findingGroup= / =repairPlan= so the agent receives one coherent repair
+strategy for each weak function.
+
+That is the path from "lint says something is wrong" to "agent can rewrite this
+Gerbil function toward gerbil-utils quality without over-editing runtime,
+macro, POO, or IO boundaries."

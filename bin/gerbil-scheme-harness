@@ -2,9 +2,19 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-GERBIL="${GERBIL:-/opt/homebrew/opt/gerbil-scheme/bin/gxi}"
+if [ "${GERBIL:-}" ]; then
+  GERBIL_BIN="$GERBIL"
+elif command -v gxi >/dev/null 2>&1; then
+  GERBIL_BIN="$(command -v gxi)"
+elif [ -x /usr/local/bin/gxi ]; then
+  GERBIL_BIN=/usr/local/bin/gxi
+elif [ -x /opt/homebrew/bin/gxi ]; then
+  GERBIL_BIN=/opt/homebrew/bin/gxi
+else
+  GERBIL_BIN=gxi
+fi
 
 GERBIL_LOADPATH="${GERBIL_LOADPATH:-$ROOT/src}"
 export GERBIL_LOADPATH
 
-exec "$GERBIL" "$ROOT/bin/gerbil-scheme-harness.ss" "$@"
+exec "$GERBIL_BIN" "$ROOT/bin/gerbil-scheme-harness.ss" "$@"

@@ -54,7 +54,7 @@
 (def (closure-commands-json)
   (hash (selfApply "GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss")
         (check "./bin/gerbil-scheme-harness check .")
-        (bench "./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .")))
+        (bench "./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 2000 --max-interface-ms 50 .")))
 ;; JsonPacket <- Packet
 (def (display-info-packet packet)
   (displayln "[gerbil-info] language=" (hash-get packet 'languageId)

@@ -13,13 +13,10 @@
         check-guide-and-registry-snapshot-fixtures)
 ;; String <- (List String) String
 (def (fact-by-id facts id)
-  (let lp ((rest facts))
-    (match rest
-      ([] (error "evidence fact not found" id))
-      ([fact . tail]
-       (if (equal? (hash-get fact 'id) id)
-         fact
-         (lp tail))))))
+  (or (find (lambda (fact)
+              (equal? (hash-get fact 'id) id))
+            facts)
+      (error "evidence fact not found" id)))
 ;; String
 (def (check-language-evidence-snapshot-fields)
   (let (fact (fact-by-id (standard-library-facts) "std/text/json"))

@@ -613,6 +613,18 @@ Closed parser gaps from this audit:
 - POO method overloads are no longer treated as duplicate type bindings.
   Multiple =defmethod= entries under one generic are legal overload evidence,
   not duplicate owner definitions.
+- Bare Gerbil metadata forms such as =prelude: :<root>= and
+  =package: gerbil/core= now parse as source-file metadata instead of only
+  being tolerated as atom forms.
+- Runtime module-sugar macro definition heads =defsyntax-for-import=,
+  =defsyntax-for-export=, and =defsyntax-for-import-export= now produce
+  parser-owned definition, macro, formal, and phase evidence. This closes the
+  =only-in= family shape used by the active Gerbil runtime source.
+- Runtime-source guide code now resolves acquisition =sourceExamples= through
+  =gerbil-runtime-source://<source-path>#<symbol>= selectors into active
+  runtime source snippets. =guide --code --topic macro-runtime-source= emits
+  source only, prioritizes examples with =sourceComments= evidence, and uses
+  =--more= to add the next runtime-source exemplar without repeating the first.
 
 Remaining frontier:
 
@@ -620,6 +632,3 @@ Remaining frontier:
   28 POO extension-shape warnings and =R013= has 20 typed-combinator-style
   warnings. These are not parse failures; they are agent-facing guidance for
   external generic/method extension patterns and test-file contract coverage.
-- Runtime-source selectors such as =gerbil-runtime-source://...= still need a
-  closed selector-to-code path before guide =--code= can use them as source
-  exemplars without direct file windows.

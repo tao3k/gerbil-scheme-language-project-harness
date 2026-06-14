@@ -10,13 +10,10 @@
         check-runtime-source-snapshot-fixtures)
 ;; String <- String
 (def (runtime-source-fact-by-id id)
-  (let lp ((rest (runtime-source-facts)))
-    (match rest
-      ([] (error "runtime source fact not found" id))
-      ([fact . tail]
-       (if (equal? (hash-get fact 'id) id)
-         fact
-         (lp tail))))))
+  (or (find (lambda (fact)
+              (equal? (hash-get fact 'id) id))
+            (runtime-source-facts))
+      (error "runtime source fact not found" id)))
 ;; Snapshot
 (def (check-runtime-source-snapshot-fields)
   (let (fact (runtime-source-fact-by-id "gerbil-runtime-writeenv-source"))

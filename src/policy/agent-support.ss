@@ -22,7 +22,7 @@
         join-missing)
 ;; ConfigConstant
 (def +poo-declarative-heads+
-  '("defclass" ".defclass" ".defgeneric" "defmethod" ".defmethod"))
+  '(".def" "define-type" "defclass" ".defclass" ".defgeneric" "defmethod" ".defmethod"))
 ;; Integer
 (def +poo-capability-dependencies+
   '("gerbil-poo" "clan/poo"))

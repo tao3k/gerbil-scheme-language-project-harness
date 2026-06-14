@@ -31,12 +31,14 @@
 (def +definition-heads+
   '(def def* define define-values define-syntax
     defstruct defclass .defclass defsyntax defsyntax-for-match defrules defrule
+    defsyntax-for-import defsyntax-for-export defsyntax-for-import-export
     defn def-stx defsyntax-stx defsyntax-stx/form
-    defalias defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol
+    defalias define-type defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol
     defcompile-method))
 ;; ConfigConstant
 (def +macro-definition-heads+
   '(define-syntax defsyntax defsyntax-for-match defrules defrule
+    defsyntax-for-import defsyntax-for-export defsyntax-for-import-export
     defsyntax-stx defsyntax-stx/form))
 ;; ConfigConstant
 (def +non-call-heads+
@@ -89,10 +91,12 @@
         '())
        ((metadata-head? head)
         '())
+       ((eq? head '.def)
+        '())
        ((member head +definition-heads+)
         (cond
          ((member head +macro-definition-heads+) '())
-         ((member head '(defclass .defclass defgeneric .defgeneric)) '())
+         ((member head '(define-type defclass .defclass defgeneric .defgeneric)) '())
          (else
           (calls-from-stxes relpath
                             (stx-form-body-items expr-stx datum)
@@ -229,10 +233,12 @@
         '())
        ((metadata-head? head)
         '())
+       ((eq? head '.def)
+        '())
        ((member head +definition-heads+)
         (cond
          ((member head +macro-definition-heads+) '())
-         ((member head '(defclass .defclass defgeneric .defgeneric)) '())
+         ((member head '(define-type defclass .defclass defgeneric .defgeneric)) '())
          (else
           (binding-facts-from-stxes relpath
                                     (stx-form-body-items expr-stx datum)
@@ -466,7 +472,12 @@
    (else "macro-transformer")))
 ;; String <- Head
 (def (macro-phase head)
-  (if (eq? head 'defsyntax-for-match) "match" "syntax"))
+  (cond
+   ((eq? head 'defsyntax-for-match) "match")
+   ((eq? head 'defsyntax-for-import) "import")
+   ((eq? head 'defsyntax-for-export) "export")
+   ((eq? head 'defsyntax-for-import-export) "import-export")
+   (else "syntax")))
 ;; Integer <- Datum
 (def (macro-pattern-count datum)
   (let (head (and (pair? datum) (car datum)))
@@ -521,10 +532,16 @@
 
 ;; TopFormFrom <- Relpath Form Datum
 (def (top-form-from relpath form datum)
-  (let* ((head (and (pair? datum) (car datum)))
+  (let* ((head (top-form-datum-head datum))
          (loc (stx-source form)))
     (make-top-form (form-kind head) (datum->string head) relpath
                    (source-start-line loc) (source-end-line loc))))
+;; Head <- Datum
+(def (top-form-datum-head datum)
+  (cond
+   ((pair? datum) (car datum))
+   ((symbol? datum) datum)
+   (else #f)))
 ;; String <- Head
 (def (form-kind head)
   (cond

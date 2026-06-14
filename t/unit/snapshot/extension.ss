@@ -27,7 +27,11 @@
                         "protocols"
                         "policy-protocol"
                         "macro-governance"
-                        "user-override-witness"]))
+                        "user-override-witness"
+                        "inherited-gerbil-utils"
+                        "higher-order-control"
+                        "typed-combinator-style"
+                        "pattern-inheritance"]))
 ;; SamplePooC3Pattern
 (def (sample-poo-c3-pattern)
   (hash (id "poo-c3-mro-regression")
@@ -110,7 +114,7 @@
                 (packageManager "gxpkg")
                 (package "sample/app")
                 (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-                (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness"))))))
+                (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness" "inherited-gerbil-utils" "higher-order-control" "typed-combinator-style" "pattern-inheritance"))))))
 ;; Snapshot
 (def (check-extension-search-snapshot-schema-fields)
   (let (fact (sample-poo-extension-fact))
@@ -130,7 +134,7 @@
                    (packageManager "gxpkg")
                    (package "sample/app")
                    (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-                   (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness")))))
+                   (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness" "inherited-gerbil-utils" "higher-order-control" "typed-combinator-style" "pattern-inheritance")))))
                 (next "search pattern poo syntax")))))
 ;; Snapshot
 (def (check-pattern-search-snapshot-quality-fields)

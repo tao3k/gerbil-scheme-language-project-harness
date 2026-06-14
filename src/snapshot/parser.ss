@@ -37,6 +37,21 @@
         (list 'controlFlowForms
               (map parser-control-flow-form-snapshot
                    (source-file-control-flow-forms file)))
+        (list 'predicateFamilyFacts
+              (map parser-predicate-family-fact-snapshot
+                   (source-file-predicate-family-facts file)))
+        (list 'fieldAccessPatternFacts
+              (map parser-field-access-pattern-fact-snapshot
+                   (source-file-field-access-pattern-facts file)))
+        (list 'booleanConditionFacts
+              (map parser-boolean-condition-fact-snapshot
+                   (source-file-boolean-condition-facts file)))
+        (list 'loopDriverFacts
+              (map parser-loop-driver-fact-snapshot
+                   (source-file-loop-driver-facts file)))
+        (list 'functionQualityProfiles
+              (map parser-function-quality-profile-snapshot
+                   (source-file-function-quality-profiles file)))
         (list 'typedContractFacts
               (map parser-typed-contract-fact-snapshot
                    (source-file-typed-contract-facts file)))
@@ -136,6 +151,122 @@
         (list 'bodyFormCount (control-flow-fact-body-form-count fact))
         (list 'qualityFacets (snapshot-list (control-flow-quality-facets fact)))
         (list 'selector (control-flow-fact-selector fact))))
+
+;; Snapshot <- PredicateFamilyFact
+(def (parser-predicate-family-fact-snapshot fact)
+  (list 'predicateFamilyFact
+        (list 'name (predicate-family-fact-name fact))
+        (list 'kind (predicate-family-fact-kind fact))
+        (list 'role (predicate-family-fact-role fact))
+        (list 'subject (predicate-family-fact-subject fact))
+        (list 'predicateNames
+              (snapshot-list (predicate-family-fact-predicate-names fact)))
+        (list 'predicateCount (predicate-family-fact-predicate-count fact))
+        (list 'fieldKeys (snapshot-list (predicate-family-fact-field-keys fact)))
+        (list 'repeatedCallees
+              (snapshot-list (predicate-family-fact-repeated-callees fact)))
+        (list 'conditionCount (predicate-family-fact-condition-count fact))
+        (list 'qualityFacets
+              (snapshot-list (predicate-family-fact-quality-facets fact)))
+        (list 'advice (predicate-family-fact-advice fact))
+        (list 'selector (predicate-family-fact-selector fact))))
+
+;; Snapshot <- FieldAccessPatternFact
+(def (parser-field-access-pattern-fact-snapshot fact)
+  (list 'fieldAccessPatternFact
+        (list 'name (field-access-pattern-fact-name fact))
+        (list 'kind (field-access-pattern-fact-kind fact))
+        (list 'role (field-access-pattern-fact-role fact))
+        (list 'fieldKey (field-access-pattern-fact-field-key fact))
+        (list 'callers (snapshot-list (field-access-pattern-fact-callers fact)))
+        (list 'accessCount (field-access-pattern-fact-access-count fact))
+        (list 'accessors (snapshot-list (field-access-pattern-fact-accessors fact)))
+        (list 'qualityFacets
+              (snapshot-list (field-access-pattern-fact-quality-facets fact)))
+        (list 'advice (field-access-pattern-fact-advice fact))
+        (list 'selector (field-access-pattern-fact-selector fact))))
+
+;; Snapshot <- BooleanConditionFact
+(def (parser-boolean-condition-fact-snapshot fact)
+  (list 'booleanConditionFact
+        (list 'name (boolean-condition-fact-name fact))
+        (list 'kind (boolean-condition-fact-kind fact))
+        (list 'role (boolean-condition-fact-role fact))
+        (list 'caller (boolean-condition-fact-caller fact))
+        (list 'formals (snapshot-list (boolean-condition-fact-formals fact)))
+        (list 'conditionCallees
+              (snapshot-list (boolean-condition-fact-condition-callees fact)))
+        (list 'fieldKeys (snapshot-list (boolean-condition-fact-field-keys fact)))
+        (list 'conditionCount (boolean-condition-fact-condition-count fact))
+        (list 'qualityFacets
+              (snapshot-list (boolean-condition-fact-quality-facets fact)))
+        (list 'advice (boolean-condition-fact-advice fact))
+        (list 'selector (boolean-condition-fact-selector fact))))
+
+;; Snapshot <- LoopDriverFact
+(def (parser-loop-driver-fact-snapshot fact)
+  (list 'loopDriverFact
+        (list 'name (loop-driver-fact-name fact))
+        (list 'kind (loop-driver-fact-kind fact))
+        (list 'role (loop-driver-fact-role fact))
+        (list 'caller (loop-driver-fact-caller fact))
+        (list 'driverKind (loop-driver-fact-driver-kind fact))
+        (list 'bindingCount (loop-driver-fact-binding-count fact))
+        (list 'bodyFormCount (loop-driver-fact-body-form-count fact))
+        (list 'qualityFacets
+              (snapshot-list (loop-driver-fact-quality-facets fact)))
+        (list 'advice (loop-driver-fact-advice fact))
+        (list 'selector (loop-driver-fact-selector fact))))
+
+;;; Snapshot projection fixes profile field order for reviewable fixtures.
+;;; It preserves the same repair signals emitted to JSON so snapshot drift shows
+;;; real parser-evidence changes, not hash-table ordering.
+;; Snapshot <- FunctionQualityProfile
+(def (parser-function-quality-profile-snapshot profile)
+  (list 'functionQualityProfile
+        (list 'name (function-quality-profile-name profile))
+        (list 'kind (function-quality-profile-kind profile))
+        (list 'role (function-quality-profile-role profile))
+        (list 'exported (function-quality-profile-exported profile))
+        (list 'formals
+              (snapshot-list (function-quality-profile-formals profile)))
+        (list 'arity (function-quality-profile-arity profile))
+        (list 'typedContractQuality
+              (function-quality-profile-typed-contract-quality profile))
+        (list 'commentQuality
+              (function-quality-profile-comment-quality profile))
+        (list 'controlFlowRoles
+              (snapshot-list
+               (function-quality-profile-control-flow-roles profile)))
+        (list 'higherOrderRoles
+              (snapshot-list
+               (function-quality-profile-higher-order-roles profile)))
+        (list 'predicateFamilyRefs
+              (snapshot-list
+               (function-quality-profile-predicate-family-refs profile)))
+        (list 'fieldAccessPatternRefs
+              (snapshot-list
+               (function-quality-profile-field-access-pattern-refs profile)))
+        (list 'loopDriverRefs
+              (snapshot-list
+               (function-quality-profile-loop-driver-refs profile)))
+        (list 'macroRefs
+              (snapshot-list (function-quality-profile-macro-refs profile)))
+        (list 'pooProtocolRefs
+              (snapshot-list
+               (function-quality-profile-poo-protocol-refs profile)))
+        (list 'qualityFacets
+              (snapshot-list
+               (function-quality-profile-quality-facets profile)))
+        (list 'preservationReasons
+              (snapshot-list
+               (function-quality-profile-preservation-reasons profile)))
+        (list 'suggestedRepairClass
+              (function-quality-profile-suggested-repair-class profile))
+        (list 'parserConfidence
+              (function-quality-profile-parser-confidence profile))
+        (list 'advice (function-quality-profile-advice profile))
+        (list 'selector (function-quality-profile-selector profile))))
 
 ;; Snapshot <- TypedContractFact
 (def (parser-typed-contract-fact-snapshot fact)

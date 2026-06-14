@@ -19,24 +19,29 @@
 ;;; - Keep this owner purely datum-shaped so syntax traversal can compose it without source-state coupling.
 ;; (List Symbol) <- Datum
 (def (definition-name-datums datum)
-  (let ((head (car datum))
-        (second (safe-cadr datum)))
-    (cond
-     ((member head '(def def* define))
+  (if (not (pair? datum))
+    '()
+    (let ((head (car datum))
+          (second (safe-cadr datum)))
       (cond
+       ((member head '(def def* define define-type))
+        (cond
+         ((symbol? second) [second])
+         ((and (pair? second) (symbol? (car second))) [(car second)])
+         (else '())))
+       ((eq? head 'define-values)
+        (if (list? second) (filter symbol? second) '()))
+       ((eq? head 'defmethod)
+        (definition-method-name-datums second))
+       ((member head '(defclass .defclass defgeneric .defgeneric
+                       .defmethod defsyntax defsyntax-for-match
+                       defsyntax-for-import defsyntax-for-export
+                       defsyntax-for-import-export
+                       defrules defrule
+                       defn def-stx defsyntax-stx defsyntax-stx/form))
+        (definition-method-name-datums second))
        ((symbol? second) [second])
-       ((and (pair? second) (symbol? (car second))) [(car second)])
-       (else '())))
-     ((eq? head 'define-values)
-      (if (list? second) (filter symbol? second) '()))
-     ((eq? head 'defmethod)
-      (definition-method-name-datums second))
-     ((member head '(defclass .defclass defgeneric .defgeneric
-                     .defmethod defsyntax defsyntax-for-match defrules defrule
-                     defn def-stx defsyntax-stx defsyntax-stx/form))
-      (definition-method-name-datums second))
-     ((symbol? second) [second])
-     (else '()))))
+       (else '())))))
 
 ;;; Boundary:
 ;;; - Gerbil POO method heads may wrap the generic name in @method syntax.
@@ -75,22 +80,27 @@
 ;;; - Case-lambda clauses are unioned as evidence because downstream policy checks alignment, not overload dispatch.
 ;; (List Symbol) <- Datum Symbol
 (def (definition-formal-datums datum name)
-  (let ((head (car datum))
-        (second (safe-cadr datum))
-        (third (safe-caddr datum)))
-    (cond
-     ((member head '(def def* define defmethod .defmethod
-                     defsyntax defsyntax-for-match defrule
-                     defn def-stx defsyntax-stx defsyntax-stx/form))
+  (if (not (pair? datum))
+    '()
+    (let ((head (car datum))
+          (second (safe-cadr datum))
+          (third (safe-caddr datum)))
       (cond
-       ((and (pair? second) (eq? (car second) name))
-        (formal-tail-datums (cdr second)))
-       ((and (member head '(def def* define))
-             (symbol? second)
-             (eq? second name))
-        (definition-value-formal-datums third))
-       (else '())))
-     (else '()))))
+       ((member head '(def def* define defmethod .defmethod
+                       defsyntax defsyntax-for-match
+                       defsyntax-for-import defsyntax-for-export
+                       defsyntax-for-import-export
+                       defrule
+                       defn def-stx defsyntax-stx defsyntax-stx/form))
+        (cond
+         ((and (pair? second) (eq? (car second) name))
+          (formal-tail-datums (cdr second)))
+         ((and (member head '(def def* define))
+               (symbol? second)
+               (eq? second name))
+          (definition-value-formal-datums third))
+         (else '())))
+       (else '())))))
 
 ;;; Boundary:
 ;;; - Value-style definitions encode callable shape in the assigned expression instead of the definition head.

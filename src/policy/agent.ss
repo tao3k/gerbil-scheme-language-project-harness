@@ -4,6 +4,7 @@
 (import :gerbil/gambit
         :parser/facade
         :policy/agent-comment
+        :policy/agent-dependency-adapter
         :policy/agent-poo
         :policy/agent-style
         :policy/agent-support
@@ -31,6 +32,8 @@
         typed-combinator-style-finding
         comment-quality-finding
         controlled-branch-shape-finding
+        predicate-family-combinator-finding
+        dependency-protocol-adapter-finding
         facade-export-conflict-findings)
 ;; ConfigConstant
 (def +generic-owner-segments+
@@ -92,6 +95,8 @@
    (typed-combinator-style-findings index)
    (comment-quality-findings index)
    (controlled-branch-shape-findings index)
+   (predicate-family-combinator-findings index)
+   (dependency-protocol-adapter-findings index)
    (facade-export-conflict-findings index)))
 ;;; Boundary:
 ;;; - facade-intent-findings composes first-class procedures.

@@ -22,6 +22,8 @@
         project-extension-json
         poo-extension-active?
         poo-extension-fact
+        poo-registered-extension-facts
+        poo-registered-extension-query?
         poo-extension-capability-names
         poo-extension-search-lines
         poo-extension-json

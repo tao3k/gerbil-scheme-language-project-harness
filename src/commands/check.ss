@@ -151,6 +151,8 @@
 ;; ConfigConstant
 (def +finding-detail-keys+
   '(advice next keepNamedLetWhen styleGuide styleCommand
+    repairAction guideCodeFlag searchExampleCommand repairCodeCommand codeShapeExemplar
+    adapterRepairShape agentRepairStandard
     qualityFacets qualityFacetSteering requiredWitness rewriteScope
     evidence kind name selector))
 ;;; Boundary:

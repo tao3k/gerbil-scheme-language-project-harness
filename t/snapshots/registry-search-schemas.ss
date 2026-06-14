@@ -11,6 +11,7 @@
            "search/runtime-source"
            "search/compare"
            "index/structural"
+           "index/native-syntax-owner-facts"
            "query/direct-source-read"
            "check/changed"
            "guide"
@@ -71,6 +72,10 @@
     (method "index/structural")
     (command "search structural --json")
     (outputSchemaIds ("agent.semantic-protocols.semantic-structural-index")))
+   (methodDescriptor
+    (method "index/native-syntax-owner-facts")
+    (command "search structural --owner <path> --json")
+    (outputSchemaIds ("agent.semantic-protocols.semantic-native-syntax-fact-index")))
    (methodDescriptor
     (method "evidence/graph")
     (command "evidence")

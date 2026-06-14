@@ -10,6 +10,12 @@
 ;; Json <- Table Key
 (def (json-get table key)
   (hash-get table key))
+;; Json <- (List Json) String
+(def (find-performance-finding findings kind)
+  (cond
+   ((null? findings) #f)
+   ((equal? (json-get (car findings) "kind") kind) (car findings))
+   (else (find-performance-finding (cdr findings) kind))))
 ;; BenchOutput <- (List XX)
 (def (bench-output args)
   (bench-output/status args 0))
@@ -35,10 +41,13 @@
         (check (contains? output "|bench name=collect-project") => #t)
         (check (contains? output "|bench name=type-check") => #t)
         (check (contains? output "|bench name=search-prime-packet") => #t)
-        (check (contains? output "|bench name=structural-index-packet") => #t)
-        (check (contains? output "|bench name=structural-compact-syntax-render") => #t)))
+        (check (contains? output "|bench name=structural-interface-packet") => #t)
+        (check (contains? output "|bench name=structural-owner-facts-packet") => #t)))
     (test-case "bench json output is a CI verification receipt"
-      (let* ((output (bench-output ["--json" "--iterations" "1" "--max-total-ms" "60000" "."]))
+      (let* ((output (bench-output ["--json" "--iterations" "1"
+                                    "--max-total-ms" "60000"
+                                    "--max-interface-ms" "500"
+                                    "."]))
              (packet (call-with-input-string output read-json))
              (benchmarks (json-get packet "benchmarks"))
              (first-benchmark (car benchmarks)))
@@ -46,6 +55,7 @@
                => "agent.semantic-protocols.gerbil-scheme-harness-bench")
         (check (json-get packet "status") => "pass")
         (check (json-get packet "iterations") => 1)
+        (check (json-get packet "maxInterfaceMs") => 500)
         (check (>= (json-get packet "files") 1) => #t)
         (check (>= (json-get packet "definitions") 1) => #t)
         (check (length benchmarks) => 5)
@@ -59,10 +69,11 @@
                       1))
              (packet (call-with-input-string output read-json))
              (findings (json-get packet "performanceFindings"))
-             (finding (car findings))
+             (finding (find-performance-finding findings "total-threshold-exceeded"))
              (slowest (json-get packet "slowestBenchmark")))
         (check (json-get packet "status") => "fail")
-        (check (length findings) => 1)
+        (check (>= (length findings) 1) => #t)
+        (check (not (not finding)) => #t)
         (check (json-get finding "kind") => "total-threshold-exceeded")
         (check (json-get finding "severity") => "warning")
         (check (json-get finding "maxTotalMs") => 1)

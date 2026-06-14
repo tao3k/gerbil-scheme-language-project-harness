@@ -61,6 +61,7 @@
     (check (method-registered? methods "search/runtime-source") => #t)
     (check (method-registered? methods "search/compare") => #t)
     (check (method-registered? methods "index/structural") => #t)
+    (check (method-registered? methods "index/native-syntax-owner-facts") => #t)
     (check (method-registered? methods "evidence/graph") => #t)
     (check (method-registered? methods "evidence/analyze") => #t)
     (check (schema-registered? schemas
@@ -99,9 +100,14 @@
                                       "index/structural"
                                       "agent.semantic-protocols.semantic-structural-index")
            => #t)
+    (check (descriptor-output-schema? descriptors
+                                      "index/native-syntax-owner-facts"
+                                      "agent.semantic-protocols.semantic-native-syntax-fact-index")
+           => #t)
     (check (guide-has-fragment? guide "evidence graph --json") => #t)
     (check (guide-has-fragment? guide "evidence analyze --json") => #t)
-    (check (guide-has-fragment? guide "search structural --json") => #t)))
+    (check (guide-has-fragment? guide "search structural --json") => #t)
+    (check (guide-has-fragment? guide "search structural --owner <path> --json") => #t)))
 ;; Boolean <- Packet String
 (def (packet-has-node-kind? packet kind)
   (ormap (lambda (node)

@@ -322,7 +322,7 @@
           (check (not (not (member "prefer map/filter/filter-map/fold pipelines; extract predicate, mapper, or reducer helpers before rewriting loops"
                                    (hash-get details 'qualityFacetSteering))))
                  => #t))))
-    (test-case "typed-combinator-style policy keeps native quality facets as advice"
+    (test-case "typed-combinator-style policy triggers on native quality facets"
       (let* ((root ".run/policy-typed-combinator-style-native-facets")
              (src (string-append root "/src"))
              (owner (string-append src "/orders")))
@@ -337,15 +337,22 @@
         (let* ((index (collect-project root))
                (findings (run-policy-checks index))
                (matching (filter-rule "GERBIL-SCHEME-AGENT-R013" findings))
+               (finding (car matching))
+               (details (type-finding-details finding))
                (fact (car (project-typed-contract-facts index)))
                (quality-facets (typed-contract-fact-quality-facets fact))
                (repair-evidence (typed-contract-fact-repair-evidence fact)))
-          (check matching => [])
+          (check (length matching) => 1)
+          (check (type-finding-severity finding) => "warning")
+          (check (hash-get details 'qualityRepairTriggered) => #t)
           (check (not (not (member "manual-loop-drift"
                                    quality-facets)))
                  => #t)
           (check (not (not (member "combinator-candidate"
                                    quality-facets)))
+                 => #t)
+          (check (not (not (member "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness"
+                                   (hash-get details 'qualityFacetSteering))))
                  => #t)
           (check (hash-get repair-evidence 'factSource) => "native-parser")
           (check (not (not (member "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
@@ -642,13 +649,21 @@
                           output
                           "guideIntent=repair")))
                => #t)
-        (check (not (not (string-contains
-                          output
-                          "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")))
-               => #t)
-        (check (not (not (string-contains
-                          output
-                          "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))
+	        (check (not (not (string-contains
+	                          output
+	                          "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")))
+	               => #t)
+	        (check (not (not (string-contains
+	                          output
+	                          "action=inspect-code-shape")))
+	               => #t)
+	        (check (not (not (string-contains
+	                          output
+	                          "guideCodeFlag=--code")))
+	               => #t)
+	        (check (not (not (string-contains
+	                          output
+	                          "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))
                => #t)
         (check (not (not (string-contains
                           output
@@ -672,6 +687,13 @@
              (result (check-output ["--json" root]))
              (packet (call-with-input-string (cdr result) read-json))
              (agent-repair (hash-get packet "agentRepair"))
+             (repair-plan (hash-get agent-repair "repairPlan"))
+             (finding-groups (hash-get agent-repair "findingGroups"))
+             (comment-group
+              (find (lambda (group)
+                      (member "GERBIL-SCHEME-AGENT-R015"
+                              (hash-get group "rules")))
+                    finding-groups))
              (finding (json-finding-by-rule
                        (hash-get packet "findings")
                        "GERBIL-SCHEME-AGENT-R009"))
@@ -685,14 +707,25 @@
         (check (hash-get agent-repair "repairableWarnings") => 3)
         (check (hash-get agent-repair "repairableErrors") => 0)
         (check (hash-get agent-repair "trigger") => "warning")
+        (check (hash-get repair-plan "status") => "active")
+        (check (> (hash-get repair-plan "groupCount") 0) => #t)
+        (check (not (not comment-group)) => #t)
+        (check (not (not (member "functionQualityProfile"
+                                  (hash-get comment-group "requiredWitnesses"))))
+               => #t)
+        (check (hash-get (hash-get comment-group "repairPlan")
+                         "commentRepairOrder")
+               => "comment-quality repairs run after structural/style repairs when both hit the same group")
         (check (hash-get finding-repair "repairable") => #t)
         (check (hash-get finding-repair "active") => #t)
         (check (hash-get finding-repair "trigger") => "warning")
         (check (hash-get finding-repair "guideTopic")
                => "functional-data-transform")
-        (check (hash-get finding-repair "guideIntent") => "repair")
-        (check (hash-get finding-repair "nextCommand")
-               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")
+	        (check (hash-get finding-repair "guideIntent") => "repair")
+	        (check (hash-get finding-repair "action") => "inspect-code-shape")
+	        (check (hash-get finding-repair "guideCodeFlag") => "--code")
+	        (check (hash-get finding-repair "nextCommand")
+	               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")
         (check (hash-get (hash-get comment-finding "agentRepair")
                          "nextCommand")
                => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))
@@ -790,6 +823,123 @@
                           (type-finding-message finding)
                           "combines match state destructuring with a named-let loop")))
                => #t)))
+    (test-case "agent policy reports predicate family combinator repair"
+      (let* ((root ".run/policy-predicate-family-combinator")
+             (_ (write-predicate-family-combinator-project root))
+             (index (collect-project root))
+             (findings (run-agent-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R016" findings))
+             (finding (car matching))
+             (details (type-finding-details finding))
+             (repair (finding-agent-repair-json finding)))
+        (check (length matching) => 1)
+        (check (type-finding-path finding) => "src/orders/core.ss")
+        (check (type-finding-severity finding) => "warning")
+        (check (hash-get details 'styleGuide) => "predicate-family-combinator")
+        (check (hash-get details 'subject) => "fact")
+        (check (hash-get details 'predicateCount) => 3)
+        (check (not (not (member "role" (hash-get details 'fieldKeys)))) => #t)
+        (check (not (not (member "hash-get" (hash-get details 'repeatedCallees)))) => #t)
+        (check (hash-get repair 'active) => #t)
+        (check (hash-get repair 'guideTopic) => "predicate-family-combinator")
+        (check (hash-get repair 'nextCommand)
+               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+    (test-case "agent policy reports weak dependency protocol adapters"
+      (let* ((root ".run/policy-dependency-protocol-adapter")
+             (_ (write-dependency-protocol-adapter-project root #f #f))
+             (index (collect-project root))
+             (findings (run-policy-checks index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings))
+             (finding (car matching))
+             (details (type-finding-details finding))
+             (repair (finding-agent-repair-json finding)))
+        (check (length matching) => 1)
+        (check (type-finding-path finding) => "src/orders/dict.ss")
+        (check (hash-get details 'styleGuide) => "dependency-protocol-adapter")
+        (check (hash-get details 'dependency) => ":clan/pure/dict/orderdict")
+        (check (hash-get details 'quality) => "weak")
+        (check (not (not (member "typed-validation-boundary"
+                                  (hash-get details 'missingEvidence))))
+               => #t)
+        (check (not (not (member "generic-contract-test-witness"
+                                  (hash-get details 'missingEvidence))))
+               => #t)
+        (check (hash-get details 'manualObjectEncodingRisk) => "none")
+        (check (hash-get details 'genericContractWitnessKind)
+               => "table-protocol-contract-witness")
+        (check (hash-get details 'contractWitnessKind) => "missing")
+        (check (not (not (member "table"
+                                  (hash-get details 'derivedCapabilities))))
+               => #t)
+        (check (hash-get details 'agentRepairStandard)
+               => "current dependency already provides the bottom data structure; do not hand-write loose hash/alist objects. Build a typed protocol adapter: precise only-in imports for primitives, define-type Key/Value/validate/serialization/equality slots, behavior on protocol slots, derived table/set/list/sexp/json/marshal capabilities when slots exist, and generic contract tests")
+        (check (hash-get details 'repairAction)
+               => "search-forwarded-example-then-guide-code")
+        (check (hash-get details 'guideCodeFlag) => "--code")
+        (check (hash-get details 'searchExampleCommand)
+               => "asp gerbil-scheme search pattern poo rationaldict adapter --view seeds .")
+        (check (hash-get details 'repairCodeCommand)
+               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair")
+	        (check (hash-get details 'codeShapeExemplar)
+	               => "gerbil-poo rationaldict-style typed protocol adapter")
+        (check (not (not (string-contains
+                          (hash-get details 'adapterRepairShape)
+                          "query the search-forwarded rationaldict adapter example first")))
+               => #t)
+        (check (not (not (member "run asp gerbil-scheme search pattern poo rationaldict adapter --view seeds . to inspect the dependency example before editing"
+                                  (hash-get details 'allowedMoves))))
+               => #t)
+        (check (not (not (member "run asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair to inspect local R017 parser/policy repair code"
+                                  (hash-get details 'allowedMoves))))
+               => #t)
+	        (check (not (not (member "derive table/set/list/sexp/json/marshal-facing capability from protocol slots"
+	                                  (hash-get details 'allowedMoves))))
+               => #t)
+        (check (not (not (member "do not replace dependency primitives with hand-written hash/alist storage"
+                                  (hash-get details 'disallowedMoves))))
+               => #t)
+        (check (hash-get repair 'guideTopic) => "dependency-protocol-adapter")
+        (check (hash-get repair 'nextCommand)
+               => "asp gerbil-scheme search pattern poo rationaldict adapter --view seeds .")))
+    (test-case "agent policy rejects manual object encoding inside dependency adapters"
+      (let* ((root ".run/policy-dependency-manual-object-adapter")
+             (_ (write-dependency-manual-object-adapter-project root))
+             (index (collect-project root))
+             (findings (run-policy-checks index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings))
+             (finding (car matching))
+             (details (type-finding-details finding)))
+        (check (length matching) => 1)
+        (check (type-finding-path finding) => "src/orders/dict.ss")
+        (check (hash-get details 'manualObjectEncodingRisk)
+               => "manual-object-encoding-risk")
+        (check (not (not (member "manual-object-encoding-risk"
+                                  (hash-get details 'missingEvidence))))
+               => #t)
+        (check (not (not (member "no-manual-object-encoding"
+                                  (hash-get details 'qualityFacets))))
+               => #f)))
+    (test-case "agent policy accepts complete dependency protocol adapters with contract witnesses"
+      (let* ((root ".run/policy-dependency-protocol-adapter-positive")
+             (_ (write-dependency-protocol-adapter-project root #t #t))
+             (index (collect-project root))
+             (facts (project-dependency-adapter-quality-facts index))
+             (fact (car facts))
+             (findings (run-policy-checks index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings)))
+        (check (length facts) => 1)
+        (check (dependency-adapter-quality-fact-quality fact) => "complete")
+        (check (not (not (member "precise-only-in-import"
+                                  (dependency-adapter-quality-fact-quality-facets fact))))
+               => #t)
+        (check (not (not (member "table"
+                                  (dependency-adapter-quality-fact-derived-capabilities fact))))
+               => #t)
+        (check (dependency-adapter-quality-fact-manual-object-encoding-risk fact)
+               => "none")
+        (check (dependency-adapter-quality-fact-generic-contract-witness-kind fact)
+               => "table-protocol-contract-witness")
+        (check matching => [])))
     (test-case "agent policy rejects direct POO writeenv calls"
       (let* ((root ".run/policy-poo-direct-writeenv")
              (_ (write-poo-direct-writeenv-project root))
@@ -1096,6 +1246,64 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export select-orders)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export select-orders)\n(def (select-orders facts state)\n  (match state\n    ([seen out remaining]\n     (let lp ((rest facts) (seen seen) (out out) (remaining remaining))\n       (cond\n        ((or (null? rest) (<= remaining 0))\n         [seen out remaining])\n        (else\n         (lp (cdr rest) seen out remaining)))))))\n")))
+;; Unit <- String
+(def (write-predicate-family-combinator-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (write-text (string-append owner "/core.ss")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n;;; Predicate boundary:\n;;; - Keep duplicated role extraction visible for predicate-family policy tests.\n;; Boolean <- CreatedEventFact\n(def (created-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (equal? (field-string fields 'role) \"created\"))))\n;;; Predicate boundary:\n;;; - Keep the accepted role set inline so repeated field access remains detectable.\n;; Boolean <- PaymentEventFact\n(def (paid-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (member (field-string fields 'role) '(\"paid\" \"settled\")))))\n;;; Predicate boundary:\n;;; - Keep cancellation as a single-purpose predicate for family grouping evidence.\n;; Boolean <- CancelledEventFact\n(def (cancelled-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (equal? (field-string fields 'role) \"cancelled\"))))\n")))
+;; Unit <- String Complete Witness
+(def (write-dependency-protocol-adapter-project root complete? witness?)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders"))
+         (test-dir (string-append root "/t")))
+    (reset-fixture-root root)
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (ensure-dir test-dir)
+    (write-text (string-append root "/gerbil.pkg")
+                "(package: sample/orders\n  depend: (\"git.cons.io/mighty-gerbils/gerbil-poo\"))\n")
+    (write-text (string-append owner "/dict.ss")
+                (string-append
+                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n"
+                 "  (only-in :clan/pure/dict/orderdict\n"
+                 "           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n"
+                 "           list->orderdict orderdict=?)\n"
+                 "  (only-in :clan/poo/mop define-type Any raise-type-error)\n"
+                 "  (only-in ./table methods.table))\n"
+                 "(define-type (OrderDict. @ [methods.table] Value)\n"
+                 "  Key: String\n"
+                 "  Value: Any\n"
+                 (if complete?
+                   "  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n"
+                   "  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v)))\n")))
+    (if witness?
+      (write-text (string-append test-dir "/dict-test.ss")
+                  ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def (table-contract-tests adapter) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests (OrderDict. String)) => (OrderDict. String)))))\n")
+      (delete-file-if-exists (string-append test-dir "/dict-test.ss")))))
+;; Unit <- String
+(def (write-dependency-manual-object-adapter-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders"))
+         (test-dir (string-append root "/t")))
+    (reset-fixture-root root)
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (ensure-dir test-dir)
+    (write-text (string-append root "/gerbil.pkg")
+                "(package: sample/orders\n  depend: (\"git.cons.io/mighty-gerbils/gerbil-poo\"))\n")
+    (write-text (string-append owner "/dict.ss")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/orderdict\n           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n           list->orderdict orderdict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./table methods.table))\n(define-type (OrderDict. @ [methods.table] Value)\n  Key: String\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: (lambda (d k) (hash-get (hash) k))\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n")
+    (write-text (string-append test-dir "/dict-test.ss")
+                ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def (table-contract-tests adapter) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests (OrderDict. String)) => (OrderDict. String)))))\n")))
 ;; Unit <- String
 (def (write-check-changed-project root)
   (let* ((src (string-append root "/src"))

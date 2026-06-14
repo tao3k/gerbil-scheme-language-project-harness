@@ -73,6 +73,10 @@
               (if (bench-packet-has-key? packet 'maxTotalMs)
                 (bench-packet-get packet 'maxTotalMs)
                 #f))
+        (list 'maxInterfaceMs
+              (if (bench-packet-has-key? packet 'maxInterfaceMs)
+                (bench-packet-get packet 'maxInterfaceMs)
+                #f))
         (list 'totalMs
               (duration-state (bench-packet-get packet 'totalMs)))
         (list 'files (bench-packet-get packet 'files))

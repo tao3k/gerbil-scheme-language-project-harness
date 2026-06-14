@@ -27,7 +27,7 @@
       (packageRoots [root])
       (methods ["search/prime" "search/owner" "search/fzf" "search/ingest"
                 "search/pattern" "search/runtime-source" "search/compare"
-                "index/structural"
+                "index/structural" "index/native-syntax-owner-facts"
                 "query/direct-source-read" "check/changed" "guide" "info"
                 "evidence/graph" "evidence/analyze"])
       (schemas [(hash (schemaId "agent.semantic-protocols.semantic-extension-pattern-mapping")
@@ -73,8 +73,12 @@
               (outputSchemaIds ["agent.semantic-protocols.semantic-compare-packet"]))
         (hash (method "index/structural")
               (command "search structural --json")
-              (summary "Emit a native-parser structural-index feed; ASP owns incremental state, refresh planning, and cache persistence.")
+              (summary "Emit a lightweight native-parser structural interface; ASP Rust owns full index construction, graph topology, caching, and refresh planning.")
               (outputSchemaIds ["agent.semantic-protocols.semantic-structural-index"]))
+        (hash (method "index/native-syntax-owner-facts")
+              (command "search structural --owner <path> --json")
+              (summary "Emit owner-bounded native syntax facts for ASP-side fan-out and incremental structural indexing.")
+              (outputSchemaIds ["agent.semantic-protocols.semantic-native-syntax-fact-index"]))
         (hash (method "evidence/graph")
               (command "evidence")
               (summary "Emit a portable semantic evidence graph for Gerbil Scheme provider evidence.")

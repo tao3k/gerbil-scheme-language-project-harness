@@ -33,7 +33,7 @@
     (packageManager "gxpkg")
     (package "sample/app")
     (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-    (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness")))))
+    (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness" "inherited-gerbil-utils" "higher-order-control" "typed-combinator-style" "pattern-inheritance")))))
  (nodes
   ((node
     (id "package:sample/app")
@@ -53,7 +53,7 @@
      (packageManager "gxpkg")
      (package "sample/app")
      (dependencies ("git.cons.io/mighty-gerbils/gerbil-poo"))
-     (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness"))))
+     (capabilities ("object-system" "metaobject-protocol" "protocols" "policy-protocol" "macro-governance" "user-override-witness" "inherited-gerbil-utils" "higher-order-control" "typed-combinator-style" "pattern-inheritance"))))
    (node
     (id "owner:src/main.ss")
     (kind "owner")

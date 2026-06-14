@@ -14,6 +14,12 @@
         parse-source-file
         project-definitions
         project-calls
+        project-predicate-family-facts
+        project-field-access-pattern-facts
+        project-boolean-condition-facts
+        project-loop-driver-facts
+        project-dependency-adapter-quality-facts
+        project-function-quality-profiles
         project-typed-contract-facts
         project-comment-quality-facts
         find-owner
@@ -109,6 +115,105 @@
         control-flow-fact-body-form-count
         control-flow-quality-facets
         control-flow-fact-selector
+        predicate-family-fact-name
+        predicate-family-fact-kind
+        predicate-family-fact-path
+        predicate-family-fact-start
+        predicate-family-fact-end
+        predicate-family-fact-role
+        predicate-family-fact-subject
+        predicate-family-fact-predicate-names
+        predicate-family-fact-predicate-count
+        predicate-family-fact-field-keys
+        predicate-family-fact-repeated-callees
+        predicate-family-fact-condition-count
+        predicate-family-fact-quality-facets
+        predicate-family-fact-advice
+        predicate-family-fact-selector
+        field-access-pattern-fact-name
+        field-access-pattern-fact-kind
+        field-access-pattern-fact-path
+        field-access-pattern-fact-start
+        field-access-pattern-fact-end
+        field-access-pattern-fact-role
+        field-access-pattern-fact-field-key
+        field-access-pattern-fact-callers
+        field-access-pattern-fact-access-count
+        field-access-pattern-fact-accessors
+        field-access-pattern-fact-quality-facets
+        field-access-pattern-fact-advice
+        field-access-pattern-fact-selector
+        boolean-condition-fact-name
+        boolean-condition-fact-kind
+        boolean-condition-fact-path
+        boolean-condition-fact-start
+        boolean-condition-fact-end
+        boolean-condition-fact-role
+        boolean-condition-fact-caller
+        boolean-condition-fact-formals
+        boolean-condition-fact-condition-callees
+        boolean-condition-fact-field-keys
+        boolean-condition-fact-condition-count
+        boolean-condition-fact-quality-facets
+        boolean-condition-fact-advice
+        boolean-condition-fact-selector
+        loop-driver-fact-name
+        loop-driver-fact-kind
+        loop-driver-fact-path
+        loop-driver-fact-start
+        loop-driver-fact-end
+        loop-driver-fact-role
+        loop-driver-fact-caller
+        loop-driver-fact-driver-kind
+        loop-driver-fact-binding-count
+        loop-driver-fact-body-form-count
+        loop-driver-fact-quality-facets
+        loop-driver-fact-advice
+        loop-driver-fact-selector
+        dependency-adapter-quality-fact-name
+        dependency-adapter-quality-fact-kind
+        dependency-adapter-quality-fact-path
+        dependency-adapter-quality-fact-start
+        dependency-adapter-quality-fact-end
+        dependency-adapter-quality-fact-role
+        dependency-adapter-quality-fact-dependency
+        dependency-adapter-quality-fact-imports
+        dependency-adapter-quality-fact-imported-symbols
+        dependency-adapter-quality-fact-used-symbols
+        dependency-adapter-quality-fact-protocol-refs
+        dependency-adapter-quality-fact-slots
+        dependency-adapter-quality-fact-derived-capabilities
+        dependency-adapter-quality-fact-manual-object-encoding-risk
+        dependency-adapter-quality-fact-generic-contract-witness-kind
+        dependency-adapter-quality-fact-quality
+        dependency-adapter-quality-fact-quality-facets
+        dependency-adapter-quality-fact-missing-evidence
+        dependency-adapter-quality-fact-advice
+        dependency-adapter-quality-fact-selector
+        function-quality-profile-name
+        function-quality-profile-kind
+        function-quality-profile-path
+        function-quality-profile-start
+        function-quality-profile-end
+        function-quality-profile-formals
+        function-quality-profile-arity
+        function-quality-profile-role
+        function-quality-profile-exported
+        function-quality-profile-typed-contract-quality
+        function-quality-profile-comment-quality
+        function-quality-profile-control-flow-roles
+        function-quality-profile-higher-order-roles
+        function-quality-profile-predicate-family-refs
+        function-quality-profile-field-access-pattern-refs
+        function-quality-profile-loop-driver-refs
+        function-quality-profile-macro-refs
+        function-quality-profile-poo-protocol-refs
+        function-quality-profile-quality-facets
+        function-quality-profile-preservation-reasons
+        function-quality-profile-suggested-repair-class
+        function-quality-profile-parser-confidence
+        function-quality-profile-advice
+        function-quality-profile-selector
         typed-contract-fact-definition-name
         typed-contract-fact-definition-kind
         typed-contract-fact-definition-formals
@@ -170,6 +275,12 @@
         source-file-poo-forms
         source-file-higher-order-forms
         source-file-control-flow-forms
+        source-file-predicate-family-facts
+        source-file-field-access-pattern-facts
+        source-file-boolean-condition-facts
+        source-file-loop-driver-facts
+        source-file-dependency-adapter-quality-facts
+        source-file-function-quality-profiles
         source-file-typed-contract-facts
         source-file-comment-quality-facts
         source-file-parse-error

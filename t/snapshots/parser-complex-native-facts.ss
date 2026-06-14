@@ -279,6 +279,335 @@
     (bodyFormCount 2)
     (qualityFacets ("extensible-match-dsl"))
     (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
+ (predicateFamilyFacts ())
+ (fieldAccessPatternFacts ())
+ (booleanConditionFacts ())
+ (loopDriverFacts ())
+ (functionQualityProfiles
+  ((functionQualityProfile
+    (name "with-widget")
+    (kind "function-quality-profile")
+    (role "macro-helper")
+    (exported #t)
+    (formals ("value" "body"))
+    (arity 2)
+    (typedContractQuality "domain-transform")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ("with-widget"))
+    (pooProtocolRefs ())
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "macro-helper"
+      "public-api"
+      "typed-contract-domain-transform"
+      "comment-quality-weak"
+      "macro-runtime-source-witness"
+      "contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "contract-only-is-not-engineering-comment"))
+    (preservationReasons
+     ("preserve-public-api" "macro-runtime-source-witness-required"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:14-16"))
+   (functionQualityProfile
+    (name "capture-safe")
+    (kind "function-quality-profile")
+    (role "macro-helper")
+    (exported #f)
+    (formals ("stx"))
+    (arity 1)
+    (typedContractQuality "domain-transform")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ("capture-safe"))
+    (pooProtocolRefs ())
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "macro-helper"
+      "typed-contract-domain-transform"
+      "comment-quality-weak"
+      "macro-runtime-source-witness"
+      "contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "contract-only-is-not-engineering-comment"))
+    (preservationReasons ("macro-runtime-source-witness-required"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:18-22"))
+   (functionQualityProfile
+    (name "<Widget>")
+    (kind "function-quality-profile")
+    (role "poo-protocol-boundary")
+    (exported #t)
+    (formals ())
+    (arity 0)
+    (typedContractQuality "declaration-contract")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs ("<Widget>"))
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "poo-protocol-boundary"
+      "public-api"
+      "typed-contract-declaration-contract"
+      "comment-quality-weak"
+      "poo-protocol-evidence"
+      "contract-valid"
+      "declaration-contract"
+      "declaration"
+      "weak-engineering-comment"))
+    (preservationReasons ("preserve-public-api" "poo-protocol-boundary"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:24-24"))
+   (functionQualityProfile
+    (name ":render")
+    (kind "function-quality-profile")
+    (role "protocol-method")
+    (exported #f)
+    (formals ())
+    (arity 0)
+    (typedContractQuality "declaration-contract")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs (":render" ":render"))
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "protocol-method"
+      "typed-contract-declaration-contract"
+      "comment-quality-weak"
+      "poo-protocol-evidence"
+      "contract-valid"
+      "declaration-contract"
+      "declaration"
+      "call-backed"
+      "weak-engineering-comment"))
+    (preservationReasons ("poo-protocol-boundary"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "high")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
+   (functionQualityProfile
+    (name "<Renderable>")
+    (kind "function-quality-profile")
+    (role "protocol-method")
+    (exported #t)
+    (formals ())
+    (arity 0)
+    (typedContractQuality "declaration-contract")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs ("<Renderable>"))
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "protocol-method"
+      "public-api"
+      "typed-contract-declaration-contract"
+      "comment-quality-weak"
+      "poo-protocol-evidence"
+      "contract-valid"
+      "declaration-contract"
+      "declaration"
+      "weak-engineering-comment"))
+    (preservationReasons ("preserve-public-api" "poo-protocol-boundary"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:28-28"))
+   (functionQualityProfile
+    (name ":render")
+    (kind "function-quality-profile")
+    (role "protocol-method")
+    (exported #f)
+    (formals ())
+    (arity 0)
+    (typedContractQuality "declaration-contract")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs (":render" ":render"))
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "protocol-method"
+      "typed-contract-declaration-contract"
+      "comment-quality-weak"
+      "poo-protocol-evidence"
+      "contract-valid"
+      "declaration-contract"
+      "declaration"
+      "call-backed"
+      "weak-engineering-comment"))
+    (preservationReasons ("poo-protocol-boundary"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "high")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:30-36"))
+   (functionQualityProfile
+    (name "make-widget")
+    (kind "function-quality-profile")
+    (role "public-api")
+    (exported #t)
+    (formals ("name" "rest"))
+    (arity 2)
+    (typedContractQuality "grouped-transform")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs ())
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "public-api"
+      "typed-contract-grouped-transform"
+      "comment-quality-weak"
+      "contract-valid"
+      "grouped-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "call-backed"
+      "combinator-candidate"
+      "contract-only-is-not-engineering-comment"))
+    (preservationReasons ("preserve-public-api"))
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:38-41"))
+   (functionQualityProfile
+    (name "dispatch")
+    (kind "function-quality-profile")
+    (role "internal-helper")
+    (exported #f)
+    (formals ("value"))
+    (arity 1)
+    (typedContractQuality "domain-transform")
+    (commentQuality "weak")
+    (controlFlowRoles ("pattern-branch"))
+    (higherOrderRoles ())
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs ())
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "internal-helper"
+      "typed-contract-domain-transform"
+      "comment-quality-weak"
+      "contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "call-backed"
+      "combinator-candidate"
+      "control-flow:pattern-branch"
+      "contract-only-is-not-engineering-comment"
+      "pattern-branch"))
+    (preservationReasons ())
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:43-46"))
+   (functionQualityProfile
+    (name "select")
+    (kind "function-quality-profile")
+    (role "internal-helper")
+    (exported #f)
+    (formals ("x"))
+    (arity 1)
+    (typedContractQuality "domain-transform")
+    (commentQuality "weak")
+    (controlFlowRoles ())
+    (higherOrderRoles ("multi-arity-function"))
+    (predicateFamilyRefs ())
+    (fieldAccessPatternRefs ())
+    (loopDriverRefs ())
+    (macroRefs ())
+    (pooProtocolRefs ())
+    (qualityFacets
+     ("function-quality-profile"
+      "functionQualityProfile"
+      "quality-profile"
+      "function-quality"
+      "internal-helper"
+      "typed-contract-domain-transform"
+      "comment-quality-weak"
+      "contract-valid"
+      "domain-transform"
+      "aligned"
+      "arity-bearing-definition"
+      "call-backed"
+      "higher-order-used"
+      "combinator-backed"
+      "contract-only-is-not-engineering-comment"
+      "multi-arity-function"))
+    (preservationReasons ())
+    (suggestedRepairClass "engineering-comment-quality")
+    (parserConfidence "medium")
+    (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
+    (selector "t/fixtures/parser/complex-syntax.ss:48-51"))))
  (typedContractFacts
   ((typedContractFact
     (definition "with-widget")

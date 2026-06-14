@@ -10,13 +10,10 @@
         check-compare-snapshot-fixtures)
 ;; String <- String
 (def (compare-fact-by-id id)
-  (let lp ((rest (compare-facts)))
-    (match rest
-      ([] (error "compare fact not found" id))
-      ([fact . tail]
-       (if (equal? (hash-get fact 'id) id)
-         fact
-         (lp tail))))))
+  (or (find (lambda (fact)
+              (equal? (hash-get fact 'id) id))
+            (compare-facts))
+      (error "compare fact not found" id)))
 ;; Snapshot
 (def (check-compare-snapshot-fields)
   (let (fact (compare-fact-by-id "env-active-documented"))

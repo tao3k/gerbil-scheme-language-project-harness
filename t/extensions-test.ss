@@ -61,7 +61,11 @@
                    "protocols"
                    "policy-protocol"
                    "macro-governance"
-                   "user-override-witness"])))
+                   "user-override-witness"
+                   "inherited-gerbil-utils"
+                   "higher-order-control"
+                   "typed-combinator-style"
+                   "pattern-inheritance"])))
     (test-case "poo pattern evidence is downstream extension guidance"
       (let* ((root ".run/extensions-poo-pattern-evidence")
              (_ (write-extension-project
@@ -92,6 +96,31 @@
         (check (not (not (member "dependency-backed-mapping"
                                   (hash-get pattern 'qualitySignals))))
                => #t)))
+    (test-case "poo pattern evidence inherits gerbil-utils combinator guidance"
+      (let* ((root ".run/extensions-poo-inherited-utils-pattern")
+             (_ (write-extension-project
+                 root
+                 "sample/app"
+                 ["git.cons.io/mighty-gerbils/gerbil-poo"]))
+             (index (collect-project root))
+             (pattern (poo-pattern-evidence index ["higher-order-control" "gerbil-utils" "inherited"]))
+             (source-ref (hash-get pattern 'sourceRef))
+             (import-witness (hash-get pattern 'importWitness))
+             (selectors (hash-get pattern 'selectors)))
+        (check (hash-get pattern 'id) => "gerbil-utils-higher-order-control")
+        (check (hash-get pattern 'origin) => "inherited")
+        (check (hash-get pattern 'via)
+               => ["git.cons.io/mighty-gerbils/gerbil-poo"
+                   "git.cons.io/mighty-gerbils/gerbil-utils"])
+        (check (hash-get source-ref 'dependency)
+               => "git.cons.io/mighty-gerbils/gerbil-utils")
+        (check (hash-get import-witness 'module) => ":clan/base")
+        (check (hash-get import-witness 'status) => "verified")
+        (check (hash-get (car selectors) 'selector)
+               => "gerbil-utils://base.ss#rcompose")
+        (check (not (not (member "package-closure-inheritance"
+                                  (hash-get pattern 'qualitySignals))))
+               => #t)))
     (test-case "poo pattern evidence requires activated dependency"
       (let* ((root ".run/extensions-poo-pattern-inactive")
              (_ (write-extension-project
@@ -100,6 +129,30 @@
                  ["git.cons.io/mighty-gerbils/gerbil-utils"]))
              (index (collect-project root)))
         (check (poo-pattern-evidence index ["poo" "class"]) => #f)))
+    (test-case "gerbil-poo usage query uses logical selector registry"
+      (let* ((root ".run/extensions-poo-registered-query")
+             (_ (write-extension-project
+                 root
+                 "sample/app"
+                 ["git.cons.io/mighty-gerbils/gerbil-utils"]))
+             (index (collect-project root))
+             (pattern (poo-pattern-evidence index ["gerbil-poo" "usage"]))
+             (source-ref (hash-get pattern 'sourceRef))
+             (signals (hash-get pattern 'qualitySignals))
+             (selectors (hash-get pattern 'selectors)))
+        (check (poo-extension-active? index) => #f)
+        (check (project-extension-json index) => '())
+        (check (hash-get pattern 'id) => "poo-object-system")
+        (check (hash-get pattern 'origin) => "registered")
+        (check (hash-get source-ref 'selectorScheme)
+               => "gerbil-poo-logical-symbol")
+        (check (not (not (member "gerbil-poo-logical-selector-registry"
+                                  signals)))
+               => #t)
+        (check (not (not (member "active-extension-fact" signals)))
+               => #f)
+        (check (hash-get (car selectors) 'selector)
+               => "gerbil-poo://object.ss#defclass")))
     (test-case "poo extension does not activate from package name alone"
       (let* ((root ".run/extensions-poo-package-name-only")
              (_ (write-extension-project

@@ -42,6 +42,31 @@
   (find (lambda (fact)
           (equal? (typed-contract-fact-definition-name fact) name))
         facts))
+;; PredicateFamilyFact <- (List PredicateFamilyFact) String
+(def (find-predicate-family facts subject)
+  (find (lambda (fact)
+          (equal? (predicate-family-fact-subject fact) subject))
+        facts))
+;; FieldAccessPatternFact <- (List FieldAccessPatternFact) String
+(def (find-field-access-pattern facts field-key)
+  (find (lambda (fact)
+          (equal? (field-access-pattern-fact-field-key fact) field-key))
+        facts))
+;; BooleanConditionFact <- (List BooleanConditionFact) String
+(def (find-boolean-condition facts caller)
+  (find (lambda (fact)
+          (equal? (boolean-condition-fact-caller fact) caller))
+        facts))
+;; LoopDriverFact <- (List LoopDriverFact) String
+(def (find-loop-driver facts caller)
+  (find (lambda (fact)
+          (equal? (loop-driver-fact-caller fact) caller))
+        facts))
+;; FunctionQualityProfile <- (List FunctionQualityProfile) String
+(def (find-function-quality-profile profiles name)
+  (find (lambda (profile)
+          (equal? (function-quality-profile-name profile) name))
+        profiles))
 ;; ParsedData
 (def parser-test
   (test-suite "gerbil scheme harness parser"
@@ -183,6 +208,32 @@
                       (selector-owner? selector "t/fixtures/parser/complex-syntax.ss"))
                     (map call-fact-selector (source-file-calls file)))
                => [#t #t #t #t #t #t #t #t #t #t])))
+    (test-case "native reader captures runtime module sugar definitions"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "t/fixtures/parser/runtime-module-sugar.ss"))
+             (macros (source-file-macros file))
+             (only-in (find-macro macros "only-in"))
+             (except-out (find-macro macros "except-out"))
+             (for-syntax (find-macro macros "for-syntax")))
+        (check (source-file-parse-error file) => #f)
+        (check (source-file-prelude file) => ":<root>")
+        (check (source-file-package file) => "sample/runtime-module-sugar")
+        (check (map definition-name (source-file-definitions file))
+               => ["only-in" "except-out" "for-syntax"])
+        (check (map definition-kind (source-file-definitions file))
+               => ["defsyntax-for-import"
+                   "defsyntax-for-export"
+                   "defsyntax-for-import-export"])
+        (check (map definition-formals (source-file-definitions file))
+               => [["stx"] ["stx"] ["stx"]])
+        (check (map macro-fact-phase macros)
+               => ["import" "export" "import-export"])
+        (check (macro-fact-kind only-in) => "defsyntax-for-import")
+        (check (macro-fact-kind except-out) => "defsyntax-for-export")
+        (check (macro-fact-kind for-syntax) => "defsyntax-for-import-export")
+        (check (quality-facet-member? (macro-fact-quality-facets only-in)
+                                      "syntax-case-transformer")
+               => #t)))
     (test-case "native reader captures higher-order syntax facts"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "t/fixtures/parser/higher-order.ss"))
@@ -361,6 +412,63 @@
         (check (hash-get repair-evidence 'factSource) => "native-parser")
         (check (not (not (member "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
                                   (hash-get repair-evidence 'allowedMoves))))
+               => #t)))
+    (test-case "native reader keeps quality-shape parser facts stable"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "src/parser/quality-shape.ss")))
+        (check (source-file-parse-error file) => #f)
+        (check (source-file-predicate-family-facts file) => '())
+        (check (source-file-field-access-pattern-facts file) => '())
+        (check (source-file-boolean-condition-facts file) => '())
+        (check (source-file-loop-driver-facts file) => '())))
+    (test-case "native reader captures quality-shape parser facts"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "t/fixtures/parser/predicate-family.fixture"))
+             (family (find-predicate-family
+                      (source-file-predicate-family-facts file) "fact"))
+             (role-access (find-field-access-pattern
+                           (source-file-field-access-pattern-facts file) "role"))
+             (fields-access (find-field-access-pattern
+                             (source-file-field-access-pattern-facts file) "fields"))
+             (paid-condition (find-boolean-condition
+                              (source-file-boolean-condition-facts file)
+                              "paid-event?"))
+             (loop-driver (find-loop-driver
+                           (source-file-loop-driver-facts file)
+                           "collect-ids"))
+             (created-profile
+              (find-function-quality-profile
+               (source-file-function-quality-profiles file)
+               "created-event?")))
+        (check (source-file-parse-error file) => #f)
+        (check (predicate-family-fact-predicate-count family) => 3)
+        (check (predicate-family-fact-predicate-names family)
+               => ["created-event?" "paid-event?" "cancelled-event?"])
+        (check (not (not (member "role" (predicate-family-fact-field-keys family))))
+               => #t)
+        (check (not (not (member "hash-get" (predicate-family-fact-repeated-callees family))))
+               => #t)
+        (check (field-access-pattern-fact-access-count role-access) => 3)
+        (check (field-access-pattern-fact-access-count fields-access) => 3)
+        (check (boolean-condition-fact-condition-count paid-condition) => 3)
+        (check (loop-driver-fact-driver-kind loop-driver) => "pure-transform-candidate")
+        (check (not (not (member "combinator-candidate"
+                                  (loop-driver-fact-quality-facets loop-driver))))
+               => #t)
+        (check (function-quality-profile-role created-profile) => "predicate")
+        (check (function-quality-profile-suggested-repair-class created-profile)
+               => "predicate-family-combinator")
+        (check (not (not (member "predicate-family:fact"
+                                  (function-quality-profile-predicate-family-refs
+                                   created-profile))))
+               => #t)
+        (check (not (not (member "field-access:role"
+                                  (function-quality-profile-field-access-pattern-refs
+                                   created-profile))))
+               => #t)
+        (check (not (not (member "functionQualityProfile"
+                                  (function-quality-profile-quality-facets
+                                   created-profile))))
                => #t)))
     (test-case "native reader captures @method POO dispatch facts"
       (let* ((root (path-normalize ".run/parser-poo-method-shapes"))

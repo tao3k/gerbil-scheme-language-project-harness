@@ -16,11 +16,14 @@
         drop-project-root
         file-directory?)
 ;; ConfigConstant
-(def +boolean-flags+ '("--json" "--code" "--names-only" "--changed" "--full" "--more"))
+(def +boolean-flags+
+  '("--json" "--code" "--names-only" "--changed" "--full" "--more"
+    "--artifact"))
 ;; ConfigConstant
 (def +value-options+
   '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"
-    "--iterations" "--max-total-ms" "--whitelist"
+    "--owner"
+    "--iterations" "--max-total-ms" "--max-interface-ms" "--whitelist"
     "--topic" "--intent" "--role" "--level" "--rule" "--finding" "--limit"))
 ;; Boolean <- Flag (List XX)
 (def (flag? flag args)

@@ -2,6 +2,9 @@
 ;;; Native syntax fact rows for the structural index packet.
 
 (import :parser/facade
+        :protocol/function-quality-facts
+        :protocol/quality-shape-facts
+        :protocol/support
         :std/sort
         :std/sugar
         :support/list)
@@ -23,14 +26,31 @@
          (source-file-higher-order-forms file))
     (map control-flow-structural-fact-json
          (source-file-control-flow-forms file))
+    (map predicate-family-structural-fact-json
+         (source-file-predicate-family-facts file))
+    (map field-access-pattern-structural-fact-json
+         (source-file-field-access-pattern-facts file))
+    (map boolean-condition-structural-fact-json
+         (source-file-boolean-condition-facts file))
+    (map loop-driver-structural-fact-json
+         (source-file-loop-driver-facts file))
+    (map dependency-adapter-quality-structural-fact-json
+         (source-file-dependency-adapter-quality-facts file))
+    (map function-quality-profile-structural-fact-json
+         (source-file-function-quality-profiles file))
     (map typed-contract-structural-fact-json
          (source-file-typed-contract-facts file))
     (map comment-quality-structural-fact-json
          (source-file-comment-quality-facts file))
     (map call-structural-fact-json (source-file-calls file)))))
 ;;; Boundary:
-;;; - stable-structural-facts composes first-class procedures.
-;;; - Keep data-flow evidence visible.
+;;; This helper normalizes one source file's structural facts before rendering.
+;;; Invariant:
+;;; Ordering is by native fact id, so compact output and JSON packets agree.
+;;; Policy boundary:
+;;; Policy receives parser-ordered evidence and should not re-sort before repair.
+;;; Comparator shape:
+;;; The anonymous predicate compares only fact ids and preserves fact payloads.
 ;; (List StructuralFactJson) <- (List StructuralFactJson)
 (def (stable-structural-facts facts)
   (sort facts
@@ -269,6 +289,77 @@
         (bindingCount (control-flow-fact-binding-count fact))
         (bodyFormCount (control-flow-fact-body-form-count fact))
         (qualityFacets (control-flow-quality-facets fact))))
+
+;; Json <- DependencyAdapterQualityFact
+(def (dependency-adapter-quality-structural-fact-json fact)
+  (hash (id (native-syntax-fact-id "dependency-adapter-quality"
+                                   (dependency-adapter-quality-fact-path fact)
+                                   (dependency-adapter-quality-fact-name fact)
+                                   (dependency-adapter-quality-fact-start fact)))
+        (kind "custom")
+        (source "native-parser")
+        (languageKind (dependency-adapter-quality-fact-kind fact))
+        (name (dependency-adapter-quality-fact-name fact))
+        (ownerPath (dependency-adapter-quality-fact-path fact))
+        (location (fact-location-json
+                   (dependency-adapter-quality-fact-path fact)
+                   (dependency-adapter-quality-fact-start fact)
+                   (dependency-adapter-quality-fact-end fact)))
+        (queryKeys (dependency-adapter-quality-query-keys fact))
+        (fields (dependency-adapter-quality-fields-json fact))))
+
+;;; Query keys expose the whole adapter boundary: dependency package,
+;;; imported primitives, protocol slots, quality facets, and missing evidence.
+;; (List QueryKey) <- DependencyAdapterQualityFact
+(def (dependency-adapter-quality-query-keys fact)
+  (dedupe
+   (filter identity
+           (append [(dependency-adapter-quality-fact-name fact)
+                    (dependency-adapter-quality-fact-kind fact)
+                    (dependency-adapter-quality-fact-role fact)
+                    (dependency-adapter-quality-fact-dependency fact)
+                    (dependency-adapter-quality-fact-quality fact)
+                    (dependency-adapter-quality-fact-advice fact)
+                    (dependency-adapter-quality-fact-path fact)
+                    "dependency-adapter-quality"
+                    "dependency-protocol-adapter"
+                    "protocol-adapter"
+                    "agent-repair-plan"]
+                   (dependency-adapter-quality-fact-imports fact)
+                   (dependency-adapter-quality-fact-imported-symbols fact)
+                   (dependency-adapter-quality-fact-used-symbols fact)
+                   (dependency-adapter-quality-fact-protocol-refs fact)
+                   (dependency-adapter-quality-fact-slots fact)
+                   (dependency-adapter-quality-fact-derived-capabilities fact)
+                   (dependency-adapter-quality-fact-quality-facets fact)
+                   (dependency-adapter-quality-fact-missing-evidence fact)
+                   [(dependency-adapter-quality-fact-manual-object-encoding-risk fact)
+                    (dependency-adapter-quality-fact-generic-contract-witness-kind fact)]))))
+
+;; Json <- DependencyAdapterQualityFact
+(def (dependency-adapter-quality-fields-json fact)
+  (hash (role (dependency-adapter-quality-fact-role fact))
+        (dependency (dependency-adapter-quality-fact-dependency fact))
+        (imports (dependency-adapter-quality-fact-imports fact))
+        (importedSymbols
+         (dependency-adapter-quality-fact-imported-symbols fact))
+        (usedSymbols (dependency-adapter-quality-fact-used-symbols fact))
+        (protocolRefs
+         (dependency-adapter-quality-fact-protocol-refs fact))
+        (slots (dependency-adapter-quality-fact-slots fact))
+        (derivedCapabilities
+         (dependency-adapter-quality-fact-derived-capabilities fact))
+        (manualObjectEncodingRisk
+         (dependency-adapter-quality-fact-manual-object-encoding-risk fact))
+        (genericContractWitnessKind
+         (dependency-adapter-quality-fact-generic-contract-witness-kind fact))
+        (quality (dependency-adapter-quality-fact-quality fact))
+        (qualityFacets
+         (dependency-adapter-quality-fact-quality-facets fact))
+        (missingEvidence
+         (dependency-adapter-quality-fact-missing-evidence fact))
+        (advice (dependency-adapter-quality-fact-advice fact))))
+
 ;; Json <- TypedContractFact
 (def (typed-contract-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "typed-contract"
@@ -452,15 +543,3 @@
                       (argumentTypes
                        (map (lambda (type) (or type "unknown"))
                             (call-fact-argument-types fact)))))))
-;; Json <- String Integer Integer
-(def (fact-location-json path start end)
-  (hash (path path)
-        (lineRange (string-append (number->string start)
-                                  ":"
-                                  (number->string end)))))
-;; String <- String String String Integer
-(def (native-syntax-fact-id kind path name start)
-  (string-append kind ":"
-                 path ":"
-                 (number->string start) ":"
-                 name))

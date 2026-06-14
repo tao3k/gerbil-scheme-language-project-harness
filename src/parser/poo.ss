@@ -10,7 +10,7 @@
         poo-form-facts-from-form)
 ;; ConfigConstant
 (def +poo-definition-heads+
-  '(defclass .defclass defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol))
+  '(.def defclass .defclass defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol))
 ;;; Boundary:
 ;;; - poo-form-facts-from-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -41,7 +41,7 @@
   (let ((head (car datum))
         (second (safe-cadr datum)))
     (cond
-     ((member head '(defmethod .defmethod defclass .defclass defgeneric .defgeneric defprotocol .defprotocol))
+     ((member head '(.def defmethod .defmethod defclass .defclass defgeneric .defgeneric defprotocol .defprotocol))
       (cond
        ((symbol? second) [second])
        ((and (pair? second)
@@ -55,6 +55,7 @@
 (def (poo-form-role head)
   (cond
    ((member head '(defclass .defclass)) "class")
+   ((eq? head '.def) "object")
    ((member head '(defmethod .defmethod)) "method")
    ((member head '(defgeneric .defgeneric)) "generic")
    ((member head '(defprotocol .defprotocol)) "protocol")

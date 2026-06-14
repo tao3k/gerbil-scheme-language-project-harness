@@ -5,11 +5,15 @@
         :gerbil/gambit
         :parser/comment-quality
         :parser/control-flow
+        :parser/dependency-adapter-quality
         :parser/exports
+        :parser/function-quality
         :parser/higher-order
         :parser/model
         :parser/package
         :parser/poo
+        :parser/quality-shape
+        :parser/selectors
         :parser/support
         :parser/syntax
         :parser/typed-contract
@@ -27,6 +31,12 @@
         parse-source-file
         project-definitions
         project-calls
+        project-predicate-family-facts
+        project-field-access-pattern-facts
+        project-boolean-condition-facts
+        project-loop-driver-facts
+        project-dependency-adapter-quality-facts
+        project-function-quality-profiles
         project-typed-contract-facts
         project-comment-quality-facts
         find-owner
@@ -122,6 +132,105 @@
         control-flow-fact-body-form-count
         control-flow-quality-facets
         control-flow-fact-selector
+        predicate-family-fact-name
+        predicate-family-fact-kind
+        predicate-family-fact-path
+        predicate-family-fact-start
+        predicate-family-fact-end
+        predicate-family-fact-role
+        predicate-family-fact-subject
+        predicate-family-fact-predicate-names
+        predicate-family-fact-predicate-count
+        predicate-family-fact-field-keys
+        predicate-family-fact-repeated-callees
+        predicate-family-fact-condition-count
+        predicate-family-fact-quality-facets
+        predicate-family-fact-advice
+        predicate-family-fact-selector
+        field-access-pattern-fact-name
+        field-access-pattern-fact-kind
+        field-access-pattern-fact-path
+        field-access-pattern-fact-start
+        field-access-pattern-fact-end
+        field-access-pattern-fact-role
+        field-access-pattern-fact-field-key
+        field-access-pattern-fact-callers
+        field-access-pattern-fact-access-count
+        field-access-pattern-fact-accessors
+        field-access-pattern-fact-quality-facets
+        field-access-pattern-fact-advice
+        field-access-pattern-fact-selector
+        boolean-condition-fact-name
+        boolean-condition-fact-kind
+        boolean-condition-fact-path
+        boolean-condition-fact-start
+        boolean-condition-fact-end
+        boolean-condition-fact-role
+        boolean-condition-fact-caller
+        boolean-condition-fact-formals
+        boolean-condition-fact-condition-callees
+        boolean-condition-fact-field-keys
+        boolean-condition-fact-condition-count
+        boolean-condition-fact-quality-facets
+        boolean-condition-fact-advice
+        boolean-condition-fact-selector
+        loop-driver-fact-name
+        loop-driver-fact-kind
+        loop-driver-fact-path
+        loop-driver-fact-start
+        loop-driver-fact-end
+        loop-driver-fact-role
+        loop-driver-fact-caller
+        loop-driver-fact-driver-kind
+        loop-driver-fact-binding-count
+        loop-driver-fact-body-form-count
+        loop-driver-fact-quality-facets
+        loop-driver-fact-advice
+        loop-driver-fact-selector
+        dependency-adapter-quality-fact-name
+        dependency-adapter-quality-fact-kind
+        dependency-adapter-quality-fact-path
+        dependency-adapter-quality-fact-start
+        dependency-adapter-quality-fact-end
+        dependency-adapter-quality-fact-role
+        dependency-adapter-quality-fact-dependency
+        dependency-adapter-quality-fact-imports
+        dependency-adapter-quality-fact-imported-symbols
+        dependency-adapter-quality-fact-used-symbols
+        dependency-adapter-quality-fact-protocol-refs
+        dependency-adapter-quality-fact-slots
+        dependency-adapter-quality-fact-derived-capabilities
+        dependency-adapter-quality-fact-manual-object-encoding-risk
+        dependency-adapter-quality-fact-generic-contract-witness-kind
+        dependency-adapter-quality-fact-quality
+        dependency-adapter-quality-fact-quality-facets
+        dependency-adapter-quality-fact-missing-evidence
+        dependency-adapter-quality-fact-advice
+        dependency-adapter-quality-fact-selector
+        function-quality-profile-name
+        function-quality-profile-kind
+        function-quality-profile-path
+        function-quality-profile-start
+        function-quality-profile-end
+        function-quality-profile-formals
+        function-quality-profile-arity
+        function-quality-profile-role
+        function-quality-profile-exported
+        function-quality-profile-typed-contract-quality
+        function-quality-profile-comment-quality
+        function-quality-profile-control-flow-roles
+        function-quality-profile-higher-order-roles
+        function-quality-profile-predicate-family-refs
+        function-quality-profile-field-access-pattern-refs
+        function-quality-profile-loop-driver-refs
+        function-quality-profile-macro-refs
+        function-quality-profile-poo-protocol-refs
+        function-quality-profile-quality-facets
+        function-quality-profile-preservation-reasons
+        function-quality-profile-suggested-repair-class
+        function-quality-profile-parser-confidence
+        function-quality-profile-advice
+        function-quality-profile-selector
         typed-contract-fact-definition-name
         typed-contract-fact-definition-kind
         typed-contract-fact-definition-formals
@@ -183,6 +292,12 @@
         source-file-poo-forms
         source-file-higher-order-forms
         source-file-control-flow-forms
+        source-file-predicate-family-facts
+        source-file-field-access-pattern-facts
+        source-file-boolean-condition-facts
+        source-file-loop-driver-facts
+        source-file-dependency-adapter-quality-facts
+        source-file-function-quality-profiles
         source-file-typed-contract-facts
         source-file-comment-quality-facts
         source-file-parse-error
@@ -374,131 +489,6 @@
         (and (string-prefix? "prelude:" (string-trim line))
              (not (string-contains line ":gerbil/core"))))
       (take* (read-file-lines path) 12)))))
-;;; Boundary:
-;;; - project-definitions composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List Definition) <- ProjectIndex
-(def (project-definitions index)
-  (apply append (map source-file-definitions (project-index-files index))))
-;;; Boundary:
-;;; - project-calls composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List CallFact) <- ProjectIndex
-(def (project-calls index)
-  (apply append (map source-file-calls (project-index-files index))))
-;;; Boundary:
-;;; - project-typed-contract-facts composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List TypedContractFact) <- ProjectIndex
-(def (project-typed-contract-facts index)
-  (apply append
-         (map source-file-typed-contract-facts
-              (project-index-files index))))
-;;; Boundary:
-;;; - project-comment-quality-facts composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List CommentQualityFact) <- ProjectIndex
-(def (project-comment-quality-facts index)
-  (apply append
-         (map source-file-comment-quality-facts
-              (project-index-files index))))
-;;; Boundary:
-;;; - find-owner composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; FindOwner <- ProjectIndex String
-(def (find-owner index owner)
-  (find (lambda (file) (equal? (source-file-path file) (normalize-owner owner)))
-        (project-index-files index)))
-;; Selector <- Definition
-(def (definition-selector defn)
-  (string-append (definition-path defn) ":"
-                 (number->string (definition-start defn))
-                 "-"
-                 (number->string (definition-end defn))))
-;; Selector <- CallFact
-(def (call-fact-selector call)
-  (string-append (call-fact-path call) ":"
-                 (number->string (call-fact-start call))
-                 "-"
-                 (number->string (call-fact-end call))))
-;; Selector <- Fact
-(def (module-import-fact-selector fact)
-  (string-append (module-import-fact-path fact) ":"
-                 (number->string (module-import-fact-start fact))
-                 "-"
-                 (number->string (module-import-fact-end fact))))
-;; Selector <- Fact
-(def (module-export-fact-selector fact)
-  (string-append (module-export-fact-path fact) ":"
-                 (number->string (module-export-fact-start fact))
-                 "-"
-                 (number->string (module-export-fact-end fact))))
-;; Selector <- Fact
-(def (macro-fact-selector fact)
-  (string-append (macro-fact-path fact) ":"
-                 (number->string (macro-fact-start fact))
-                 "-"
-                 (number->string (macro-fact-end fact))))
-;; Selector <- Fact
-(def (binding-fact-selector fact)
-  (string-append (binding-fact-path fact) ":"
-                 (number->string (binding-fact-start fact))
-                 "-"
-                 (number->string (binding-fact-end fact))))
-;; Selector <- Fact
-(def (poo-form-fact-selector fact)
-  (string-append (poo-form-fact-path fact) ":"
-                 (number->string (poo-form-fact-start fact))
-                 "-"
-                 (number->string (poo-form-fact-end fact))))
-;; Selector <- Fact
-(def (higher-order-fact-selector fact)
-  (string-append (higher-order-fact-path fact) ":"
-                 (number->string (higher-order-fact-start fact))
-                 "-"
-                 (number->string (higher-order-fact-end fact))))
-;; Selector <- ControlFlowFact
-(def (control-flow-fact-selector fact)
-  (string-append (control-flow-fact-path fact) ":"
-                 (number->string (control-flow-fact-start fact))
-                 "-"
-                 (number->string (control-flow-fact-end fact))))
-;; Selector <- TypedContractFact
-(def (typed-contract-fact-selector fact)
-  (string-append (typed-contract-fact-path fact) ":"
-                 (number->string (typed-contract-fact-comment-start fact))
-                 "-"
-                 (number->string (typed-contract-fact-comment-end fact))))
-;; Selector <- CommentQualityFact
-(def (comment-quality-fact-selector fact)
-  (string-append (comment-quality-fact-path fact) ":"
-                 (number->string (comment-quality-fact-comment-start fact))
-                 "-"
-                 (number->string (comment-quality-fact-comment-end fact))))
-;; Selector <- Form
-(def (top-form-selector form)
-  (string-append (top-form-path form) ":"
-                 (number->string (top-form-start form))
-                 "-"
-                 (number->string (top-form-end form))))
-;; String <- String String
-(def (relative-path root path)
-  (let* ((root* (path-normalize root))
-         (path* (path-normalize path))
-         (prefix (if (string-suffix? "/" root*) root* (string-append root* "/"))))
-    (if (string-prefix? prefix path*)
-      (substring path* (string-length prefix) (string-length path*))
-      path*)))
-;; String <- String String
-(def (source-full-path root path)
-  (if (string-prefix? "/" path)
-    (path-normalize path)
-    (path-expand path root)))
-;; NormalizeOwner <- String
-(def (normalize-owner owner)
-  (if (string-prefix? "./" owner)
-    (substring owner 2 (string-length owner))
-    owner))
 ;;; Invariant:
 ;;; - parse-source-file owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
@@ -529,11 +519,14 @@
           (bindings '())
           (poo-forms '())
           (higher-order-forms '())
-          (control-flow-forms '()))
+          (control-flow-forms '())
+          (dependency-adapter-candidates '()))
       (while (pair? rest)
         (let* ((form (car rest))
                (datum (syntax->datum form))
-               (head (and (pair? datum) (car datum)))
+               (head (form-datum-head datum))
+               (metadata-value (form-metadata-value datum (cdr rest)))
+               (next-rest (form-next-rest datum rest))
                (top-form (top-form-from relpath form datum))
                (next-calls (append (calls-from-form relpath form datum) calls))
                (form-module-imports
@@ -550,17 +543,22 @@
                (form-higher-order-forms
                 (higher-order-facts-from-form relpath form datum))
                (form-control-flow-forms
-                (control-flow-facts-from-form relpath form datum)))
+                (control-flow-facts-from-form relpath form datum))
+               (form-dependency-adapter-candidates
+                (dependency-adapter-candidates-from-form relpath form datum)))
           (set! top-forms (cons top-form top-forms))
           (set! control-flow-forms
             (append form-control-flow-forms control-flow-forms))
+          (set! dependency-adapter-candidates
+            (append form-dependency-adapter-candidates
+                    dependency-adapter-candidates))
           (cond
            ((eq? head 'package:)
-            (set! package (datum->string (safe-cadr datum))))
+            (set! package (datum->string metadata-value)))
            ((eq? head 'prelude:)
-            (set! prelude (datum->string (safe-cadr datum))))
+            (set! prelude (datum->string metadata-value)))
            ((eq? head 'namespace:)
-            (set! namespace (datum->string (safe-cadr datum))))
+            (set! namespace (datum->string metadata-value)))
            ((eq? head 'import)
            (set! imports (append (module-refs datum) imports))
             (set! module-imports (append form-module-imports module-imports))
@@ -600,33 +598,76 @@
             (set! poo-forms (append form-poo-forms poo-forms))
             (set! higher-order-forms
               (append form-higher-order-forms higher-order-forms))))
-          (set! rest (cdr rest))))
+          (set! rest next-rest)))
       (let ((ordered-definitions (reverse definitions))
             (ordered-calls (reverse calls))
             (ordered-macros (reverse macros))
             (ordered-poo-forms (reverse poo-forms))
             (ordered-higher-order-forms (reverse higher-order-forms))
-            (ordered-control-flow-forms (reverse control-flow-forms)))
-        (make-source-file relpath line-count package prelude namespace
-                          (dedupe imports) (dedupe exports) (dedupe includes)
-                          ordered-definitions ordered-calls
-                          (reverse top-forms)
-                          (reverse module-imports)
-                          (reverse module-exports)
-                          ordered-macros
-                          (reverse bindings)
-                          ordered-poo-forms
-                          ordered-higher-order-forms
-                          ordered-control-flow-forms
-                          (typed-contract-facts-from-definitions
-                           fullpath relpath ordered-definitions
-                           ordered-calls
-                           ordered-higher-order-forms
-                           ordered-control-flow-forms)
-                          (comment-quality-facts-from-source
-                           fullpath relpath ordered-definitions
-                           ordered-macros
-                           ordered-poo-forms
-                           ordered-higher-order-forms
-                           ordered-control-flow-forms)
-                          parse-error)))))
+            (ordered-control-flow-forms (reverse control-flow-forms))
+            (ordered-dependency-adapter-candidates
+             (reverse dependency-adapter-candidates)))
+        (let* ((ordered-exports (dedupe exports))
+               (predicate-family-facts
+                (predicate-family-facts-from-source relpath ordered-definitions ordered-calls))
+               (field-access-pattern-facts
+                (field-access-pattern-facts-from-source relpath ordered-calls))
+               (boolean-condition-facts
+                (boolean-condition-facts-from-source relpath ordered-definitions ordered-calls))
+               (loop-driver-facts
+                (loop-driver-facts-from-source relpath
+                                               ordered-calls
+                                               ordered-higher-order-forms
+                                               ordered-control-flow-forms))
+               (dependency-adapter-quality-facts
+                (dependency-adapter-quality-facts-from-candidates
+                 relpath
+                 ordered-dependency-adapter-candidates
+                 (reverse module-imports)))
+               (typed-contract-facts
+                (typed-contract-facts-from-definitions
+                 fullpath relpath ordered-definitions
+                 ordered-calls
+                 ordered-higher-order-forms
+                 ordered-control-flow-forms))
+               (comment-quality-facts
+                (comment-quality-facts-from-source
+                 fullpath relpath ordered-definitions
+                 ordered-macros
+                 ordered-poo-forms
+                 ordered-higher-order-forms
+                 ordered-control-flow-forms))
+               (function-quality-profiles
+                (function-quality-profiles-from-source
+                 relpath
+                 ordered-exports
+                 ordered-definitions
+                 typed-contract-facts
+                 comment-quality-facts
+                 ordered-control-flow-forms
+                 ordered-higher-order-forms
+                 predicate-family-facts
+                 field-access-pattern-facts
+                 loop-driver-facts
+                 ordered-macros
+                 ordered-poo-forms)))
+          (make-source-file relpath line-count package prelude namespace
+                            (dedupe imports) ordered-exports (dedupe includes)
+                            ordered-definitions ordered-calls
+                            (reverse top-forms)
+                            (reverse module-imports)
+                            (reverse module-exports)
+                            ordered-macros
+                            (reverse bindings)
+                            ordered-poo-forms
+                            ordered-higher-order-forms
+                            ordered-control-flow-forms
+                            predicate-family-facts
+                            field-access-pattern-facts
+                            boolean-condition-facts
+                            loop-driver-facts
+                            dependency-adapter-quality-facts
+                            function-quality-profiles
+                            typed-contract-facts
+                            comment-quality-facts
+                            parse-error))))))

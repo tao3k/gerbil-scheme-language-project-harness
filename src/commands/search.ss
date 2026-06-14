@@ -7,6 +7,7 @@
 (import :constants
         :commands/guide
         :commands/search-render
+        :commands/search-structural
         :extensions/facade
         :language/facade
         :parser/facade
@@ -49,7 +50,8 @@
           ((equal? view "owner") (emit-owner-search index args json?))
           ((equal? view "symbol") (emit-symbol-search index args json?))
           ((equal? view "import") (emit-import-search index args json?))
-          ((equal? view "structural") (emit-structural-index index json?))
+          ((equal? view "structural")
+           (emit-structural-index index args json?))
           ((equal? view "extension") (emit-extension-search index args json?))
           ((equal? view "pattern") (emit-pattern-search index args json?))
           ((equal? view "compare") (emit-compare-search args json?))
@@ -232,43 +234,6 @@
            (take* matches 40)))))
     0))
 ;;; Boundary:
-;;; - emit-structural-index composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex Json
-(def (emit-structural-index index json?)
-  (let* ((packet (structural-index-packet-json index))
-         (file-hashes (hash-get packet 'fileHashes))
-         (owners (hash-get packet 'owners))
-         (symbols (hash-get packet 'symbols))
-         (syntax-facts (hash-get packet 'syntaxFacts))
-         (dependency-usages (hash-get packet 'dependencyUsages)))
-    (if json?
-      (write-json-line packet)
-      (begin
-        (displayln "[gerbil-search-structural] root=" (project-index-root index)
-                   " generationId=" (hash-get packet 'generationId)
-                   " files=" (length file-hashes)
-                   " owners=" (length owners)
-                   " symbols=" (length symbols)
-                   " syntaxFacts=" (length syntax-facts)
-                   " dependencyUsages=" (length dependency-usages))
-        (displayln "|artifact id=" (hash-get packet 'sourceArtifactId)
-                   " schemaId=" (hash-get packet 'schemaId)
-                   " rawSourceStored=false")
-        (displayln "|projectionVocabulary facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,typedContractFacts,commentQualityFacts,dependencyUsageFacts"
-                   " consumer=search-capability-posture"
-                   " next=gerbil-scheme-harness search capability posture --view seeds .")
-        (for-each
-         (lambda (owner)
-           (displayln "|owner path=" (hash-get owner 'ownerPath)
-                      " kind=" (hash-get owner 'ownerKind)
-                      " authority=" (hash-get owner 'sourceAuthority)
-                      " sourceClass=" (source-path-class (hash-get owner 'ownerPath))))
-         (take* owners 20))
-        (emit-structural-syntax-fact-lines syntax-facts)
-        (displayln "nextCommand=gerbil-scheme-harness search structural --json ."))))
-  0)
-;;; Boundary:
 ;;; - emit-fzf-search composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
 ;; Unit <- ProjectIndex (List XX) Json
@@ -394,6 +359,13 @@
          (lambda (fact)
            (displayln (extension-fact-search-line fact)))
          matches)
+        (when (poo-registered-extension-query? positionals)
+          (displayln "|agentAction action=follow-next"
+                     " registeredKnowledge=gerbil-poo://"
+                     " notProjectActivation=true"
+                     " command=\"asp gerbil-scheme "
+                     (extension-evidence-next positionals matches)
+                     " --view seeds\""))
         (displayln "next=" (extension-evidence-next positionals matches))))
     0))
 ;;; Boundary:
@@ -404,10 +376,14 @@
   (let (facts (project-extension-facts index))
     (if (null? terms)
       facts
-      (filter (lambda (fact)
-                (ormap (cut extension-fact-matches-term? fact <>)
-                       terms))
-              facts))))
+      (let (matches
+            (filter (lambda (fact)
+                      (ormap (cut extension-fact-matches-term? fact <>)
+                             terms))
+                    facts))
+        (if (null? matches)
+          (poo-registered-extension-facts terms)
+          matches)))))
 ;;; Boundary:
 ;;; - extension-fact-matches-term? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -421,7 +397,9 @@
 ;; String <- (List String) Matches
 (def (extension-evidence-next terms matches)
   (let ((extension-name (if (pair? matches)
-                          (extension-fact-name (car matches))
+                          (if (poo-registered-extension-query? terms)
+                            "gerbil-poo"
+                            (extension-fact-name (car matches)))
                           (if (pair? terms) (car terms) "<extension>")))
         (focus (if (and (pair? terms) (pair? (cdr terms)))
                  (join (cdr terms) " ")
@@ -483,14 +461,30 @@
 ;; (List String) <- Pattern
 (def (emit-pattern-lines pattern)
   (let* ((missing (pattern-missing pattern))
-         (quality (if (null? missing) "verified" "partial")))
+         (quality (if (null? missing) "verified" "partial"))
+         (via (if (hash-key? pattern 'via) (hash-get pattern 'via) []))
+         (via-text (if (null? via) "-" (join via "->"))))
     (displayln "|pattern id=" (hash-get pattern 'id)
                " extension=" (hash-get pattern 'extension)
                " focus=" (hash-get pattern 'focus)
+               " origin=" (hash-get pattern 'origin)
+               " via=" via-text
                " sourceRef=" (source-ref-summary (hash-get pattern 'sourceRef))
                " witness=" (hash-get pattern 'witness))
+    (emit-pattern-agent-guidance pattern quality)
+    (when (hash-key? pattern 'importWitness)
+      (let* ((witness (hash-get pattern 'importWitness))
+             (chain (hash-get witness 'dependencyChain))
+             (chain-text (if (null? chain) "-" (join chain "->"))))
+        (displayln "|importWitness status=" (hash-get witness 'status)
+                   " module=" (hash-get witness 'module)
+                   " minimalImport=" (hash-get witness 'minimalImport)
+                   " evidence=" (hash-get witness 'evidence)
+                   " dependencyChain=" chain-text)))
     (displayln "|agentScenario id=" (hash-get pattern 'agentScenario)
                " intent=" (hash-get pattern 'intent))
+    (when (hash-key? pattern 'agentSteering)
+      (displayln "|agentSteering " (hash-get pattern 'agentSteering)))
     (for-each
      (lambda (selector)
        (displayln "|selector role=" (hash-get selector 'role)
@@ -514,6 +508,28 @@
                " selectorCount=" (length (hash-get pattern 'selectors))
                " formCount=" (length (hash-get pattern 'minimalForms))
                " failureCaseCount=" (length (hash-get pattern 'failureCases)))))
+;;; Agent-facing renderer:
+;;; - POO selectors are package logical anchors, not workspace line selectors.
+;;; - Make the read order explicit so an agent can edit without guessing.
+;; Unit <- Pattern Quality
+(def (emit-pattern-agent-guidance pattern quality)
+  (when (equal? (hash-get pattern 'extension) "poo")
+    (let (source-ref (hash-get pattern 'sourceRef))
+      (when (hash-key? source-ref 'selectorScheme)
+        (displayln "|selectorResolver scheme=" (hash-get source-ref 'selectorScheme)
+                   " status=logical-selector"
+                   " querySelector=not-direct"
+                   " sourceRef=" (source-ref-summary source-ref))))
+    (displayln "|agentReadOrder first=agentScenario"
+               " second=agentSteering"
+               " third=selectorResolver"
+               " fourth=minimalForms"
+               " fifth=failureCases"
+               " sixth=quality")
+    (displayln "|agentAction action=use-minimalForms-before-editing"
+               " selectorUse=source-anchor"
+               " quality=" quality
+               " avoid=generic-scheme-or-racket-class-guess")))
 ;;; Boundary:
 ;;; - emit-compare-search composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -667,6 +683,8 @@
              " summary=" (hash-get fact 'summary))
   (displayln "|agentScenario id=" (hash-get fact 'agentScenario)
              " intent=" (hash-get fact 'intent))
+  (when (hash-key? fact 'agentSteering)
+    (displayln "|agentSteering " (hash-get fact 'agentSteering)))
   (let (details (hash-get fact 'details))
     (when (hash-key? details 'gerbilHome)
       (displayln "|runtime gerbilHome=" (hash-get details 'gerbilHome)

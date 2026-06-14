@@ -22,6 +22,12 @@
    "pooFormFacts"
    "higherOrderFacts"
    "controlFlowFacts"
+   "predicateFamilyFacts"
+   "fieldAccessPatternFacts"
+   "booleanConditionFacts"
+   "loopDriverFacts"
+   "dependencyAdapterQualityFacts"
+   "functionQualityProfiles"
    "typedContractFacts"
    "commentQualityFacts"
    "dependencyUsageFacts"])
@@ -93,7 +99,21 @@
          (guideTopic "engineering-comment-quality")
          (guideIntent "style")
          (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")
-         (requires "engineering comments should be driven by parser-owned commentQualityFacts evidence and may span multiple adjacent lines when needed"))])
+         (requires "engineering comments should be driven by parser-owned commentQualityFacts evidence and may span multiple adjacent lines when needed"))
+   (hash (id (policy-rule-id +agent-predicate-family-combinator-rule+))
+         (severity (policy-rule-severity +agent-predicate-family-combinator-rule+))
+         (topic "predicate-family-combinator")
+         (guideTopic "predicate-family-combinator")
+         (guideIntent "style")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+         (requires "parser-owned predicateFamilyFacts plus fieldAccessPatternFacts before rewriting repeated field/role predicate helpers"))
+   (hash (id (policy-rule-id +agent-dependency-protocol-adapter-rule+))
+         (severity (policy-rule-severity +agent-dependency-protocol-adapter-rule+))
+         (topic "dependency-protocol-adapter")
+         (guideTopic "dependency-protocol-adapter")
+        (guideIntent "repair")
+        (nextCommand "asp gerbil-scheme search pattern poo rationaldict adapter --view seeds .")
+        (requires "query the search-forwarded rationaldict adapter example, then use parser-owned dependencyAdapterQualityFacts plus t/ contract witness before treating imported dependency primitives as an engineering boundary"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -202,5 +222,13 @@
       (string-append
        "|policy engineering-comment-quality=" id
        " lets parser-owned commentQualityFacts trigger richer multi-line comments and contract rationale before agent repair"))
+     ((equal? topic "predicate-family-combinator")
+      (string-append
+       "|policy predicate-family-combinator=" id
+       " turns repeated field/role predicate families into policy-triggered helper or combinator repair using parser-owned predicateFamilyFacts"))
+    ((equal? topic "dependency-protocol-adapter")
+      (string-append
+       "|policy dependency-protocol-adapter=" id
+       " tells agents that dependency primitives already provide the bottom data structure: run guide --code for the R017 code shape, avoid loose hash/alist objects, build a thin define-type/protocol adapter with precise only-in imports, Key/Value/validate/serialization/equality slots, derived table/set/list/sexp/json/marshal capabilities, and generic t/ contract witnesses"))
      (else
       (string-append "|policy " topic "=" id)))))
