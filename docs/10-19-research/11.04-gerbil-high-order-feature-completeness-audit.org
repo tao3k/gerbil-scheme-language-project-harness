@@ -607,6 +607,9 @@ Closed parser gaps from this audit:
 - Parser snapshots now include definition =arity= next to =formals=. This makes
   callable-shape evidence visible to snapshot/report consumers instead of
   leaving it only inside policy checks.
+- Export DSL items now have parser-owned =moduleExport= facts with
+  =modifier=, =alias=, =module=, =symbols=, and selector evidence. These facts
+  are projected through parser snapshots, JSON, and the structural search index.
 - POO method overloads are no longer treated as duplicate type bindings.
   Multiple =defmethod= entries under one generic are legal overload evidence,
   not duplicate owner definitions.
@@ -620,6 +623,3 @@ Remaining frontier:
 - Runtime-source selectors such as =gerbil-runtime-source://...= still need a
   closed selector-to-code path before guide =--code= can use them as source
   exemplars without direct file windows.
-- Export DSL facts are still less rich than import facts. Import phase and
-  modifier evidence is now parser-owned; export transform evidence should get
-  the same treatment before policy relies on it.

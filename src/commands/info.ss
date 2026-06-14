@@ -5,7 +5,8 @@
         :parser/facade
         :policy/catalog
         :protocol/json
-        :support/args)
+        :support/args
+        :support/list)
 
 (export info-main
         info-packet
@@ -68,7 +69,7 @@
   (displayln "|interface source-scope=gerbil.pkg-policy fields=roots,runtime-roots,exclude-directories explanation=required-for-overrides")
   (displayln "|interface build-scope=build.ss defbuild-script targets -> runtime-roots when explicit source-scope is absent")
   (displayln "|interface agent-policy=gerbil.pkg-policy fields=enabled-rules,disabled-rules")
-  (displayln "|agent-steering facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,dependencyUsageFacts")
+  (displayln "|agent-steering facts=" (join (agent-steering-facts) ","))
   (displayln "|agent-steering rules=" (agent-steering-rule-id-string))
   (let (closure (hash-get packet 'closureCommands))
     (displayln "|closure self-apply=" (hash-get closure 'selfApply))

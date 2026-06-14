@@ -15,6 +15,7 @@
   (stable-structural-facts
    (append
     (map module-import-structural-fact-json (source-file-module-imports file))
+    (map module-export-structural-fact-json (source-file-module-exports file))
     (map macro-structural-fact-json (source-file-macros file))
     (map binding-structural-fact-json (source-file-bindings file))
     (map poo-form-structural-fact-json (source-file-poo-forms file))
@@ -56,6 +57,39 @@
                       (modifier (module-import-fact-modifier fact))
                       (symbols (module-import-fact-symbols fact))
                       (alias (or (module-import-fact-alias fact) ""))))))
+;; Json <- Fact
+(def (module-export-structural-fact-json fact)
+  (hash (id (native-syntax-fact-id "export" (module-export-fact-path fact)
+                                   (module-export-fact-name fact)
+                                   (module-export-fact-start fact)))
+        (kind "export")
+        (source "native-parser")
+        (languageKind "module-export")
+        (name (module-export-fact-name fact))
+        (ownerPath (module-export-fact-path fact))
+        (location (fact-location-json (module-export-fact-path fact)
+                                      (module-export-fact-start fact)
+                                      (module-export-fact-end fact)))
+        (queryKeys (module-export-query-keys fact))
+        (fields (hash (modifier (module-export-fact-modifier fact))
+                      (symbols (module-export-fact-symbols fact))
+                      (alias (or (module-export-fact-alias fact) ""))
+                      (module (or (module-export-fact-module fact) ""))))))
+;;; Boundary:
+;;; - Export query keys expose direct symbols, wrapper modifiers, aliases, and module re-export refs.
+;;; - This lets search distinguish public API declarations from generic top-level symbol mentions.
+;; (List QueryKey) <- Fact
+(def (module-export-query-keys fact)
+  (dedupe
+   (filter identity
+           (append [(module-export-fact-name fact)
+                    (module-export-fact-modifier fact)
+                    (module-export-fact-alias fact)
+                    (module-export-fact-module fact)
+                    (module-export-fact-path fact)
+                    "export"
+                    "module-export"]
+                   (module-export-fact-symbols fact)))))
 ;; Json <- Fact
 (def (macro-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "macro" (macro-fact-path fact)

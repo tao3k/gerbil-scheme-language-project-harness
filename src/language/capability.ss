@@ -3,6 +3,7 @@
 
 (import :language/evidence
         :parser/facade
+        :policy/catalog
         :std/srfi/13
         :support/list)
 
@@ -121,7 +122,24 @@
       []
       ["downstream-policy-override" "build-ss-runtime-root-fallback"]
       "agent-configures-downstream-project-harness"
-      "use-gerbil.pkg-policy-overrides-only-when-project-declares-them")]))
+      "use-gerbil.pkg-policy-overrides-only-when-project-declares-them")
+     (capability-posture-fact
+      "quality-closure-posture"
+      "quality-closure"
+      "declared-closure"
+      "Agent-facing Gerbil engineering quality is closed through info, guide, check, self-apply, structural snapshots, and bench receipts."
+      "info-owned-closure-commands-plus-parser-owned-policy-facts"
+      "info --json ."
+      ["capability" "posture" "quality" "closure" "engineering-quality" "agent-steering" "policy" "guide" "check" "self-apply" "bench" "snapshot" "search-projection" "source-class"]
+      (hash (files (length files))
+            (definitions (length (project-definitions index)))
+            (agentRules (agent-steering-rule-ids))
+            (facts (agent-steering-facts))
+            (closures ["info" "guide" "check" "self-apply" "bench" "structural-snapshot"]))
+      (agent-steering-rule-ids)
+      ["policy-covered" "guide-covered" "snapshot-covered" "bench-covered" "check-covered" "self-apply-covered" "source-class-covered"]
+      "agent-assesses-gerbil-project-quality-before-editing"
+      "query-capability-posture-and-run-closure-commands-before-claiming-quality")]))
 ;; Fact <- String Capability Status Summary Witness Next (List XX) Counts PolicyRules QualitySignals AgentScenario String
 (def (capability-posture-fact id capability status summary witness next terms counts
                               policy-rules quality-signals agent-scenario intent)

@@ -27,6 +27,15 @@
         module-import-fact-path
         module-import-fact-start
         module-import-fact-end
+        make-module-export-fact
+        module-export-fact-name
+        module-export-fact-modifier
+        module-export-fact-alias
+        module-export-fact-module
+        module-export-fact-symbols
+        module-export-fact-path
+        module-export-fact-start
+        module-export-fact-end
         make-macro-fact
         macro-fact-name
         macro-fact-kind
@@ -138,6 +147,7 @@
         source-file-calls
         source-file-forms
         source-file-module-imports
+        source-file-module-exports
         source-file-macros
         source-file-bindings
         source-file-poo-forms
@@ -156,6 +166,8 @@
 (defstruct call-fact (callee arity path start end arguments argument-types caller))
 ;; ModuleImportFactStruct
 (defstruct module-import-fact (module phase modifier alias symbols path start end))
+;; ModuleExportFactStruct
+(defstruct module-export-fact (name modifier alias module symbols path start end))
 ;; MacroFactStruct
 (defstruct macro-fact (name kind path start end transformer phase pattern-count hygienic quality-facets))
 ;; BindingFactStruct
@@ -173,6 +185,6 @@
 ;; TopFormStruct
 (defstruct top-form (kind head path start end))
 ;; SourceFileStruct
-(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports macros bindings poo-forms higher-order-forms control-flow-forms typed-contract-facts comment-quality-facts parse-error))
+(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports module-exports macros bindings poo-forms higher-order-forms control-flow-forms typed-contract-facts comment-quality-facts parse-error))
 ;; ProjectIndexStruct
 (defstruct project-index (root files package))

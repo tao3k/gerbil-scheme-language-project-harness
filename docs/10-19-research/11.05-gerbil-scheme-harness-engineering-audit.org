@@ -1,5 +1,12 @@
-#+title: Gerbil Scheme Harness Engineering Audit
-#+date: 2026-06-13
+#+TITLE: 11.05 Gerbil Scheme Harness Engineering Audit
+#+DATE: 2026-06-13
+#+PROPERTY: JD_ID 11.05
+#+PROPERTY: ASP_STATUS research-audit
+
+This is a research audit snapshot.  Treat command receipts in this file as
+historical evidence captured during the audit, not as the current implementation
+state.  The current status ledger lives in
+[[file:11.06-current-quality-gap-register.org][11.06 Current Quality Gap Register]].
 
 * Summary
 

@@ -171,6 +171,7 @@
         (check (contains? output "|policy typed-combinator-style-composition=prefer small helper functions and expression-level") => #t)
         (check (contains? output "|policy typed-combinator-style-optimization-boundary=for case-lambda or common-case specializations") => #t)
         (check (contains? output "|policy controlled-branch-shape=GERBIL-SCHEME-AGENT-R014") => #t)
+        (check (contains? output "|policy engineering-comment-quality=GERBIL-SCHEME-AGENT-R015") => #t)
         (check (contains? output "|policy guide-code-default-topic=guide --code defaults to typed-combinator-style") => #t)
         (check (contains? output "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing") => #t)
         (check (contains? output "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads") => #t)
@@ -184,6 +185,7 @@
         (check (contains? output "|guideExemplar id=gerbil.poo-policy.parser-facts topic=poo-policy intent=repair rule=GERBIL-SCHEME-AGENT-R008") => #t)
         (check (contains? output "|guideExemplar id=gerbil.macro-runtime-source.witness topic=macro-runtime-source intent=witness rule=GERBIL-SCHEME-AGENT-R011") => #t)
         (check (contains? output "|guideExemplar id=gerbil.controlled-branch-shape.bounded-selector topic=controlled-branch-shape intent=style rule=GERBIL-SCHEME-AGENT-R014") => #t)
+        (check (contains? output "|guideExemplar id=gerbil.engineering-comment-quality.contract-boundary topic=engineering-comment-quality intent=style rule=GERBIL-SCHEME-AGENT-R015") => #t)
         (check (contains? output "|policy guide-code-default=guide --code writes only extracted source comment plus source code; guide without --code carries selectors and next commands") => #t)
         (check (contains? output "|policy guide-code-progressive=guide --code defaults to one source-backed excerpt; --more adds one adjacent exemplar; --level advanced includes the macro runtime-source witness path") => #t)
         (check (contains? output "|policy guide-code-routing=--rule/--finding route known policy ids to source-backed exemplars before agent repair; --intent witness routes to macro runtime-source evidence") => #t)
@@ -195,8 +197,8 @@
         (check (contains? text-output "[gerbil-info] language=gerbil-scheme provider=gerbil-scheme-harness") => #t)
         (check (contains? text-output "|interface source-scope=gerbil.pkg-policy") => #t)
         (check (contains? text-output "|interface build-scope=build.ss defbuild-script targets -> runtime-roots") => #t)
-        (check (contains? text-output "|agent-steering facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,dependencyUsageFacts") => #t)
-        (check (contains? text-output "|agent-steering rules=GERBIL-SCHEME-AGENT-R006,R007,R008,R009,R010,R011,R012,R013,R014") => #t)
+        (check (contains? text-output "|agent-steering facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,typedContractFacts,commentQualityFacts,dependencyUsageFacts") => #t)
+        (check (contains? text-output "|agent-steering rules=GERBIL-SCHEME-AGENT-R006,R007,R008,R009,R010,R011,R012,R013,R014,R015") => #t)
         (check (contains? text-output "|closure self-apply=GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss") => #t)
         (check (contains? text-output "|closure check=./bin/gerbil-scheme-harness check .") => #t)
         (check (contains? text-output "|closure bench=./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .") => #t)
@@ -206,6 +208,8 @@
         (check (contains? json-output "macro-runtime-source-witness") => #t)
         (check (contains? json-output "protocol-evidence") => #t)
         (check (contains? json-output "typed-combinator-style") => #t)
+        (check (contains? json-output "engineering-comment-quality") => #t)
+        (check (contains? json-output "commentQualityFacts") => #t)
         (check (contains? json-output "closureCommands") => #t)))
     (test-case "guide code defaults to one source-backed pure excerpt"
       (let (output (guide-output ["--code"]))
@@ -341,6 +345,12 @@
           "|fact id=higher-order-posture"
           "|fact id=control-flow-posture"
           "|fact id=configurable-interface-posture"
+          "|fact id=quality-closure-posture"
+          "|capability name=quality-closure status=declared-closure"
+          "|qualitySignal id=policy-covered"
+          "|qualitySignal id=guide-covered"
+          "|qualitySignal id=snapshot-covered"
+          "|qualitySignal id=bench-covered"
           "|failureCase id=basic-scheme-fallback"])))
     (test-case "env search exposes active runtime witness"
       (let (output (search-output ["env" "gxi" "."]))
@@ -385,6 +395,8 @@
           "|qualitySignal id=asp-state-managed-checkout"
           "|qualitySignal id=code-with-comments-output"
           "|qualitySignal id=selector-resolver-owned-by-asp"
+          "|qualitySignal id=source-ranking-prefers-runtime-source"
+          "|qualitySignal id=bootstrap-stubs-labelled"
           "next=search runtime-source macro sugar module-sugar"])
         (check (not (contains? output ".data")) => #t)
         (check (not (contains? output "pending")) => #t)))

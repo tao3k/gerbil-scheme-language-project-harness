@@ -23,6 +23,7 @@
         definition-json
         call-json
         module-import-json
+        module-export-json
         macro-json
         binding-json
         poo-form-json
@@ -58,6 +59,7 @@
         (definitions (map definition-json (source-file-definitions file)))
         (calls (map call-json (source-file-calls file)))
         (moduleImports (map module-import-json (source-file-module-imports file)))
+        (moduleExports (map module-export-json (source-file-module-exports file)))
         (macros (map macro-json (source-file-macros file)))
         (bindings (map binding-json (source-file-bindings file)))
         (pooForms (map poo-form-json (source-file-poo-forms file)))
@@ -529,6 +531,17 @@
         (start (module-import-fact-start fact))
         (end (module-import-fact-end fact))
         (selector (module-import-fact-selector fact))))
+;; Json <- Fact
+(def (module-export-json fact)
+  (hash (name (module-export-fact-name fact))
+        (modifier (module-export-fact-modifier fact))
+        (alias (or (module-export-fact-alias fact) ""))
+        (module (or (module-export-fact-module fact) ""))
+        (symbols (module-export-fact-symbols fact))
+        (path (module-export-fact-path fact))
+        (start (module-export-fact-start fact))
+        (end (module-export-fact-end fact))
+        (selector (module-export-fact-selector fact))))
 ;; Json <- Fact
 (def (macro-json fact)
   (hash (name (macro-fact-name fact))

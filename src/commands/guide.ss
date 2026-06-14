@@ -84,17 +84,17 @@
 ;; Boolean <- Value Fragment
 (def (string-has? value fragment)
   (and value (string-contains value fragment) #t))
+;;; Catalog route lookup: accept a full finding/rule fragment, then keep the
+;;; first catalog-backed guide topic so guide and repair do not drift.
 ;; RuleTopic <- Rule
 (def (rule-topic rule)
-  (cond
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R008") "poo-policy")
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R009") "functional-data-transform")
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R011") "macro-runtime-source")
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R012") "poo-policy")
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R013") "typed-combinator-style")
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R014") "controlled-branch-shape")
-   ((string-has? rule "GERBIL-SCHEME-AGENT-R015") "engineering-comment-quality")
-   (else #f)))
+  (and rule
+       (let (matches
+             (filter-map (lambda (rule-id)
+                           (and (string-has? rule rule-id)
+                                (agent-rule-guide-topic rule-id)))
+                         (agent-steering-rule-ids)))
+         (and (pair? matches) (car matches)))))
 ;; String <- (List String)
 (def (guide-intent args)
   (or (option "--intent" args)

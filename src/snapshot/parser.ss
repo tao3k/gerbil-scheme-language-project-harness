@@ -19,6 +19,9 @@
         (list 'moduleImports
               (map parser-module-import-snapshot
                    (source-file-module-imports file)))
+        (list 'moduleExports
+              (map parser-module-export-snapshot
+                   (source-file-module-exports file)))
         (list 'macros
               (map parser-macro-snapshot
                    (source-file-macros file)))
@@ -61,6 +64,16 @@
         (list 'modifier (module-import-fact-modifier fact))
         (list 'symbols (snapshot-list (module-import-fact-symbols fact)))
         (list 'selector (module-import-fact-selector fact))))
+
+;; Snapshot <- Fact
+(def (parser-module-export-snapshot fact)
+  (list 'moduleExport
+        (list 'name (module-export-fact-name fact))
+        (list 'modifier (module-export-fact-modifier fact))
+        (list 'alias (or (module-export-fact-alias fact) ""))
+        (list 'module (or (module-export-fact-module fact) ""))
+        (list 'symbols (snapshot-list (module-export-fact-symbols fact)))
+        (list 'selector (module-export-fact-selector fact))))
 
 ;; Snapshot <- Fact
 (def (parser-macro-snapshot fact)

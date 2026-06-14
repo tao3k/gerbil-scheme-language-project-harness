@@ -43,6 +43,7 @@
                "|policy protocol-evidence=GERBIL-SCHEME-AGENT-R012 requires protocol-oriented methods to cite parser-owned defprotocol/defclass evidence"
                "|policy typed-combinator-style=GERBIL-SCHEME-AGENT-R013 requires three criteria: adjacent Haskell-like transform signature block, compact expression-level composition, and optimization-boundary comments for specialized branches"
                "|policy controlled-branch-shape=GERBIL-SCHEME-AGENT-R014 turns repeated match branches into a policy-triggered repair: split helpers or use bounded selector pipelines, preserve behavior, and avoid opportunistic style edits"
+               "|policy engineering-comment-quality=GERBIL-SCHEME-AGENT-R015 lets parser-owned commentQualityFacts trigger richer multi-line comments and contract rationale before agent repair"
                "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
                "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads"
                "|policy typed-combinator-style-criteria=three criteria are required: adjacent Haskell-like transform signature block, compact expression-level composition, and optimization-boundary comments for specialized branches"

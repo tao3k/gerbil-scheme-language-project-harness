@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Agent repair metadata derived from policy findings.
 
-(import :types/findings)
+(import :policy/catalog
+        :types/findings)
 
 (export repairable-finding?
         repairable-findings
@@ -110,34 +111,8 @@
       [])))
 
 ;;; Boundary:
-;;; - finding-guide-route coordinates multiple evidence fields.
+;;; - finding-guide-route reads the central agent rule catalog.
 ;;; - Keep packet shape and invariants stable.
 ;; GuideRoute <- Rule
 (def (finding-guide-route rule)
-  (cond
-   ((equal? rule "GERBIL-SCHEME-AGENT-R009")
-    ["functional-data-transform"
-     "repair"
-     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair"])
-   ((equal? rule "GERBIL-SCHEME-AGENT-R011")
-    ["macro-runtime-source"
-     "witness"
-     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R011 --intent witness"])
-   ((equal? rule "GERBIL-SCHEME-AGENT-R013")
-    ["typed-combinator-style"
-     "style"
-     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R013 --intent style"])
-   ((equal? rule "GERBIL-SCHEME-AGENT-R014")
-    ["controlled-branch-shape"
-     "style"
-     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style"])
-   ((equal? rule "GERBIL-SCHEME-AGENT-R015")
-    ["engineering-comment-quality"
-     "style"
-     "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style"])
-   ((or (equal? rule "GERBIL-SCHEME-AGENT-R008")
-        (equal? rule "GERBIL-SCHEME-AGENT-R012"))
-    ["poo-policy"
-     "repair"
-     (string-append "asp gerbil-scheme guide --code --rule " rule " --intent repair")])
-   (else #f)))
+  (agent-rule-guide-route rule))

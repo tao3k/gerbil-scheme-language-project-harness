@@ -6,8 +6,8 @@
  (iterations 1)
  (maxTotalMs 60000)
  (totalMs "measured")
- (files 133)
- (definitions 1360)
+ (files 134)
+ (definitions 1381)
  (findings 0)
  (performanceFindings ())
  (slowestBenchmark

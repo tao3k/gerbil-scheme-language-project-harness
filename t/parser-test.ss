@@ -116,6 +116,12 @@
         (check (map module-import-fact-phase (source-file-module-imports file))
                => ["template" "phase:1" "runtime" "runtime"
                    "syntax" "runtime" "runtime"])
+        (check (map module-export-fact-name (source-file-module-exports file))
+               => [":render" "<Renderable>" "<Widget>" "with-widget" "make-widget"])
+        (check (map module-export-fact-modifier (source-file-module-exports file))
+               => ["direct" "direct" "direct" "direct" "direct"])
+        (check (map module-export-fact-symbols (source-file-module-exports file))
+               => [[":render"] ["<Renderable>"] ["<Widget>"] ["with-widget"] ["make-widget"]])
         (check (map macro-fact-name macros)
                => ["with-widget" "capture-safe"])
         (check (map macro-fact-hygienic macros)

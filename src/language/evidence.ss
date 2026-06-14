@@ -111,7 +111,7 @@
       "fact"
       "active-runtime-version-to-source-acquisition-plan"
       "search runtime-source macro sugar module-sugar"
-      ["runtime-source" "source" "source-facts" "runtime" "version" "clone" "checkout" "macro" "gerbil" "std" "sugar" "std/sugar" "defrule" "defsyntax-call" "module-sugar" "module" "import" "export" "only-in" "except-in" "rename-in" "rename-out" "for-syntax" tag version-string]
+      ["runtime-source" "source" "source-facts" "runtime" "version" "clone" "checkout" "macro" "gerbil" "std" "sugar" "std/sugar" "defrule" "defsyntax-call" "module-sugar" "module" "import" "export" "only-in" "except-in" "rename-in" "rename-out" "for-syntax" "ranking" "source-ranking" "bootstrap" "stub" "bootstrap-stub" tag version-string]
       (hash (runtime (hash (gerbilHome home)
                            (gxi gxi)
                            (systemVersion version-string)
@@ -189,7 +189,7 @@
              (selector "gerbil-runtime-source://src/gerbil/core/module-sugar.ss#rename-out"))]
       "agent-needs-gerbil-macro-facts-from-versioned-source"
       "clone-active-runtime-source-before-answering-language-or-macro-usage"
-      ["no-memory" "version-matched-source" "asp-state-managed-checkout" "source-index-required" "code-with-comments-output" "selector-resolver-owned-by-asp"]
+      ["no-memory" "version-matched-source" "asp-state-managed-checkout" "source-index-required" "code-with-comments-output" "selector-resolver-owned-by-asp" "source-ranking-prefers-runtime-source" "bootstrap-stubs-labelled"]
       [(hash (id "memory-language-answer")
              (risk "agent-answers-gerbil-language-usage-from-training-memory")
              (correction "acquire-runtime-source-and-search-source-facts"))
@@ -205,7 +205,7 @@
       "fact"
       "active-runtime-version-to-writeenv-source-acquisition-plan"
       "search runtime-source writeenv printer hook"
-      ["runtime-source" "source" "runtime" "version" "writeenv" "printer" "printer-hook" "hook" "write" "write-object" ":wr" "wr" "poo" "io" "serialization" tag version-string]
+      ["runtime-source" "source" "runtime" "version" "writeenv" "printer" "printer-hook" "hook" "write" "write-object" ":wr" "wr" "poo" "io" "serialization" "ranking" "source-ranking" "bootstrap" "stub" "bootstrap-stub" tag version-string]
       (hash (runtime (hash (gerbilHome home)
                            (gxi gxi)
                            (systemVersion version-string)
@@ -263,7 +263,7 @@
              (selector "gerbil-runtime-source://src/bootstrap/gerbil/core/runtime.ssi#write-object"))]
       "agent-needs-runtime-printer-hook-facts-before-poo-writeenv-roundtrip-claims"
       "query-versioned-runtime-writeenv-and-write-object-source-before-promoting-poo-io-to-verified"
-      ["no-memory" "version-matched-source" "asp-state-managed-checkout" "writeenv-source-index-required" "printer-hook-source-required"]
+      ["no-memory" "version-matched-source" "asp-state-managed-checkout" "writeenv-source-index-required" "printer-hook-source-required" "bootstrap-runtime-binding-labelled" "source-ranking-prefers-runtime-source"]
       [(hash (id "memory-writeenv-answer")
              (risk "agent-answers-writeenv-or-printer-hook-behavior-from-training-memory")
              (correction "acquire-active-runtime-source-and-query-writeenv-selectors"))

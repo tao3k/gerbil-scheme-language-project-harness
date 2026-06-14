@@ -93,9 +93,11 @@
        (correction "use-asp-managed-runtime-source-index-before-agent-facing-search"))))
     (qualitySignals ("no-memory"
                      "version-matched-source"
-                     "asp-state-managed-checkout"
-                     "writeenv-source-index-required"
-                     "printer-hook-source-required")))))
+	                     "asp-state-managed-checkout"
+	                     "writeenv-source-index-required"
+	                     "printer-hook-source-required"
+	                     "bootstrap-runtime-binding-labelled"
+	                     "source-ranking-prefers-runtime-source")))))
  (missing ())
  (witness "active-runtime-version-to-writeenv-source-acquisition-plan")
  (next "search runtime-source writeenv printer hook"))

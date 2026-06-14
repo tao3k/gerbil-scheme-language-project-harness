@@ -5,6 +5,7 @@
         :gerbil/gambit
         :parser/comment-quality
         :parser/control-flow
+        :parser/exports
         :parser/higher-order
         :parser/model
         :parser/package
@@ -55,6 +56,15 @@
         module-import-fact-start
         module-import-fact-end
         module-import-fact-selector
+        module-export-fact-name
+        module-export-fact-modifier
+        module-export-fact-alias
+        module-export-fact-module
+        module-export-fact-symbols
+        module-export-fact-path
+        module-export-fact-start
+        module-export-fact-end
+        module-export-fact-selector
         macro-fact-name
         macro-fact-kind
         macro-fact-path
@@ -167,6 +177,7 @@
         source-file-calls
         source-file-forms
         source-file-module-imports
+        source-file-module-exports
         source-file-macros
         source-file-bindings
         source-file-poo-forms
@@ -417,6 +428,12 @@
                  "-"
                  (number->string (module-import-fact-end fact))))
 ;; Selector <- Fact
+(def (module-export-fact-selector fact)
+  (string-append (module-export-fact-path fact) ":"
+                 (number->string (module-export-fact-start fact))
+                 "-"
+                 (number->string (module-export-fact-end fact))))
+;; Selector <- Fact
 (def (macro-fact-selector fact)
   (string-append (macro-fact-path fact) ":"
                  (number->string (macro-fact-start fact))
@@ -507,6 +524,7 @@
           (calls '())
           (top-forms '())
           (module-imports '())
+          (module-exports '())
           (macros '())
           (bindings '())
           (poo-forms '())
@@ -521,6 +539,10 @@
                (form-module-imports
                 (if (eq? head 'import)
                   (module-import-facts-from-form relpath form)
+                  '()))
+               (form-module-exports
+                (if (eq? head 'export)
+                  (module-export-facts-from-form relpath form)
                   '()))
                (form-macros (macro-facts-from-form relpath form datum))
                (form-bindings (binding-facts-from-form relpath form datum))
@@ -540,7 +562,7 @@
            ((eq? head 'namespace:)
             (set! namespace (datum->string (safe-cadr datum))))
            ((eq? head 'import)
-            (set! imports (append (module-refs datum) imports))
+           (set! imports (append (module-refs datum) imports))
             (set! module-imports (append form-module-imports module-imports))
             (set! macros (append form-macros macros))
             (set! bindings (append form-bindings bindings))
@@ -549,6 +571,7 @@
               (append form-higher-order-forms higher-order-forms)))
            ((eq? head 'export)
             (set! exports (append (export-symbols datum) exports))
+            (set! module-exports (append form-module-exports module-exports))
             (set! macros (append form-macros macros))
             (set! bindings (append form-bindings bindings))
             (set! poo-forms (append form-poo-forms poo-forms))
@@ -589,6 +612,7 @@
                           ordered-definitions ordered-calls
                           (reverse top-forms)
                           (reverse module-imports)
+                          (reverse module-exports)
                           ordered-macros
                           (reverse bindings)
                           ordered-poo-forms

@@ -120,9 +120,11 @@
     (qualitySignals ("no-memory"
                      "version-matched-source"
                      "asp-state-managed-checkout"
-                     "source-index-required"
-                     "code-with-comments-output"
-                     "selector-resolver-owned-by-asp")))))
+	                     "source-index-required"
+	                     "code-with-comments-output"
+	                     "selector-resolver-owned-by-asp"
+	                     "source-ranking-prefers-runtime-source"
+	                     "bootstrap-stubs-labelled")))))
  (missing ())
  (witness "active-runtime-version-to-source-acquisition-plan")
  (next "search runtime-source macro sugar module-sugar"))

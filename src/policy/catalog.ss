@@ -9,6 +9,11 @@
         agent-steering-rule-json
         agent-steering-rule-ids
         agent-steering-rule-id-string
+        agent-rule-topic
+        agent-rule-guide-topic
+        agent-rule-guide-intent
+        agent-rule-guide-next-command
+        agent-rule-guide-route
         agent-rule-policy-lines)
 ;; (List Fact)
 (def (agent-steering-facts)
@@ -17,6 +22,8 @@
    "pooFormFacts"
    "higherOrderFacts"
    "controlFlowFacts"
+   "typedContractFacts"
+   "commentQualityFacts"
    "dependencyUsageFacts"])
 
 ;;; Boundary:
@@ -36,10 +43,16 @@
    (hash (id (policy-rule-id +agent-poo-method-shape-rule+))
          (severity (policy-rule-severity +agent-poo-method-shape-rule+))
          (topic "poo-method-shape")
+         (guideTopic "poo-policy")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R008 --intent repair")
          (requires "defgeneric plus defclass or defprotocol receiver evidence"))
    (hash (id (policy-rule-id +agent-functional-idiom-advice-rule+))
          (severity (policy-rule-severity +agent-functional-idiom-advice-rule+))
          (topic "functional-data-transform")
+         (guideTopic "functional-data-transform")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")
          (prefers "map/filter/fold/for/fold/cut for pure transforms")
          (keepsNamedLetWhen "IO/state/generator/continuation driver"))
    (hash (id (policy-rule-id +agent-poo-object-model-rule+))
@@ -49,19 +62,38 @@
    (hash (id (policy-rule-id +agent-macro-runtime-source-witness-rule+))
          (severity (policy-rule-severity +agent-macro-runtime-source-witness-rule+))
          (topic "macro-runtime-source-witness")
+         (guideTopic "macro-runtime-source")
+         (guideIntent "witness")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R011 --intent witness")
          (next "search runtime-source macro sugar module-sugar"))
    (hash (id (policy-rule-id +agent-protocol-evidence-rule+))
          (severity (policy-rule-severity +agent-protocol-evidence-rule+))
          (topic "protocol-evidence")
+         (guideTopic "poo-policy")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R012 --intent repair")
          (next "search pattern poo protocol"))
    (hash (id (policy-rule-id +agent-typed-combinator-style-rule+))
          (severity (policy-rule-severity +agent-typed-combinator-style-rule+))
          (topic "typed-combinator-style")
+         (guideTopic "typed-combinator-style")
+         (guideIntent "style")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R013 --intent style")
          (next "guide --code --topic typed-combinator-style --intent style"))
    (hash (id (policy-rule-id +agent-controlled-branch-shape-rule+))
          (severity (policy-rule-severity +agent-controlled-branch-shape-rule+))
          (topic "controlled-branch-shape")
-         (requires "repeated match branches should be fixed only after parser-owned policy evidence, using helpers or bounded selector pipelines"))])
+         (guideTopic "controlled-branch-shape")
+         (guideIntent "style")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
+         (requires "repeated match branches should be fixed only after parser-owned policy evidence, using helpers or bounded selector pipelines"))
+   (hash (id (policy-rule-id +agent-comment-quality-rule+))
+         (severity (policy-rule-severity +agent-comment-quality-rule+))
+         (topic "engineering-comment-quality")
+         (guideTopic "engineering-comment-quality")
+         (guideIntent "style")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")
+         (requires "engineering comments should be driven by parser-owned commentQualityFacts evidence and may span multiple adjacent lines when needed"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -86,6 +118,36 @@
                (string-length +agent-rule-prefix+)
                (string-length rule-id))
     rule-id))
+;;; Rule lookup: all agent-facing renderers resolve through this list search,
+;;; so missing IDs fail as absent catalog data instead of ad hoc fallback text.
+;; Rule <- RuleId
+(def (agent-rule-by-id rule-id)
+  (and rule-id
+       (find (lambda (rule)
+               (equal? (hash-get rule 'id) rule-id))
+             (agent-steering-rule-json))))
+;; String <- RuleId Field
+(def (agent-rule-field rule-id field)
+  (let (rule (agent-rule-by-id rule-id))
+    (and rule (hash-key? rule field) (hash-get rule field))))
+;; String <- RuleId
+(def (agent-rule-topic rule-id)
+  (agent-rule-field rule-id 'topic))
+;; String <- RuleId
+(def (agent-rule-guide-topic rule-id)
+  (agent-rule-field rule-id 'guideTopic))
+;; String <- RuleId
+(def (agent-rule-guide-intent rule-id)
+  (agent-rule-field rule-id 'guideIntent))
+;; String <- RuleId
+(def (agent-rule-guide-next-command rule-id)
+  (agent-rule-field rule-id 'nextCommand))
+;; GuideRoute <- RuleId
+(def (agent-rule-guide-route rule-id)
+  (let ((topic (agent-rule-guide-topic rule-id))
+        (intent (agent-rule-guide-intent rule-id))
+        (next (agent-rule-guide-next-command rule-id)))
+    (and topic intent next [topic intent next])))
 ;;; Boundary:
 ;;; - agent-rule-policy-lines composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -136,5 +198,9 @@
       (string-append
        "|policy controlled-branch-shape=" id
        " turns repeated match branches into a policy-triggered repair: split helpers or use bounded selector pipelines, preserve behavior, and avoid opportunistic style edits"))
+     ((equal? topic "engineering-comment-quality")
+      (string-append
+       "|policy engineering-comment-quality=" id
+       " lets parser-owned commentQualityFacts trigger richer multi-line comments and contract rationale before agent repair"))
      (else
       (string-append "|policy " topic "=" id)))))

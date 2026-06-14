@@ -43,6 +43,15 @@
         module-import-fact-start
         module-import-fact-end
         module-import-fact-selector
+        module-export-fact-name
+        module-export-fact-modifier
+        module-export-fact-alias
+        module-export-fact-module
+        module-export-fact-symbols
+        module-export-fact-path
+        module-export-fact-start
+        module-export-fact-end
+        module-export-fact-selector
         macro-fact-name
         macro-fact-kind
         macro-fact-path
@@ -155,6 +164,7 @@
         source-file-calls
         source-file-forms
         source-file-module-imports
+        source-file-module-exports
         source-file-macros
         source-file-bindings
         source-file-poo-forms
