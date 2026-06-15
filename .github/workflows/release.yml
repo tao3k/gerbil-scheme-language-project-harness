@@ -31,9 +31,6 @@ jobs:
             target: aarch64-apple-darwin
     env:
       BINARY: gerbil-scheme-harness
-      GERBIL_PREFIX: ${{ github.workspace }}/.ci/gerbil/source-v0.18.2
-      GERBIL_REF: v0.18.2
-      GERBIL_SRC: ${{ github.workspace }}/.ci/gerbil-src/source-v0.18.2
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
       TARGET: ${{ matrix.target }}
@@ -55,69 +52,6 @@ jobs:
             git tag "$RELEASE_TAG" "$GITHUB_SHA"
             git push origin "refs/tags/${RELEASE_TAG}"
           fi
-
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            ca-certificates \
-            git \
-            jq \
-            libsqlite3-dev \
-            libssl-dev \
-            openssl \
-            sqlite3 \
-            zlib1g-dev
-
-      - name: Install macOS system dependencies
-        if: runner.os == 'macOS'
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-        run: |
-          brew unlink gambit-scheme || true
-          brew unlink ghostscript || true
-          brew install jq openssl sqlite zlib
-
-      - name: Cache Gerbil install
-        id: gerbil-cache
-        uses: actions/cache@v4
-        with:
-          path: .ci/gerbil/source-v0.18.2
-          key: gerbil-release-${{ runner.os }}-${{ runner.arch }}-${{ env.GERBIL_REF }}
-          restore-keys: |
-            gerbil-release-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Build Gerbil
-        if: steps.gerbil-cache.outputs.cache-hit != 'true'
-        run: |
-          build_cores() {
-            nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2
-          }
-          mkdir -p "$(dirname "$GERBIL_SRC")" "$(dirname "$GERBIL_PREFIX")"
-          rm -rf "$GERBIL_SRC" "$GERBIL_PREFIX"
-          git clone https://git.cons.io/mighty-gerbils/gerbil "$GERBIL_SRC"
-          cd "$GERBIL_SRC"
-          git checkout "$GERBIL_REF"
-          ./configure --prefix="$GERBIL_PREFIX"
-          echo "(def (gerbil-version-string) \"release-${GERBIL_REF}\")" > src/gerbil/runtime/version.ss
-          . ./build-env.sh
-          for target in prepare gambit boot-gxi stage0 stage1 stdlib libgerbil lang r7rs-large srfi tools; do
-            GERBIL_BUILD_CORES="$(build_cores)" ./src/build.sh "$target"
-          done
-          ./install.sh
-
-      - name: Activate Gerbil
-        run: |
-          echo "$GERBIL_PREFIX/bin" >> "$GITHUB_PATH"
-          "$GERBIL_PREFIX/bin/gxi" -e '(displayln "gerbil-ready")'
-
-      - name: Install Gerbil package dependencies from gerbil.pkg
-        run: |
-          gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
-          gxpkg deps --install
 
       - name: Package provider binary
         shell: bash
