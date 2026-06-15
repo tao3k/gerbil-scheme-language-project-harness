@@ -91,10 +91,20 @@
                             "."
                             "--names-only"])
              => ".")
+      (check (project-root ["extension"
+                            "poo"
+                            "--workspace"
+                            "."])
+             => ".")
       (check (drop-project-root ["src/checker/types.ss"
                                  "."
                                  "--names-only"])
              => ["src/checker/types.ss" "--names-only"])
+      (check (drop-project-root ["extension"
+                                 "poo"
+                                 "--workspace"
+                                 "."])
+             => ["extension" "poo" "--workspace" "."])
       (check (drop-project-root ["src/checker/types.ss"
                                  "items"
                                  "--query"
@@ -136,7 +146,27 @@
       (let ((extension-output
              (search-output ["extension" "gerbil-poo" "usage" "--view" "seeds"]))
             (pattern-output
-             (search-output ["pattern" "gerbil-poo" "usage" "--view" "seeds"])))
+             (search-output ["pattern" "gerbil-poo" "usage" "--view" "seeds"]))
+            (split-extension-output
+             (search-output ["extension" "gerbil" "poo" "usage" "--view" "seeds"]))
+            (split-pattern-output
+             (search-output ["pattern" "gerbil" "poo" "usage" "--view" "seeds"]))
+            (workspace-poo-output
+             (search-output ["extension" "poo" "--workspace" "."]))
+            (missing-root-extension-output
+             (search-output ["extension" "gerbil-poo" "usage"
+                             "--view" "seeds"
+                             "/tmp/asp-gerbil-poo-registered-root-missing"]))
+            (missing-root-poo-output
+             (search-output ["extension" "poo" "usage"
+                             "--view" "seeds"
+                             "--workspace"
+                             "/tmp/asp-gerbil-poo-registered-root-missing"]))
+            (missing-root-pattern-output
+             (search-output ["pattern" "gerbil-poo" "usage"
+                             "--view" "seeds"
+                             "--workspace"
+                             "/tmp/asp-gerbil-poo-registered-root-missing"])))
         (check (contains? extension-output
                           "[gerbil-search-extension] query=gerbil-poo usage matches=1 evidenceGrade=fact")
                => #t)
@@ -145,6 +175,24 @@
                => #t)
         (check (contains? extension-output
                           "|agentAction action=follow-next registeredKnowledge=gerbil-poo:// notProjectActivation=true")
+               => #t)
+        (check (contains? extension-output
+                          "missingLocalAction=install-package-before-repository-fallback")
+               => #t)
+        (check (contains? workspace-poo-output
+                          "[gerbil-search-extension] query=poo")
+               => #t)
+        (check (contains? workspace-poo-output
+                          "matches=1 evidenceGrade=fact")
+               => #t)
+        (check (contains? workspace-poo-output
+                          "|extension name=poo")
+               => #t)
+        (check (contains? missing-root-poo-output
+                          "[gerbil-search-extension] query=poo usage matches=1 evidenceGrade=fact")
+               => #t)
+        (check (contains? missing-root-poo-output
+                          "registeredKnowledge=gerbil-poo:// notProjectActivation=true")
                => #t)
         (check (contains? pattern-output
                           "[gerbil-search-pattern] query=gerbil-poo usage evidenceGrade=fact authority=executable-pattern quality=verified")
@@ -159,13 +207,45 @@
                           "|agentReadOrder first=agentScenario second=agentSteering third=selectorResolver fourth=minimalForms fifth=failureCases sixth=quality")
                => #t)
         (check (contains? pattern-output
-                          "|agentAction action=use-minimalForms-before-editing selectorUse=source-anchor quality=verified")
+                          "|agentAction action=use-minimalForms-before-editing selectorUse=source-anchor")
+               => #t)
+        (check (contains? pattern-output
+                          "missingLocalAction=install-package-before-repository-fallback")
+               => #t)
+        (check (contains? pattern-output
+                          "fallback=repository-source-after-install-check")
+               => #t)
+        (check (contains? pattern-output
+                          "quality=verified")
                => #t)
         (check (contains? pattern-output
                           "|selector role=class-definition symbol=defclass selector=gerbil-poo://object.ss#defclass")
                => #t)
+        (check (contains? split-extension-output
+                          "[gerbil-search-extension] query=gerbil poo usage matches=1 evidenceGrade=fact")
+               => #t)
+        (check (contains? split-extension-output
+                          "next=search pattern gerbil-poo usage")
+               => #t)
+        (check (contains? split-pattern-output
+                          "[gerbil-search-pattern] query=gerbil poo usage evidenceGrade=fact authority=executable-pattern quality=verified")
+               => #t)
+        (check (contains? split-pattern-output
+                          "|registeredKnowledge")
+               => #f)
+        (check (contains? split-pattern-output
+                          "|pattern id=poo-object-system extension=poo focus=usage")
+               => #t)
         (check (contains? pattern-output "missing=extension-fact")
-               => #f)))
+               => #f)
+        (check (contains? missing-root-extension-output
+                          "matches=1 evidenceGrade=fact")
+               => #t)
+        (check (contains? missing-root-pattern-output
+                          "evidenceGrade=fact authority=executable-pattern quality=verified")
+               => #t)
+        (check (contains? missing-root-pattern-output "origin=registered")
+               => #t)))
     (test-case "search guide routes to provider guide"
       (let (output (search-output ["guide" "--view" "seeds" "."]))
         (check (string-prefix? "gerbil-scheme-harness guide" output) => #t)
@@ -210,6 +290,7 @@
         (check (contains? output "|policy controlled-branch-shape=GERBIL-SCHEME-AGENT-R014") => #t)
         (check (contains? output "|policy engineering-comment-quality=GERBIL-SCHEME-AGENT-R015") => #t)
         (check (contains? output "|policy dependency-protocol-adapter=GERBIL-SCHEME-AGENT-R017") => #t)
+        (check (contains? output "|policy poo-structural-facts=search structural --owner <path> --json exposes parser-owned POO forms") => #t)
         (check (contains? output "|policy guide-code-default-topic=guide --code defaults to typed-combinator-style") => #t)
         (check (contains? output "|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing") => #t)
         (check (contains? output "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads") => #t)
@@ -221,6 +302,8 @@
         (check (contains? output "commentSelector=") => #f)
         (check (contains? output "codeSelector=") => #f)
         (check (contains? output "|guideExemplar id=gerbil.poo-policy.parser-facts topic=poo-policy intent=repair rule=GERBIL-SCHEME-AGENT-R008") => #t)
+        (check (contains? output "|guideExemplar id=gerbil.poo-policy.structural-owner-facts topic=poo-policy intent=witness rule=GERBIL-SCHEME-AGENT-R008") => #t)
+        (check (contains? output "nextCommand=\"gerbil-scheme-harness search structural --owner t/fixtures/parser/poo-method-dispatch.ss --json .\"") => #t)
         (check (contains? output "|guideExemplar id=gerbil.macro-runtime-source.witness topic=macro-runtime-source intent=witness rule=GERBIL-SCHEME-AGENT-R011") => #t)
         (check (contains? output "|guideExemplar id=gerbil.controlled-branch-shape.bounded-selector topic=controlled-branch-shape intent=style rule=GERBIL-SCHEME-AGENT-R014") => #t)
         (check (contains? output "|guideExemplar id=gerbil.engineering-comment-quality.contract-boundary topic=engineering-comment-quality intent=style rule=GERBIL-SCHEME-AGENT-R015") => #t)
@@ -711,7 +794,12 @@
         (check (contains? macro-output "quality=verified") => #t)
         (check (contains? macro-output "witness=parser-and-test-backed-hygienic-macro-pattern") => #t)
         (check (contains? macro-output "missing=-") => #t)
-        (check (contains? poo-output "sourceRef=package-manager-download:gxpkg:git.cons.io/mighty-gerbils/gerbil-poo:runtime-resolved") => #t)
+        (check (contains? poo-output "sourceRef=package-manager-source:gxpkg:git.cons.io/mighty-gerbils/gerbil-poo:runtime-resolved") => #t)
+        (check (contains? poo-output "|sourceLookup order=local-source-before-git") => #t)
+        (check (contains? poo-output "missingLocalAction=install-package-before-repository-fallback") => #t)
+        (check (contains? poo-output "localRootHint=~/.gerbil") => #t)
+        (check (contains? poo-output "installHint=\"gxpkg install git.cons.io/mighty-gerbils/gerbil-poo\"") => #t)
+        (check (contains? poo-output "repositoryUrl=https://git.cons.io/mighty-gerbils/gerbil-poo indexOwner=asp-client indexBackend=rust-sql") => #t)
         (check (contains? poo-output "selector=gerbil-poo://object.ss#defclass") => #t)
         (check (contains? poo-output "witness=dependency-backed-poo-mapping") => #t)
         (check (contains? poo-output "missing=-") => #t)
@@ -734,7 +822,11 @@
           "|pattern id=gerbil-utils-higher-order-control"
           "origin=inherited"
           "via=git.cons.io/mighty-gerbils/gerbil-poo->git.cons.io/mighty-gerbils/gerbil-utils"
-          "sourceRef=package-manager-download:gxpkg:git.cons.io/mighty-gerbils/gerbil-utils:runtime-resolved"
+          "sourceRef=package-manager-source:gxpkg:git.cons.io/mighty-gerbils/gerbil-utils:runtime-resolved"
+          "|sourceLookup order=local-source-before-git"
+          "missingLocalAction=install-package-before-repository-fallback"
+          "localRootHint=~/.gerbil localPackage=git.cons.io/mighty-gerbils/gerbil-utils"
+          "installHint=\"gxpkg install git.cons.io/mighty-gerbils/gerbil-utils\""
           "|importWitness status=verified module=:clan/base"
           "minimalImport=(import (only-in :clan/base curry rcurry fold<-reduce-map compose rcompose !>))"
           "|selector role=left-curry symbol=curry selector=gerbil-utils://base.ss#curry"
@@ -749,14 +841,19 @@
          extension-output
          ["[gerbil-search-extension]"
           "|extension name=poo"
-          "next=search pattern poo syntax"])
+          "next=search pattern gerbil-poo syntax"])
         (check (not (contains? extension-output "|form role=")) => #t)
         (check-output-contains
          pattern-output
          ["quality=verified"
           "|agentScenario id=agent-does-not-know-gerbil-poo-object-system"
           "intent=write-gerbil-poo-object-system-without-racket-or-generic-scheme-guessing"
-          "sourceRef=package-manager-download:gxpkg:git.cons.io/mighty-gerbils/gerbil-poo:runtime-resolved"
+          "sourceRef=package-manager-source:gxpkg:git.cons.io/mighty-gerbils/gerbil-poo:runtime-resolved"
+          "|sourceLookup order=local-source-before-git"
+          "missingLocalAction=install-package-before-repository-fallback"
+          "localRootHint=~/.gerbil"
+          "installHint=\"gxpkg install git.cons.io/mighty-gerbils/gerbil-poo\""
+          "repositoryUrl=https://git.cons.io/mighty-gerbils/gerbil-poo indexOwner=asp-client indexBackend=rust-sql"
           "|selector role=class-definition symbol=defclass selector=gerbil-poo://object.ss#defclass"
           "|selector role=generic-definition symbol=.defgeneric selector=gerbil-poo://mop.ss#.defgeneric"
           "|selector role=method-dispatch symbol=defmethod selector=gerbil-poo://mop.ss#defmethod"
@@ -918,6 +1015,53 @@
         (check (not (contains? io-output "pending")) => #t)
         (check (not (contains? lens-output "pending")) => #t)
         (check (not (contains? type-output "pending")) => #t)))
+    (test-case "diverse POO pattern queries avoid generic object-system fallback"
+      (let ((finite-output
+             (search-output ["pattern" "gerbil-poo" "finite" "field" "fq"
+                             "--view" "seeds"]))
+            (trie-output
+             (search-output ["pattern" "gerbil-poo" "table" "trie" "adapter"
+                             "--view" "seeds"]))
+            (slot-syntax-output
+             (search-output ["pattern" "gerbil-poo" "object" "slot" "syntax"
+                             "--view" "seeds"])))
+        (check-output-contains
+         finite-output
+         ["|pattern id=poo-type-validation-sealed"
+          "|agentScenario id=agent-defines-poo-class-without-sealed-type-validation"
+          "intent=query-sealed-class-and-validate-witness-before-writing-type-checked-poo-classes"
+          "|selector role=class-descriptor symbol=Class. selector=gerbil-poo://mop.ss#Class."
+          "|selector role=generic-slot-validator symbol=slot-checker selector=gerbil-poo://mop.ss#slot-checker"
+          "|failureCase id=missing-required-typed-slot"
+          "|qualitySignal id=sealed-type-witness"
+          "missing=-"])
+        (check-output-contains
+         trie-output
+         ["|pattern id=poo-rationaldict-adapter"
+          "|agentScenario id=agent-wraps-dependency-primitives-without-a-typed-protocol-adapter"
+          "intent=query-rationaldict-adapter-shape-before-writing-dependency-backed-table-or-dict-boundaries"
+          "|selector role=table-protocol symbol=methods.table selector=gerbil-poo://table.ss#methods.table"
+          "|form role=typed-protocol-adapter symbol=RationalDict. head=define-type"
+          "|failureCase id=manual-hash-or-alist-adapter"
+          "|qualitySignal id=define-type-protocol-slots"
+          "missing=-"])
+        (check-output-contains
+         slot-syntax-output
+         ["|pattern id=poo-slot-cache-computed"
+          "|agentScenario id=agent-adds-computed-poo-slot-without-cache-or-superfun-semantics"
+          "intent=query-slot-cache-and-apply-slot-spec-before-adding-computed-slots"
+          "|selector role=slot-spec-application symbol=apply-slot-spec selector=gerbil-poo://object.ss#apply-slot-spec"
+          "|selector role=slot-cache-read symbol=.ref selector=gerbil-poo://object.ss#.ref"
+          "|form role=computed-slot symbol=computed-slot-spec head=computed-slot-spec"
+          "|failureCase id=uncached-slot-side-effect"
+          "|qualitySignal id=real-project-slot-cache-test"
+          "missing=-"])
+        (check (not (contains? finite-output "|pattern id=poo-object-system")) => #t)
+        (check (not (contains? trie-output "|pattern id=poo-object-system")) => #t)
+        (check (not (contains? slot-syntax-output "|pattern id=poo-object-system")) => #t)
+        (check (not (contains? finite-output "pending")) => #t)
+        (check (not (contains? trie-output "pending")) => #t)
+        (check (not (contains? slot-syntax-output "pending")) => #t)))
     (test-case "agent scenario warns when macro syntax would violate generated-code policy"
       (let ((lang-output (search-output ["lang" "how" "macro" "syntax-case" "defsyntax" "."]))
             (pattern-output (search-output ["pattern" "I" "need" "macro" "syntax-case" "."])))
@@ -993,6 +1137,10 @@
              (packet (call-with-input-string output read-json))
              (mapping (json-get packet "patternMapping"))
              (source-ref (json-get mapping "sourceRef"))
+             (selector-resolver (json-get mapping "selectorResolver"))
+             (source-lookup (json-get mapping "sourceLookup"))
+             (agent-read-order (json-get mapping "agentReadOrder"))
+             (agent-action (json-get mapping "agentAction"))
              (forms (json-get mapping "minimalForms"))
              (first-form (car forms))
              (template (json-get first-form "template"))
@@ -1010,11 +1158,50 @@
         (check (json-get mapping "extension") => "poo")
         (check (json-get mapping "origin") => "direct")
         (check (hash-key? mapping "sourceWorkspace") => #f)
-        (check (json-get source-ref "kind") => "package-manager-download")
+        (check (json-get source-ref "kind") => "package-manager-source")
         (check (json-get source-ref "manager") => "gxpkg")
         (check (json-get source-ref "dependency")
                => "git.cons.io/mighty-gerbils/gerbil-poo")
         (check (json-get source-ref "pathPolicy") => "runtime-resolved")
+        (check (json-get (json-get source-ref "localSource") "rootHint")
+               => "~/.gerbil")
+        (check (json-get (json-get source-ref "localSource") "status")
+               => "probe-first")
+        (check (json-get (json-get source-ref "localSource") "missingAction")
+               => "install-package-before-repository-fallback")
+        (check (json-get (json-get source-ref "localSource") "installHint")
+               => "gxpkg install git.cons.io/mighty-gerbils/gerbil-poo")
+        (check (json-get (json-get source-ref "repositorySource") "url")
+               => "https://git.cons.io/mighty-gerbils/gerbil-poo")
+        (check (json-get (json-get source-ref "indexHint") "backend")
+               => "rust-sql")
+        (check (json-get (json-get source-ref "indexHint") "missingLocalAction")
+               => "install-package-before-repository-fallback")
+        (check (json-get (json-get source-ref "indexHint") "fallbackPolicy")
+               => "repository-source-after-install-check")
+        (check (json-get selector-resolver "scheme")
+               => "gerbil-poo-logical-symbol")
+        (check (json-get selector-resolver "querySelector") => "not-direct")
+        (check (json-get source-lookup "order") => "local-source-before-git")
+        (check (json-get source-lookup "missingLocalAction")
+               => "install-package-before-repository-fallback")
+        (check (json-get source-lookup "fallbackPolicy")
+               => "repository-source-after-install-check")
+        (check (json-get (json-get source-lookup "localSource") "rootHint")
+               => "~/.gerbil")
+        (check (json-get (json-get source-lookup "localSource") "installHint")
+               => "gxpkg install git.cons.io/mighty-gerbils/gerbil-poo")
+        (check (json-get (json-get source-lookup "repositorySource") "status")
+               => "fallback")
+        (check (json-get agent-read-order "first") => "agentScenario")
+        (check (json-get agent-read-order "third") => "selectorResolver")
+        (check (json-get agent-action "action")
+               => "use-minimalForms-before-editing")
+        (check (json-get agent-action "missingLocalAction")
+               => "install-package-before-repository-fallback")
+        (check (json-get agent-action "fallback")
+               => "repository-source-after-install-check")
+        (check (json-get agent-action "quality") => "verified")
         (check (json-get first-form "role") => "class-definition")
         (check (json-get first-form "selector")
                => "gerbil-poo://object.ss#defclass")

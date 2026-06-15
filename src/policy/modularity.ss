@@ -11,30 +11,54 @@
 
 (export run-modularity-policy
         +max-source-line-count+
+        +max-test-line-count+
         +min-source-definition-count+
+        +min-test-definition-count+
         facade-source-file?
         facade-implementation-finding
         sibling-file-dir-owner-collision-finding
         repeated-owner-entry-finding
         bin-entrypoint-implementation-finding
-        source-leaf-bloat-finding)
+        source-leaf-bloat-finding
+        test-leaf-bloat-finding)
 ;; Integer
 (def +max-source-line-count+ 650)
 ;; Integer
+(def +max-test-line-count+ 650)
+;; Integer
 (def +min-source-definition-count+ 40)
+;; Integer
+(def +min-test-definition-count+ 1)
 ;; ConfigConstant
 (def +default-test-directory+ "t")
 ;; Integer
 (def +min-test-directory-policy-explanation-length+ 24)
-;; Integer <- ProjectIndex
-(def (run-modularity-policy index)
-  (append
-   (sibling-file-dir-owner-collision-findings index)
-   (repeated-owner-entry-findings index)
-   (bin-entrypoint-implementation-findings index)
-   (facade-implementation-findings index)
-   (test-directory-layout-findings index)
-   (source-leaf-bloat-findings index)))
+;;; Boundary:
+;;; - project-modularity-policy is the only package policy lookup for this rule family.
+;;; - Keep root/package ownership separate from per-file policy decisions.
+;; PackageModularityPolicy <- ProjectIndex
+(def (project-modularity-policy index)
+  (and (project-index-package index)
+       (project-package-modularity-policy (project-index-package index))))
+;; Boolean <- MaybePolicy
+(def (modularity-policy-disabled? policy)
+  (and policy (modularity-policy-disabled policy)))
+;;; Boundary:
+;;; - filter-enabled-modularity-findings applies package rule lists after detection.
+;;; - Detector coverage stays project-wide even when gerbil.pkg filters output.
+;; (List TypeFinding) <- MaybePolicy (List TypeFinding)
+(def (filter-enabled-modularity-findings policy findings)
+  (if policy
+    (filter (cut modularity-finding-enabled? policy <>)
+            findings)
+    findings))
+;; Boolean <- Policy TypeFinding
+(def (modularity-finding-enabled? policy finding)
+  (let ((rule-id (type-finding-rule-id finding))
+        (enabled (modularity-policy-enabled-rules policy))
+        (disabled (modularity-policy-disabled-rules policy)))
+    (and (or (null? enabled) (member rule-id enabled))
+         (not (member rule-id disabled)))))
 ;;; Boundary:
 ;;; - sibling-file-dir-owner-collision-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -335,16 +359,83 @@
 ;;; Boundary:
 ;;; - source-leaf-bloat-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
-(def (source-leaf-bloat-findings index)
-  (filter-map
-   (lambda (file)
-     (let (effective-line-count (source-leaf-effective-line-count index file))
-       (and (project-gerbil-source-path? index (source-file-path file))
-            (fx>= effective-line-count +max-source-line-count+)
-            (fx>= (length (source-file-definitions file)) +min-source-definition-count+)
-            (source-leaf-bloat-finding file effective-line-count))))
-   (project-index-files index)))
+;; (List TypeFinding) <- ProjectIndex MaybePolicy
+(def (source-leaf-bloat-findings index policy)
+  (let ((max-line-count (modularity-max-source-line-count policy))
+        (min-definition-count (modularity-min-source-definition-count policy)))
+    (filter-map
+     (lambda (file)
+       (let (effective-line-count (source-leaf-effective-line-count index file))
+         (and (project-gerbil-source-path? index (source-file-path file))
+              (not (project-gerbil-test-path? (source-file-path file)))
+              (fx>= effective-line-count max-line-count)
+              (fx>= (length (source-file-definitions file)) min-definition-count)
+              (source-leaf-bloat-finding
+               file
+               effective-line-count
+               max-line-count
+               min-definition-count))))
+     (project-index-files index))))
+;;; Boundary:
+;;; - test-leaf-bloat-findings covers package-local t/ owners explicitly.
+;;; - Keep it separate from runtime source bloat so agents can read the rule intent.
+;; (List TypeFinding) <- ProjectIndex MaybePolicy
+(def (test-leaf-bloat-findings index policy)
+  (let ((max-line-count (modularity-max-test-line-count policy))
+        (min-definition-count (modularity-min-test-definition-count policy)))
+    (filter-map
+     (lambda (file)
+       (let (effective-line-count (source-leaf-effective-line-count index file))
+         (and (project-gerbil-test-path? (source-file-path file))
+              (fx>= effective-line-count max-line-count)
+              (fx>= (length (source-file-definitions file)) min-definition-count)
+              (test-leaf-bloat-finding
+               file
+               effective-line-count
+               max-line-count
+               min-definition-count
+               policy))))
+     (project-index-files index))))
+;;; Boundary:
+;;; - modularity-max-source-line-count resolves package thresholds.
+;;; - Defaults remain provider-owned when gerbil.pkg does not opt in.
+;; Integer <- MaybePolicy
+(def (modularity-max-source-line-count policy)
+  (or (and policy (modularity-policy-max-source-line-count policy))
+      +max-source-line-count+))
+;; Integer <- MaybePolicy
+(def (modularity-max-test-line-count policy)
+  (or (and policy (modularity-policy-max-test-line-count policy))
+      +max-test-line-count+))
+;; Integer <- MaybePolicy
+(def (modularity-min-source-definition-count policy)
+  (or (and policy (modularity-policy-min-source-definition-count policy))
+      +min-source-definition-count+))
+;; Integer <- MaybePolicy
+(def (modularity-min-test-definition-count policy)
+  (or (and policy (modularity-policy-min-test-definition-count policy))
+      +min-test-definition-count+))
+;;; Boundary:
+;;; - run-modularity-policy composes project-wide findings, then policy filters.
+;;; - Do not narrow coverage by folder before package policy has been resolved.
+;; Integer <- ProjectIndex
+(def (run-modularity-policy index)
+  (let (policy (project-modularity-policy index))
+    (if (modularity-policy-disabled? policy)
+      '()
+      (filter-enabled-modularity-findings
+       policy
+       (append
+        (sibling-file-dir-owner-collision-findings index)
+        (repeated-owner-entry-findings index)
+        (bin-entrypoint-implementation-findings index)
+        (facade-implementation-findings index)
+        (test-directory-layout-findings index)
+        (source-leaf-bloat-findings index policy)
+        (test-leaf-bloat-findings index policy))))))
+;; Boolean <- String
+(def (project-gerbil-test-path? path)
+  (equal? (source-path-class path) "test"))
 ;;; Boundary:
 ;;; - source-leaf-effective-line-count composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -373,18 +464,47 @@
                (else (cons (+ count 1) #f)))))
           (cons 0 #f)
           lines)))
-;; TypeFinding <- SourceFile EffectiveLineCount
-(def (source-leaf-bloat-finding file effective-line-count)
+;; TypeFinding <- SourceFile EffectiveLineCount MaybeLimit MaybeLimit
+(def (source-leaf-bloat-finding file effective-line-count . maybe-limits)
+  (let ((max-line-count (if (pair? maybe-limits)
+                          (car maybe-limits)
+                          +max-source-line-count+))
+        (min-definition-count (if (and (pair? maybe-limits)
+                                       (pair? (cdr maybe-limits)))
+                                (cadr maybe-limits)
+                                +min-source-definition-count+)))
+    (make-type-finding
+     (policy-rule-id +modularity-source-leaf-rule+)
+     (policy-rule-severity +modularity-source-leaf-rule+)
+     (source-file-path file)
+     (string-append (source-file-path file)
+                    " carries " (number->string effective-line-count)
+                    " effective lines and "
+                    (number->string (length (source-file-definitions file)))
+                    " definitions")
+     (source-file-path file)
+     (hash (lineCount effective-line-count)
+           (lineCountLimit max-line-count)
+           (physicalLineCount (source-file-line-count file))
+           (definitionCount (length (source-file-definitions file)))
+           (definitionCountMinimum min-definition-count)))))
+;; TypeFinding <- SourceFile EffectiveLineCount LineLimit DefinitionLimit MaybePolicy
+(def (test-leaf-bloat-finding file effective-line-count max-line-count min-definition-count policy)
   (make-type-finding
-   (policy-rule-id +modularity-source-leaf-rule+)
-   (policy-rule-severity +modularity-source-leaf-rule+)
+   (policy-rule-id +modularity-test-leaf-rule+)
+   (policy-rule-severity +modularity-test-leaf-rule+)
    (source-file-path file)
    (string-append (source-file-path file)
                   " carries " (number->string effective-line-count)
-                  " effective lines and "
+                  " effective test lines and "
                   (number->string (length (source-file-definitions file)))
-                  " definitions")
+                  " definitions; split the test owner or raise max-test-lines through gerbil.pkg modularity-policy when the package has a clear reason")
    (source-file-path file)
-   (hash (lineCount effective-line-count)
+   (hash (sourceClass (source-path-class (source-file-path file)))
+         (lineCount effective-line-count)
+         (lineCountLimit max-line-count)
          (physicalLineCount (source-file-line-count file))
-         (definitionCount (length (source-file-definitions file))))))
+         (definitionCount (length (source-file-definitions file)))
+         (definitionCountMinimum min-definition-count)
+         (policyConfigPath (and policy (modularity-policy-config-path policy)))
+         (policyExplanation (and policy (modularity-policy-explanation policy))))))

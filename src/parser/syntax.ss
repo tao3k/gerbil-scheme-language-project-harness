@@ -90,13 +90,21 @@
        ((member head '(quote quasiquote syntax quote-syntax))
         '())
        ((metadata-head? head)
-        '())
+        (calls-from-stxes relpath (cdr items) caller local-types))
        ((eq? head '.def)
-        '())
+        (calls-from-stxes relpath
+                          (drop* items 2)
+                          (or (form-caller-name datum) caller)
+                          local-types))
        ((member head +definition-heads+)
         (cond
          ((member head +macro-definition-heads+) '())
-         ((member head '(define-type defclass .defclass defgeneric .defgeneric)) '())
+         ((eq? head 'define-type)
+          (calls-from-stxes relpath
+                            (stx-form-body-items expr-stx datum)
+                            (or (form-caller-name datum) caller)
+                            local-types))
+         ((member head '(defclass .defclass defgeneric .defgeneric)) '())
          (else
           (calls-from-stxes relpath
                             (stx-form-body-items expr-stx datum)

@@ -12,6 +12,7 @@
         project-package-test-directory-policy
         project-package-macro-governance-policy
         project-package-source-scope-policy
+        project-package-modularity-policy
         project-package-agent-policy
         test-directory-policy-allowed-directories
         test-directory-policy-explanation
@@ -22,6 +23,15 @@
         source-scope-policy-runtime-roots
         source-scope-policy-exclude-directories
         source-scope-policy-explanation
+        modularity-policy-disabled
+        modularity-policy-enabled-rules
+        modularity-policy-disabled-rules
+        modularity-policy-max-source-line-count
+        modularity-policy-max-test-line-count
+        modularity-policy-min-source-definition-count
+        modularity-policy-min-test-definition-count
+        modularity-policy-config-path
+        modularity-policy-explanation
         agent-policy-enabled-rules
         agent-policy-disabled-rules)
 ;; TestDirectoryPolicyStruct
@@ -30,10 +40,13 @@
 (defstruct macro-governance-policy (allow-generated explanation witness))
 ;; SourceScopePolicyStruct
 (defstruct source-scope-policy (roots runtime-roots exclude-directories explanation))
+;; ModularityPolicyStruct
+(defstruct modularity-policy
+  (disabled enabled-rules disabled-rules max-source-line-count max-test-line-count min-source-definition-count min-test-definition-count config-path explanation))
 ;; AgentPolicyStruct
 (defstruct agent-policy (enabled-rules disabled-rules))
 ;; ProjectPackageStruct
-(defstruct project-package (path name dependencies manager test-directory-policy macro-governance-policy source-scope-policy agent-policy))
+(defstruct project-package (path name dependencies manager test-directory-policy macro-governance-policy source-scope-policy modularity-policy agent-policy))
 ;;; Boundary:
 ;;; - read-project-package coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
@@ -51,6 +64,7 @@
                             (package-macro-governance-policy package-form)
                             (or (package-source-scope-policy package-form)
                                 build-scope)
+                            (package-modularity-policy root package-form)
                             (package-agent-policy package-form)))
      (build-scope
       (make-project-package "build.ss"
@@ -60,6 +74,7 @@
                             #f
                             #f
                             build-scope
+                            #f
                             #f))
      (else #f))))
 ;;; Boundary:
@@ -189,6 +204,112 @@
 (def (source-scope-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(source-scope source-policy project-scope))))
+;; PackageModularityPolicy <- Root Datum
+(def (package-modularity-policy root datum)
+  (let* ((policy (package-field-value datum 'policy:))
+         (entry (and policy (policy-modularity-entry policy)))
+         (inline-policy (and entry (modularity-policy-entry->policy entry #f)))
+         (config-policy
+          (and inline-policy
+               (modularity-policy-config-path inline-policy)
+               (read-modularity-policy-config
+                root
+                (modularity-policy-config-path inline-policy)))))
+    (merge-modularity-policies inline-policy config-policy)))
+;;; Boundary:
+;;; - policy-modularity-entry composes first-class procedures.
+;;; - Keep data-flow evidence visible.
+;; PolicyModularityEntry <- Policy
+(def (policy-modularity-entry policy)
+  (if (modularity-policy-form? policy)
+    policy
+    (find modularity-policy-form? (datum-list-items policy))))
+;; Boolean <- Datum
+(def (modularity-policy-form? datum)
+  (and (pair? datum)
+       (member (car datum) '(modularity modularity-policy modularity-rules))))
+;;; Boundary:
+;;; - modularity-policy-entry->policy owns package field normalization.
+;;; - Keep threshold aliases and config-file semantics visible here.
+;; PackageModularityPolicy <- Datum MaybePath
+(def (modularity-policy-entry->policy entry config-path)
+  (make-modularity-policy
+   (or (policy-boolean-field entry 'disabled:)
+       (policy-boolean-field entry 'disable:))
+   (or (policy-string-list-field entry 'enabled-rules:)
+       (policy-string-list-field entry 'enable:)
+       '())
+   (or (policy-string-list-field entry 'disabled-rules:)
+       (policy-string-list-field entry 'disable:)
+       '())
+   (policy-integer-field*
+    entry
+    '(max-source-lines: max-source-line-count: source-max-lines:))
+   (policy-integer-field*
+    entry
+    '(max-test-lines: max-test-line-count: test-max-lines:))
+   (policy-integer-field*
+    entry
+    '(min-source-definitions: min-source-definition-count:))
+   (policy-integer-field*
+    entry
+    '(min-test-definitions: min-test-definition-count:))
+   (or (policy-string-field entry 'config:)
+       (policy-string-field entry 'config-file:)
+       (policy-string-field entry 'path:)
+       config-path)
+   (policy-string-field entry 'explanation:)))
+;;; Boundary:
+;;; - read-modularity-policy-config reads the package-selected external file.
+;;; - Missing or malformed config stays a package-policy absence, not a fallback.
+;; PackageModularityPolicy <- Root ConfigPath
+(def (read-modularity-policy-config root config-path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (let* ((path (path-expand config-path root))
+            (forms (read-package-forms path))
+            (entry (find modularity-policy-form? forms)))
+       (and entry
+            (modularity-policy-entry->policy entry config-path))))))
+;;; Boundary:
+;;; - merge-modularity-policies lets gerbil.pkg override shared config values.
+;;; - Keep list overrides explicit so agent-facing rule filters stay readable.
+;; PackageModularityPolicy <- MaybePolicy MaybePolicy
+(def (merge-modularity-policies inline-policy config-policy)
+  (cond
+   ((and inline-policy config-policy)
+    (make-modularity-policy
+     (or (modularity-policy-disabled inline-policy)
+         (modularity-policy-disabled config-policy))
+     (policy-list-override
+      (modularity-policy-enabled-rules inline-policy)
+      (modularity-policy-enabled-rules config-policy))
+     (policy-list-override
+      (modularity-policy-disabled-rules inline-policy)
+      (modularity-policy-disabled-rules config-policy))
+     (or (modularity-policy-max-source-line-count inline-policy)
+         (modularity-policy-max-source-line-count config-policy))
+     (or (modularity-policy-max-test-line-count inline-policy)
+         (modularity-policy-max-test-line-count config-policy))
+     (or (modularity-policy-min-source-definition-count inline-policy)
+         (modularity-policy-min-source-definition-count config-policy))
+     (or (modularity-policy-min-test-definition-count inline-policy)
+         (modularity-policy-min-test-definition-count config-policy))
+     (or (modularity-policy-config-path inline-policy)
+         (modularity-policy-config-path config-policy))
+     (or (modularity-policy-explanation inline-policy)
+         (modularity-policy-explanation config-policy))))
+   (inline-policy inline-policy)
+   (else config-policy)))
+;;; Boundary:
+;;; - policy-list-override keeps rule-list precedence separate from scalars.
+;;; - Empty primary lists intentionally fall through to the config file list.
+;; (List String) <- (List String) (List String)
+(def (policy-list-override primary fallback)
+  (if (and primary (pair? primary))
+    primary
+    (or fallback '())))
 ;;; Boundary:
 ;;; Package forms have at most one build script declaration for harness scope.
 ;;; The find combinator makes that single-owner lookup explicit and leaves the
@@ -279,6 +400,24 @@
 (def (policy-boolean-field datum field)
   (let (value (package-field-value datum field))
     (truthy-policy-value? value)))
+;;; Boundary:
+;;; - policy-integer-field* checks aliases in declared precedence order.
+;;; - Use parser-owned package fields instead of string scanning.
+;; Integer <- Datum (List Symbol)
+(def (policy-integer-field* datum fields)
+  (ormap (cut policy-integer-field datum <>) fields))
+;;; Boundary:
+;;; - policy-integer-field normalizes numeric package policy values.
+;;; - Keep invalid or absent values false so callers can use defaults.
+;; Integer <- Datum Symbol
+(def (policy-integer-field datum field)
+  (let (value (package-field-value datum field))
+    (cond
+     ((not value) #f)
+     ((integer? value) value)
+     (else
+      (let (parsed (string->number (datum->string value)))
+        (and (integer? parsed) parsed))))))
 ;; Boolean <- PolicyValue
 (def (truthy-policy-value? value)
   (if (or (eq? value #t)

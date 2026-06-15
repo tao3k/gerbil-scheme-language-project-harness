@@ -132,28 +132,95 @@
 ;; Json <- Pattern
 (def (pattern-mapping-json pattern)
   (and pattern
-       (let (packet
-             (hash (id (hash-get pattern 'id))
-                   (extension (hash-get pattern 'extension))
-                   (focus (hash-get pattern 'focus))
-                   (origin (hash-get pattern 'origin))
-                   (sourceRef (hash-get pattern 'sourceRef))
-                   (sourceOwners (hash-get pattern 'sourceOwners))
-                   (agentScenario (hash-get pattern 'agentScenario))
-                   (intent (hash-get pattern 'intent))
-                   (selectors (map pattern-selector-json
-                                   (hash-get pattern 'selectors)))
-                   (minimalForms (map pattern-form-json
-                                      (hash-get pattern 'minimalForms)))
-                   (failureCases (map pattern-failure-case-json
-                                       (hash-get pattern 'failureCases)))
-                   (qualitySignals (hash-get pattern 'qualitySignals))
-                   (witness (hash-get pattern 'witness))))
+       (let* ((source-ref (hash-get pattern 'sourceRef))
+              (packet
+               (hash (id (hash-get pattern 'id))
+                     (extension (hash-get pattern 'extension))
+                     (focus (hash-get pattern 'focus))
+                     (origin (hash-get pattern 'origin))
+                     (sourceRef source-ref)
+                     (sourceOwners (hash-get pattern 'sourceOwners))
+                     (agentScenario (hash-get pattern 'agentScenario))
+                     (intent (hash-get pattern 'intent))
+                     (selectors (map pattern-selector-json
+                                     (hash-get pattern 'selectors)))
+                     (minimalForms (map pattern-form-json
+                                        (hash-get pattern 'minimalForms)))
+                     (failureCases (map pattern-failure-case-json
+                                         (hash-get pattern 'failureCases)))
+                     (qualitySignals (hash-get pattern 'qualitySignals))
+                     (witness (hash-get pattern 'witness)))))
+         (pattern-attach-agent-guidance! packet pattern source-ref)
          (when (hash-key? pattern 'via)
            (hash-put! packet 'via (hash-get pattern 'via)))
          (when (hash-key? pattern 'importWitness)
            (hash-put! packet 'importWitness (hash-get pattern 'importWitness)))
          packet)))
+;;; Boundary:
+;;; - Pattern guidance mirrors compact search lines in the machine packet.
+;;; - Logical package selectors must not be mistaken for workspace selectors.
+;; Unit <- Packet Pattern SourceRef
+(def (pattern-attach-agent-guidance! packet pattern source-ref)
+  (when (equal? (hash-get pattern 'extension) "poo")
+    (when (hash-key? source-ref 'selectorScheme)
+      (hash-put! packet 'selectorResolver
+                 (pattern-selector-resolver-json source-ref)))
+    (when (and (hash-key? source-ref 'localSource)
+               (hash-key? source-ref 'repositorySource)
+               (hash-key? source-ref 'indexHint))
+      (hash-put! packet 'sourceLookup
+                 (pattern-source-lookup-json source-ref)))
+    (hash-put! packet 'agentReadOrder (pattern-agent-read-order-json))
+    (hash-put! packet 'agentAction
+               (pattern-agent-action-json
+                (pattern-mapping-quality pattern)))))
+;; Json <- SourceRef
+(def (pattern-selector-resolver-json source-ref)
+  (hash (scheme (hash-get source-ref 'selectorScheme))
+        (status "logical-selector")
+        (querySelector "not-direct")
+        (sourceRef (pattern-source-ref-summary source-ref))))
+;; Json <- SourceRef
+(def (pattern-source-lookup-json source-ref)
+  (let (index-hint (hash-get source-ref 'indexHint))
+    (hash (order "local-source-before-git")
+          (missingLocalAction (hash-get index-hint 'missingLocalAction))
+          (fallbackPolicy (hash-get index-hint 'fallbackPolicy))
+          (localSource (hash-get source-ref 'localSource))
+          (repositorySource (hash-get source-ref 'repositorySource))
+          (indexHint index-hint))))
+;; Json
+(def (pattern-agent-read-order-json)
+  (hash (first "agentScenario")
+        (second "agentSteering")
+        (third "selectorResolver")
+        (fourth "minimalForms")
+        (fifth "failureCases")
+        (sixth "quality")))
+;; Json <- Quality
+(def (pattern-agent-action-json quality)
+  (hash (action "use-minimalForms-before-editing")
+        (selectorUse "source-anchor")
+        (missingLocalAction "install-package-before-repository-fallback")
+        (fallback "repository-source-after-install-check")
+        (quality quality)
+        (avoid "generic-scheme-or-racket-class-guess")))
+;; Quality <- Pattern
+(def (pattern-mapping-quality pattern)
+  (let (missing (if (hash-key? pattern 'missing)
+                  (hash-get pattern 'missing)
+                  []))
+    (if (null? missing) "verified" "partial")))
+;; String <- SourceRef
+(def (pattern-source-ref-summary source-ref)
+  (string-append
+   (hash-get source-ref 'kind)
+   ":"
+   (hash-get source-ref 'manager)
+   ":"
+   (hash-get source-ref 'dependency)
+   ":"
+   (hash-get source-ref 'pathPolicy)))
 ;; Selector <- String
 (def (pattern-selector-json selector)
   (hash (role (hash-get selector 'role))

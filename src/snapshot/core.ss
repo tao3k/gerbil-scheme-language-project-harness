@@ -7,6 +7,7 @@
         :parser/facade
         :snapshot/support
         :std/srfi/13
+        :std/sugar
         :types/facade)
 
 (export snapshot-load
@@ -42,6 +43,8 @@
               (list 'packageManager (project-package-manager package))
               (source-scope-policy-snapshot
                (project-package-source-scope-policy package))
+              (modularity-policy-snapshot
+               (project-package-modularity-policy package))
               (agent-policy-snapshot
                (project-package-agent-policy package)))))
 ;; String <- Policy
@@ -59,6 +62,20 @@
         (if policy
           (list (list 'enabledRules (snapshot-list (agent-policy-enabled-rules policy)))
                 (list 'disabledRules (snapshot-list (agent-policy-disabled-rules policy))))
+          '())))
+;; Snapshot <- Policy
+(def (modularity-policy-snapshot policy)
+  (list 'modularityPolicy
+        (if policy
+          (list (list 'disabled (modularity-policy-disabled policy))
+                (list 'enabledRules (snapshot-list (modularity-policy-enabled-rules policy)))
+                (list 'disabledRules (snapshot-list (modularity-policy-disabled-rules policy)))
+                (list 'maxSourceLineCount (modularity-policy-max-source-line-count policy))
+                (list 'maxTestLineCount (modularity-policy-max-test-line-count policy))
+                (list 'minSourceDefinitionCount (modularity-policy-min-source-definition-count policy))
+                (list 'minTestDefinitionCount (modularity-policy-min-test-definition-count policy))
+                (list 'configPath (modularity-policy-config-path policy))
+                (list 'explanation (modularity-policy-explanation policy)))
           '())))
 ;; Snapshot <- Fact
 (def (extension-fact-snapshot fact)
@@ -109,14 +126,48 @@
         (list 'witness (hash-get pattern 'witness))))
 ;; Snapshot <- SourceRef
 (def (source-ref-snapshot source-ref)
-  (list 'sourceRef
-        (list 'kind (hash-get source-ref 'kind))
-        (list 'manager (hash-get source-ref 'manager))
-        (list 'package (hash-get source-ref 'package))
-        (list 'dependency (hash-get source-ref 'dependency))
-        (list 'repository (hash-get source-ref 'repository))
-        (list 'pathPolicy (hash-get source-ref 'pathPolicy))
-        (list 'selectorScheme (hash-get source-ref 'selectorScheme))))
+  (append
+   (list 'sourceRef
+         (list 'kind (hash-get source-ref 'kind))
+         (list 'manager (hash-get source-ref 'manager))
+         (list 'package (hash-get source-ref 'package))
+         (list 'dependency (hash-get source-ref 'dependency))
+         (list 'repository (hash-get source-ref 'repository)))
+   (if (hash-key? source-ref 'localSource)
+     [(local-source-snapshot (hash-get source-ref 'localSource))]
+     [])
+   (if (hash-key? source-ref 'repositorySource)
+     [(repository-source-snapshot (hash-get source-ref 'repositorySource))]
+     [])
+   (if (hash-key? source-ref 'indexHint)
+     [(index-hint-snapshot (hash-get source-ref 'indexHint))]
+     [])
+   [(list 'pathPolicy (hash-get source-ref 'pathPolicy))
+    (list 'selectorScheme (hash-get source-ref 'selectorScheme))]))
+;; Snapshot <- LocalSource
+(def (local-source-snapshot local-source)
+  (list 'localSource
+        (list 'kind (hash-get local-source 'kind))
+        (list 'manager (hash-get local-source 'manager))
+        (list 'rootHint (hash-get local-source 'rootHint))
+        (list 'package (hash-get local-source 'package))
+        (list 'status (hash-get local-source 'status))
+        (list 'owner (hash-get local-source 'owner))))
+;; Snapshot <- RepositorySource
+(def (repository-source-snapshot repository-source)
+  (list 'repositorySource
+        (list 'kind (hash-get repository-source 'kind))
+        (list 'vcs (hash-get repository-source 'vcs))
+        (list 'repository (hash-get repository-source 'repository))
+        (list 'url (hash-get repository-source 'url))
+        (list 'status (hash-get repository-source 'status))
+        (list 'owner (hash-get repository-source 'owner))))
+;; Snapshot <- IndexHint
+(def (index-hint-snapshot index-hint)
+  (list 'indexHint
+        (list 'owner (hash-get index-hint 'owner))
+        (list 'backend (hash-get index-hint 'backend))
+        (list 'mode (hash-get index-hint 'mode))))
 ;; Selector <- String
 (def (pattern-selector-snapshot selector)
   (list 'selector

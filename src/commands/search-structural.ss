@@ -9,6 +9,10 @@
         :support/list)
 
 (export emit-structural-index)
+;; String
+(def +structural-interface-owner-path+ "src/commands/search-structural.ss")
+;; Integer
+(def +structural-interface-preview-limit+ 20)
 
 ;;; Boundary:
 ;;; - emit-structural-index routes interface, owner facts, and explicit artifacts.
@@ -63,19 +67,53 @@
            (displayln "|owner path=" (hash-get owner 'ownerPath)
                       " kind=" (hash-get owner 'ownerKind)
                       " authority=" (hash-get owner 'sourceAuthority)
-                      " sourceClass="
-                      (source-path-class (hash-get owner 'ownerPath))))
-         (take* owners 20))
-        (for-each
-         (lambda (summary)
-           (displayln "|ownerFactSummary path=" (hash-get summary 'ownerPath)
-                      " facts=" (hash-get summary 'facts)
-                      " command=\""
-                      (hash-get summary 'ownerFactsCommand)
-                      "\""))
-         (take* summaries 20))
-        (displayln "nextCommand=gerbil-scheme-harness search structural --owner <path> --json ."))))
-  0)
+	                   " sourceClass="
+	                      (source-path-class (hash-get owner 'ownerPath))))
+	         (structural-interface-preview owners))
+	        (for-each
+	         (lambda (summary)
+	           (displayln "|ownerFactSummary path=" (hash-get summary 'ownerPath)
+	                      " facts=" (hash-get summary 'facts)
+	                      " command=\""
+	                      (hash-get summary 'ownerFactsCommand)
+	                      "\""))
+	         (structural-interface-preview summaries))
+	        (displayln "nextCommand=gerbil-scheme-harness search structural --owner <path> --json ."))))
+	  0)
+
+;;; Boundary:
+;;; - Interface preview stays bounded while retaining the command owner that
+;;;   explains structural fan-out to ASP clients.
+;; (List Json) <- (List Json)
+(def (structural-interface-preview rows)
+  (let ((head (take* rows +structural-interface-preview-limit+))
+        (required (find-structural-interface-row rows)))
+    (cond
+     ((not required) head)
+     ((structural-interface-row-present? head required) head)
+     (else
+      (append (take* head (- +structural-interface-preview-limit+ 1))
+              [required])))))
+;;; Boundary:
+;;; - Required owner lookup is path-based so preview stabilization does not
+;;;   depend on current parser ordering or newly added command files.
+;; MaybeJson <- (List Json)
+(def (find-structural-interface-row rows)
+  (cond
+   ((null? rows) #f)
+   ((equal? (hash-get (car rows) 'ownerPath) +structural-interface-owner-path+)
+    (car rows))
+   (else (find-structural-interface-row (cdr rows)))))
+;;; Invariant:
+;;; - Presence checks compare the stable ownerPath key only.
+;;; - The ormap predicate keeps preview membership expression-level and avoids
+;;;   a manual loop that could drift from the same ownerPath invariant.
+;; Boolean <- (List Json) Json
+(def (structural-interface-row-present? rows required)
+  (ormap (lambda (row)
+           (equal? (hash-get row 'ownerPath)
+                   (hash-get required 'ownerPath)))
+         rows))
 
 ;;; Owner mode projects one source file's parser facts for ASP-side fan-out.
 ;;; It may render native facts, but it never builds the workspace artifact or

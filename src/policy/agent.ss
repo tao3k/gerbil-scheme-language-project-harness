@@ -73,7 +73,12 @@
     "builder-control"))
 ;; String
 (def +functional-preservation-reader-callees+
-  '("read" "read-line" "read-syntax"))
+  '("read" "read-char" "read-line" "read-syntax"))
+;; FFI forms declare native ABI surfaces at module load/compile time.
+;; Treat their nested parser call facts as declarations, not executable effects.
+(def +declarative-top-level-heads+
+  '("declare" "c-declare" "c-define-type" "define-c-lambda"
+    "begin-ffi" "begin-foreign" "c-define" "namespace"))
 ;; Integer
 (def +macro-runtime-source-witness-explanation-min-length+ 32)
 ;; Integer
@@ -213,7 +218,26 @@
 (def (top-level-executable-call? index file call)
   (and (not (call-fact-caller call))
        (index-source-runtime-file-path? index (call-fact-path call))
-       (not (poo-declarative-call? file call))))
+       (not (declarative-top-level-call? file call))))
+
+;; Boolean <- SourceFile CallFact
+(def (declarative-top-level-call? file call)
+  (or (poo-declarative-call? file call)
+      (ffi-declarative-call? file call)))
+
+;; Boolean <- SourceFile CallFact
+(def (ffi-declarative-call? file call)
+  (ormap (lambda (form)
+           (and (declarative-top-form? form)
+                (call-within-top-form-range? call form)))
+         (source-file-forms file)))
+;; Boolean <- TopForm
+(def (declarative-top-form? form)
+  (member (top-form-head form) +declarative-top-level-heads+))
+;; Boolean <- CallFact TopForm
+(def (call-within-top-form-range? call form)
+  (and (<= (top-form-start form) (call-fact-start call))
+       (>= (top-form-end form) (call-fact-end call))))
 ;;; Boundary:
 ;;; - poo-declarative-call? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -303,9 +327,14 @@
 (def (caller-has-reader-boundary? file caller)
   (ormap (lambda (fact)
            (and (equal? (or (call-fact-caller fact) "") (or caller ""))
-                (member (call-fact-callee fact)
-                        +functional-preservation-reader-callees+)))
+                (reader-boundary-callee? (call-fact-callee fact))))
          (source-file-calls file)))
+
+;; Boolean <- Callee
+(def (reader-boundary-callee? callee)
+  (and callee
+       (or (member callee +functional-preservation-reader-callees+)
+           (string-prefix? "read-" callee))))
 ;;; Boundary:
 ;;; - functional-preservation-control-contexts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

@@ -35,6 +35,116 @@
                   (cdr result)
                   "(def (guide-lines)")))
                => #t)))
+    (test-case "ownerless gerbil-poo query routes to registered knowledge"
+      (let (result (query-output ["--term"
+                                  "gerbil-poo"
+                                  "--term"
+                                  "usage"
+                                  "--workspace"
+                                  "."
+                                  "--names-only"]))
+        (check (car result) => 0)
+        (let (message (cdr result))
+          (check (string-contains message
+                                  "[gerbil-query-route] query=gerbil-poo usage")
+                 => 0)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "registeredKnowledge uri=gerbil-poo://")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "notProjectActivation=true")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "asp gerbil-scheme search pattern gerbil-poo usage --view seeds")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "|sourceLookup order=local-source-before-git")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "missingLocalAction=install-package-before-repository-fallback")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "installHint=\"gxpkg install git.cons.io/mighty-gerbils/gerbil-poo\"")))
+                 => #t))))
+    (test-case "ownerless split gerbil poo query routes canonically"
+      (let (result (query-output ["--term"
+                                  "gerbil"
+                                  "--term"
+                                  "poo"
+                                  "--term"
+                                  "usage"
+                                  "--workspace"
+                                  "."
+                                  "--names-only"]))
+        (check (car result) => 0)
+        (let (message (cdr result))
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "[gerbil-query-route] query=gerbil poo usage")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "asp gerbil-scheme search pattern gerbil-poo usage --view seeds")))
+                 => #t))))
+    (test-case "ownerless gerbil-poo query json carries source lookup"
+      (let (result (query-output ["--term"
+                                  "gerbil-poo"
+                                  "--term"
+                                  "usage"
+                                  "--workspace"
+                                  "."
+                                  "--names-only"
+                                  "--json"]))
+        (check (car result) => 0)
+        (let (message (cdr result))
+          (check (not
+                  (not
+                   (string-contains message "\"sourceLookup\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains message "\"sourceRef\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains message "\"localRootHint\":\"~/.gerbil\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains message "\"order\":\"local-source-before-git\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains message
+                                    "\"missingLocalAction\":\"install-package-before-repository-fallback\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains message
+                                    "\"installHint\":\"gxpkg install git.cons.io/mighty-gerbils/gerbil-poo\"")))
+                 => #t))))
     (test-case "ownerless names-only term points to fzf route"
       (let (result (query-output ["--term"
                                   "ownerless_names_only_term"

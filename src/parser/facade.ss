@@ -9,6 +9,7 @@
         +config-files+
         +ignored-dirs+
         collect-project
+        collect-project-package-only
         collect-source-files
         gerbil-source-path?
         parse-source-file
@@ -291,6 +292,7 @@
         project-package-test-directory-policy
         project-package-macro-governance-policy
         project-package-source-scope-policy
+        project-package-modularity-policy
         project-package-agent-policy
         test-directory-policy-allowed-directories
         test-directory-policy-explanation
@@ -301,6 +303,15 @@
         source-scope-policy-runtime-roots
         source-scope-policy-exclude-directories
         source-scope-policy-explanation
+        modularity-policy-disabled
+        modularity-policy-enabled-rules
+        modularity-policy-disabled-rules
+        modularity-policy-max-source-line-count
+        modularity-policy-max-test-line-count
+        modularity-policy-min-source-definition-count
+        modularity-policy-min-test-definition-count
+        modularity-policy-config-path
+        modularity-policy-explanation
         agent-policy-enabled-rules
         agent-policy-disabled-rules
         project-index-root

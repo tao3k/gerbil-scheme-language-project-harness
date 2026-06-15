@@ -43,6 +43,18 @@
            => "gerbil-scheme-harness search structural --owner <path> --json .")
     (check (length (hash-get packet 'dependencyUsages)) => 0)
     (check (>= (hash-get packet 'dependencyUsageTotal) 0) => #t)))
+
+;; (List OwnerPath)
+(def +poo-structural-fixture-owners+
+  ["t/fixtures/parser/poo-object-slots.ss"
+   "t/fixtures/parser/poo-io-hooks.ss"
+   "t/fixtures/parser/poo-fq-descriptors.ss"
+   "t/fixtures/parser/poo-trie-descriptor.ss"
+   "t/fixtures/parser/poo-rationaldict-adapter.ss"
+   "t/fixtures/parser/poo-type-validation.ss"
+   "t/fixtures/parser/poo-trace-debug.ss"
+   "t/fixtures/parser/poo-method-dispatch.ss"])
+
 ;; Integer
 (def (check-structural-index-queryable-facts)
   (let* ((index (collect-project "."))
@@ -50,9 +62,10 @@
          (facts-packet
           (owner-facts-packet
            index
-           ["t/fixtures/parser/complex-syntax.ss"
-            "t/fixtures/parser/higher-order.ss"
-            "t/fixtures/parser/control-flow.ss"])))
+           (append ["t/fixtures/parser/complex-syntax.ss"]
+                   +poo-structural-fixture-owners+
+                   ["t/fixtures/parser/higher-order.ss"
+                    "t/fixtures/parser/control-flow.ss"]))))
     (check (packet-has-owner? packet "src/commands/search.ss") => #t)
     (check (> (hash-get packet 'symbolTotal) 0) => #t)
     (check (packet-has-syntax-fact? facts-packet "macro" "capture-safe") => #t)
@@ -67,6 +80,7 @@
     (check (packet-has-syntax-fact-field? facts-packet "method" ":render" 'dispatchArity 1) => #t)
     (check (packet-has-syntax-fact-field? facts-packet "class" "<Widget>" 'slots ["name" "count"]) => #t)
     (check (packet-has-syntax-fact-field? facts-packet "interface" "<Renderable>" 'role "protocol") => #t)
+    (check-structural-index-poo-facts facts-packet)
     (check (packet-has-syntax-fact-field? facts-packet "function" "case-lambda" 'role "multi-arity-function") => #t)
     (check (packet-has-syntax-fact-query-key? facts-packet "function" "case-lambda" "case-lambda-optimization-boundary") => #t)
     (check (packet-has-syntax-fact-field? facts-packet "function" "lambda" 'formals ["widget"]) => #t)
@@ -112,6 +126,72 @@
     (check (> (hash-get packet 'dependencyUsageTotal) 0) => #t)
     (check (packet-file-hashes-are-64-hex? packet) => #t)))
 
+;; Unit <- Packet
+(def (check-structural-index-poo-facts facts-packet)
+  (begin
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "point" 'role "object") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "point" 'supers ["base"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "point" 'slots ["x" "y" "total" "level" "child" "label" "greeting"]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "point" "slot:level:inherited-computed") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "point" "slot:child:mixin-override") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":pr" 'specializers ["object"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":wr" 'specializers ["object"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":json" 'specializers ["object"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":write-json" 'specializers ["object"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":write-json" 'dispatchArity 1) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "method" ":write-json" "object") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_q." 'role "type") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_q." 'supers ["expt<-mul-inv."]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." "expt<-mul-inv.") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." ".mul:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." ".n<-:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." ".<-n:") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_2^n." 'supers ["F_q."]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_2^n." ".element?:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_2^n." ".=?:") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_2^8" 'supers ["F_2^n."]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_2^8" 'slots [".n:" ".xn:"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "Trie." 'supers ["Wrap." "methods.table"]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "methods.table") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "T:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "Unstep:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "Step:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." ".acons:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." ".<-list:") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "RationalDict." 'supers ["methods.table"]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalDict." "Key:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalDict." ".key?:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalDict." ".sexp<-:") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "RationalSet" 'supers ["Set<-Table."]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalSet" "Table:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalSet" ".min-elt:") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "EmailAddress." 'role "type") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "EmailAddress." 'supers ["String."]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "EmailAddress." ".validate:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "EmailAddress." ".sexp<-:") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "PositiveList." 'supers ["List."]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "PositiveList." "Elt:") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "PositiveList." ".validate:") => #t)
+    (check (packet-has-syntax-fact? facts-packet "call" "raise-type-error") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "trace-probe" 'role "object") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "custom" "trace-probe" 'supers ["base"]) => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "trace-probe" "slot:value:inherited-computed") => #t)
+    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "trace-probe" "slot:runner:self-computed") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":pr" 'specializers ["trace-probe"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":wr" 'specializers ["trace-probe"]) => #t)
+    (check (packet-has-syntax-fact? facts-packet "call" "trace-inherited-slot") => #t)
+    (check (packet-has-syntax-fact? facts-packet "call" "traced-function") => #t)
+    (check (packet-has-syntax-fact? facts-packet "call" "trace-poo") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "generic" "distance" 'generic "distance") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" "distance" 'specializers ["Point" "Point"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" "distance" 'specializerTypes ["Point" "Point"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" "distance" 'dispatchArity 2) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "generic" ":intersect" 'generic ":intersect") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'receiver "line") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'receiverType "<Line>") => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'specializers ["line:<Line>" "circle:<Circle>" "ctx:<Ctx>"]) => #t)
+    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'dispatchArity 3) => #t)))
+
 ;; Unit
 (def (check-structural-index-quality-shape-facts)
   (let* ((root ".run/structural-quality-shape")
@@ -135,7 +215,8 @@
   (let* ((root ".run/structural-dependency-adapter")
          (_ (write-dependency-adapter-structural-project root))
          (index (collect-project root))
-         (packet (owner-facts-packet index ["src/orders/dict.ss"])))
+         (packet (owner-facts-packet index ["src/orders/dict.ss"
+                                            "src/orders/rationaldict.ss"])))
     (check (packet-has-syntax-fact-field? packet "custom" "OrderDict." 'role "dependency-protocol-adapter") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "OrderDict." 'dependency ":clan/pure/dict/orderdict") => #t)
     (check (packet-has-syntax-fact-field? packet "custom" "OrderDict." 'quality "complete") => #t)
@@ -148,7 +229,16 @@
     (check (packet-has-syntax-fact-query-key? packet "custom" "OrderDict." "orderdict-put") => #t)
     (check (packet-has-syntax-fact-query-key? packet "custom" "OrderDict." "orderdict=?") => #t)
     (check (packet-has-syntax-fact-query-key? packet "custom" "OrderDict." "precise-only-in-import") => #t)
-    (check (packet-has-syntax-fact-query-key? packet "custom" "OrderDict." "thin-wrapper-over-dependency-api") => #t)))
+    (check (packet-has-syntax-fact-query-key? packet "custom" "OrderDict." "thin-wrapper-over-dependency-api") => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "RationalDict." 'dependency ":clan/pure/dict/rationaldict") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalDict." "methods.table") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalDict." ".key?") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalDict." "rationaldict-put") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalDict." "set-derived-capability") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalDict." "sexp-derived-capability") => #t)
+    (check (packet-has-syntax-fact-field? packet "custom" "RationalSet" 'dependency ":clan/pure/dict/rationaldict") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalSet" "Set<-Table.") => #t)
+    (check (packet-has-syntax-fact-query-key? packet "custom" "RationalSet" "rationaldict-keys") => #t)))
 
 ;; Packet <- ProjectIndex (List OwnerPath)
 (def (owner-facts-packet index owners)
@@ -190,7 +280,9 @@
     (ensure-dir src)
     (ensure-dir owner)
     (write-text (string-append owner "/dict.ss")
-                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/orderdict\n           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n           list->orderdict orderdict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./table methods.table))\n(define-type (OrderDict. @ [methods.table] Value)\n  Key: String\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n")))
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/orderdict\n           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n           list->orderdict orderdict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./table methods.table))\n(define-type (OrderDict. @ [methods.table] Value)\n  Key: String\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n")
+    (write-text (string-append owner "/rationaldict.ss")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/rationaldict\n           rationaldict-keys rationaldict-min-key rationaldict-max-key\n           rationaldict-empty? empty-rationaldict\n           rationaldict-put rationaldict-ref rationaldict-has-key? rationaldict-remove\n           list->rationaldict rationaldict->list\n           rationaldict? rationaldict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./type Rational Unit)\n  (only-in ./table Set<-Table. methods.table))\n(define-type (RationalDict. @ [methods.table] Value)\n  Key: Rational\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (unless (rationaldict? x) (raise-type-error \"not rationaldict\" x)) (super x)))\n  .empty: empty-rationaldict\n  .empty?: rationaldict-empty?\n  .ref: rationaldict-ref\n  .key?: rationaldict-has-key?\n  .acons: (lambda (k v d) (rationaldict-put d k v))\n  .remove: rationaldict-remove\n  .foldl: (lambda (f seed d) (foldl (lambda (kv acc) (f (car kv) (cdr kv) acc)) seed (rationaldict->list d)))\n  .foldr: (lambda (f seed d) (foldr (lambda (kv acc) (f (car kv) (cdr kv) acc)) seed (rationaldict->list d)))\n  .<-list: list->rationaldict\n  .list<-: rationaldict->list\n  .sexp<-: (lambda (x) `(list->rationaldict ,(rationaldict->list x)))\n  .=?: (lambda (d1 d2) (rationaldict=? d1 d2)))\n(define-type (RationalSet @ [Set<-Table.])\n  Elt: Rational\n  Table: {(:: @T RationalDict.) Key: Elt Value: Unit}\n  .list<-: rationaldict-keys\n  .min-elt: rationaldict-min-key\n  .max-elt: rationaldict-max-key)\n")))
 
 ;; Unit <- String
 (def (reset-fixture-root root)

@@ -24,6 +24,7 @@
   (fields
    (packageManager "gxpkg")
    (sourceScopePolicy ())
+   (modularityPolicy ())
    (agentPolicy ())))
  (extensions
   ((providerExtension

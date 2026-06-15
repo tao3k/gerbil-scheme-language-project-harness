@@ -6,6 +6,7 @@
 
 (import :constants
         :commands/guide
+        :commands/search-extension
         :commands/search-render
         :commands/search-structural
         :extensions/facade
@@ -42,6 +43,16 @@
           ((equal? view "compare") (emit-compare-search args json?))
           ((language-evidence-index-free-view? view)
            (emit-language-evidence-search #f view args json?))
+          ((poo-pattern-package-only-search? view args)
+           (emit-pattern-search
+            (collect-project-package-only root)
+            args
+            json?))
+          ((equal? view "extension")
+           (emit-extension-search
+            (collect-project-package-only root)
+            args
+            json?))
           (else
            (let (index (collect-project root))
              (cond
@@ -61,6 +72,10 @@
            (emit-fzf-search index args json?))
           ((equal? view "ingest") (emit-ingest index json?))
           (else (error "unsupported search view" view)))))))))))
+;; Boolean <- SearchView Args
+(def (poo-pattern-package-only-search? view args)
+  (and (equal? view "pattern")
+       (poo-pattern-query? (positional-args args))))
 ;;; Boundary:
 ;;; - emit-workspace composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -332,80 +347,6 @@
           (witness (if fact (hash-get fact 'witness) "pending"))
           (next next))))
 ;;; Boundary:
-;;; - emit-extension-search composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex (List XX) Json
-(def (emit-extension-search index args json?)
-  (let* ((positionals (positional-args args))
-         (query (if (pair? positionals) (join positionals " ") "-"))
-         (matches (matching-extension-facts index positionals))
-         (grade (if (null? matches) "unknown" "fact")))
-    (if json?
-      (write-json-line
-       (hash (languageId +language-id+)
-             (providerId +provider-id+)
-             (namespace "extension")
-             (authority (language-evidence-authority "extension"))
-             (evidenceGrade grade)
-             (query query)
-             (matches (map extension-fact-json matches))
-             (next (extension-evidence-next positionals matches))))
-      (begin
-        (displayln "[gerbil-search-extension] query=" query
-                   " matches=" (length matches)
-                   " evidenceGrade=" grade
-                   " authority=" (language-evidence-authority "extension"))
-        (for-each
-         (lambda (fact)
-           (displayln (extension-fact-search-line fact)))
-         matches)
-        (when (poo-registered-extension-query? positionals)
-          (displayln "|agentAction action=follow-next"
-                     " registeredKnowledge=gerbil-poo://"
-                     " notProjectActivation=true"
-                     " command=\"asp gerbil-scheme "
-                     (extension-evidence-next positionals matches)
-                     " --view seeds\""))
-        (displayln "next=" (extension-evidence-next positionals matches))))
-    0))
-;;; Boundary:
-;;; - matching-extension-facts composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List Fact) <- ProjectIndex (List XX)
-(def (matching-extension-facts index terms)
-  (let (facts (project-extension-facts index))
-    (if (null? terms)
-      facts
-      (let (matches
-            (filter (lambda (fact)
-                      (ormap (cut extension-fact-matches-term? fact <>)
-                             terms))
-                    facts))
-        (if (null? matches)
-          (poo-registered-extension-facts terms)
-          matches)))))
-;;; Boundary:
-;;; - extension-fact-matches-term? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- ExtensionFact SearchTerm
-(def (extension-fact-matches-term? fact term)
-  (or (string-contains (extension-fact-name fact) term)
-      (ormap (cut string-contains <> term)
-             (extension-fact-dependencies fact))
-      (ormap (cut string-contains <> term)
-             (extension-fact-capabilities fact))))
-;; String <- (List String) Matches
-(def (extension-evidence-next terms matches)
-  (let ((extension-name (if (pair? matches)
-                          (if (poo-registered-extension-query? terms)
-                            "gerbil-poo"
-                            (extension-fact-name (car matches)))
-                          (if (pair? terms) (car terms) "<extension>")))
-        (focus (if (and (pair? terms) (pair? (cdr terms)))
-                 (join (cdr terms) " ")
-                 "<api|syntax|pattern>")))
-    (string-append "search pattern " extension-name " " focus)))
-;;; Boundary:
 ;;; - emit-pattern-search coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
 ;; Unit <- ProjectIndex (List XX) Json
@@ -519,7 +460,11 @@
         (displayln "|selectorResolver scheme=" (hash-get source-ref 'selectorScheme)
                    " status=logical-selector"
                    " querySelector=not-direct"
-                   " sourceRef=" (source-ref-summary source-ref))))
+                   " sourceRef=" (source-ref-summary source-ref)))
+      (when (and (hash-key? source-ref 'localSource)
+                 (hash-key? source-ref 'repositorySource)
+                 (hash-key? source-ref 'indexHint))
+        (emit-source-lookup-line source-ref)))
     (displayln "|agentReadOrder first=agentScenario"
                " second=agentSteering"
                " third=selectorResolver"
@@ -528,6 +473,8 @@
                " sixth=quality")
     (displayln "|agentAction action=use-minimalForms-before-editing"
                " selectorUse=source-anchor"
+               " missingLocalAction=install-package-before-repository-fallback"
+               " fallback=repository-source-after-install-check"
                " quality=" quality
                " avoid=generic-scheme-or-racket-class-guess")))
 ;;; Boundary:
@@ -611,6 +558,24 @@
    (hash-get source-ref 'dependency)
    ":"
    (hash-get source-ref 'pathPolicy)))
+;; Unit <- SourceRef
+(def (emit-source-lookup-line source-ref)
+  (let* ((local-source (hash-get source-ref 'localSource))
+         (repository-source (hash-get source-ref 'repositorySource))
+         (index-hint (hash-get source-ref 'indexHint)))
+    (displayln "|sourceLookup order=local-source-before-git"
+               " missingLocalAction=" (hash-get index-hint 'missingLocalAction)
+               " fallbackPolicy=" (hash-get index-hint 'fallbackPolicy)
+               " localRootHint=" (hash-get local-source 'rootHint)
+               " localPackage=" (hash-get local-source 'package)
+               " localStatus=" (hash-get local-source 'status)
+               " localMissingAction=" (hash-get local-source 'missingAction)
+               " installHint=\"" (hash-get local-source 'installHint) "\""
+               " repository=" (hash-get repository-source 'repository)
+               " repositoryUrl=" (hash-get repository-source 'url)
+               " indexOwner=" (hash-get index-hint 'owner)
+               " indexBackend=" (hash-get index-hint 'backend)
+               " indexPackageManager=" (hash-get index-hint 'packageManager))))
 ;;; Boundary:
 ;;; - emit-language-evidence-search coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.

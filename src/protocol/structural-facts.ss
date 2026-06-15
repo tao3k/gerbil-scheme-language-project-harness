@@ -171,11 +171,11 @@
 ;; StructuralKind <- PooFormFact
 (def (poo-form-structural-kind fact)
   (cond
-   ((equal? (poo-form-fact-role fact) "class") "class")
-   ((equal? (poo-form-fact-role fact) "generic") "function")
-   ((equal? (poo-form-fact-role fact) "method") "method")
-   ((equal? (poo-form-fact-role fact) "protocol") "interface")
-   (else "custom")))
+	   ((equal? (poo-form-fact-role fact) "class") "class")
+	   ((equal? (poo-form-fact-role fact) "generic") "generic")
+	   ((equal? (poo-form-fact-role fact) "method") "method")
+	   ((equal? (poo-form-fact-role fact) "protocol") "interface")
+	   (else "custom")))
 ;;; Boundary:
 ;;; - poo-form-query-keys composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

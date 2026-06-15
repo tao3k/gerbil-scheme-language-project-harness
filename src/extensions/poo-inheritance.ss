@@ -4,7 +4,8 @@
 ;;; - Owns provider-curated gerbil-poo -> gerbil-utils closure facts only.
 ;;; - Does not inspect ambient load paths or mutate package declarations.
 
-(import :std/sugar
+(import :package-manager/facade
+        :std/sugar
         :support/list)
 
 (export poo-inherited-utils-capability-names
@@ -85,11 +86,16 @@
         (dependencyChain (poo-inherited-utils-dependency-chain activation-dependency))))
 ;; SourceRef
 (def (poo-inherited-utils-source-ref)
-  (hash (kind "package-manager-download")
+  (hash (kind "package-manager-source")
         (manager "gxpkg")
         (package +gerbil-utils-package+)
         (dependency +gerbil-utils-dependency+)
         (repository +gerbil-utils-dependency+)
+        (localSource
+         (gerbil-local-source-candidate +gerbil-utils-dependency+))
+        (repositorySource
+         (git-repository-candidate +gerbil-utils-dependency+))
+        (indexHint (package-source-index-hint))
         (pathPolicy "runtime-resolved")
         (selectorScheme "gerbil-utils-logical-symbol")))
 ;;; Boundary:

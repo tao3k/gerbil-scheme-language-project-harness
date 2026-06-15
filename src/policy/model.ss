@@ -13,6 +13,7 @@
         +modularity-repeated-owner-entry-rule+
         +modularity-bin-entrypoint-rule+
         +modularity-test-directory-rule+
+        +modularity-test-leaf-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
@@ -50,6 +51,9 @@
 ;; Integer
 (def +modularity-test-directory-rule+
   (make-policy-rule "GERBIL-SCHEME-MOD-R006" "warning"))
+;; Integer
+(def +modularity-test-leaf-rule+
+  (make-policy-rule "GERBIL-SCHEME-MOD-R007" "warning"))
 ;; ConfigConstant
 (def +agent-intent-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R001" "warning"))

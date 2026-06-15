@@ -23,7 +23,9 @@
         poo-extension-active?
         poo-extension-fact
         poo-registered-extension-facts
+        poo-extension-lookup-query?
         poo-registered-extension-query?
+        poo-registered-extension-focus
         poo-extension-capability-names
         poo-extension-search-lines
         poo-extension-json

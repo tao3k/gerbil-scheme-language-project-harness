@@ -16,6 +16,7 @@
         +modularity-repeated-owner-entry-rule+
         +modularity-bin-entrypoint-rule+
         +modularity-test-directory-rule+
+        +modularity-test-leaf-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
@@ -43,13 +44,16 @@
         run-policy-checks
         run-modularity-policy
         +max-source-line-count+
+        +max-test-line-count+
         +min-source-definition-count+
+        +min-test-definition-count+
         facade-source-file?
         facade-implementation-finding
         sibling-file-dir-owner-collision-finding
         repeated-owner-entry-finding
         bin-entrypoint-implementation-finding
         source-leaf-bloat-finding
+        test-leaf-bloat-finding
         run-agent-policy
         facade-intent-finding
         generic-owner-segment

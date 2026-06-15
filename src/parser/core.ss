@@ -26,6 +26,7 @@
         +config-files+
         +ignored-dirs+
         collect-project
+        collect-project-package-only
         collect-source-files
         gerbil-source-path?
         parse-source-file
@@ -337,6 +338,11 @@
     (make-project-index root
                         (map (cut parse-source-file root <>) files)
                         package)))
+;; ProjectIndex <- String
+(def (collect-project-package-only root)
+  (let* ((root (path-normalize root))
+         (package (read-project-package root)))
+    (make-project-index root '() package)))
 ;;; Boundary:
 ;;; - collect-source-files composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

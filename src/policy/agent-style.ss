@@ -29,6 +29,10 @@
     "append-map" "fold" "foldl" "foldr" "fold-left" "fold-right"
     "andmap" "ormap" "every" "any" "find" "list-index"
     "with-list-builder"))
+;; (List String)
+(def +poo-declarative-definition-kinds+
+  '(".def" "define-type" "defclass" ".defclass" "defmethod" ".defmethod"
+    "defgeneric" ".defgeneric" "defprotocol" ".defprotocol"))
 ;;; Entry boundary: emit at most one typed-combinator finding per owner so repair stays file-scoped.
 ;; (List TypeFinding) <- ProjectIndex
 (def (typed-combinator-style-findings index)
@@ -41,13 +45,17 @@
        (typed-combinator-style-source-file? index file)
        (pair? (source-file-definitions file))
        (let* ((definition-count (length (source-file-definitions file)))
+              (function-definitions
+               (typed-combinator-style-function-definitions file))
+              (function-definition-count
+               (length function-definitions))
               (typed-comment-summary
                (file-typed-combinator-style-summary index file))
               (typed-comment-line-count (car typed-comment-summary))
               (valid-typed-comment-count (cadr typed-comment-summary))
               (invalid-typed-comment-count (caddr typed-comment-summary))
               (missing-count
-               (typed-combinator-style-missing-count definition-count
+               (typed-combinator-style-missing-count function-definition-count
                                                      valid-typed-comment-count))
               (implementation-evidence
                (typed-combinator-style-implementation-evidence file))
@@ -69,8 +77,6 @@
                 file implementation-evidence-callers))
               (covered-definition-count
                (length covered-definition-names))
-              (function-definition-count
-               (length (typed-combinator-style-function-definitions file)))
               (minimum-covered-definition-count
                (typed-combinator-style-minimum-covered-definition-count
                 function-definition-count))
@@ -79,7 +85,7 @@
                 file implementation-evidence-callers))
               (missing-implementation-evidence?
                (typed-combinator-style-missing-implementation-evidence?
-                definition-count
+                function-definition-count
                 valid-typed-comment-count
                 invalid-typed-comment-count
                 missing-count
@@ -252,8 +258,13 @@
 ;;; Coverage denominator: constants are excluded so only arity-bearing helpers need expression evidence.
 ;; (List Definition) <- SourceFile
 (def (typed-combinator-style-function-definitions file)
-  (filter (lambda (defn) (> (definition-arity defn) 0))
+  (filter (lambda (defn)
+            (and (> (definition-arity defn) 0)
+                 (not (poo-declarative-definition? defn))))
           (source-file-definitions file)))
+;; Boolean <- Definition
+(def (poo-declarative-definition? defn)
+  (member (definition-kind defn) +poo-declarative-definition-kinds+))
 ;;; Coverage numerator: parser evidence is attributed by caller before compacting duplicate facts.
 ;; (List String) <- (List Evidence)
 (def (typed-combinator-style-evidence-callers implementation-evidence)

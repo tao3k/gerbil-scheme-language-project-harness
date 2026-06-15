@@ -10,6 +10,7 @@
         :commands/check
         :parser/facade
         :policy/facade
+        :policy/gxtest
         :types/facade
         :unit/policy/poo-scenarios)
 (export policy-test)
@@ -167,6 +168,45 @@
         (check (type-finding-rule-id finding)
                => "GERBIL-SCHEME-MOD-R002")
         (check (type-finding-path finding) => "src/large/core.ss")))
+    (test-case "modularity policy rejects oversized test leaves"
+      (let* ((root ".run/policy-test-leaf")
+             (_ (write-large-policy-test root "search"))
+             (index (collect-project root))
+             (findings (run-modularity-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-MOD-R007" findings))
+             (finding (car matching))
+             (details (type-finding-details finding)))
+        (check (length matching) => 1)
+        (check (type-finding-path finding) => "t/search-test.ss")
+        (check (hash-get details 'sourceClass) => "test")
+        (check (hash-get details 'lineCountLimit) => 650)
+        (check (hash-get details 'definitionCountMinimum) => 1)))
+    (test-case "modularity policy allows package-configured test leaf threshold"
+      (let* ((root ".run/policy-test-leaf-config")
+             (policy-dir (string-append root "/policy"))
+             (_ (write-large-policy-test root "search")))
+        (ensure-dir policy-dir)
+        (write-text (string-append root "/gerbil.pkg")
+                    "(package: sample/search-policy\n  policy: ((modularity-policy config: \"policy/modularity.ss\")))\n")
+        (write-text (string-append policy-dir "/modularity.ss")
+                    "(modularity-policy max-test-lines: 700 explanation: \"Search replay tests are generated from compact fixtures and remain package-local.\")\n")
+        (let* ((index (collect-project root))
+               (findings (run-modularity-policy index))
+               (matching (filter-rule "GERBIL-SCHEME-MOD-R007" findings)))
+          (check matching => []))))
+    (test-case "gxtest policy helper uses package modularity config"
+      (let* ((root ".run/policy-gxtest-helper")
+             (policy-dir (string-append root "/policy"))
+             (_ (write-large-policy-test root "search")))
+        (ensure-dir policy-dir)
+        (write-text (string-append root "/gerbil.pkg")
+                    "(package: sample/gxtest-policy\n  policy: ((modularity-policy config: \"policy/modularity.ss\")))\n")
+        (write-text (string-append policy-dir "/modularity.ss")
+                    "(modularity-policy max-test-lines: 700 explanation: \"Downstream gxtest policy helper keeps replay thresholds in package config.\")\n")
+        (let (matching (filter-rule
+                        "GERBIL-SCHEME-MOD-R007"
+                        (project-policy-findings root)))
+          (check matching => []))))
     (test-case "agent policy rejects generic owner names"
       (let* ((root ".run/policy-generic-owner")
              (_ (write-facade-policy-project
@@ -593,6 +633,13 @@
         (check (type-finding-selector finding) => "src/orders/core.ss:3-3")
         (check (type-finding-message finding)
                => "top-level executable call displayln should move behind a named definition or explicit entrypoint")))
+    (test-case "agent policy treats FFI declare body as declarative range"
+      (let* ((root ".run/policy-ffi-declare-declarative")
+             (_ (write-ffi-declare-project root))
+             (index (collect-project root))
+             (findings (run-agent-policy index))
+             (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+        (check matching => [])))
     (test-case "agent policy warns on manual loops that should use functional idioms"
       (let* ((root ".run/policy-functional-idiom")
              (_ (write-functional-idiom-project root))
@@ -1174,6 +1221,16 @@
     (ensure-dir owner)
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(import :std/misc/ports)\n(displayln \"bad\")\n(def (named) #t)\n")))
+;; Unit <- String
+(def (write-ffi-declare-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/ffi")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (write-text (string-append owner "/core.ss")
+                ";;; -*- Gerbil -*-\n(declare\n  (block)\n  (standard-bindings))\n(def (named) #t)\n")))
 ;; String <- String
 (def (write-functional-idiom-project root)
   (let* ((src (string-append root "/src"))
@@ -1419,4 +1476,26 @@
         (let lp ((index 0))
           (when (fx< index 610)
             (display ";; padding\n" port)
+            (lp (fx1+ index))))))))
+;; Unit <- String OwnerName
+(def (write-large-policy-test root owner-name)
+  (let* ((test-dir (string-append root "/t"))
+         (source-path (string-append test-dir "/" owner-name "-test.ss")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir test-dir)
+    (with-catch
+     (lambda (_) #f)
+     (lambda () (delete-file source-path)))
+    (call-with-output-file source-path
+      (lambda (port)
+        (display ";;; -*- Gerbil -*-\n(import :std/test)\n" port)
+        (display "(def " port)
+        (display owner-name port)
+        (display "-test (test-suite \"" port)
+        (display owner-name port)
+        (display "\"))\n" port)
+        (let lp ((index 0))
+          (when (fx< index 650)
+            (display ";; generated replay padding\n" port)
             (lp (fx1+ index))))))))

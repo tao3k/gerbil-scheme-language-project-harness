@@ -1,0 +1,120 @@
+;;; -*- Gerbil -*-
+;;; Extension search renderer for registered package capability facts.
+
+(import :constants
+        :extensions/facade
+        :protocol/json
+        :support/args
+        :support/list
+        :std/srfi/13
+        :std/sugar)
+
+(export emit-extension-search)
+;;; Boundary:
+;;; - emit-extension-search renders extension facts and registered POO routes.
+;;; - Keep gerbil-poo:// distinct from project activation and source fallback.
+;; Unit <- ProjectIndex (List XX) Json
+(def (emit-extension-search index args json?)
+  (let* ((positionals (positional-args args))
+         (query (if (pair? positionals) (join positionals " ") "-"))
+         (matches (matching-extension-facts index positionals))
+         (grade (if (null? matches) "unknown" "fact")))
+    (if json?
+      (write-json-line
+       (hash (languageId +language-id+)
+             (providerId +provider-id+)
+             (namespace "extension")
+             (authority "ecosystem-extension")
+             (evidenceGrade grade)
+             (query query)
+             (matches (map extension-fact-json matches))
+             (sourceRefs (registered-extension-source-refs positionals))
+             (next (extension-evidence-next positionals matches))))
+      (begin
+        (displayln "[gerbil-search-extension] query=" query
+                   " matches=" (length matches)
+                   " evidenceGrade=" grade
+                   " authority=ecosystem-extension")
+        (for-each
+         (lambda (fact)
+           (displayln (extension-fact-search-line fact)))
+         matches)
+        (when (poo-extension-lookup-query? positionals)
+          (displayln "|agentAction action=follow-next"
+                     " registeredKnowledge=gerbil-poo://"
+                     " notProjectActivation=true"
+                     " missingLocalAction=install-package-before-repository-fallback"
+                     " fallback=repository-source-after-install-check"
+                     " command=\"asp gerbil-scheme "
+                     (extension-evidence-next positionals matches)
+                     " --view seeds\"")
+          (emit-source-lookup-line (poo-source-ref #f)))
+        (displayln "next=" (extension-evidence-next positionals matches))))
+    0))
+;; (List SourceRef) <- (List SearchTerm)
+(def (registered-extension-source-refs terms)
+  (if (poo-extension-lookup-query? terms)
+    [(poo-source-ref #f)]
+    []))
+;;; Boundary:
+;;; - matching-extension-facts prefers project facts, then registered facts.
+;;; - Registered gerbil-poo knowledge remains queryable without indexing a root.
+;; (List Fact) <- ProjectIndex (List XX)
+(def (matching-extension-facts index terms)
+  (if index
+    (let (facts (project-extension-facts index))
+      (if (null? terms)
+        facts
+        (let (matches
+              (filter (lambda (fact)
+                        (ormap (cut extension-fact-matches-term? fact <>)
+                               terms))
+                      facts))
+          (if (null? matches)
+            (poo-registered-extension-facts terms)
+            matches))))
+    (poo-registered-extension-facts terms)))
+;;; Boundary:
+;;; - extension-fact-matches-term? owns lexical fact matching for extensions.
+;;; - Keep matching on declared names, dependencies, and capabilities only.
+;; Boolean <- ExtensionFact SearchTerm
+(def (extension-fact-matches-term? fact term)
+  (or (string-contains (extension-fact-name fact) term)
+      (ormap (cut string-contains <> term)
+             (extension-fact-dependencies fact))
+      (ormap (cut string-contains <> term)
+             (extension-fact-capabilities fact))))
+;; String <- (List String) Matches
+(def (extension-evidence-next terms matches)
+  (let ((extension-name (if (pair? matches)
+                          (if (poo-extension-lookup-query? terms)
+                            "gerbil-poo"
+                            (extension-fact-name (car matches)))
+                          (if (pair? terms) (car terms) "<extension>")))
+        (focus (if (poo-extension-lookup-query? terms)
+                 (poo-registered-extension-focus terms)
+                 (if (and (pair? terms) (pair? (cdr terms)))
+                   (join (cdr terms) " ")
+                   "<api|syntax|pattern>"))))
+    (string-append "search pattern " extension-name " " focus)))
+;;; Boundary:
+;;; - emit-source-lookup-line mirrors pattern/query source lookup output.
+;;; - Keep local-source-before-git visible for non-interactive agents.
+;; Unit <- SourceRef
+(def (emit-source-lookup-line source-ref)
+  (let* ((local-source (hash-get source-ref 'localSource))
+         (repository-source (hash-get source-ref 'repositorySource))
+         (index-hint (hash-get source-ref 'indexHint)))
+    (displayln "|sourceLookup order=local-source-before-git"
+               " missingLocalAction=" (hash-get index-hint 'missingLocalAction)
+               " fallbackPolicy=" (hash-get index-hint 'fallbackPolicy)
+               " localRootHint=" (hash-get local-source 'rootHint)
+               " localPackage=" (hash-get local-source 'package)
+               " localStatus=" (hash-get local-source 'status)
+               " localMissingAction=" (hash-get local-source 'missingAction)
+               " installHint=\"" (hash-get local-source 'installHint) "\""
+               " repository=" (hash-get repository-source 'repository)
+               " repositoryUrl=" (hash-get repository-source 'url)
+               " indexOwner=" (hash-get index-hint 'owner)
+               " indexBackend=" (hash-get index-hint 'backend)
+               " indexPackageManager=" (hash-get index-hint 'packageManager))))
