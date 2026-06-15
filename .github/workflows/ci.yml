@@ -171,11 +171,17 @@ jobs:
       - name: Run harness verification bench
         run: |
           export GERBIL="$(command -v gxi)"
-          bench="$(GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss bench --json --iterations 1 --max-total-ms 60000 .)"
+          bench_output="$(mktemp)"
+          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss bench --json --iterations 1 --max-total-ms 60000 --max-interface-ms 250 . > "$bench_output"; then
+            cat "$bench_output"
+            exit 1
+          fi
+          bench="$(cat "$bench_output")"
           echo "$bench"
           echo "$bench" | jq -e '
             .schemaId == "agent.semantic-protocols.gerbil-scheme-harness-bench" and
             .status == "pass" and
+            .maxInterfaceMs == 250 and
             (.totalMs | type == "number") and
             (.slowestBenchmark.durationMs | type == "number") and
             (.benchmarks | length) == 5 and
