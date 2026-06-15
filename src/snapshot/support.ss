@@ -3,7 +3,7 @@
 
 (import :parser/facade
         :support/list
-        :std/srfi/13)
+        (only-in :std/srfi/13 string-prefix? string-suffix?))
 
 (export snapshot-list
         map-indexed

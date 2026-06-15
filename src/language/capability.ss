@@ -4,7 +4,7 @@
 (import :language/evidence
         :parser/facade
         :policy/catalog
-        :std/srfi/13
+        (only-in :std/srfi/13 string-contains)
         :support/list)
 
 (export capability-posture-facts

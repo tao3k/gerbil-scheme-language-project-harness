@@ -34,6 +34,7 @@
         +agent-comment-quality-rule+
         +agent-predicate-family-combinator-rule+
         +agent-dependency-protocol-adapter-rule+
+        +agent-explicit-precise-import-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -71,4 +72,5 @@
         controlled-branch-shape-finding
         predicate-family-combinator-finding
         dependency-protocol-adapter-finding
+        explicit-precise-import-finding
         facade-export-conflict-findings)

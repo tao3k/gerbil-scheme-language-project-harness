@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Type mismatch checks over parser-owned calls and native type environments.
 
-(import :std/srfi/13
-        :std/sugar
+(import (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar append-map cut find)
         :checker/model
         :parser/facade
         :types/env

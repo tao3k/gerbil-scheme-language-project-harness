@@ -10,9 +10,9 @@
         :parser/facade
         :policy/repair
         :protocol/json
-        :std/misc/process
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/misc/process run-process)
+        (only-in :std/srfi/13 string-prefix? string-tokenize)
+        (only-in :std/sugar cut filter ormap)
         :support/args
         :support/list
         :types/facade)

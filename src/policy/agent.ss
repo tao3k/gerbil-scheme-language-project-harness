@@ -5,14 +5,15 @@
         :parser/facade
         :policy/agent-comment
         :policy/agent-dependency-adapter
+        :policy/agent-import
         :policy/agent-poo
         :policy/agent-style
         :policy/agent-support
         :policy/model
         :policy/modularity
-        :std/misc/ports
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/srfi/13 string-contains string-prefix? string-trim)
+        (only-in :std/sugar cut filter filter-map find hash ormap while with-catch)
         :support/list
         :types/findings)
 
@@ -34,6 +35,7 @@
         controlled-branch-shape-finding
         predicate-family-combinator-finding
         dependency-protocol-adapter-finding
+        explicit-precise-import-finding
         facade-export-conflict-findings)
 ;; ConfigConstant
 (def +generic-owner-segments+
@@ -102,6 +104,7 @@
    (controlled-branch-shape-findings index)
    (predicate-family-combinator-findings index)
    (dependency-protocol-adapter-findings index)
+   (explicit-precise-import-findings index)
    (facade-export-conflict-findings index)))
 ;;; Boundary:
 ;;; - facade-intent-findings composes first-class procedures.
@@ -218,6 +221,7 @@
 (def (top-level-executable-call? index file call)
   (and (not (call-fact-caller call))
        (index-source-runtime-file-path? index (call-fact-path call))
+       (not (explicit-runtime-entrypoint-path? (call-fact-path call)))
        (not (declarative-top-level-call? file call))))
 
 ;; Boolean <- SourceFile CallFact
@@ -225,6 +229,7 @@
   (or (poo-declarative-call? file call)
       (ffi-declarative-call? file call)))
 
+;;; Boundary: FFI top forms run at expansion time, so nested call facts are declarations.
 ;; Boolean <- SourceFile CallFact
 (def (ffi-declarative-call? file call)
   (ormap (lambda (form)
@@ -246,8 +251,7 @@
   (and (poo-source-file? file)
        (ormap (lambda (form)
                 (and (member (top-form-head form) +poo-declarative-heads+)
-                     (equal? (top-form-selector form)
-                             (call-fact-selector call))))
+                     (call-within-top-form-range? call form)))
               (source-file-forms file))))
 ;; TypeFinding <- SourceFile CallFact
 (def (top-level-executable-finding file call)

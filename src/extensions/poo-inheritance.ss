@@ -5,7 +5,7 @@
 ;;; - Does not inspect ambient load paths or mutate package declarations.
 
 (import :package-manager/facade
-        :std/sugar
+        (only-in :std/sugar hash ormap)
         :support/list)
 
 (export poo-inherited-utils-capability-names

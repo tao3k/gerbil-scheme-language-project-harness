@@ -3,7 +3,7 @@
 
 (import :gerbil/gambit
         :parser/model
-        :std/srfi/13)
+        (only-in :std/srfi/13 string-prefix? string-suffix?))
 
 (export project-definitions
         project-calls

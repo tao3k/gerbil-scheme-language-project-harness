@@ -5,8 +5,8 @@
         :protocol/function-quality-facts
         :protocol/quality-shape-facts
         :protocol/support
-        :std/sort
-        :std/sugar
+        (only-in :std/sort sort)
+        (only-in :std/sugar filter hash)
         :support/list)
 
 (export structural-syntax-fact-json)

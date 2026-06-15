@@ -2,8 +2,8 @@
 ;;; Parser-owned quality-shape facts derived from native call and control-flow facts.
 
 (import :parser/model
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/srfi/13 string-prefix? string-suffix?)
+        (only-in :std/sugar cut filter filter-map foldl ormap)
         :support/list)
 
 (export predicate-family-facts-from-source

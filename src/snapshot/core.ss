@@ -6,8 +6,7 @@
         :extensions/facade
         :parser/facade
         :snapshot/support
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/sugar hash-key?)
         :types/facade)
 
 (export snapshot-load

@@ -10,10 +10,9 @@
         :protocol/structural-index
         :protocol/structural-facts
         :support/list
-        :std/misc/ports
-        :std/sort
-        :std/sugar
-        :std/text/json
+        (only-in :std/sort sort)
+        (only-in :std/sugar hash hash-key? hash-put!)
+        (only-in :std/text/json write-json)
         :types/facade)
 
 (export source-file-json

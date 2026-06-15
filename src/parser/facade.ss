@@ -310,6 +310,8 @@
         modularity-policy-max-test-line-count
         modularity-policy-min-source-definition-count
         modularity-policy-min-test-definition-count
+        modularity-policy-max-test-case-count
+        modularity-policy-max-test-definition-span
         modularity-policy-config-path
         modularity-policy-explanation
         agent-policy-enabled-rules

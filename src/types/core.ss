@@ -4,7 +4,7 @@
 (import :checker/facade
         :parser/facade
         :policy/facade
-        :std/sugar
+        (only-in :std/sugar ormap)
         :types/env
         :types/findings)
 

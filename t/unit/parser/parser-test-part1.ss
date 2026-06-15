@@ -1,0 +1,160 @@
+;;; -*- Gerbil -*-
+(import :std/test
+        :extensions/facade
+        :parser/facade
+        :protocol/json
+        :std/srfi/13)
+(export parser-test-part-1)
+
+;; Boolean <- Selector Relpath
+(def (selector-owner? selector path)
+  (and (string? selector)
+       (string-prefix? (string-append path ":") selector)))
+
+;; FindCallWithArgument <- (List CallFact) Argument
+(def (find-call-with-argument calls argument)
+  (find (lambda (call)
+          (equal? (call-fact-arguments call) [argument]))
+        calls))
+;; Boolean <- (List QualityFacet) QualityFacet
+(def (quality-facet-member? facets facet)
+  (not (not (member facet facets))))
+;; MacroFact <- (List MacroFact) String
+(def (find-macro facts name)
+  (find (lambda (fact)
+          (equal? (macro-fact-name fact) name))
+        facts))
+;; (List HigherOrderFact) <- (List HigherOrderFact) String String String
+(def (find-higher-order facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (higher-order-fact-name fact) name)
+               (equal? (higher-order-fact-role fact) role)
+               (equal? (or (higher-order-fact-caller fact) "") caller)))
+        facts))
+;; (List ControlFlowFact) <- (List ControlFlowFact) String String String
+(def (find-control-flow facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (control-flow-fact-name fact) name)
+               (equal? (control-flow-fact-role fact) role)
+               (equal? (or (control-flow-fact-caller fact) "") caller)))
+        facts))
+;; (List TypedContractFact) <- (List TypedContractFact) String
+(def (find-typed-contract facts name)
+  (find (lambda (fact)
+          (equal? (typed-contract-fact-definition-name fact) name))
+        facts))
+;; PredicateFamilyFact <- (List PredicateFamilyFact) String
+(def (find-predicate-family facts subject)
+  (find (lambda (fact)
+          (equal? (predicate-family-fact-subject fact) subject))
+        facts))
+;; FieldAccessPatternFact <- (List FieldAccessPatternFact) String
+(def (find-field-access-pattern facts field-key)
+  (find (lambda (fact)
+          (equal? (field-access-pattern-fact-field-key fact) field-key))
+        facts))
+;; BooleanConditionFact <- (List BooleanConditionFact) String
+(def (find-boolean-condition facts caller)
+  (find (lambda (fact)
+          (equal? (boolean-condition-fact-caller fact) caller))
+        facts))
+;; LoopDriverFact <- (List LoopDriverFact) String
+(def (find-loop-driver facts caller)
+  (find (lambda (fact)
+          (equal? (loop-driver-fact-caller fact) caller))
+        facts))
+;; FunctionQualityProfile <- (List FunctionQualityProfile) String
+(def (find-function-quality-profile profiles name)
+  (find (lambda (profile)
+          (equal? (function-quality-profile-name profile) name))
+        profiles))
+;; PooFormFact <- (List PooFormFact) String
+(def (find-poo-form facts name)
+  (find (lambda (fact)
+          (equal? (poo-form-fact-name fact) name))
+        facts))
+;; PooFormFact <- (List PooFormFact) String String
+(def (find-poo-form-role facts name role)
+  (find (lambda (fact)
+          (and (equal? (poo-form-fact-name fact) name)
+               (equal? (poo-form-fact-role fact) role)))
+        facts))
+;; ParsedData
+;; EnsureDir <- String
+(def (ensure-dir path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (create-directory path))))
+;; Unit <- String SourceLine
+(def (write-text path text)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (delete-file path)))
+  (call-with-output-file path
+    (lambda (port) (display text port))))
+;; TestSuite
+(def parser-test-part-1
+  (test-suite "gerbil scheme harness parser part 1"
+    (test-case "native reader captures package and definitions"
+          (let* ((root (path-normalize "."))
+                 (file (parse-source-file root "t/fixtures/sample.ss")))
+            (check (source-file-package file) => "sample/sample")
+            (check (map definition-name (source-file-definitions file))
+                   => ["answer" "make-answer"])
+            (check (map definition-formals (source-file-definitions file))
+                   => ['() '()])
+            (check (map definition-arity (source-file-definitions file))
+                   => [0 0])
+            (check (map top-form-head (source-file-forms file))
+                   => ["import" "export" "def" "def"])
+            (check (map top-form-kind (source-file-forms file))
+                   => ["import" "export" "definition" "definition"])
+            (check (selector-owner? (top-form-selector (car (source-file-forms file)))
+                                    "t/fixtures/sample.ss")
+                   => #t)
+            (check (>= (source-file-line-count file) 12) => #t)))
+    (test-case "package modularity policy supports external config files"
+          (let* ((root ".run/parser-modularity-policy")
+                 (policy-dir (string-append root "/policy"))
+                 (config-path (string-append policy-dir "/modularity.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir policy-dir)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/parser-policy\n  policy: ((modularity-policy config: \"policy/modularity.ss\" max-source-lines: 700)))\n")
+            (write-text config-path
+                        "(modularity-policy max-test-lines: 1200 min-test-definitions: 2 disabled-rules: (\"GERBIL-SCHEME-MOD-R007\") explanation: \"Large generated replay tests stay package-local while policy config remains out of the test owner.\")\n")
+            (let* ((index (collect-project root))
+                   (package (project-index-package index))
+                   (policy (project-package-modularity-policy package)))
+              (check (modularity-policy-config-path policy)
+                     => "policy/modularity.ss")
+              (check (modularity-policy-max-source-line-count policy) => 700)
+              (check (modularity-policy-max-test-line-count policy) => 1200)
+              (check (modularity-policy-min-test-definition-count policy) => 2)
+              (check (modularity-policy-disabled-rules policy)
+                     => ["GERBIL-SCHEME-MOD-R007"])
+              (check (modularity-policy-explanation policy)
+                     => "Large generated replay tests stay package-local while policy config remains out of the test owner."))))
+    (test-case "native reader captures definition formals"
+          (let* ((root (path-normalize "."))
+                 (file (parse-source-file root "t/fixtures/formals.ss")))
+            (check (map definition-name (source-file-definitions file))
+                   => ["sum-two" "collect"])
+            (check (map definition-formals (source-file-definitions file))
+                   => [["x" "y"] ["xs"]])
+            (check (map definition-arity (source-file-definitions file))
+                   => [2 1])))
+    (test-case "native reader captures call facts"
+          (let* ((root (path-normalize "."))
+                 (file (parse-source-file root "t/fixtures/formals.ss"))
+                 (calls (source-file-calls file)))
+            (check (map call-fact-callee calls) => ["+"])
+            (check (map call-fact-arity calls) => [2])
+            (check (map call-fact-arguments calls) => [["x" "y"]])
+            (check (map call-fact-argument-types calls) => [[#f #f]])
+            (check (map call-fact-caller calls) => ["sum-two"])
+            (check (map (lambda (selector)
+                          (selector-owner? selector "t/fixtures/formals.ss"))
+                        (map call-fact-selector calls))
+                   => [#t])))))

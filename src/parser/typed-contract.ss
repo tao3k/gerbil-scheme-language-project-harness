@@ -3,9 +3,14 @@
 
 (import :gerbil/gambit
         :parser/model
-        :std/misc/ports
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-prefix?
+                 string-ref
+                 string-trim
+                 string-trim-both)
+        (only-in :std/sugar andmap cut filter filter-map find foldl hash ormap while with-catch)
         :support/list)
 
 (export typed-contract-facts-from-definitions)

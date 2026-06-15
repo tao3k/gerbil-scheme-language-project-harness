@@ -4,16 +4,24 @@
 (import :gerbil/gambit
         :parser/facade
         :policy/model
-        :std/misc/ports
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-index-right
+                 string-prefix?
+                 string-suffix?
+                 string-trim)
+        (only-in :std/sugar cut filter filter-map find foldl hash ormap with-catch)
         :types/findings)
 
 (export run-modularity-policy
         +max-source-line-count+
         +max-test-line-count+
+        +hard-max-leaf-line-count+
         +min-source-definition-count+
         +min-test-definition-count+
+        +max-test-case-count+
+        +max-test-definition-span+
         facade-source-file?
         facade-implementation-finding
         sibling-file-dir-owner-collision-finding
@@ -26,9 +34,15 @@
 ;; Integer
 (def +max-test-line-count+ 650)
 ;; Integer
+(def +hard-max-leaf-line-count+ 1000)
+;; Integer
 (def +min-source-definition-count+ 40)
 ;; Integer
 (def +min-test-definition-count+ 1)
+;; Integer
+(def +max-test-case-count+ 24)
+;; Integer
+(def +max-test-definition-span+ 260)
 ;; ConfigConstant
 (def +default-test-directory+ "t")
 ;; Integer
@@ -382,18 +396,29 @@
 ;; (List TypeFinding) <- ProjectIndex MaybePolicy
 (def (test-leaf-bloat-findings index policy)
   (let ((max-line-count (modularity-max-test-line-count policy))
-        (min-definition-count (modularity-min-test-definition-count policy)))
+        (min-definition-count (modularity-min-test-definition-count policy))
+        (max-test-case-count (modularity-max-test-case-count policy))
+        (max-definition-span (modularity-max-test-definition-span policy)))
     (filter-map
      (lambda (file)
-       (let (effective-line-count (source-leaf-effective-line-count index file))
+       (let* ((effective-line-count (source-leaf-effective-line-count index file))
+              (test-case-count (test-leaf-test-case-count file))
+              (definition-span (test-leaf-max-definition-span file)))
          (and (project-gerbil-test-path? (source-file-path file))
-              (fx>= effective-line-count max-line-count)
-              (fx>= (length (source-file-definitions file)) min-definition-count)
+              (or (and (fx>= effective-line-count max-line-count)
+                       (fx>= (length (source-file-definitions file))
+                             min-definition-count))
+                  (fx>= test-case-count max-test-case-count)
+                  (fx>= definition-span max-definition-span))
               (test-leaf-bloat-finding
                file
                effective-line-count
                max-line-count
                min-definition-count
+               test-case-count
+               max-test-case-count
+               definition-span
+               max-definition-span
                policy))))
      (project-index-files index))))
 ;;; Boundary:
@@ -401,12 +426,20 @@
 ;;; - Defaults remain provider-owned when gerbil.pkg does not opt in.
 ;; Integer <- MaybePolicy
 (def (modularity-max-source-line-count policy)
-  (or (and policy (modularity-policy-max-source-line-count policy))
-      +max-source-line-count+))
+  (modularity-line-count-limit
+   (and policy (modularity-policy-max-source-line-count policy))
+   +max-source-line-count+))
 ;; Integer <- MaybePolicy
 (def (modularity-max-test-line-count policy)
-  (or (and policy (modularity-policy-max-test-line-count policy))
-      +max-test-line-count+))
+  (modularity-line-count-limit
+   (and policy (modularity-policy-max-test-line-count policy))
+   +max-test-line-count+))
+;; Integer <- MaybeInteger Integer
+(def (modularity-line-count-limit configured-count default-count)
+  (let (line-count (or configured-count default-count))
+    (if (fx< line-count +hard-max-leaf-line-count+)
+      line-count
+      +hard-max-leaf-line-count+)))
 ;; Integer <- MaybePolicy
 (def (modularity-min-source-definition-count policy)
   (or (and policy (modularity-policy-min-source-definition-count policy))
@@ -415,6 +448,14 @@
 (def (modularity-min-test-definition-count policy)
   (or (and policy (modularity-policy-min-test-definition-count policy))
       +min-test-definition-count+))
+;; Integer <- MaybePolicy
+(def (modularity-max-test-case-count policy)
+  (or (and policy (modularity-policy-max-test-case-count policy))
+      +max-test-case-count+))
+;; Integer <- MaybePolicy
+(def (modularity-max-test-definition-span policy)
+  (or (and policy (modularity-policy-max-test-definition-span policy))
+      +max-test-definition-span+))
 ;;; Boundary:
 ;;; - run-modularity-policy composes project-wide findings, then policy filters.
 ;;; - Do not narrow coverage by folder before package policy has been resolved.
@@ -464,6 +505,7 @@
                (else (cons (+ count 1) #f)))))
           (cons 0 #f)
           lines)))
+;;; Boundary: source leaf findings expose effective lines and definitions together.
 ;; TypeFinding <- SourceFile EffectiveLineCount MaybeLimit MaybeLimit
 (def (source-leaf-bloat-finding file effective-line-count . maybe-limits)
   (let ((max-line-count (if (pair? maybe-limits)
@@ -485,11 +527,28 @@
      (source-file-path file)
      (hash (lineCount effective-line-count)
            (lineCountLimit max-line-count)
+           (hardLineCountLimit +hard-max-leaf-line-count+)
            (physicalLineCount (source-file-line-count file))
            (definitionCount (length (source-file-definitions file)))
            (definitionCountMinimum min-definition-count)))))
-;; TypeFinding <- SourceFile EffectiveLineCount LineLimit DefinitionLimit MaybePolicy
-(def (test-leaf-bloat-finding file effective-line-count max-line-count min-definition-count policy)
+;;; Boundary: test-case calls are parser facts, not raw text matches.
+;; Integer <- SourceFile
+(def (test-leaf-test-case-count file)
+  (length
+   (filter (lambda (call)
+             (equal? (call-fact-callee call) "test-case"))
+           (source-file-calls file))))
+;;; Boundary: definition span tracks the largest local body before test leaf repair.
+;; Integer <- SourceFile
+(def (test-leaf-max-definition-span file)
+  (let (spans (map definition-span (source-file-definitions file)))
+    (if (null? spans) 0 (apply max spans))))
+;; Integer <- Definition
+(def (definition-span definition)
+  (+ 1 (- (definition-end definition) (definition-start definition))))
+;;; Boundary: test leaf findings keep count, span, and configured policy in one payload.
+;; TypeFinding <- SourceFile EffectiveLineCount LineLimit DefinitionLimit TestCaseCount TestCaseLimit DefinitionSpan DefinitionSpanLimit MaybePolicy
+(def (test-leaf-bloat-finding file effective-line-count max-line-count min-definition-count test-case-count max-test-case-count definition-span max-definition-span policy)
   (make-type-finding
    (policy-rule-id +modularity-test-leaf-rule+)
    (policy-rule-severity +modularity-test-leaf-rule+)
@@ -498,13 +557,23 @@
                   " carries " (number->string effective-line-count)
                   " effective test lines and "
                   (number->string (length (source-file-definitions file)))
-                  " definitions; split the test owner or raise max-test-lines through gerbil.pkg modularity-policy when the package has a clear reason")
+                  " definitions; parsed complexity shows "
+                  (number->string test-case-count)
+                  " test cases and max definition span "
+                  (number->string definition-span)
+                  "; split the test owner; gerbil.pkg may justify parsed complexity limits, but effective owner lines are hard-capped at "
+                  (number->string +hard-max-leaf-line-count+))
    (source-file-path file)
    (hash (sourceClass (source-path-class (source-file-path file)))
          (lineCount effective-line-count)
          (lineCountLimit max-line-count)
+         (hardLineCountLimit +hard-max-leaf-line-count+)
          (physicalLineCount (source-file-line-count file))
          (definitionCount (length (source-file-definitions file)))
          (definitionCountMinimum min-definition-count)
+         (testCaseCount test-case-count)
+         (testCaseCountLimit max-test-case-count)
+         (maxDefinitionSpan definition-span)
+         (maxDefinitionSpanLimit max-definition-span)
          (policyConfigPath (and policy (modularity-policy-config-path policy)))
          (policyExplanation (and policy (modularity-policy-explanation policy))))))

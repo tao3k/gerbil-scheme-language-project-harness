@@ -4,8 +4,8 @@
 (import :gerbil/expander
         :parser/model
         :parser/support
-        :std/sort
-        :std/srfi/13)
+        (only-in :std/sort sort)
+        (only-in :std/srfi/13 string-contains string-prefix? string-suffix?))
 
 (export dependency-adapter-candidates-from-form
         dependency-adapter-quality-facts-from-candidates)

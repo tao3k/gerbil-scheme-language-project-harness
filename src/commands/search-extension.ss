@@ -6,8 +6,8 @@
         :protocol/json
         :support/args
         :support/list
-        :std/srfi/13
-        :std/sugar)
+        (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar cut ormap when))
 
 (export emit-extension-search)
 ;;; Boundary:

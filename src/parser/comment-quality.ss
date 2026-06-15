@@ -3,9 +3,9 @@
 
 (import :gerbil/gambit
         :parser/model
-        :std/misc/ports
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/srfi/13 string-contains string-downcase string-prefix?)
+        (only-in :std/sugar cut filter find hash ormap while)
         :support/list)
 
 (export comment-quality-facts-from-source)

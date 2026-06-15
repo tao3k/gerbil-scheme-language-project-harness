@@ -3,7 +3,7 @@
 
 (import :parser/facade
         :policy/facade
-        :std/test
+        (only-in :std/test check test-case test-suite)
         :types/facade)
 
 (export make-project-policy-test

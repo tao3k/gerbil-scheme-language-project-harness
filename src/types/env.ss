@@ -2,7 +2,7 @@
 ;;; Type environment facts derived from parser-owned definitions.
 
 (import :parser/facade
-        :std/sugar
+        (only-in :std/sugar append-map cut filter-map foldl foldr)
         :types/model
         :types/signatures)
 

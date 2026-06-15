@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Gerbil language/runtime/std evidence facts for agent-facing search.
 
-(import :std/srfi/13
-        :std/sugar)
+(import (only-in :std/srfi/13 string-contains string-index)
+        (only-in :std/sugar filter))
 
 (export runtime-bin
         evidence-fact

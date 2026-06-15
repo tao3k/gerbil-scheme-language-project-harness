@@ -4,7 +4,7 @@
 (import :parser/facade
         :policy/agent-support
         :policy/model
-        :std/sugar
+        (only-in :std/sugar cut filter filter-map foldl hash ormap)
         :support/list
         :types/findings)
 

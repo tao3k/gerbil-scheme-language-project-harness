@@ -2,7 +2,7 @@
 ;;; Parser-owned package metadata facts.
 
 (import :gerbil/gambit
-        :std/srfi/13)
+        (only-in :std/srfi/13 string-index))
 
 (export read-project-package
         project-package-path
@@ -30,6 +30,8 @@
         modularity-policy-max-test-line-count
         modularity-policy-min-source-definition-count
         modularity-policy-min-test-definition-count
+        modularity-policy-max-test-case-count
+        modularity-policy-max-test-definition-span
         modularity-policy-config-path
         modularity-policy-explanation
         agent-policy-enabled-rules
@@ -42,7 +44,7 @@
 (defstruct source-scope-policy (roots runtime-roots exclude-directories explanation))
 ;; ModularityPolicyStruct
 (defstruct modularity-policy
-  (disabled enabled-rules disabled-rules max-source-line-count max-test-line-count min-source-definition-count min-test-definition-count config-path explanation))
+  (disabled enabled-rules disabled-rules max-source-line-count max-test-line-count min-source-definition-count min-test-definition-count max-test-case-count max-test-definition-span config-path explanation))
 ;; AgentPolicyStruct
 (defstruct agent-policy (enabled-rules disabled-rules))
 ;; ProjectPackageStruct
@@ -254,6 +256,12 @@
    (policy-integer-field*
     entry
     '(min-test-definitions: min-test-definition-count:))
+   (policy-integer-field*
+    entry
+    '(max-test-cases: max-test-case-count: test-case-max:))
+   (policy-integer-field*
+    entry
+    '(max-test-definition-span: test-definition-span-max:))
    (or (policy-string-field entry 'config:)
        (policy-string-field entry 'config-file:)
        (policy-string-field entry 'path:)
@@ -296,6 +304,10 @@
          (modularity-policy-min-source-definition-count config-policy))
      (or (modularity-policy-min-test-definition-count inline-policy)
          (modularity-policy-min-test-definition-count config-policy))
+     (or (modularity-policy-max-test-case-count inline-policy)
+         (modularity-policy-max-test-case-count config-policy))
+     (or (modularity-policy-max-test-definition-span inline-policy)
+         (modularity-policy-max-test-definition-span config-policy))
      (or (modularity-policy-config-path inline-policy)
          (modularity-policy-config-path config-policy))
      (or (modularity-policy-explanation inline-policy)

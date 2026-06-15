@@ -5,9 +5,9 @@
         :parser/facade
         :protocol/structural-facts
         :support/list
-        :std/misc/ports
-        :std/sort
-        :std/sugar)
+        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/sort sort)
+        (only-in :std/sugar append-map* cut foldl hash hash-put! with-catch))
 
 (export structural-index-packet-json
         structural-index-artifact-packet-json

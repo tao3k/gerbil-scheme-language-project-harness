@@ -1,0 +1,170 @@
+;;; -*- Gerbil -*-
+(import :std/test
+        :extensions/facade
+        :parser/facade
+        :protocol/json
+        :std/srfi/13)
+(export parser-test-part-7)
+
+;; Boolean <- Selector Relpath
+(def (selector-owner? selector path)
+  (and (string? selector)
+       (string-prefix? (string-append path ":") selector)))
+
+;; FindCallWithArgument <- (List CallFact) Argument
+(def (find-call-with-argument calls argument)
+  (find (lambda (call)
+          (equal? (call-fact-arguments call) [argument]))
+        calls))
+;; Boolean <- (List QualityFacet) QualityFacet
+(def (quality-facet-member? facets facet)
+  (not (not (member facet facets))))
+;; MacroFact <- (List MacroFact) String
+(def (find-macro facts name)
+  (find (lambda (fact)
+          (equal? (macro-fact-name fact) name))
+        facts))
+;; (List HigherOrderFact) <- (List HigherOrderFact) String String String
+(def (find-higher-order facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (higher-order-fact-name fact) name)
+               (equal? (higher-order-fact-role fact) role)
+               (equal? (or (higher-order-fact-caller fact) "") caller)))
+        facts))
+;; (List ControlFlowFact) <- (List ControlFlowFact) String String String
+(def (find-control-flow facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (control-flow-fact-name fact) name)
+               (equal? (control-flow-fact-role fact) role)
+               (equal? (or (control-flow-fact-caller fact) "") caller)))
+        facts))
+;; (List TypedContractFact) <- (List TypedContractFact) String
+(def (find-typed-contract facts name)
+  (find (lambda (fact)
+          (equal? (typed-contract-fact-definition-name fact) name))
+        facts))
+;; PredicateFamilyFact <- (List PredicateFamilyFact) String
+(def (find-predicate-family facts subject)
+  (find (lambda (fact)
+          (equal? (predicate-family-fact-subject fact) subject))
+        facts))
+;; FieldAccessPatternFact <- (List FieldAccessPatternFact) String
+(def (find-field-access-pattern facts field-key)
+  (find (lambda (fact)
+          (equal? (field-access-pattern-fact-field-key fact) field-key))
+        facts))
+;; BooleanConditionFact <- (List BooleanConditionFact) String
+(def (find-boolean-condition facts caller)
+  (find (lambda (fact)
+          (equal? (boolean-condition-fact-caller fact) caller))
+        facts))
+;; LoopDriverFact <- (List LoopDriverFact) String
+(def (find-loop-driver facts caller)
+  (find (lambda (fact)
+          (equal? (loop-driver-fact-caller fact) caller))
+        facts))
+;; FunctionQualityProfile <- (List FunctionQualityProfile) String
+(def (find-function-quality-profile profiles name)
+  (find (lambda (profile)
+          (equal? (function-quality-profile-name profile) name))
+        profiles))
+;; PooFormFact <- (List PooFormFact) String
+(def (find-poo-form facts name)
+  (find (lambda (fact)
+          (equal? (poo-form-fact-name fact) name))
+        facts))
+;; PooFormFact <- (List PooFormFact) String String
+(def (find-poo-form-role facts name role)
+  (find (lambda (fact)
+          (and (equal? (poo-form-fact-name fact) name)
+               (equal? (poo-form-fact-role fact) role)))
+        facts))
+;; ParsedData
+;; EnsureDir <- String
+(def (ensure-dir path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (create-directory path))))
+;; Unit <- String SourceLine
+(def (write-text path text)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (delete-file path)))
+  (call-with-output-file path
+    (lambda (port) (display text port))))
+;; TestSuite
+(def parser-test-part-7
+  (test-suite "gerbil scheme harness parser part 7"
+    (test-case "native reader tolerates malformed let forms"
+          (let* ((root (path-normalize ".run/parser-malformed-let"))
+                 (source-dir (string-append root "/src"))
+                 (source-path (string-append source-dir "/main.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text source-path "(package: sample/main)\n(def answer (let))\n(define)\n")
+            (let (file (parse-source-file root "src/main.ss"))
+              (check (source-file-parse-error file) => #f)
+              (check (map definition-name (source-file-definitions file))
+                     => ["answer"])
+              (check (source-file-calls file) => '()))))
+    (test-case "project collection ignores tree-sitter query files"
+          (let* ((root (path-normalize ".run/parser-tree-sitter-ignore"))
+                 (source-dir (string-append root "/src"))
+                 (query-dir (string-append root "/tree-sitter/tree-sitter-scheme/queries"))
+                 (source-path (string-append source-dir "/main.ss"))
+                 (query-path (string-append query-dir "/locals.scm")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (ensure-dir (string-append root "/tree-sitter"))
+            (ensure-dir (string-append root "/tree-sitter/tree-sitter-scheme"))
+            (ensure-dir query-dir)
+            (write-text source-path "(package: sample/main)\n(def answer 42)\n")
+            (write-text query-path "((identifier) @local.definition)\n")
+            (check (map source-file-path (project-index-files (collect-project root)))
+                   => ["src/main.ss"])))
+    (test-case "project collection captures gerbil package dependencies"
+          (let* ((root (path-normalize ".run/parser-package"))
+                 (source-dir (string-append root "/src"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (source-path (string-append source-dir "/main.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text package-path
+                        "(package: clan/poo\n depend: (\"git.cons.io/mighty-gerbils/gerbil-utils\"))\n")
+            (write-text source-path "(package: clan/poo/main)\n(def answer 42)\n")
+            (let (package (project-index-package (collect-project root)))
+              (check (project-package-path package) => "gerbil.pkg")
+              (check (project-package-name package) => "clan/poo")
+              (check (project-package-manager package) => "gxpkg")
+              (check (project-package-dependencies package)
+                     => ["git.cons.io/mighty-gerbils/gerbil-utils"]))))
+    (test-case "project package configures source scope"
+          (let* ((root (path-normalize ".run/parser-source-scope"))
+                 (lib-dir (string-append root "/lib"))
+                 (ignored-dir (string-append root "/scratch"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (build-path (string-append root "/build.ss"))
+                 (lib-path (string-append lib-dir "/main.ss"))
+                 (ignored-path (string-append ignored-dir "/ignored.ss"))
+                 (flat-path (string-append root "/flat.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir lib-dir)
+            (ensure-dir ignored-dir)
+            (write-text package-path
+                        "(package: sample/scope\n  policy: ((source-scope roots: (\"lib\" \".\") exclude-directories: (\"scratch\") runtime-roots: (\"lib\") explanation: \"The project keeps runtime modules in lib and a small root entry.\")))\n")
+            (write-text build-path ";;; -*- Gerbil -*-\n(defbuild-script '(\"lib/main\"))\n")
+            (write-text lib-path "(package: sample/scope/main)\n(def answer 42)\n")
+            (write-text ignored-path "(package: sample/scope/ignored)\n(def ignored 0)\n")
+            (write-text flat-path "(package: sample/scope/flat)\n(def flat 1)\n")
+            (let* ((index (collect-project root))
+                   (package (project-index-package index))
+                   (scope (project-package-source-scope-policy package)))
+              (check (map source-file-path (project-index-files index))
+                     => ["build.ss" "flat.ss" "gerbil.pkg" "lib/main.ss"])
+              (check (source-scope-policy-roots scope) => ["lib" "."])
+              (check (source-scope-policy-runtime-roots scope) => ["lib"])
+              (check (source-scope-policy-exclude-directories scope) => ["scratch"]))))))

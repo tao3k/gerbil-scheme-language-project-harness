@@ -2,8 +2,8 @@
 ;;; Stable compare facts for active Gerbil runtime evidence.
 
 (import :language/evidence
-        :std/srfi/13
-        :std/sugar)
+        (only-in :std/srfi/13 string-contains string-prefix?)
+        (only-in :std/sugar cut filter ormap))
 
 (export compare-facts
         matching-compare-facts

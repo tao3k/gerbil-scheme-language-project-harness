@@ -3,7 +3,7 @@
 
 (import :parser/facade
         :protocol/support
-        :std/sugar
+        (only-in :std/sugar filter hash)
         :support/list)
 
 (export predicate-family-structural-fact-json

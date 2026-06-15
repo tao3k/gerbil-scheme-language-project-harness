@@ -1,0 +1,120 @@
+;;; -*- Gerbil -*-
+;;; Boundary:
+;;; - test owner records policy expectations.
+;;; - Keep typed contracts and fixture intent explicit.
+(import :std/test
+        :commands/guide
+        :commands/info
+        :commands/search
+        :support/args
+        :std/misc/ports
+        (only-in :std/text/json read-json)
+        :unit/poo/runtime-witness
+        :unit/search/structural-index)
+(export search-test-part-20)
+;; Json <- Table Key
+(def (json-get table key)
+  (hash-get table key))
+;; SearchOutput <- (List XX)
+(def (search-output args)
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (search-main args)))))))
+    (check status => 0)
+    output))
+;; String <- (List String)
+(def (guide-output args)
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (guide-main args)))))))
+    (check status => 0)
+    output))
+;; InfoOutput <- (List XX)
+(def (info-output args)
+  (let* ((status #f)
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (set! status (info-main args)))))))
+    (check status => 0)
+    output))
+;; Boolean <- OutputPort Fragment
+(def (contains? output fragment)
+  (and (string-contains output fragment) #t))
+;; Boolean <- OutputPort
+(def (guide-code-render-metadata-free? output)
+  (not (or (contains? output "[guide")
+           (contains? output "|primaryExemplar")
+           (contains? output "|exemplar")
+           (contains? output "|code begin")
+           (contains? output "selector=")
+           (contains? output "nextCommand=")
+           (contains? output "\n|"))))
+;; Boolean <- OutputPort Fragments
+(def (check-output-contains output fragments)
+  (for-each
+   (lambda (fragment)
+     (check (contains? output fragment) => #t))
+   fragments))
+;; SearchTest
+;; TestSuite
+(def search-test-part-20
+  (test-suite "gerbil scheme harness search part 20"
+    (test-case "pattern json reports runtime boundary gaps for POO IO fallback"
+          (let* ((output (search-output ["pattern" "poo" "json" "fallback" "--json" "."]))
+                 (packet (call-with-input-string output read-json))
+                 (mapping (json-get packet "patternMapping"))
+                 (selectors (json-get mapping "selectors"))
+                 (writeenv-selector (list-ref selectors 5))
+                 (method-selector (list-ref selectors 6))
+                 (forms (json-get mapping "minimalForms"))
+                 (method-form (list-ref forms 5))
+                 (failures (json-get mapping "failureCases"))
+                 (direct-failure (list-ref failures 3))
+                 (printer-failure (list-ref failures 4)))
+            (check (json-get packet "schemaId")
+                   => "agent.semantic-protocols.semantic-extension-pattern-mapping")
+            (check (json-get packet "namespace") => "pattern")
+            (check (json-get packet "quality") => "partial")
+            (check (json-get packet "missing") => ["writeenv-roundtrip-witness"])
+            (check (json-get packet "witness")
+                   => "runtime-json-print-writeenv-method-source-backed-io-fallback")
+            (check (json-get packet "next")
+                   => "search runtime-source writeenv printer hook")
+            (check (json-get mapping "id") => "poo-io-json-fallback")
+            (check (json-get mapping "agentScenario")
+                   => "agent-customizes-poo-serialization-without-json-or-print-fallbacks")
+            (check (json-get writeenv-selector "role") => "writeenv-runtime-boundary")
+            (check (json-get writeenv-selector "selector")
+                   => "gerbil-runtime://builtin#writeenv")
+            (check (json-get method-selector "role") => "writeenv-method-dispatch-witness")
+            (check (json-get method-selector "selector")
+                   => "gerbil-poo-witness://t/unit/poo/runtime-witness.ss#writeenv-method-dispatch")
+            (check (json-get method-form "role") => "writeenv-method-dispatch-witness")
+            (check (json-get (json-get method-form "template") "head") => "method-ref")
+            (check (json-get direct-failure "riskKind") => "runtime-internal-boundary")
+            (check (json-get direct-failure "correctiveAction")
+                   => "use-write-json-pr-or-method-ref-dispatch-witness-until-writeenv-roundtrip-is-owned")
+            (check (json-get printer-failure "riskKind") => "printer-hook-contract")
+            (check (json-get printer-failure "badPattern")
+                   => "agent-assumes-write-output-roundtrips-through-poo-:wr")
+            (check (not (contains? output ".data")) => #t)))
+    (test-case "pattern json reports insufficient mapping without inventing extension facts"
+          (let* ((output (search-output ["pattern" "unknown-extension" "--json" "."]))
+                 (packet (call-with-input-string output read-json)))
+            (check (json-get packet "schemaId")
+                   => "agent.semantic-protocols.semantic-extension-pattern-mapping")
+            (check (json-get packet "evidenceGrade") => "unknown")
+            (check (json-get packet "quality") => "insufficient")
+            (check (json-get packet "patternMapping") => #f)
+            (check (json-get packet "missing")
+                   => ["extension-fact" "pattern-registry" "runnable-witness"])
+            (check (json-get packet "witness") => "pending")
+            (check (json-get packet "next") => "search extension <extension>")))))

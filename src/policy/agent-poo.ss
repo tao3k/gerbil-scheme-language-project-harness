@@ -4,8 +4,8 @@
 (import :parser/facade
         :policy/agent-support
         :policy/model
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/srfi/13 string-contains string-prefix?)
+        (only-in :std/sugar filter filter-map hash ormap)
         :types/findings)
 
 (export poo-direct-writeenv-findings

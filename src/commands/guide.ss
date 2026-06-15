@@ -11,7 +11,11 @@
         :support/args
         :support/io
         :support/list
-        :std/srfi/13)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-downcase
+                 string-index
+                 string-prefix?))
 
 (export guide-lines
         guide-code-lines
@@ -35,6 +39,7 @@
    "|cmd guide-code-comment-quality=gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style"
    "|cmd guide-code-predicate-family=gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style"
    "|cmd guide-code-dependency-adapter=gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair"
+   "|cmd guide-code-explicit-import=gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair"
    "|cmd guide-code-advanced=gerbil-scheme-harness guide --code --topic higher-order-control --level advanced"
    "|cmd prime=gerbil-scheme-harness search prime --view seeds ."
    "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --view seeds ."
@@ -62,6 +67,8 @@
    "|policy structural-json-boundary=search structural --json emits a lightweight ASP-owned index interface; use --owner <path> for owner-bounded native facts and --artifact only for explicit validation"
    "|policy structural-index-owner=ASP Rust owns workspace structural index, graph topology, caching, and heavy ranking; Gerbil Scheme emits millisecond-level manifest and owner facts"
    "|policy configurable-interface=downstream gerbil.pkg policy may declare source-scope roots/runtime-roots/exclude-directories and agent-policy enabled-rules/disabled-rules; without explicit source-scope, build.ss defbuild-script targets provide runtime-root evidence"
+   "|policy gerbil-build-discovery=prefer :std/make + :clan/base + :clan/building all-gerbil-modules discovery for Gerbil packages; filter non-module policy/config files before compiling harness provider sources"
+   "|policy cli-option-composition=keep src/cli.ss as a thin dispatcher with precise only-in imports; when command option surfaces grow, compose option objects instead of expanding dispatcher parsing logic"
    "|policy package-module-style=Gerbil package modules should preserve package:/namespace:/import/export style instead of flattening into generic Scheme files"
    "|policy gerbil-feature-use=when POO/protocol capability is active, prefer parser-owned defclass/defgeneric/defmethod evidence over raw hash/alist object constructors; cite search pattern poo class when intentionally staying raw"]
    (agent-rule-policy-lines)
@@ -75,6 +82,12 @@
    "|policy engineering-comment-quality=typed contract comments describe algebraic shape only; engineering comments should cover parserEvidence with concise prose, bullets, or optional Boundary/Invariant/Intent labels; split multi-clause rationale across adjacent lines"
    "|policy dependency-protocol-adapter=when a dependency provides durable data primitives, do not hand-write loose hash/alist objects; wrap primitives as a thin define-type/protocol adapter with Key/Value/validate/serialization/equality slots, derived table/set/list/sexp/json/marshal capabilities, precise only-in imports, and generic t/ contract witnesses"
    "|policy dependency-protocol-adapter-repair-action=R017 findings should run guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair first; the --code flag prints the adapter code shape the agent should follow"
+   "|policy protocol-surface-minimality=define the minimal protocol slot surface first, then derive secondary capabilities such as table/set/list/json/bytes/marshal from those slots instead of duplicating behavior"
+   "|policy reusable-contract-tests=prefer small t/ owners that apply generic contract tests to type descriptors, such as table-contract-tests or protocol-contract-tests, over monolithic copied assertion suites"
+   "|policy poo-thin-macro-bridge=POO syntax macros such as brace/@method should stay thin syntax bridges; semantic behavior belongs in object, MOP, protocol, or method-family slots"
+   "|policy poo-slot-resolution=POO object edits must account for C3 precedence and lazy slot cache resolution; query object/mop slot-resolution selectors before replacing objects with hash/alist guesses"
+   "|policy poo-serialization-method-family=json<-/<-json, marshal/unmarshal, bytes<-/<-bytes, and string<-/<-string should be modeled as method/type slots, not scattered helper functions"
+   "|policy explicit-precise-import=runtime library, dependency, and owner-local helper imports should use (only-in <module> <symbols...>) so parser-owned moduleImportFacts expose the exact dependency surface to agents"
    "|policy poo-structural-facts=search structural --owner <path> --json exposes parser-owned POO forms as custom/generic/method owner facts with role,supers,slots,options,specializers,specializerTypes,dispatchArity; query owner facts before editing POO object/type/method forms"
    "|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-R009 level=normal locator=parser-definition owner=src/checker/arity.ss symbols=call-arity-finding/known-signature,run-arity-checks comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control\" moreCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --more\" advancedCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --level advanced\""
    "|guideExemplar id=gerbil.functional-data-transform.filter-map topic=functional-data-transform intent=repair rule=GERBIL-SCHEME-AGENT-R009 level=normal locator=parser-definition owner=src/checker/arity.ss symbols=call-arity-finding/known-signature,run-arity-checks comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair\""
@@ -87,6 +100,7 @@
    "|guideExemplar id=gerbil.engineering-comment-quality.contract-boundary topic=engineering-comment-quality intent=style rule=GERBIL-SCHEME-AGENT-R015 level=normal locator=parser-definition owner=src/policy/agent-comment.ss symbols=comment-quality-details,comment-quality-fact-summary,weak-required-comment-quality-fact? comments=leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style\""
    "|guideExemplar id=gerbil.predicate-family-combinator.native-facts topic=predicate-family-combinator intent=style rule=GERBIL-SCHEME-AGENT-R016 level=normal locator=parser-definition owner=src/parser/quality-shape.ss symbols=predicate-family-facts-from-source,field-access-pattern-facts-from-source comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style\""
    "|guideExemplar id=gerbil.dependency-protocol-adapter.rationaldict-shape topic=dependency-protocol-adapter intent=repair rule=GERBIL-SCHEME-AGENT-R017 level=normal locator=runtime-source owner=gerbil-poo/rationaldict.ss symbols=RationalDict.,RationalSet comments=file-purpose+leading repairAction=inspect-code-shape guideCodeFlag=--code nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair\" moreCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair --more\""
+   "|guideExemplar id=gerbil.explicit-precise-import.policy-shape topic=explicit-precise-import intent=repair rule=GERBIL-SCHEME-AGENT-R018 level=normal locator=parser-definition owner=src/policy/agent-import.ss symbols=explicit-precise-import-finding,imprecise-runtime-import?,explicit-precise-import-details comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair\""
    "|policy guide-code-default=guide --code writes only extracted source comment plus source code; guide without --code carries selectors and next commands"
    "|policy guide-code-default-topic=guide --code defaults to typed-combinator-style so agents first see transform signatures plus compact expression-level helper functions"
    "|policy guide-code-progressive=guide --code defaults to one source-backed excerpt; --more adds one adjacent exemplar; --level advanced includes the macro runtime-source witness path"
@@ -156,6 +170,11 @@
         (equal? topic "protocol-adapter")
         (equal? topic "adapter-quality"))
     "dependency-protocol-adapter")
+   ((or (equal? topic "explicit-precise-import")
+        (equal? topic "precise-import")
+        (equal? topic "only-in")
+        (equal? topic "import-precision"))
+    "explicit-precise-import")
    (else "higher-order-control")))
 ;; String <- (List String)
 (def (guide-topic args)
@@ -469,6 +488,14 @@
                           "dependency-adapter-manual-object-encoding-risk"
                           "dependency-adapter-quality-facets"]
                          #t))
+;; Unit <- String
+(def (emit-explicit-precise-import-exemplar-source root)
+  (emit-exemplar-source root
+                         "src/policy/agent-import.ss"
+                         ["explicit-precise-import-finding"
+                          "imprecise-runtime-import?"
+                          "explicit-precise-import-details"]
+                         #t))
 ;; Unit <- String String
 (def (emit-topic-exemplar-source topic root)
   (cond
@@ -489,6 +516,8 @@
     (emit-predicate-family-combinator-exemplar-source root))
    ((equal? topic "dependency-protocol-adapter")
     (emit-poo-rationaldict-exemplar-source root))
+   ((equal? topic "explicit-precise-import")
+    (emit-explicit-precise-import-exemplar-source root))
    (else
     (emit-higher-order-exemplar-source root))))
 ;;; Boundary:

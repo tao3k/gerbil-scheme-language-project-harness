@@ -3,9 +3,9 @@
 
 (import :gerbil/gambit
         :parser/facade
-        :std/misc/ports
-        :std/srfi/13
-        :std/sugar)
+        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/srfi/13 string-index string-index-right string-prefix?)
+        (only-in :std/sugar foldl iota))
 
 (export read-definition-code
         read-definition-with-leading-comments
@@ -80,30 +80,49 @@
   (and (fx>= target 1)
        (fx<= target (length lines))
        (list-ref lines (fx1- target))))
+;;; Boundary:
+;;; - File-only selectors are valid agent-facing source anchors.
+;;; - Ranged selectors keep transport small when callers already have line spans.
 ;; Selector <- String String
 (def (read-selector root selector)
   (let* ((parts (split-selector selector))
          (path (car parts))
          (start (cadr parts))
          (end (caddr parts)))
-    (read-line-range (path-expand path root) start end)))
+    (if (and start end)
+      (read-line-range (path-expand path root) start end)
+      (read-source-file (path-expand path root)))))
+;;; Boundary:
+;;; - A missing colon means path-only, not malformed input.
+;;; - Preserve existing path:start-end and path:start:end compatibility.
 ;; Selector <- String
 (def (split-selector selector)
-  (let* ((ix (string-index-right selector #\:))
-         (path (substring selector 0 ix))
-         (range (substring selector (fx1+ ix) (string-length selector)))
-         (dash (string-index range #\-)))
-    (if dash
-      [path
-       (string->number (substring range 0 dash))
-       (string->number (substring range (fx1+ dash) (string-length range)))]
-      (let* ((prev (string-index-right path #\:))
-             (start-text (and prev (substring path (fx1+ prev) (string-length path))))
-             (start (and start-text (string->number start-text)))
-             (end (string->number range)))
-        (if (and prev start end)
-          [(substring path 0 prev) start end]
-          [path end end])))))
+  (let (ix (string-index-right selector #\:))
+    (if ix
+      (let* ((path (substring selector 0 ix))
+             (range (substring selector (fx1+ ix) (string-length selector)))
+             (dash (string-index range #\-)))
+        (if dash
+          [path
+           (string->number (substring range 0 dash))
+           (string->number (substring range (fx1+ dash) (string-length range)))]
+          (let* ((prev (string-index-right path #\:))
+                 (start-text (and prev (substring path (fx1+ prev) (string-length path))))
+                 (start (and start-text (string->number start-text)))
+                 (end (string->number range)))
+            (if (and prev start end)
+              [(substring path 0 prev) start end]
+              [path end end]))))
+      [selector #f #f])))
+;;; Boundary:
+;;; - Whole-file reads support natural query selectors such as build.ss.
+;;; - Do not force callers to invent a line range for file-level evidence.
+;; ParsedData <- String
+(def (read-source-file path)
+  (foldl (lambda (text out)
+           (string-append out text "\n"))
+         ""
+         (read-file-lines path)))
 ;;; Boundary:
 ;;; - read-line-range composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

@@ -3,7 +3,7 @@
 
 (import :constants
         :parser/facade
-        :std/sugar)
+        (only-in :std/sugar hash))
 
 (export language-registry)
 ;;; Boundary:

@@ -3,8 +3,8 @@
 
 (import :checker/model
         :parser/facade
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/srfi/13 string-empty? string-prefix? string-trim)
+        (only-in :std/sugar filter-map)
         :types/findings)
 
 (export load-call-whitelist

@@ -3,8 +3,8 @@
 
 (import :parser/facade
         :support/list
-        :std/sort
-        :std/srfi/13)
+        (only-in :std/sort sort)
+        (only-in :std/srfi/13 string-contains string-downcase string-tokenize))
 
 (export matching-definitions
         ranked-files

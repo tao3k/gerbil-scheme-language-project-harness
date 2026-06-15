@@ -6,7 +6,7 @@
         :parser/imports
         :parser/model
         :parser/support
-        :std/srfi/13)
+        (only-in :std/srfi/13 string-prefix?))
 
 (export +definition-heads+
         definitions-from-form

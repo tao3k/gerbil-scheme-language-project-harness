@@ -1,0 +1,182 @@
+;;; -*- Gerbil -*-
+(import :std/test
+        :extensions/facade
+        :parser/facade
+        :protocol/json
+        :std/srfi/13)
+(export parser-test-part-6)
+
+;; Boolean <- Selector Relpath
+(def (selector-owner? selector path)
+  (and (string? selector)
+       (string-prefix? (string-append path ":") selector)))
+
+;; FindCallWithArgument <- (List CallFact) Argument
+(def (find-call-with-argument calls argument)
+  (find (lambda (call)
+          (equal? (call-fact-arguments call) [argument]))
+        calls))
+;; Boolean <- (List QualityFacet) QualityFacet
+(def (quality-facet-member? facets facet)
+  (not (not (member facet facets))))
+;; MacroFact <- (List MacroFact) String
+(def (find-macro facts name)
+  (find (lambda (fact)
+          (equal? (macro-fact-name fact) name))
+        facts))
+;; (List HigherOrderFact) <- (List HigherOrderFact) String String String
+(def (find-higher-order facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (higher-order-fact-name fact) name)
+               (equal? (higher-order-fact-role fact) role)
+               (equal? (or (higher-order-fact-caller fact) "") caller)))
+        facts))
+;; (List ControlFlowFact) <- (List ControlFlowFact) String String String
+(def (find-control-flow facts name role caller)
+  (find (lambda (fact)
+          (and (equal? (control-flow-fact-name fact) name)
+               (equal? (control-flow-fact-role fact) role)
+               (equal? (or (control-flow-fact-caller fact) "") caller)))
+        facts))
+;; (List TypedContractFact) <- (List TypedContractFact) String
+(def (find-typed-contract facts name)
+  (find (lambda (fact)
+          (equal? (typed-contract-fact-definition-name fact) name))
+        facts))
+;; PredicateFamilyFact <- (List PredicateFamilyFact) String
+(def (find-predicate-family facts subject)
+  (find (lambda (fact)
+          (equal? (predicate-family-fact-subject fact) subject))
+        facts))
+;; FieldAccessPatternFact <- (List FieldAccessPatternFact) String
+(def (find-field-access-pattern facts field-key)
+  (find (lambda (fact)
+          (equal? (field-access-pattern-fact-field-key fact) field-key))
+        facts))
+;; BooleanConditionFact <- (List BooleanConditionFact) String
+(def (find-boolean-condition facts caller)
+  (find (lambda (fact)
+          (equal? (boolean-condition-fact-caller fact) caller))
+        facts))
+;; LoopDriverFact <- (List LoopDriverFact) String
+(def (find-loop-driver facts caller)
+  (find (lambda (fact)
+          (equal? (loop-driver-fact-caller fact) caller))
+        facts))
+;; FunctionQualityProfile <- (List FunctionQualityProfile) String
+(def (find-function-quality-profile profiles name)
+  (find (lambda (profile)
+          (equal? (function-quality-profile-name profile) name))
+        profiles))
+;; PooFormFact <- (List PooFormFact) String
+(def (find-poo-form facts name)
+  (find (lambda (fact)
+          (equal? (poo-form-fact-name fact) name))
+        facts))
+;; PooFormFact <- (List PooFormFact) String String
+(def (find-poo-form-role facts name role)
+  (find (lambda (fact)
+          (and (equal? (poo-form-fact-name fact) name)
+               (equal? (poo-form-fact-role fact) role)))
+        facts))
+;; ParsedData
+;; EnsureDir <- String
+(def (ensure-dir path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (create-directory path))))
+;; Unit <- String SourceLine
+(def (write-text path text)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (delete-file path)))
+  (call-with-output-file path
+    (lambda (port) (display text port))))
+;; TestSuite
+(def parser-test-part-6
+  (test-suite "gerbil scheme harness parser part 6"
+    (test-case "native reader captures @method POO dispatch facts"
+          (let* ((root (path-normalize ".run/parser-poo-method-shapes"))
+                 (source-dir (string-append root "/src"))
+                 (source-path (string-append source-dir "/methods.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text source-path
+                        ";;; -*- Gerbil -*-\n(package: sample/poo-method)\n(import :clan/poo/mop)\n(.defgeneric (order-discount Order amount))\n(defmethod (@method order-discount Order) (lambda (self amount) amount))\n(defmethod (:render (widget <Widget>) (ctx <Ctx>)) ctx)\n")
+            (let* ((file (parse-source-file root "src/methods.ss"))
+                   (forms (source-file-poo-forms file))
+                   (generic (car forms))
+                   (method (cadr forms))
+                   (multi (caddr forms)))
+              (check (map definition-name (source-file-definitions file))
+                     => ["order-discount" "order-discount" ":render"])
+              (check (poo-form-fact-role generic) => "generic")
+              (check (poo-form-fact-name method) => "order-discount")
+              (check (poo-form-fact-generic method) => "order-discount")
+              (check (poo-form-fact-receiver method) => #f)
+              (check (poo-form-fact-receiver-type method) => "Order")
+              (check (poo-form-fact-specializers method) => ["Order"])
+              (check (poo-form-fact-specializer-types method) => ["Order"])
+              (check (poo-form-fact-specializers multi)
+                     => ["widget:<Widget>" "ctx:<Ctx>"])
+              (check (poo-form-fact-specializer-types multi)
+                     => ["<Widget>" "<Ctx>"]))))
+    (test-case "native reader captures POO IO hook method facts"
+          (let* ((root (path-normalize "."))
+                 (file (parse-source-file root "t/fixtures/parser/poo-io-hooks.ss"))
+                 (forms (source-file-poo-forms file))
+                 (json-method (find-poo-form-role forms ":json" "method"))
+                 (write-json-method (find-poo-form-role forms ":write-json" "method"))
+                 (writeenv-method (find-poo-form-role forms ":wr" "method"))
+                 (print-method (find-poo-form-role forms ":pr" "method")))
+            (check (source-file-parse-error file) => #f)
+            (check (map poo-form-fact-name forms)
+                   => ["object" ":pr" ":wr" ":json" ":write-json" ":pr" ":wr" ":json" ":write-json"])
+            (check (map poo-form-fact-role forms)
+                   => ["protocol" "generic" "generic" "generic" "generic" "method" "method" "method" "method"])
+            (check (poo-form-fact-specializers json-method) => ["object"])
+            (check (poo-form-fact-specializer-types json-method) => ["object"])
+            (check (poo-form-fact-specializers write-json-method) => ["object"])
+            (check (poo-form-fact-specializer-types write-json-method) => ["object"])
+            (check (poo-form-fact-specializers writeenv-method) => ["object"])
+            (check (poo-form-fact-specializers print-method) => ["object"])))
+    (test-case "native reader captures local literal binding argument types"
+          (let* ((root (path-normalize ".run/parser-local-literal-binding"))
+                 (source-dir (string-append root "/src"))
+                 (source-path (string-append source-dir "/main.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text source-path
+                        "(package: sample/local-literal)\n(def (use-let)\n  (let ((value \"ok\") (bad 10))\n    (needs-string value)\n    (needs-string bad)))\n")
+            (let* ((file (parse-source-file root "src/main.ss"))
+                   (calls (filter (lambda (call)
+                                     (equal? (call-fact-callee call) "needs-string"))
+                                   (source-file-calls file)))
+                   (value-call (find-call-with-argument calls "value"))
+                   (bad-call (find-call-with-argument calls "bad")))
+              (check (length calls) => 2)
+              (check (call-fact-argument-types value-call) => ["string"])
+              (check (call-fact-argument-types bad-call) => ["number"])
+              (check (map call-fact-caller calls) => ["use-let" "use-let"]))))
+    (test-case "native reader propagates sequential local alias argument types"
+          (let* ((root (path-normalize ".run/parser-local-alias-binding"))
+                 (source-dir (string-append root "/src"))
+                 (source-path (string-append source-dir "/main.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text source-path
+                        "(package: sample/local-alias)\n(def (use-let-star)\n  (let* ((star-value \"ok\")\n         (star-alias star-value)\n         (bad 10)\n         (bad-alias bad))\n    (needs-string star-alias)\n    (needs-string bad-alias)))\n(def (use-let)\n  (let ((plain-value \"ok\")\n        (plain-alias plain-value))\n    (needs-string plain-alias)))\n")
+            (let* ((file (parse-source-file root "src/main.ss"))
+                   (calls (filter (lambda (call)
+                                     (equal? (call-fact-callee call) "needs-string"))
+                                   (source-file-calls file)))
+                   (star-alias-call (find-call-with-argument calls "star-alias"))
+                   (bad-alias-call (find-call-with-argument calls "bad-alias"))
+                   (plain-alias-call (find-call-with-argument calls "plain-alias")))
+              (check (length calls) => 3)
+              (check (call-fact-argument-types star-alias-call) => ["string"])
+              (check (call-fact-argument-types bad-alias-call) => ["number"])
+              (check (call-fact-argument-types plain-alias-call) => [#f]))))))

@@ -6,7 +6,7 @@
 
 (import :gerbil/gambit
         :support/list
-        :std/srfi/13)
+        (only-in :std/srfi/13 string-prefix?))
 
 (export flag?
         option

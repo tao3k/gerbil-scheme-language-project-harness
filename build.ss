@@ -1,7 +1,10 @@
 #!/usr/bin/env gxi
 ;; -*- Gerbil -*-
 (import :std/make
-        :std/misc/process)
+        :std/misc/process
+        :std/srfi/13
+        :clan/base
+        :clan/building)
 
 (def (build-prefix)
   (getenv "GERBIL_BUILD_PREFIX" (path-expand ".build/gerbil" (current-directory))))
@@ -178,11 +181,13 @@
 
 (def (native-command? args)
   (or (member "native" args)
-      (member "native-link" args)))
+      (member "native-link" args)
+      (member "native-full" args)
+      (member "native-full-link" args)))
 
 (def (full-command? args)
   (or (member "full" args)
-      (member "native" args)))
+      (member "native-full" args)))
 
 (def (gerbil-poo-installed-at? root)
   (and root
@@ -237,7 +242,7 @@
       (path-expand ".bin" monorepo-root))
      (else (path-expand ".bin" (current-directory))))))
 
-(def (write-native-cli!)
+(def (write-full-native-cli!)
   (let* ((binary (path-expand "gerbil-scheme-harness"
                               (provider-bin-dir)))
          (tmp-binary (string-append binary ".native-tmp"))
@@ -254,6 +259,32 @@
       (invoke "rm" ["-f" exe-stub]))
     (invoke "chmod" ["+x" binary])
     binary))
+
+(def (write-native-fast-binary! name source)
+  (let* ((binary (path-expand name (provider-bin-dir)))
+         (tmp-binary (string-append binary ".native-tmp"))
+         (tmp-exe-stub (string-append tmp-binary "__exe.scm")))
+    (display "... compile native fast ")
+    (display binary)
+    (newline)
+    (create-directory* (path-directory binary))
+    (set-provider-compile-env!)
+    (invoke "rm" ["-f" tmp-binary tmp-exe-stub])
+    (invoke "gxc" ["-exe" "-o" tmp-binary source])
+    (invoke "mv" [tmp-binary binary])
+    (when (file-exists? tmp-exe-stub)
+      (invoke "rm" ["-f" tmp-exe-stub]))
+    (invoke "chmod" ["+x" binary])
+    binary))
+
+(def (write-native-fast-cli!)
+  (write-native-fast-binary!
+   "gerbil-scheme-search-extension"
+   "src/search-fast/gerbil-scheme-search-extension.ss")
+  (write-native-fast-binary!
+   "gerbil-scheme-search-pattern"
+   "src/search-fast/gerbil-scheme-search-pattern.ss")
+  (write-provider-cli!))
 
 (def (run-native-diagnose!)
   (let* ((diagnose-dir (path-expand "native-diagnose" (build-prefix)))
@@ -299,27 +330,37 @@
         (display "GERBIL_PATH=\"${GERBIL_PATH:-$HARNESS/.gerbil}\"\n" out)
         (display "GERBIL_LOADPATH=\"${GERBIL_LOADPATH:-$HARNESS/src}\"\n" out)
         (display "export GERBIL_PATH GERBIL_LOADPATH\n\n" out)
+        (display "SELF_DIR=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)\n" out)
+        (display "FAST_EXTENSION=\"$SELF_DIR/gerbil-scheme-search-extension\"\n" out)
+        (display "FAST_PATTERN=\"$SELF_DIR/gerbil-scheme-search-pattern\"\n\n" out)
         (display "json=0\n" out)
         (display "for arg in \"$@\"; do\n" out)
         (display "  if [ \"$arg\" = --json ]; then json=1; fi\n" out)
         (display "done\n\n" out)
         (display "if [ \"$json\" = 0 ] && [ \"${1:-}\" = search ] && [ \"${2:-}\" = extension ] && { [ \"${3:-}\" = poo ] || [ \"${3:-}\" = gerbil-poo ]; }; then\n" out)
         (display "  shift 2\n" out)
-        (display "  exec \"$GERBIL_BIN\" \"$HARNESS/bin/gerbil-scheme-search-extension.ss\" \"$@\"\n" out)
+        (display "  if [ -x \"$FAST_EXTENSION\" ]; then exec \"$FAST_EXTENSION\" \"$@\"; fi\n" out)
+        (display "  exec \"$GERBIL_BIN\" \"$HARNESS/src/search-fast/gerbil-scheme-search-extension.ss\" \"$@\"\n" out)
         (display "fi\n\n" out)
-        (display "if [ \"$json\" = 0 ] && [ \"${1:-}\" = search ] && [ \"${2:-}\" = pattern ] && [ \"${3:-}\" = gerbil-poo ]; then\n" out)
+        (display "if [ \"$json\" = 0 ] && [ \"${1:-}\" = search ] && [ \"${2:-}\" = pattern ] && { [ \"${3:-}\" = poo ] || [ \"${3:-}\" = gerbil-poo ]; }; then\n" out)
         (display "  shift 2\n" out)
-        (display "  exec \"$GERBIL_BIN\" \"$HARNESS/bin/gerbil-scheme-search-pattern.ss\" \"$@\"\n" out)
+        (display "  if [ -x \"$FAST_PATTERN\" ]; then exec \"$FAST_PATTERN\" \"$@\"; fi\n" out)
+        (display "  exec \"$GERBIL_BIN\" \"$HARNESS/src/search-fast/gerbil-scheme-search-pattern.ss\" \"$@\"\n" out)
         (display "fi\n\n" out)
         (display "if [ \"${1:-}\" = search ]; then\n" out)
         (display "  shift\n" out)
-        (display "  exec \"$GERBIL_BIN\" \"$HARNESS/bin/gerbil-scheme-search.ss\" \"$@\"\n" out)
+        (display "  exec \"$GERBIL_BIN\" \"$HARNESS/src/search-fast/gerbil-scheme-search.ss\" \"$@\"\n" out)
         (display "fi\n\n" out)
         (display "exec \"$GERBIL_BIN\" \"$HARNESS/bin/gerbil-scheme-harness.ss\" \"$@\"\n" out)))
     (invoke "chmod" ["+x" binary])
     binary))
 
-(def +build-spec+ '("src/cli"))
+(def (provider-build-module? module)
+  (string-prefix? "src/" module))
+
+(def (provider-build-spec)
+  (!> (all-gerbil-modules)
+      (cut filter provider-build-module? <>)))
 
 (def (build-keys)
   [libdir: (path-expand "lib" (build-prefix))
@@ -341,13 +382,13 @@
 
 (def (make-provider! options)
   (apply make
-         +build-spec+
+         (provider-build-spec)
          srcdir: (current-directory)
          (append options (build-keys))))
 
 (def (clean-provider!)
   (apply make-clean
-         +build-spec+
+         (provider-build-spec)
          srcdir: (current-directory)
          (build-keys)))
 
@@ -366,24 +407,30 @@
   (cond
    ((null? args) (make-provider! '()))
    ((equal? (car args) "meta")
-    (write ["spec" "compile" "full" "native" "native-link" "native-diagnose" "clean"])
+    (write ["spec" "compile" "full" "native" "native-link"
+            "native-full" "native-full-link" "native-diagnose" "clean"])
     (newline))
    ((equal? (car args) "spec")
-    (pretty-print +build-spec+))
+    (pretty-print (provider-build-spec)))
    ((equal? (car args) "clean")
     (clean-provider!))
    ((equal? (car args) "compile")
     (write-provider-cli!))
    ((equal? (car args) "full")
-    (make-provider! (parse-build-options (cdr args)))
+    (parse-build-options (cdr args))
     (refresh-static-provider-artifacts!)
     (write-provider-cli!))
    ((equal? (car args) "native")
-    (make-provider! (parse-build-options (cdr args)))
-    (refresh-static-provider-artifacts!)
-    (write-native-cli!))
+    (parse-build-options (cdr args))
+    (write-native-fast-cli!))
    ((equal? (car args) "native-link")
-    (write-native-cli!))
+    (write-native-fast-cli!))
+   ((equal? (car args) "native-full")
+    (parse-build-options (cdr args))
+    (refresh-static-provider-artifacts!)
+    (write-full-native-cli!))
+   ((equal? (car args) "native-full-link")
+    (write-full-native-cli!))
    ((equal? (car args) "native-diagnose")
     (run-native-diagnose!))
    (else (error "Unexpected " args))))

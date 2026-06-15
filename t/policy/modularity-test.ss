@@ -1,0 +1,237 @@
+;;; -*- Gerbil -*-
+;;; gerbil scheme harness modularity policy.
+
+(import :gerbil/gambit
+        :std/test
+        :std/misc/ports
+        :std/misc/process
+        (only-in :std/text/json read-json)
+        :commands/check
+        :parser/facade
+        :policy/facade
+        :policy/gxtest
+        :types/facade
+        :unit/policy/poo-scenarios
+        :policy/fixtures)
+(export modularity-policy-test)
+;; PolicyTest
+(def modularity-policy-test
+  (test-suite "gerbil scheme harness modularity policy"
+    (test-case "modularity policy rejects facade implementation"
+          (let* ((root ".run/policy-modularity")
+                 (_ (write-facade-policy-project
+                     root "foo"
+                     ";;; -*- Gerbil -*-\n;;; Foo facade.\n(export answer)\n(def answer 42)\n"
+                     ";;; -*- Gerbil -*-\n;;; Foo core.\n(def core-answer 42)\n"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (finding (car findings)))
+            (check (length findings) => 1)
+            (check (type-finding-rule-id finding)
+                   => "GERBIL-SCHEME-MOD-R001")
+            (check (type-finding-path finding) => "src/foo/facade.ss")))
+    (test-case "modularity policy follows package source scope roots"
+          (let* ((root ".run/policy-source-scope-modularity")
+                 (lib (string-append root "/lib"))
+                 (owner (string-append lib "/foo")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir lib)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/scope\n  policy: ((source-scope roots: (\"lib\") runtime-roots: (\"lib\") explanation: \"Runtime modules live under lib for this package.\")))\n")
+            (write-text (string-append owner "/facade.ss")
+                        ";;; -*- Gerbil -*-\n;;; Foo facade.\n(export answer)\n(def answer 42)\n")
+            (write-text (string-append owner "/core.ss")
+                        ";;; -*- Gerbil -*-\n;;; Foo core.\n(def core-answer 42)\n")
+            (let* ((index (collect-project root))
+                   (findings (run-modularity-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-MOD-R001" findings))
+                   (finding (car matching)))
+              (check (length matching) => 1)
+              (check (type-finding-path finding) => "lib/foo/facade.ss"))))
+    (test-case "modularity policy follows build script runtime roots"
+          (let* ((root ".run/policy-build-scope-modularity")
+                 (lib (string-append root "/lib"))
+                 (owner (string-append lib "/foo")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir lib)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/build-scope)\n")
+            (write-text (string-append root "/build.ss")
+                        ";;; -*- Gerbil -*-\n(defbuild-script '(\"lib/foo/core\"))\n")
+            (write-text (string-append owner "/facade.ss")
+                        ";;; -*- Gerbil -*-\n;;; Foo facade.\n(export answer)\n(def answer 42)\n")
+            (write-text (string-append owner "/core.ss")
+                        ";;; -*- Gerbil -*-\n;;; Foo core.\n(def core-answer 42)\n")
+            (let* ((index (collect-project root))
+                   (findings (run-modularity-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-MOD-R001" findings))
+                   (finding (car matching)))
+              (check (length matching) => 1)
+              (check (type-finding-path finding) => "lib/foo/facade.ss"))))
+    (test-case "modularity policy rejects sibling file and owner directory"
+          (let* ((root ".run/policy-owner-collision")
+                 (_ (write-policy-project
+                     root "foo"
+                     ";;; -*- Gerbil -*-\n;;; Foo sibling entry.\n(export answer)\n"
+                     ";;; -*- Gerbil -*-\n;;; Foo core.\n(def core-answer 42)\n"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R003" findings))
+                 (finding (car matching)))
+            (check (length matching) => 1)
+            (check (type-finding-rule-id finding)
+                   => "GERBIL-SCHEME-MOD-R003")
+            (check (type-finding-path finding) => "src/foo.ss")))
+    (test-case "modularity policy rejects repeated owner entry names"
+          (let* ((root ".run/policy-repeated-owner-entry")
+                 (_ (write-owner-entry-policy-project
+                     root "foo"
+                     ";;; -*- Gerbil -*-\n;;; Foo repeated entry.\n(export answer)\n"
+                     ";;; -*- Gerbil -*-\n;;; Foo core.\n(def core-answer 42)\n"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R004" findings))
+                 (finding (car matching)))
+            (check (length matching) => 1)
+            (check (type-finding-rule-id finding)
+                   => "GERBIL-SCHEME-MOD-R004")
+            (check (type-finding-path finding) => "src/foo/foo.ss")))
+    (test-case "modularity policy rejects bin entrypoint implementation"
+          (let* ((root ".run/policy-bin-entrypoint")
+                 (_ (write-bin-entrypoint-project
+                     root ";;; -*- Gerbil -*-\n(import :std/cli/getopt)\n(def (main . args) args)\n"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R005" findings))
+                 (finding (car matching)))
+            (check (length matching) => 1)
+            (check (type-finding-rule-id finding)
+                   => "GERBIL-SCHEME-MOD-R005")
+            (check (type-finding-path finding) => "bin/run.ss")))
+    (test-case "modularity policy rejects legacy test directory layout"
+          (let* ((root ".run/policy-test-directory-layout")
+                 (_ (write-test-directory-layout-project root))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R006" findings)))
+            (check (length matching) => 2)
+            (check (map type-finding-path matching)
+                   => ["test/bad-test.ss" "tests/bad-tests-test.ss"])
+            (check (type-finding-message (car matching))
+                   => "Gerbil unit test owner test/bad-test.ss uses non-t test/ layout; use t/ unless gerbil.pkg policy explicitly allows this directory with a clear explanation (no policy override)")))
+    (test-case "modularity policy allows non-t test directories only with clear package policy"
+          (let* ((root ".run/policy-test-directory-layout-allowed")
+                 (_ (write-test-directory-layout-project
+                     root
+                     ";;; -*- Gerbil -*-\n(package: sample\n  policy: ((test-directory-layout allowed-directories: (\"test\" \"tests\") explanation: \"This downstream conformance fixture mirrors upstream test directories that cannot be moved into t/ during replay.\")))\n"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R006" findings)))
+            (check matching => [])))
+    (test-case "modularity policy rejects non-t test directory override without clear explanation"
+          (let* ((root ".run/policy-test-directory-layout-short-explanation")
+                 (_ (write-test-directory-layout-project
+                     root
+                     ";;; -*- Gerbil -*-\n(package: sample\n  policy: ((test-directory-layout allowed-directories: (\"test\" \"tests\") explanation: \"temporary\")))\n"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R006" findings)))
+            (check (length matching) => 2)
+            (check (type-finding-message (car matching))
+                   => "Gerbil unit test owner test/bad-test.ss uses non-t test/ layout; use t/ unless gerbil.pkg policy explicitly allows this directory with a clear explanation (policy override is missing a clear explanation)")))
+    (test-case "modularity policy rejects oversized source leaves"
+          (let* ((root ".run/policy-source-leaf")
+                 (_ (write-large-policy-source root "large"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R002" findings))
+                 (finding (car matching)))
+            (check (length matching) => 1)
+            (check (type-finding-rule-id finding)
+                   => "GERBIL-SCHEME-MOD-R002")
+            (check (type-finding-path finding) => "src/large/core.ss")))
+    (test-case "modularity policy rejects oversized test leaves"
+          (let* ((root ".run/policy-test-leaf")
+                 (_ (write-large-policy-test root "search"))
+                 (index (collect-project root))
+                 (findings (run-modularity-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-MOD-R007" findings))
+                 (finding (car matching))
+                 (details (type-finding-details finding)))
+            (check (length matching) => 1)
+            (check (type-finding-path finding) => "t/search-test.ss")
+            (check (hash-get details 'sourceClass) => "test")
+            (check (hash-get details 'lineCountLimit) => 650)
+            (check (hash-get details 'hardLineCountLimit) => 1000)
+            (check (hash-get details 'definitionCountMinimum) => 1)
+            (check (hash-key? details 'testCaseCount) => #t)
+            (check (hash-key? details 'maxDefinitionSpan) => #t)))
+    (test-case "modularity policy allows package-configured test leaf threshold"
+          (let* ((root ".run/policy-test-leaf-config")
+                 (policy-dir (string-append root "/policy"))
+                 (_ (write-large-policy-test root "search")))
+            (ensure-dir policy-dir)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/search-policy\n  policy: ((modularity-policy config: \"policy/modularity.ss\")))\n")
+            (write-text (string-append policy-dir "/modularity.ss")
+                        "(modularity-policy max-test-lines: 700 explanation: \"Search replay tests are generated from compact fixtures and remain package-local.\")\n")
+            (let* ((index (collect-project root))
+                   (findings (run-modularity-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-MOD-R007" findings)))
+              (check matching => []))))
+    (test-case "modularity policy rejects parsed test complexity despite line override"
+          (let* ((root ".run/policy-test-leaf-complexity")
+                 (policy-dir (string-append root "/policy"))
+                 (_ (write-complex-policy-test root "policy" 30)))
+            (ensure-dir policy-dir)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/policy-complexity\n  policy: ((modularity-policy config: \"policy/modularity.ss\")))\n")
+            (write-text (string-append policy-dir "/modularity.ss")
+                        "(modularity-policy max-test-lines: 1600 explanation: \"Line threshold is raised for replay fixtures, but parsed test complexity still requires split owners.\")\n")
+            (let* ((index (collect-project root))
+                   (findings (run-modularity-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-MOD-R007" findings))
+                   (finding (car matching))
+                   (details (type-finding-details finding)))
+              (check (length matching) => 1)
+              (check (type-finding-path finding) => "t/policy-test.ss")
+              (check (hash-get details 'lineCountLimit) => 1000)
+              (check (hash-get details 'hardLineCountLimit) => 1000)
+              (check (hash-get details 'testCaseCount) => 30)
+              (check (hash-get details 'testCaseCountLimit) => 24))))
+    (test-case "modularity policy caps configured test line threshold"
+          (let* ((root ".run/policy-test-leaf-hard-line-cap")
+                 (policy-dir (string-append root "/policy"))
+                 (_ (write-padded-policy-test root "hard" 1005)))
+            (ensure-dir policy-dir)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/policy-hard-cap\n  policy: ((modularity-policy config: \"policy/modularity.ss\")))\n")
+            (write-text (string-append policy-dir "/modularity.ss")
+                        "(modularity-policy max-test-lines: 1600 explanation: \"Replay fixtures cannot raise effective owner line limits above the hard project cap.\")\n")
+            (let* ((index (collect-project root))
+                   (findings (run-modularity-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-MOD-R007" findings))
+                   (finding (car matching))
+                   (details (type-finding-details finding)))
+              (check (length matching) => 1)
+              (check (type-finding-path finding) => "t/hard-test.ss")
+              (check (fx>= (hash-get details 'lineCount) 1000) => #t)
+              (check (hash-get details 'lineCountLimit) => 1000)
+              (check (hash-get details 'hardLineCountLimit) => 1000))))
+    (test-case "gxtest policy helper uses package modularity config"
+          (let* ((root ".run/policy-gxtest-helper")
+                 (policy-dir (string-append root "/policy"))
+                 (_ (write-large-policy-test root "search")))
+            (ensure-dir policy-dir)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/gxtest-policy\n  policy: ((modularity-policy config: \"policy/modularity.ss\")))\n")
+            (write-text (string-append policy-dir "/modularity.ss")
+                        "(modularity-policy max-test-lines: 700 explanation: \"Downstream gxtest policy helper keeps replay thresholds in package config.\")\n")
+            (let (matching (filter-rule
+                            "GERBIL-SCHEME-MOD-R007"
+                            (project-policy-findings root)))
+              (check matching => []))))))

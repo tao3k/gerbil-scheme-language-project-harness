@@ -2,7 +2,7 @@
 ;;; Central agent-facing policy rule catalog.
 
 (import :policy/model
-        :std/srfi/13
+        (only-in :std/srfi/13 string-prefix?)
         :support/list)
 
 (export agent-steering-facts
@@ -113,7 +113,14 @@
          (guideTopic "dependency-protocol-adapter")
         (guideIntent "repair")
         (nextCommand "asp gerbil-scheme search pattern poo rationaldict adapter --view seeds .")
-        (requires "query the search-forwarded rationaldict adapter example, then use parser-owned dependencyAdapterQualityFacts plus t/ contract witness before treating imported dependency primitives as an engineering boundary"))])
+        (requires "query the search-forwarded rationaldict adapter example, then use parser-owned dependencyAdapterQualityFacts plus t/ contract witness before treating imported dependency primitives as an engineering boundary"))
+   (hash (id (policy-rule-id +agent-explicit-precise-import-rule+))
+         (severity (policy-rule-severity +agent-explicit-precise-import-rule+))
+         (topic "explicit-precise-import")
+         (guideTopic "explicit-precise-import")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair")
+         (requires "parser-owned moduleImportFacts should show only-in imports with explicit symbols for governed runtime library, dependency, and owner-local imports"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

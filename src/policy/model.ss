@@ -30,7 +30,8 @@
         +agent-controlled-branch-shape-rule+
         +agent-comment-quality-rule+
         +agent-predicate-family-combinator-rule+
-        +agent-dependency-protocol-adapter-rule+)
+        +agent-dependency-protocol-adapter-rule+
+        +agent-explicit-precise-import-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -105,3 +106,6 @@
 ;; ConfigConstant
 (def +agent-dependency-protocol-adapter-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R017" "warning"))
+;; ConfigConstant
+(def +agent-explicit-precise-import-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R018" "warning"))

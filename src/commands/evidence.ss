@@ -7,7 +7,7 @@
 (import :constants
         :parser/facade
         :protocol/json
-        :std/sugar
+        (only-in :std/sugar filter match unless)
         :support/args)
 
 (export evidence-main

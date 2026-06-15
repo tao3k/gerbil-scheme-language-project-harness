@@ -17,10 +17,10 @@
         :parser/support
         :parser/syntax
         :parser/typed-contract
-        :std/iter
-        :std/misc/ports
-        :std/sort
-        :std/srfi/13)
+        (only-in :std/iter for/fold)
+        (only-in :std/misc/ports open-output-string read-file-lines)
+        (only-in :std/sort sort)
+        (only-in :std/srfi/13 string-contains string-prefix? string-trim))
 
 (export +source-extensions+
         +config-files+

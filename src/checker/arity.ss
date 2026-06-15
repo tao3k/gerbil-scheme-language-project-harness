@@ -3,7 +3,7 @@
 
 (import :checker/model
         :parser/facade
-        :std/sugar
+        (only-in :std/sugar cut filter-map)
         :types/findings
         :types/model
         :types/signatures)

@@ -4,7 +4,7 @@
 (import :parser/facade
         :policy/agent-support
         :policy/model
-        :std/srfi/13
+        (only-in :std/srfi/13 string-contains string-prefix?)
         :support/list
         :types/findings)
 
@@ -87,6 +87,7 @@
         (searchExampleCommand +dependency-adapter-search-example-command+)
         (repairCodeCommand +dependency-adapter-repair-code-command+)
         (codeShapeExemplar "gerbil-poo rationaldict-style typed protocol adapter")
+        (sourcePatternLineage "gerbil-poo build/cli/rationaldict/table/brace/object/mop/io patterns")
         (definition (dependency-adapter-quality-fact-name fact))
         (dependency (dependency-adapter-quality-fact-dependency fact))
         (imports (dependency-adapter-quality-fact-imports fact))
@@ -99,6 +100,22 @@
         (slots (dependency-adapter-quality-fact-slots fact))
         (derivedCapabilities
          (dependency-adapter-quality-fact-derived-capabilities fact))
+        (protocolSurface
+         "minimal protocol slots first; derive table/set/list/sexp/json/marshal-facing capabilities from the slot surface")
+        (protocolSurfaceReference
+         "gerbil-poo table.ss methods.table")
+        (reusableContractTestPattern
+         "small t/ owner calls generic table-contract-tests or protocol-contract-tests against the adapter type descriptor")
+        (macroBridgeBoundary
+         "syntax forms should stay thin bridges like gerbil-poo brace.ss @method; runtime semantics belong in object/mop/protocol slots")
+        (slotResolutionModel
+         "POO objects resolve slots through C3 precedence plus lazy slot function cache; do not replace this with raw hash/alist guesses")
+        (ioSerializationMethodFamily
+         "json<-/<-json, marshal/unmarshal, bytes<-/<-bytes, and string<-/<-string are method/type slots")
+        (buildPattern
+         "use :std/make + :clan/base + :clan/building discovery, while filtering non-module policy/config files for this harness")
+        (cliOptionPattern
+         "keep src/cli.ss as a thin dispatcher; compose option objects when command option surfaces grow")
         (manualObjectEncodingRisk
          (dependency-adapter-quality-fact-manual-object-encoding-risk fact))
         (genericContractWitnessKind

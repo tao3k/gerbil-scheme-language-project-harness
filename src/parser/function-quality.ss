@@ -2,8 +2,8 @@
 ;;; Parser-owned function quality profiles composed from native facts.
 
 (import :parser/model
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/srfi/13 string-suffix?)
+        (only-in :std/sugar cut filter find foldl ormap)
         :support/list)
 
 (export function-quality-profiles-from-source)

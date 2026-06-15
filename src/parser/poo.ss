@@ -4,7 +4,7 @@
 (import :gerbil/expander
         :parser/model
         :parser/support
-        :std/srfi/13)
+        (only-in :std/srfi/13 string-suffix?))
 
 (export +poo-definition-heads+
         poo-form-facts-from-form)

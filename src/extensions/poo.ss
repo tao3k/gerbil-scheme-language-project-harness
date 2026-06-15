@@ -9,7 +9,7 @@
         :extensions/poo-patterns
         :package-manager/facade
         :parser/facade
-        :std/sugar
+        (only-in :std/sugar filter hash ormap)
         :support/list)
 
 (export poo-extension-active?

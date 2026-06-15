@@ -6,9 +6,8 @@
         :constants
         :parser/facade
         :protocol/json
-        :std/iter
-        :std/misc/ports
-        :std/sugar
+        (only-in :std/iter for in-range)
+        (only-in :std/sugar filter-map foldl)
         :support/args
         :support/time
         :types/facade)

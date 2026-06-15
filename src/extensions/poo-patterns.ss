@@ -76,6 +76,18 @@
        (poo-selector "prototype-composition"
                      "compose-proto"
                      "gerbil-poo://proto.ss#compose-proto")
+       (poo-selector "thin-macro-bridge"
+                     "@method"
+                     "gerbil-poo://brace.ss#@method")
+       (poo-selector "slot-resolution"
+                     "compute-precedence-list!"
+                     "gerbil-poo://object.ss#compute-precedence-list!")
+       (poo-selector "slot-cache"
+                     "compute-slot-funs!"
+                     "gerbil-poo://object.ss#compute-slot-funs!")
+       (poo-selector "io-serialization-method-family"
+                     "marshal"
+                     "gerbil-poo://io.ss#marshal")
        (poo-selector "method-resolution-order"
                      "class-precedence-list"
                      "gerbil-runtime://c3.ss#class-precedence-list")
@@ -108,6 +120,24 @@
                          ["<proto-a>" "<proto-b>"]
                          []
                          "gerbil-poo://proto.ss#compose-proto")
+       (poo-form-mapping "thin-macro-bridge"
+                         "@method"
+                         "defsyntax-for-match"
+                         ["{args ...}->.o/ctx"]
+                         ["syntax-bridge-only"]
+                         "gerbil-poo://brace.ss#@method")
+       (poo-form-mapping "slot-resolution"
+                         ".all-slots"
+                         ".all-slots"
+                         ["<object>"]
+                         ["C3-precedence" "lazy-slot-cache"]
+                         "gerbil-poo://object.ss#.all-slots")
+       (poo-form-mapping "io-serialization-method-family"
+                         "marshal"
+                         ".defgeneric"
+                         ["(marshal type x port)" "slot:.marshal"]
+                         ["json<-" "<-json" "bytes<-" "<-bytes"]
+                         "gerbil-poo://io.ss#marshal")
        (poo-form-mapping "mro-regression-test"
                          "class-precedence-list"
                          "check"
@@ -147,10 +177,34 @@
                          "add-c3-linearization-and-slot-vector-witnesses"
                          ["gerbil-runtime://c3.ss#class-precedence-list"
                           "gerbil-runtime-test://src/gerbil/test/c3-test.ss#c3-test"
-                          "gerbil-runtime-test://src/gerbil/test/c3-test.ss#slot-computation-order"])]
+                          "gerbil-runtime-test://src/gerbil/test/c3-test.ss#slot-computation-order"])
+       (poo-failure-case "macro-bridge-with-runtime-semantics"
+                         "macro-overreach"
+                         "brace-or-at-method-macro-that-owns-object-semantics"
+                         "keep-brace-syntax-thin-and-put-semantics-in-object-or-mop-slots"
+                         ["gerbil-poo://brace.ss#@method"
+                          "gerbil-poo://object.ss#defclass"
+                          "gerbil-poo://mop.ss#.defgeneric"])
+       (poo-failure-case "direct-slot-hash-guess"
+                         "missing-c3-and-lazy-slot-resolution"
+                         "hash-or-alist-object-replacement-that-skips-slot-resolution"
+                         "query-object-slot-resolution-before-editing"
+                         ["gerbil-poo://object.ss#compute-precedence-list!"
+                          "gerbil-poo://object.ss#compute-slot-funs!"
+                          "gerbil-poo://object.ss#.all-slots"])
+       (poo-failure-case "io-method-without-family"
+                         "serializer-or-printer-drift"
+                         "ad-hoc-json-or-bytes-helper-outside-the-method-family"
+                         "follow-json-marshal-bytes-method-family-and-runtime-source-witnesses"
+                         ["gerbil-poo://io.ss#marshal"
+                          "gerbil-poo://io.ss#methods.bytes<-marshal"
+                          "gerbil-poo://io.ss#@method:json"])]
   qualitySignals: ["active-extension-fact" "dependency-backed-mapping"
                    "real-project-c3-test" "mro-linearization-witness"
-                   "slot-order-witness" "minimal-forms" "failure-cases"]
+                   "slot-order-witness" "thin-macro-bridge"
+                   "object-slot-resolution-model"
+                   "io-serialization-method-family" "minimal-forms"
+                   "failure-cases"]
   witness: "dependency-backed-poo-mapping"
   missing: []
   next: "search extension poo syntax")
@@ -181,7 +235,16 @@
               (selector "gerbil-poo://rationaldict.ss#RationalDict..sexp<-"))
         (hash (role "equality-boundary")
               (symbol ".=?")
-              (selector "gerbil-poo://rationaldict.ss#RationalDict..=?"))]
+              (selector "gerbil-poo://rationaldict.ss#RationalDict..=?"))
+        (hash (role "protocol-derived-capability")
+              (symbol ".join")
+              (selector "gerbil-poo://table.ss#methods.table.join"))
+        (hash (role "reusable-contract-test")
+              (symbol "table-tests")
+              (selector "gerbil-poo-test://t/table-testing.ss#table-tests"))
+        (hash (role "io-serialization-method-family")
+              (symbol "methods.bytes<-marshal")
+              (selector "gerbil-poo://io.ss#methods.bytes<-marshal"))]
   minimalForms:
        [(hash (role "typed-protocol-adapter")
               (symbol "RationalDict.")
@@ -211,7 +274,26 @@
               (template (hash (head "table-contract-tests")
                               (operands ["<AdapterType>" "<sample-key>" "<sample-value>"])
                               (keywords ["t/ owner" "not line-number fixture"])))
-              (selector "gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"))]
+              (selector "gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"))
+        (hash (role "minimal-protocol-surface")
+              (symbol "methods.table")
+              (template (hash (head "define-type")
+                              (operands ["Key" "Value" ".empty" ".acons"
+                                         ".ref" ".remove" ".foldl" ".foldr"])
+                              (keywords ["derive-secondary-capabilities"])))
+              (selector "gerbil-poo://table.ss#methods.table"))
+        (hash (role "reusable-contract-test")
+              (symbol "table-tests")
+              (template (hash (head "table-tests")
+                              (operands ["<TypeDescriptor>"])
+                              (keywords ["small-t-owner" "generic-contract"])))
+              (selector "gerbil-poo-test://t/table-testing.ss#table-tests"))
+        (hash (role "serialization-method-family")
+              (symbol "methods.bytes<-marshal")
+              (template (hash (head "define-type")
+                              (operands [".marshal" ".unmarshal" ".bytes<-" ".<-bytes"])
+                              (keywords ["method-family-not-ad-hoc-functions"])))
+              (selector "gerbil-poo://io.ss#methods.bytes<-marshal"))]
   failureCases:
        [(hash (id "manual-hash-or-alist-adapter")
               (riskKind "dependency-boundary-bypass")
@@ -229,12 +311,21 @@
               (riskKind "fragile-test-witness")
               (badPattern "satisfy-adapter-policy-with-line-number-or-single-check-fixture")
               (correctiveAction "add-generic-table-or-protocol-contract-tests")
-              (selectors ["gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"]))]
+              (selectors ["gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"]))
+        (hash (id "copied-monolithic-contract-suite")
+              (riskKind "modularity-policy-violation")
+              (badPattern "copy-large-table-contract-assertion-suite-into-each-adapter-test")
+              (correctiveAction "extract-reusable-contract-tests-into-small-t-owners")
+              (selectors ["gerbil-poo-test://t/table-testing.ss#table-tests"
+                          "gerbil-poo-test://t/rationaldict-test.ss#rationaldict-test"]))]
   qualitySignals: ["dependency-backed-mapping" "rationaldict-source-example"
                    "precise-only-in-import" "define-type-protocol-slots"
                    "validation-serialization-equality-boundaries"
                    "table-derived-set-capability"
                    "generic-contract-witness-required"
+                   "minimal-protocol-surface"
+                   "reusable-contract-test"
+                   "serialization-method-family"
                    "poo-prototype-object-extension"]
   witness: "gerbil-poo-rationaldict-adapter-source-shape"
   next: "search pattern poo rationaldict adapter")

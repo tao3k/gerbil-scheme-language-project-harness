@@ -8,8 +8,7 @@
         :parser/facade
         :parser/query
         :protocol/json
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/sugar unless)
         :support/args
         :support/io
         :support/list)

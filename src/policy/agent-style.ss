@@ -5,8 +5,8 @@
         :policy/agent-support
         :policy/agent-style-shape
         :policy/model
-        :std/srfi/13
-        :std/sugar
+        (only-in :std/srfi/13 string-prefix?)
+        (only-in :std/sugar cut filter filter-map foldl hash ormap)
         :support/list
         :types/findings)
 

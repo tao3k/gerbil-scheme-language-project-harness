@@ -17,9 +17,9 @@
         :support/args
         :support/io
         :support/list
-        :std/misc/ports
-        :std/srfi/13
-        :std/sugar)
+        (only-in :std/misc/ports read-all-as-string)
+        (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar cut filter match ormap))
 
 (export search-main
         language-evidence-view?
