@@ -55,6 +55,77 @@
    "t/fixtures/parser/poo-trace-debug.ss"
    "t/fixtures/parser/poo-method-dispatch.ss"])
 
+;; (List (List Kind Name Field Expected))
+(def +poo-structural-field-specs+
+  [["custom" "point" 'role "object"]
+   ["custom" "point" 'supers ["base"]]
+   ["custom" "point" 'slots ["x" "y" "total" "level" "child" "label" "greeting"]]
+   ["method" ":pr" 'specializers ["object"]]
+   ["method" ":wr" 'specializers ["object"]]
+   ["method" ":json" 'specializers ["object"]]
+   ["method" ":write-json" 'specializers ["object"]]
+   ["method" ":write-json" 'dispatchArity 1]
+   ["custom" "F_q." 'role "type"]
+   ["custom" "F_q." 'supers ["expt<-mul-inv."]]
+   ["custom" "F_2^n." 'supers ["F_q."]]
+   ["custom" "F_2^8" 'supers ["F_2^n."]]
+   ["custom" "F_2^8" 'slots [".n:" ".xn:"]]
+   ["custom" "Trie." 'supers ["Wrap." "methods.table"]]
+   ["custom" "RationalDict." 'supers ["methods.table"]]
+   ["custom" "RationalSet" 'supers ["Set<-Table."]]
+   ["custom" "EmailAddress." 'role "type"]
+   ["custom" "EmailAddress." 'supers ["String."]]
+   ["custom" "PositiveList." 'supers ["List."]]
+   ["custom" "trace-probe" 'role "object"]
+   ["custom" "trace-probe" 'supers ["base"]]
+   ["method" ":pr" 'specializers ["trace-probe"]]
+   ["method" ":wr" 'specializers ["trace-probe"]]
+   ["generic" "distance" 'generic "distance"]
+   ["method" "distance" 'specializers ["Point" "Point"]]
+   ["method" "distance" 'specializerTypes ["Point" "Point"]]
+   ["method" "distance" 'dispatchArity 2]
+   ["generic" ":intersect" 'generic ":intersect"]
+   ["method" ":intersect" 'receiver "line"]
+   ["method" ":intersect" 'receiverType "<Line>"]
+   ["method" ":intersect" 'specializers ["line:<Line>" "circle:<Circle>" "ctx:<Ctx>"]]
+   ["method" ":intersect" 'dispatchArity 3]])
+
+;; (List (List Kind Name QueryKey))
+(def +poo-structural-query-key-specs+
+  [["custom" "point" "slot:level:inherited-computed"]
+   ["custom" "point" "slot:child:mixin-override"]
+   ["method" ":write-json" "object"]
+   ["custom" "F_q." "expt<-mul-inv."]
+   ["custom" "F_q." ".mul:"]
+   ["custom" "F_q." ".n<-:"]
+   ["custom" "F_q." ".<-n:"]
+   ["custom" "F_2^n." ".element?:"]
+   ["custom" "F_2^n." ".=?:"]
+   ["custom" "Trie." "methods.table"]
+   ["custom" "Trie." "T:"]
+   ["custom" "Trie." "Unstep:"]
+   ["custom" "Trie." "Step:"]
+   ["custom" "Trie." ".acons:"]
+   ["custom" "Trie." ".<-list:"]
+   ["custom" "RationalDict." "Key:"]
+   ["custom" "RationalDict." ".key?:"]
+   ["custom" "RationalDict." ".sexp<-:"]
+   ["custom" "RationalSet" "Table:"]
+   ["custom" "RationalSet" ".min-elt:"]
+   ["custom" "EmailAddress." ".validate:"]
+   ["custom" "EmailAddress." ".sexp<-:"]
+   ["custom" "PositiveList." "Elt:"]
+   ["custom" "PositiveList." ".validate:"]
+   ["custom" "trace-probe" "slot:value:inherited-computed"]
+   ["custom" "trace-probe" "slot:runner:self-computed"]])
+
+;; (List (List Kind Name))
+(def +poo-structural-fact-specs+
+  [["call" "raise-type-error"]
+   ["call" "trace-inherited-slot"]
+   ["call" "traced-function"]
+   ["call" "trace-poo"]])
+
 ;; Integer
 (def (check-structural-index-queryable-facts)
   (let* ((index (collect-project "."))
@@ -128,69 +199,35 @@
 
 ;; Unit <- Packet
 (def (check-structural-index-poo-facts facts-packet)
-  (begin
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "point" 'role "object") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "point" 'supers ["base"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "point" 'slots ["x" "y" "total" "level" "child" "label" "greeting"]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "point" "slot:level:inherited-computed") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "point" "slot:child:mixin-override") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":pr" 'specializers ["object"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":wr" 'specializers ["object"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":json" 'specializers ["object"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":write-json" 'specializers ["object"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":write-json" 'dispatchArity 1) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "method" ":write-json" "object") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_q." 'role "type") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_q." 'supers ["expt<-mul-inv."]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." "expt<-mul-inv.") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." ".mul:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." ".n<-:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_q." ".<-n:") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_2^n." 'supers ["F_q."]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_2^n." ".element?:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "F_2^n." ".=?:") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_2^8" 'supers ["F_2^n."]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "F_2^8" 'slots [".n:" ".xn:"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "Trie." 'supers ["Wrap." "methods.table"]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "methods.table") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "T:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "Unstep:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." "Step:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." ".acons:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "Trie." ".<-list:") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "RationalDict." 'supers ["methods.table"]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalDict." "Key:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalDict." ".key?:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalDict." ".sexp<-:") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "RationalSet" 'supers ["Set<-Table."]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalSet" "Table:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "RationalSet" ".min-elt:") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "EmailAddress." 'role "type") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "EmailAddress." 'supers ["String."]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "EmailAddress." ".validate:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "EmailAddress." ".sexp<-:") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "PositiveList." 'supers ["List."]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "PositiveList." "Elt:") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "PositiveList." ".validate:") => #t)
-    (check (packet-has-syntax-fact? facts-packet "call" "raise-type-error") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "trace-probe" 'role "object") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "custom" "trace-probe" 'supers ["base"]) => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "trace-probe" "slot:value:inherited-computed") => #t)
-    (check (packet-has-syntax-fact-query-key? facts-packet "custom" "trace-probe" "slot:runner:self-computed") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":pr" 'specializers ["trace-probe"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":wr" 'specializers ["trace-probe"]) => #t)
-    (check (packet-has-syntax-fact? facts-packet "call" "trace-inherited-slot") => #t)
-    (check (packet-has-syntax-fact? facts-packet "call" "traced-function") => #t)
-    (check (packet-has-syntax-fact? facts-packet "call" "trace-poo") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "generic" "distance" 'generic "distance") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" "distance" 'specializers ["Point" "Point"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" "distance" 'specializerTypes ["Point" "Point"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" "distance" 'dispatchArity 2) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "generic" ":intersect" 'generic ":intersect") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'receiver "line") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'receiverType "<Line>") => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'specializers ["line:<Line>" "circle:<Circle>" "ctx:<Ctx>"]) => #t)
-    (check (packet-has-syntax-fact-field? facts-packet "method" ":intersect" 'dispatchArity 3) => #t)))
+  (for-each (lambda (spec)
+              (check-poo-structural-field facts-packet spec))
+            +poo-structural-field-specs+)
+  (for-each (lambda (spec)
+              (check-poo-structural-query-key facts-packet spec))
+            +poo-structural-query-key-specs+)
+  (for-each (lambda (spec)
+              (check-poo-structural-fact facts-packet spec))
+            +poo-structural-fact-specs+))
+
+;; Unit <- Packet (List Kind Name Field Expected)
+(def (check-poo-structural-field facts-packet spec)
+  (match spec
+    ([kind name field expected]
+     (check (packet-has-syntax-fact-field? facts-packet kind name field expected)
+            => #t))))
+
+;; Unit <- Packet (List Kind Name QueryKey)
+(def (check-poo-structural-query-key facts-packet spec)
+  (match spec
+    ([kind name key]
+     (check (packet-has-syntax-fact-query-key? facts-packet kind name key)
+            => #t))))
+
+;; Unit <- Packet (List Kind Name)
+(def (check-poo-structural-fact facts-packet spec)
+  (match spec
+    ([kind name]
+     (check (packet-has-syntax-fact? facts-packet kind name) => #t))))
 
 ;; Unit
 (def (check-structural-index-quality-shape-facts)
