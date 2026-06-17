@@ -539,6 +539,13 @@
             (check (hash-get details 'styleGuide) => "predicate-family-combinator")
             (check (hash-get details 'subject) => "fact")
             (check (hash-get details 'predicateCount) => 3)
+            (check (hash-get (hash-get details 'gerbilUtilsSource)
+                             'sourcePattern)
+                   => "gerbil-utils-predicate-combinator")
+            (check (not (not (member "gerbil-utils/base.ss#compose"
+                                     (hash-get (hash-get details 'gerbilUtilsSource)
+                                               'sourceOwners))))
+                   => #t)
             (check (not (not (member "role" (hash-get details 'fieldKeys)))) => #t)
             (check (not (not (member "hash-get" (hash-get details 'repeatedCallees)))) => #t)
             (check (hash-get repair 'active) => #t)
@@ -590,6 +597,30 @@
               (check (hash-get details 'policySignals)
                      => ["high-field-access-count"
                          "cross-caller-field-access"])
+              (check (hash-get details 'detectionCombiner)
+                     => "field-access-helper-all-of")
+              (check [(hash-get details 'detectionPrototype)
+                      (hash-get details 'detectionCombinerKind)]
+                     => ["field-access-helper-all-of" "all-of"])
+              (check (hash-get details 'detectionDescription)
+                     => "field access helper repair requires high access count and cross-caller spread")
+              (check (hash-get details 'detectionSourcePattern)
+                     => "gerbil-utils-predicate-combinator")
+              (check (not (not (member "gerbil-utils/base.ss#compose"
+                                       (hash-get details 'detectionSourceOwners))))
+                     => #t)
+              (check (not (not (member "predicate-combinator"
+                                       (hash-get details 'detectionQualitySignals))))
+                     => #t)
+              (check (hash-get details 'detectionWitness)
+                     => "gerbil-utils study: compose/cut/curry helpers and generator map/fold are style witnesses for bounded predicate or selector helper repair")
+              (check (hash-get details 'requiredGroups)
+                     => ["high-field-access-count"
+                         "cross-caller-field-access"])
+              (check (hash-get details 'evidenceGroups)
+                     => ["high-field-access-count"
+                         "cross-caller-field-access"])
+              (check (hash-get details 'evidenceCounts) => [8 4])
               (check (hash-get field-evidence 'fieldKey) => "durationMs")
               (check (hash-get field-evidence 'accessCount) => 8)
               (check (length (hash-get field-evidence 'callers)) => 4)

@@ -266,15 +266,15 @@
 ;;; wrappers, so they need a dedicated evidence profile.
 ;; Boolean <- SourceFile
 (def (build-support-source-file? file)
-  (let (path (source-file-path file))
-    (and (string-prefix? "build-support/" path)
-         (string-suffix? ".ss" path))))
+  (equal? (source-path-class (source-file-path file))
+          "build-support-runtime"))
 
 ;;; Scope guard: package build logic is checked for shell pipelines, not for
 ;;; launcher template text.
 ;; Boolean <- SourceFile
 (def (package-build-file? file)
-  (equal? (source-file-path file) "build.ss"))
+  (equal? (source-path-class (source-file-path file))
+          "package-build"))
 
 ;;; Naming markers catch helper families before they become an unbounded shell
 ;;; wrapper subsystem.

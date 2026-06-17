@@ -207,11 +207,14 @@
         (scope "source-or-test-owner")
         (adjacency "definition-leading-comment")))
 
-;;; Scope boundary: typed-combinator style applies to runtime source and tests, not generated caches.
+;;; Scope boundary:
+;;; - Runtime source and real tests must keep typed-combinator contracts.
+;;; - t/scenarios contains fixture projects that intentionally encode bad shapes.
 ;; Boolean <- ProjectIndex SourceFile
 (def (typed-combinator-style-source-file? index file)
   (let (path (source-file-path file))
     (and path
+         (not (string-prefix? "t/scenarios/" path))
          (ormap (lambda (accept?) (accept? path))
                 [(cut index-source-runtime-file-path? index <>)
                  (cut string-prefix? "t/" <>)]))))

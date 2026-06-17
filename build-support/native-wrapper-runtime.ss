@@ -3,6 +3,8 @@
         :std/misc/ports
         :std/misc/process)
 
+(export main)
+
 (def +native-artifact-suffixes+
   ["" "__exe.scm" "__exe.c" "__exe_.c" "__exe.o" "__exe_.o"
    "__exe__.c" "__exe__.o"])
@@ -188,3 +190,16 @@
                (current-error-port))
       (newline (current-error-port))
       (exit 0)))))
+
+(def (main . args)
+  (cond
+   ((= (length args) 2)
+    (native-link-main (car args) (cadr args)))
+   ((= (length args) 1)
+    (native-diagnose-main (car args)))
+   (else
+    (display "usage: gerbil-native-link <tmp> <final>\n       gerbil-native-diagnose <tmp>\n"
+             (current-error-port))
+    (exit 64))))
+
+(apply main (cdr (command-line)))

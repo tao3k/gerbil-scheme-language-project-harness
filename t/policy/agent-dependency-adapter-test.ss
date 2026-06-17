@@ -50,6 +50,20 @@
                    => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair")
             (check (hash-get details 'codeShapeExemplar)
                    => "gerbil-poo rationaldict-style typed protocol adapter")
+            (check (hash-get details 'profileComposition)
+                   => "clan/list c3-compute-precedence-list + clan/poo/proto compose-proto*")
+            (check (hash-get details 'profileOverlays)
+                   => ["dependency-protocol-surface"
+                       "dependency-poo-lineage"
+                       "dependency-build-cli-lineage"
+                       "dependency-repair-commands"])
+            (check (hash-get details 'profilePrecedence)
+                   => ["dependency-adapter-standard"
+                       "dependency-profile-composition"
+                       "dependency-repair-commands"
+                       "dependency-build-cli-lineage"
+                       "dependency-poo-lineage"
+                       "dependency-protocol-surface"])
             (check (hash-get details 'sourcePatternLineage)
                    => "gerbil-poo build/cli/rationaldict/table/brace/object/mop/io patterns")
             (check (hash-get details 'protocolSurface)

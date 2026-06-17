@@ -2,9 +2,8 @@
 ;;; Policy-owned combinators for parser-owned evidence groups.
 
 (import :gerbil/gambit
-        (only-in :clan/poo/proto compose-proto* instantiate-proto)
-        (only-in :std/srfi/1 find fold)
-        (only-in :std/sugar filter-map hash ormap))
+        :policy/prototype
+        (only-in :std/sugar filter filter-map hash ormap))
 
 (export evidence-group
         evidence-group-name
@@ -56,49 +55,48 @@
 (def (evidence-group-selector group)
   (caddr group))
 
-;;; DetectionPrototype is a POO-compatible descriptor.  Composition is
-;;; delegated to clan/poo/proto so policy extensions follow the same ordered
-;;; override model as compose-proto*: later overlays inherit from the base.
+;;; DetectionPrototype is a C3 slot profile.  Composition follows the same
+;;; multiple-inheritance model as gerbil-poo objects, then materializes into
+;;; plain descriptor slots at the policy boundary.
 ;; DetectionPrototype <- Name CombinerKind Extractors Threshold Required Description
 (def (detection-prototype name combiner extractors threshold required description)
-  [(cons 'name name)
-   (cons 'combiner combiner)
-   (cons 'extractors extractors)
-   (cons 'threshold threshold)
-   (cons 'required-groups required)
-   (cons 'description description)])
+  (slot-profile
+   name
+   [(cons 'name name)
+    (cons 'combiner combiner)
+    (cons 'extractors extractors)
+    (cons 'threshold threshold)
+    (cons 'required-groups required)
+    (cons 'description description)]))
 
 ;;; Source overlays are the public escape hatch for POO provenance.  Callers
 ;;; pass registry-owned pattern values, while detection only stores the slots.
 ;; DetectionPrototype <- Pattern SourceOwners QualitySignals Witness
 (def (detection-prototype-source-overlay pattern source-owners quality-signals witness)
-  [(cons 'source-pattern pattern)
-   (cons 'source-owners source-owners)
-   (cons 'quality-signals quality-signals)
-   (cons 'witness witness)])
+  (slot-profile
+   pattern
+   [(cons 'source-pattern pattern)
+    (cons 'source-owners source-owners)
+    (cons 'quality-signals quality-signals)
+    (cons 'witness witness)]))
 
 ;;; Instantiation boundary: compose-proto* returns a prototype transformer.
 ;;; Policy modules consume plain descriptor data, so instantiate at this edge.
 ;; DetectionPrototype <- (List DetectionPrototype)
 (def (detection-prototype-compose prototypes)
-  (instantiate-proto
-   (compose-proto* (map detection-prototype->poo-proto prototypes))
-   '()))
+  (slot-profile-compose "detection-prototype-composition" prototypes))
 
 ;;; Extension order follows POO source order: each overlay is placed outside the
 ;;; base prototype, so its slots override inherited slots during instantiation.
 ;; DetectionPrototype <- DetectionPrototype DetectionPrototype ...
 (def (detection-prototype-extend base . overlays)
-  (detection-prototype-compose
-   (fold (lambda (overlay ordered) (cons overlay ordered))
-         [base]
-         overlays)))
+  (apply slot-profile-extend base overlays))
 
 ;;; Single-overlay override is kept explicit for rules that need to replace one
 ;;; detector profile without introducing a new composition vocabulary.
 ;; DetectionPrototype <- DetectionPrototype DetectionPrototype
 (def (detection-prototype-override base overlay)
-  (detection-prototype-compose [overlay base]))
+  (slot-profile-override base overlay))
 
 ;; String <- DetectionPrototype
 (def (detection-prototype-name prototype)
@@ -170,48 +168,13 @@
                groups))))
       (else #f))))
 
-;;; Data flow:
-;;; The incoming descriptor is not executed.
-;;; The lambda gives compose-proto* the two-argument shape it requires.
-;;; Arity evidence:
-;;; The first formal is the recursive self accessor from proto.ss.
-;;; Detection descriptors have no recursive slot lookup, so this adapter ignores it.
-;;; Invariant:
-;;; merge-detection-prototype is the only place that changes slot precedence.
-;;; Keeping the adapter separate makes POO order auditable in policy details.
-;; PooProto <- DetectionPrototype
-(def (detection-prototype->poo-proto prototype)
-  (lambda (_ inherited)
-    (merge-detection-prototype inherited prototype)))
-
-;;; Slot merge is the descriptor-level equivalent of a POO object override:
-;;; inherited slots survive unless the outer prototype supplies the same key.
-;; DetectionPrototype <- DetectionPrototype DetectionPrototype
-(def (merge-detection-prototype inherited prototype)
-  (fold (lambda (slot out)
-          (put-detection-prototype-slot out (car slot) (cdr slot)))
-        inherited
-        prototype))
-
-;;; Replacement keeps one effective value per slot while preserving the rest of
-;;; the descriptor as data that later policy details can expose.
-;; DetectionPrototype <- DetectionPrototype Symbol Value
-(def (put-detection-prototype-slot prototype key value)
-  (cons (cons key value)
-        (filter (lambda (slot) (not (eq? (car slot) key)))
-                prototype)))
-
 ;;; Lookup boundary:
-;;; - find searches the already-merged slot list with one candidate-slot lambda.
-;;; - The first matching key is the effective POO slot after override order has
-;;;   been resolved by merge-detection-prototype.
+;;; - The shared slot-prototype layer resolves the effective POO slot.
 ;;; - Missing keys return the caller-owned fallback, which keeps base
 ;;;   prototypes partial without mutating descriptor state.
 ;; Value <- DetectionPrototype Symbol Value
 (def (detection-prototype-slot prototype key fallback)
-  (let (slot (find (lambda (candidate) (eq? (car candidate) key))
-                  prototype))
-    (if slot (cdr slot) fallback)))
+  (slot-profile-ref prototype key fallback))
 
 ;;; Extractors are maybe-producing functions over one parser-owned subject.
 ;;; filter-map makes missing evidence a normal composition result.
@@ -344,7 +307,8 @@
   [(cons 'source-pattern (detection-prototype-slot prototype 'source-pattern ""))
    (cons 'source-owners (detection-prototype-slot prototype 'source-owners '()))
    (cons 'quality-signals (detection-prototype-slot prototype 'quality-signals '()))
-   (cons 'witness (detection-prototype-slot prototype 'witness ""))])
+   (cons 'witness (detection-prototype-slot prototype 'witness ""))
+   (cons 'profile-precedence (slot-profile-precedence-names prototype))])
 
 ;; Value <- DetectionResult Symbol Value
 (def (detection-result-metadata-slot result key fallback)
@@ -371,6 +335,8 @@
            (detection-result-metadata-slot result 'quality-signals '()))
           (detectionWitness
            (detection-result-metadata-slot result 'witness ""))
+          (detectionProfilePrecedence
+           (detection-result-metadata-slot result 'profile-precedence '()))
           (evidenceGroups (map evidence-group-name groups))
           (evidenceCounts (map evidence-group-count groups))
           (evidenceSelectors (map evidence-group-selector groups)))))

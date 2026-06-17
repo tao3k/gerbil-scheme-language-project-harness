@@ -1,0 +1,29 @@
+(policyScenario
+ (id "predicate-family-combinator")
+ (before
+  (finding
+   ("GERBIL-SCHEME-AGENT-R016"
+    "src/orders/core.ss"
+    "src/orders/core.ss:6-20"
+    "predicate family over fact repeats field/role condition helpers; keep repair policy-driven, extract selector helpers or a bounded predicate combinator before editing for style or performance"))
+  (profile
+   ((styleGuide "predicate-family-combinator")
+    (subject "fact")
+    (predicateCount 3)
+    (fieldKeys ("role" "fields"))
+    (repeatedCallees ("hash-get" "equal?" "field-string"))
+    (sourcePattern "gerbil-utils-predicate-combinator")
+    (sourceOwners
+     ("gerbil-utils/base.ss#compose"
+      "gerbil-utils/base.ss#cut/curry/rcurry"
+      "gerbil-utils/base.ss#ensure-function"
+      "gerbil-utils/generator.ss#generating-map/fold"))
+    (qualitySignals
+     ("small-selector-helper"
+      "expression-level-composition"
+      "predicate-combinator"
+      "generator-aware-transform"))
+    (repairStandard
+     "rewrite toward gerbil-utils style: keep predicate names stable, extract role/field selector helpers, and compose small expression-returning predicates"))))
+ (after
+  (r016Findings ())))

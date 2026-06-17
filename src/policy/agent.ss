@@ -11,6 +11,7 @@
         :policy/agent-poo
         :policy/agent-style
         :policy/agent-support
+        :policy/gerbil-utils-source
         :policy/model
         :policy/modularity
         (only-in :std/misc/ports read-file-lines)
@@ -384,7 +385,10 @@
        (fx>= (string-length
               (string-trim (macro-governance-policy-witness policy)))
              +macro-runtime-source-witness-min-length+)))
-;; TypeFinding <- SourceFile Fact
+;;; Finding boundary:
+;;; - The macro fact supplies selector and syntax evidence.
+;;; - Details tell agents to fetch runtime-source witnesses before editing macros.
+;; TypeFinding <- SourceFile MacroFact
 (def (macro-runtime-source-witness-finding file fact)
   (make-type-finding
    (policy-rule-id +agent-macro-runtime-source-witness-rule+)
@@ -395,7 +399,28 @@
    (macro-fact-selector fact)
    (hash (macro (macro-fact-name fact))
          (transformer (macro-fact-transformer fact))
+         (phase (macro-fact-phase fact))
+         (patternCount (macro-fact-pattern-count fact))
+         (hygienic (macro-fact-hygienic fact))
+         (qualityFacets (macro-fact-quality-facets fact))
          (selector (macro-fact-selector fact))
+         (macroFactSource "parser-owned macroFacts from native Gerbil syntax extraction")
+         (policyBoundary "macros are allowed when they stay controlled, source-backed, and explainable")
+         (runtimeSourceRequirement
+          (hash (authority "runtime-version-source")
+                (selectorScheme "gerbil-runtime-source")
+                (selectorFormat "gerbil-runtime-source://<source-path>#<symbol>")
+                (output "code-with-comments")
+                (indexOwner "asp-structural-index")))
+         (gerbilUtilsSource
+          (gerbil-utils-source-details 'macro-helper))
+         (allowedMacroShape
+          ["thin syntax bridge"
+           "syntax-case transformer with local parsing helpers"
+           "defrule/defrules wrapper over visible runtime behavior"
+           "for-syntax helper with precise imports"])
+         (agentEscapeConstraint
+          "do not weaken macro-governance from a source macro edit; update gerbil.pkg only with a clear explanation and witness")
          (next "search runtime-source macro sugar module-sugar")
          (requiredWitness "gerbil.pkg policy macro-governance witness"))))
 ;;; Boundary:

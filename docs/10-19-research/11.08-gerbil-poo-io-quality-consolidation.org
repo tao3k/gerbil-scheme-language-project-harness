@@ -231,6 +231,47 @@ The next step is to group fixtures by design intent:
 | type descriptors | finite-field, trie, validation |
 | dependency adapters | rationaldict/table |
 | protocol conversion | future =io.ss= style fixture |
+* 2026-06-17 Policy Rule Transfer
+The next policy transfer from this source study is now anchored in the
+build-support and package-build agent rules.
+
+The relevant upstream evidence is:
+- =gerbil-poo/proto.ss= models extension as small prototype combinators:
+  =identity-proto=, =compose-proto=, =compose-proto*=, and
+  =instantiate-protos=.
+- =gerbil-poo/io.ss= models I/O behavior as protocol boundaries:
+  =.defgeneric= contracts, =defmethod= extensions, and adapter methods
+  carry ownership instead of spreading string checks through consumers.
+- =gerbil-utils/cli.ss= keeps CLI input handling as a small helper surface
+  rather than shell-template orchestration.
+
+Harness policy should therefore keep R019/R020 on their current split:
+- R019 owns top-level =build.ss= responsibility drift, such as package build
+  CLI routing and wrapper-definition ownership.
+- R020 owns build-runtime quality drift through composite detections.
+- R020 build-support shell-template drift requires more than helper names. A
+  helper-name group by itself is evidence, not a warning.
+- R020 can warn only when independent parser-owned groups agree, such as
+  helper definitions plus shell-control literals or shell writer calls.
+- R020 package-build shell-pipeline drift remains stricter: =sh -c= dispatch
+  and pipeline payload evidence must both be present.
+- Positive runtime wrappers must stay quiet for both R019 and R020 when they
+  use Gerbil process APIs and typed argv lists.
+
+The regression tests now encode these constraints:
+- =agent policy requires multiple build-support evidence groups=
+- =agent policy accepts Gerbil runtime build-support wrappers=
+
+This is the shape we want for future rules: source-backed evidence groups
+come from the native parser, POO-style detector prototypes combine them, and
+the policy warning is emitted only after the composite gate is satisfied.
+
+The scope guard for this rule family has also moved one step closer to that
+architecture. =src/parser/source-class.ss= now classifies =build.ss= as
+=package-build= and =build-support/*.ss= as =build-support-runtime=. R019 and
+R020 consume those parser-owned classes instead of each policy file redoing
+path string tests. The new parser regression
+=source path class owns build policy scope= protects that boundary.
 
 This turns the fixture suite into a POO best-practices corpus rather than
 a pile of parser examples.
@@ -258,7 +299,7 @@ policy output, and verification gates.
 |-----------+-------+--------+---------------|
 | M0: Research baseline | POO source study across =proto.ss=, =object.ss=, =mop.ss=, =io.ss=, =table.ss=, =trie.ss=, =type.ss=, and =rationaldict.ss=. | landed | 11.08 and 31.31 name bounded source selectors and quality dimensions. |
 | M1: Parser/search fact corpus | Parser-owned POO facts, structural owner facts, fixtures, search pattern packets, and guide examples. | landed | =poo-structural-specs=, POO parser classification tables, protocol-conversion fixtures, adapter/invariant fixtures, and guide output exist. |
-| M2: Source-backed policy bridge | Bring real =clan/poo= and =gerbil-poo://= pattern metadata into policy detection without making individual rules own the pattern registry. | landed | =src/policy/detection.ss= uses =clan/poo/proto=; =src/policy/poo-source.ss= bridges =src/extensions/poo-patterns.ss= into detector overlays; R020 finding details include source pattern, source owners, quality signals, and witness data. |
+| M2: Source-backed policy bridge | Bring real =clan/poo=, =clan/list= C3 linearization, and =gerbil-poo://= pattern metadata into policy detection without making individual rules own the pattern registry. | landed | =src/policy/prototype.ss= exposes C3 slot profiles; =src/policy/detection.ss= and =src/policy/dependency-adapter-profile.ss= surface =profilePrecedence= / =detectionProfilePrecedence= details; =src/policy/poo-source.ss= still bridges =src/extensions/poo-patterns.ss= into detector overlays. |
 | M3: Policy-warning repair loop | Use policy warnings to improve actual Scheme source quality, starting from POO-adjacent owners and avoiding one-off hard-coded quality thresholds. | active next | Full policy check emits repair-ready grouped findings; agent repairs code shape; rerun check reaches =findings=0= with focused tests. |
 | M4: Source graph alignment | Connect upstream POO materialization selectors to fixture-level cache/inheritance facts as explicit source-specific graph edges. | pending | Search output can traverse from =gerbil-poo://proto.ss=, =object.ss=, and =mop.ss= selectors to harness fixture facts and repair guidance. |
 | M5: Release-grade closure | Freeze the best-practice corpus as a regression suite and only then start a fresh source-research round. | pending | Parser tests, search tests, policy tests, =asp gerbil-scheme check --full .=, =gxi build.ss compile=, and Org lint all pass together. |
@@ -287,6 +328,10 @@ the next source-research round:
 | Provider wrapper script owner | landed | Runtime wrapper behavior lives in Gerbil script sources using =:std/misc/process= list commands and =main= entrypoints. =build-support/provider-cli.ss= only installs launchers/config data; native timeout/link/diagnose behavior lives in =build-support/native-wrapper-runtime.ss= using =open-process=, =process-pid=, =process-status=, and quiet =kill= process calls. |
 | Build runtime quality policy | landed | =GERBIL-SCHEME-AGENT-R020= uses composite parser-owned evidence groups rather than a single hard-coded callee. It warns only when at least two groups align, such as shell helper definitions plus shell-control literals in =build-support/*.ss=, or =sh -c= dispatch plus pipeline literals in package build code. The current =build.ss= static artifact refresh now enumerates =src/**/*.ss= in Gerbil and invokes =gxc= with list arguments instead of =find | xargs=. |
 | POO policy detection prototypes | landed | =src/policy/detection.ss= now uses =clan/poo/proto= composition for detector descriptors. Evidence extractors still produce parser-owned =EvidenceGroup= values; prototype overlays provide ordered =extend=/=override= slots for extractors, thresholds, required groups, descriptions, and source-backed POO pattern metadata. =src/policy/poo-source.ss= is the policy bridge from =src/extensions/poo-patterns.ss= to detection overlays, so =GERBIL-SCHEME-AGENT-R020= carries =poo-prototype-composition= source owners, quality signals, and witness data without directly owning the pattern registry. This keeps multiple detection data-owned and tied to the real POO dependency instead of hard-coding one larger rule or one fixed threshold. |
+| POO detection core regression | landed | =t/policy/detection-test.ss= directly guards =src/policy/detection.ss=: threshold detectors require multiple parser-owned groups, all-of detectors require every named group, POO source overlays survive C3 profile composition into =detection-result-details=, and =detection-prototype-override= replaces inherited detector slots. The suite also includes a diamond C3 profile regression so shared bases linearize once and leftmost profile slots win. R020 still covers the end-to-end policy warning, but the combinator itself now has a narrow regression suite. |
+| POO production prototype layer | landed | =src/policy/prototype.ss= is now the shared C3 slot-profile layer for policy descriptors. It calls =clan/list c3-compute-precedence-list= for named profile supers, then materializes effective slots through the existing =clan/poo/proto= descriptor path. =src/policy/detection.ss= delegates compose/extend/override/slot lookup to it instead of owning a private merge implementation. This makes POO inheritance and override behavior a reusable production abstraction, not a one-rule policy experiment. |
+| R017 dependency adapter profile | landed | =src/policy/dependency-adapter-profile.ss= turns the dependency-adapter repair contract into composed C3 POO profiles: protocol surface, POO source lineage, build/CLI lineage, repair commands, and composition metadata are independent supers. =src/policy/agent-dependency-adapter.ss= now supplies parser-owned facts and witness status to =dependency-adapter-profile-details= rather than constructing one giant details hash. R017 output exposes =profileComposition=, =profileOverlays=, and =profilePrecedence= so agents can see the POO practice directly. |
+| R016 field-access detection gate | landed | =src/policy/agent-style-shape.ss= now routes field-access helper warnings through =run-detection-prototype= and an =all-of= detector named =field-access-helper-all-of=. The warning requires both =high-field-access-count= and =cross-caller-field-access= =EvidenceGroup= values from parser-owned =fieldAccessPatternFacts=; details expose =detectionCombiner=, =requiredGroups=, =evidenceGroups=, and =evidenceCounts=. =t/policy/agent-style-test.ss= keeps the single-caller high-count case advisory-only and checks the combined selector repair details. |
 | Grouped repair planner payload | landed | Agent repair JSON now exposes =multiPolicy=, =repairStrategy=, and ordered =repairPhases= per finding group. Multi-policy groups such as typed-combinator plus comment-quality warnings become one structural-first repair boundary, with dependent comment rationale repaired after the code shape stabilizes. |
 | M3 policy-warning repair loop | landed | Adding the milestone guide surface triggered =GERBIL-SCHEME-MOD-R002= and =GERBIL-SCHEME-AGENT-R015= in =src/commands/guide.ss=. The repair followed the emitted =agentRepair.nextCommand=, collapsed M3 routing onto the existing source-backed typed-combinator exemplar branch, added the missing engineering boundary comment, and returned =asp gerbil-scheme check --full .= to =findings=0=. |
 | M4 slot-cache source-selector edges | landed | Structural call facts for =.ref=, =.ref/cached=, and =apply-slot-spec= now carry =sourceSelector= fields and =sourceSelector:gerbil-poo://object.ss#...= query keys. Owner-bounded structural JSON for =poo-slot-cache-inheritance.ss= exposes these as search-visible edges from fixture call facts back to the upstream POO object materialization selectors. |
@@ -419,7 +464,9 @@ For this harness, "POO best practice" means:
 3. methods own dispatch and fallback, not data conversion policy;
 4. adapter types compose derived capabilities;
 5. parser facts expose those boundaries to agents;
-6. tests validate the fact contract through data, not repeated hand-coded
+6. production policy/profile code uses C3 slot profiles for override order when
+   multiple independent concerns compose;
+7. tests validate the fact contract through data, not repeated hand-coded
    assertion blocks.
 
 That is the quality bar demonstrated by =.data/gerbil-poo/io.ss=,

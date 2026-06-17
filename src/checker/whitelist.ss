@@ -3,6 +3,7 @@
 
 (import :checker/model
         :parser/facade
+        (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/13 string-empty? string-prefix? string-trim)
         (only-in :std/sugar filter-map)
         :types/findings)
@@ -15,17 +16,15 @@
 ;;; - Keep data-flow evidence visible.
 ;; ParsedData <- String
 (def (load-call-whitelist path)
-  (call-with-input-file path
-    (lambda (port)
-      (let lp ((out '()))
-        (let (line (read-line port))
-          (if (eof-object? line)
-            (reverse out)
-            (let (trimmed (string-trim line))
-              (if (or (string-empty? trimmed)
-                      (string-prefix? ";" trimmed))
-                (lp out)
-                (lp (cons trimmed out))))))))))
+  (filter-map whitelist-line-entry (read-file-lines path)))
+
+;; MaybeWhitelistEntry <- SourceLine
+(def (whitelist-line-entry line)
+  (let (trimmed (string-trim line))
+    (and (not (or (string-empty? trimmed)
+                  (string-prefix? ";" trimmed)))
+         trimmed)))
+
 ;;; Boundary:
 ;;; - run-whitelist-checks composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

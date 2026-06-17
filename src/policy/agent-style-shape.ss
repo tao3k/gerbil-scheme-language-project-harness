@@ -3,6 +3,8 @@
 
 (import :parser/facade
         :policy/agent-support
+        :policy/detection
+        :policy/gerbil-utils-source
         :policy/model
         (only-in :std/sugar cut filter filter-map foldl hash ormap)
         :support/list
@@ -72,6 +74,8 @@
   (hash (styleGuide "predicate-family-combinator")
         (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
         (qualityReference "gerbil-utils")
+        (gerbilUtilsSource
+         (gerbil-utils-source-details 'predicate-combinator))
         (evidenceSource "parser-owned predicateFamilyFacts plus fieldAccessPatternFacts")
         (subject (predicate-family-fact-subject fact))
         (predicateCount (predicate-family-fact-predicate-count fact))
@@ -96,21 +100,70 @@
 
 ;; TypeFinding <- SourceFile FieldAccessPatternFact
 (def (field-access-helper-finding file fact)
-  (and (field-access-helper-evidence-complete? fact)
-       (make-type-finding
-        (policy-rule-id +agent-predicate-family-combinator-rule+)
-        (policy-rule-severity +agent-predicate-family-combinator-rule+)
-        (source-file-path file)
-        (field-access-helper-message fact)
-        (field-access-pattern-fact-selector fact)
-        (field-access-helper-details fact))))
+  (let (detection (field-access-helper-detection fact))
+    (and detection
+         (make-type-finding
+          (policy-rule-id +agent-predicate-family-combinator-rule+)
+          (policy-rule-severity +agent-predicate-family-combinator-rule+)
+          (source-file-path file)
+          (field-access-helper-message fact)
+          (detection-result-selector detection
+                                     (field-access-pattern-fact-selector fact))
+          (field-access-helper-details fact detection)))))
 
 ;; Boolean <- FieldAccessPatternFact
 (def (field-access-helper-evidence-complete? fact)
+  (not (not (field-access-helper-detection fact))))
+
+;;; Detector boundary:
+;;; - R016 field-access warnings require two independent parser-owned groups.
+;;; - The all-of prototype exposes that decision as data for agent repair.
+;; MaybeDetectionResult <- FieldAccessPatternFact
+(def (field-access-helper-detection fact)
+  (run-detection-prototype fact (field-access-helper-detection-prototype)))
+
+;;; Prototype shape:
+;;; - Keep the thresholds named, but make the trigger an all-of combinator.
+;;; - Future field-access evidence can extend this descriptor without changing
+;;;   the finding assembly path.
+;; DetectionPrototype
+(def (field-access-helper-detection-prototype)
+  (detection-prototype-extend
+   +all-of-detection-prototype+
+   (gerbil-utils-source-detection-overlay 'predicate-combinator)
+   (detection-prototype
+    "field-access-helper-all-of"
+    'all-of
+    [field-access-count-evidence
+     field-access-caller-spread-evidence]
+    0
+    ["high-field-access-count" "cross-caller-field-access"]
+    "field access helper repair requires high access count and cross-caller spread")))
+
+;;; Evidence boundary:
+;;; - Access-count evidence is one independent group in the all-of detector.
+;;; - Selector ownership remains on the parser fact that exposed the field key.
+;; MaybeEvidenceGroup <- FieldAccessPatternFact
+(def (field-access-count-evidence fact)
   (and (>= (field-access-pattern-fact-access-count fact)
            +field-access-helper-evidence-min-access-count+)
-       (>= (length (field-access-pattern-fact-callers fact))
-           +field-access-helper-evidence-min-caller-count+)))
+       (evidence-group
+        "high-field-access-count"
+        (field-access-pattern-fact-access-count fact)
+        (field-access-pattern-fact-selector fact))))
+
+;;; Evidence boundary:
+;;; - Caller-spread evidence is separate from raw access frequency.
+;;; - Keeping it as another EvidenceGroup prevents single-caller hot code from
+;;;   becoming a style warning.
+;; MaybeEvidenceGroup <- FieldAccessPatternFact
+(def (field-access-caller-spread-evidence fact)
+  (let (caller-count (length (field-access-pattern-fact-callers fact)))
+    (and (>= caller-count +field-access-helper-evidence-min-caller-count+)
+         (evidence-group
+          "cross-caller-field-access"
+          caller-count
+          (field-access-pattern-fact-selector fact)))))
 
 ;; Message <- FieldAccessPatternFact
 (def (field-access-helper-message fact)
@@ -123,19 +176,37 @@
    (number->string (length (field-access-pattern-fact-callers fact)))
    " callers; extract a small selector helper before adding more hash/field reads"))
 
-;; PolicyDetails <- FieldAccessPatternFact
-(def (field-access-helper-details fact)
-  (hash (styleGuide "predicate-family-combinator")
-        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
-        (qualityReference "gerbil-utils")
-        (evidenceSource "parser-owned fieldAccessPatternFacts")
-        (policySignals (field-access-helper-policy-signals fact))
-        (accessCountGate +field-access-helper-evidence-min-access-count+)
-        (callerCountGate +field-access-helper-evidence-min-caller-count+)
-        (fieldAccessPattern (field-access-pattern-repair-evidence fact))
-        (agentRepairStandard
-         "extract a local selector helper only after native parser evidence shows both high access count and cross-caller spread; keep packet keys stable and preserve caller behavior")
-        (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+;;; Details boundary:
+;;; - Detection metadata is copied through so agents see the all-of gate.
+;;; - Field-specific repair evidence stays attached to the original parser fact.
+;; PolicyDetails <- FieldAccessPatternFact DetectionResult
+(def (field-access-helper-details fact detection)
+  (let (details (detection-result-details detection))
+    (hash (styleGuide "predicate-family-combinator")
+          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+          (qualityReference "gerbil-utils")
+          (evidenceSource "parser-owned fieldAccessPatternFacts")
+          (policySignals (hash-get details 'evidenceGroups))
+          (detectionCombiner (hash-get details 'detectionCombiner))
+          (detectionPrototype (hash-get details 'detectionPrototype))
+          (detectionCombinerKind (hash-get details 'detectionCombinerKind))
+          (detectionThreshold (hash-get details 'detectionThreshold))
+          (detectionDescription (hash-get details 'detectionDescription))
+          (detectionSourcePattern (hash-get details 'detectionSourcePattern))
+          (detectionSourceOwners (hash-get details 'detectionSourceOwners))
+          (detectionQualitySignals (hash-get details 'detectionQualitySignals))
+          (detectionWitness (hash-get details 'detectionWitness))
+          (requiredGroups (hash-get details 'requiredGroups))
+          (missingGroups (hash-get details 'missingGroups))
+          (evidenceGroups (hash-get details 'evidenceGroups))
+          (evidenceCounts (hash-get details 'evidenceCounts))
+          (evidenceSelectors (hash-get details 'evidenceSelectors))
+          (accessCountGate +field-access-helper-evidence-min-access-count+)
+          (callerCountGate +field-access-helper-evidence-min-caller-count+)
+          (fieldAccessPattern (field-access-pattern-repair-evidence fact))
+          (agentRepairStandard
+           "extract a local selector helper only after native parser evidence shows both high access count and cross-caller spread; keep packet keys stable and preserve caller behavior")
+          (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style"))))
 
 ;; (List PolicySignal) <- FieldAccessPatternFact
 (def (field-access-helper-policy-signals fact)

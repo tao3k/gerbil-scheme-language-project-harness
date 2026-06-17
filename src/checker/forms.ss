@@ -88,9 +88,9 @@
 ;;; - Keep packet shape and invariants stable.
 ;; TypeFinding <- ProjectIndex Form
 (def (macro-governance-finding index form)
-  (let* ((head (top-form-head form))
-         (selector (top-form-selector form))
-         (policy (and index (project-macro-governance-policy index))))
+  (let ((head (top-form-head form))
+        (selector (top-form-selector form))
+        (policy (and index (project-macro-governance-policy index))))
     (make-type-finding
      (checker-rule-id +macro-governance-rule+)
      (checker-rule-severity +macro-governance-rule+)

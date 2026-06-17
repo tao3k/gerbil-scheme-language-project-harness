@@ -1,15 +1,25 @@
 ;;; -*- Gerbil -*-
 ;;; Parser-owned source path classification for agent-facing projections.
 
-(import (only-in :std/srfi/13 string-contains string-prefix?))
+(import (only-in :std/srfi/13 string-contains string-prefix? string-suffix?))
 
 (export source-path-class)
-;; String <- String
+;;; Boundary:
+;;; - Source classes are parser-owned vocabulary for policy scope guards.
+;;; - Build policy consumes package-build and build-support-runtime classes
+;;;   instead of repeating path predicates in policy code.
+;;; Invariant:
+;;; - Specific build/runtime paths are classified before broad source fallbacks.
+;; SourceClass <- SourcePath
 (def (source-path-class path)
   (cond
-   ((or (equal? path "gerbil.pkg")
-        (equal? path "build.ss"))
+   ((equal? path "gerbil.pkg")
     "config")
+   ((equal? path "build.ss")
+    "package-build")
+   ((and (string-prefix? "build-support/" path)
+         (string-suffix? ".ss" path))
+    "build-support-runtime")
    ((or (string-prefix? "t/snapshots/" path)
         (string-contains path "/snapshots/"))
     "snapshot-output")

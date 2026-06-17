@@ -26,8 +26,8 @@
 ;; (Maybe TypeFinding) <- CallFact NativeSignatures
 (def (call-arity-finding call signature)
   (and (eq? (type-kind signature) 'function)
-       (let* ((expected (length (type-params signature)))
-              (actual (call-fact-arity call)))
+       (let ((expected (length (type-params signature)))
+             (actual (call-fact-arity call)))
          (and (not (fx= expected actual))
               (arity-mismatch-finding call expected actual signature)))))
 ;; TypeFinding <- CallFact ExpectedArity ActualArity NativeSignatures

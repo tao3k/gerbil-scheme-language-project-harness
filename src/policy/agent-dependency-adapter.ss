@@ -3,6 +3,7 @@
 
 (import :parser/facade
         :policy/agent-support
+        :policy/dependency-adapter-profile
         :policy/model
         (only-in :std/srfi/13 string-contains string-prefix?)
         :support/list
@@ -79,82 +80,14 @@
 ;;; - Parser facts and guide commands own follow-up.
 ;; Json <- ProjectIndex DependencyAdapterQualityFact MissingEvidence
 (def (dependency-protocol-adapter-details index fact missing)
-  (hash (styleGuide "dependency-protocol-adapter")
-        (styleCommand
-         "asp gerbil-scheme guide --code --topic dependency-protocol-adapter --intent repair")
-        (repairAction "search-forwarded-example-then-guide-code")
-        (guideCodeFlag "--code")
-        (searchExampleCommand +dependency-adapter-search-example-command+)
-        (repairCodeCommand +dependency-adapter-repair-code-command+)
-        (codeShapeExemplar "gerbil-poo rationaldict-style typed protocol adapter")
-        (sourcePatternLineage "gerbil-poo build/cli/rationaldict/table/brace/object/mop/io patterns")
-        (definition (dependency-adapter-quality-fact-name fact))
-        (dependency (dependency-adapter-quality-fact-dependency fact))
-        (imports (dependency-adapter-quality-fact-imports fact))
-        (importedSymbols
-         (take-at-most (dependency-adapter-quality-fact-imported-symbols fact) 12))
-        (usedSymbols
-         (take-at-most (dependency-adapter-quality-fact-used-symbols fact) 12))
-        (protocolRefs
-         (dependency-adapter-quality-fact-protocol-refs fact))
-        (slots (dependency-adapter-quality-fact-slots fact))
-        (derivedCapabilities
-         (dependency-adapter-quality-fact-derived-capabilities fact))
-        (protocolSurface
-         "minimal protocol slots first; derive table/set/list/sexp/json/marshal-facing capabilities from the slot surface")
-        (protocolSurfaceReference
-         "gerbil-poo table.ss methods.table")
-        (reusableContractTestPattern
-         "small t/ owner calls generic table-contract-tests or protocol-contract-tests against the adapter type descriptor")
-        (macroBridgeBoundary
-         "syntax forms should stay thin bridges like gerbil-poo brace.ss @method; runtime semantics belong in object/mop/protocol slots")
-        (slotResolutionModel
-         "POO objects resolve slots through C3 precedence plus lazy slot function cache; do not replace this with raw hash/alist guesses")
-        (ioSerializationMethodFamily
-         "json<-/<-json, marshal/unmarshal, bytes<-/<-bytes, and string<-/<-string are method/type slots")
-        (buildPattern
-         "use :std/make + :clan/base + :clan/building discovery, while filtering non-module policy/config files for this harness")
-        (cliOptionPattern
-         "keep src/cli.ss as a thin dispatcher; compose option objects when command option surfaces grow")
-        (manualObjectEncodingRisk
-         (dependency-adapter-quality-fact-manual-object-encoding-risk fact))
-        (genericContractWitnessKind
-         (dependency-adapter-quality-fact-generic-contract-witness-kind fact))
-        (quality (dependency-adapter-quality-fact-quality fact))
-        (qualityFacets
-         (dependency-adapter-quality-fact-quality-facets fact))
-        (missingEvidence missing)
-        (contractWitnessPresent
-         (dependency-adapter-generic-contract-witness-exists? index fact))
-        (contractWitnessKind
-         (or (dependency-adapter-contract-witness-kind index fact) "missing"))
-        (contractWitnessSource
-         "project-level t/ owner with adapter call plus generic table/protocol contract tests; basic check calls are diagnostic but not sufficient")
-        (adapterRepairShape
-         "query the search-forwarded rationaldict adapter example first, then use R017 guide --code for local parser/policy repair snippets; follow exact only-in dependency import -> define-type protocol surface -> Key/Value/validation/serialization/equality slots -> generic contract tests")
-        (agentRepairStandard
-         "current dependency already provides the bottom data structure; do not hand-write loose hash/alist objects. Build a typed protocol adapter: precise only-in imports for primitives, define-type Key/Value/validate/serialization/equality slots, behavior on protocol slots, derived table/set/list/sexp/json/marshal capabilities when slots exist, and generic contract tests")
-        (allowedMoves
-         [(string-append "run " +dependency-adapter-search-example-command+
-                         " to inspect the dependency example before editing")
-          (string-append "run " +dependency-adapter-repair-code-command+
-                         " to inspect local R017 parser/policy repair code")
-          "add or tighten only-in dependency primitive imports"
-          "wrap dependency primitives with define-type and protocol slots"
-          "add .validate, .sexp<-, .=?, .list<- or .<-list boundaries when behavior exists"
-          "derive table/set/list/sexp/json/marshal-facing capability from protocol slots"
-          "add t/ generic contract tests such as table-contract-tests or protocol-contract-tests"])
-        (disallowedMoves
-         ["do not replace dependency primitives with hand-written hash/alist storage"
-          "do not satisfy R017 with a line-number fixture or a single incidental check call"
-          "do not call imported primitives directly from scattered owners when a typed adapter boundary is missing"
-          "do not invent protocol capabilities that are not backed by slots or dependency primitives"])
-        (agentFlexibility
-         "agent may choose helper names, exact slot grouping, and generic test helper shape; preserve public adapter name and dependency primitive semantics")
-        (nativeFactSource
-         "parser-owned dependencyAdapterQualityFacts joined with moduleImportFacts; do not use raw text heuristics")
-        (advice (dependency-adapter-quality-fact-advice fact))
-        (next +dependency-adapter-search-example-command+)))
+  (dependency-adapter-profile-details
+   (dependency-adapter-standard-profile
+    +dependency-adapter-search-example-command+
+    +dependency-adapter-repair-code-command+)
+   fact
+   missing
+   (dependency-adapter-generic-contract-witness-exists? index fact)
+   (or (dependency-adapter-contract-witness-kind index fact) "missing")))
 
 ;;; Contract witness detection stays project-level because tests usually live
 ;;; outside the adapter owner. The predicate still uses parser-owned calls.

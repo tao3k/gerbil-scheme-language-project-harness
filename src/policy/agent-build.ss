@@ -52,7 +52,8 @@
   (and (project-index-package index)
        (equal? (project-package-path (project-index-package index)) "gerbil.pkg")
        (find (lambda (file)
-               (equal? (source-file-path file) "build.ss"))
+               (equal? (source-path-class (source-file-path file))
+                       "package-build"))
              (project-index-files index))))
 
 ;;; Finding contract:

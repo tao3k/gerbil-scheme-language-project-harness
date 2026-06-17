@@ -95,6 +95,12 @@
 ;; TestSuite
 (def parser-test-part-8
   (test-suite "gerbil scheme harness parser part 8"
+    (test-case "source path class owns build policy scope"
+          (check (source-path-class "gerbil.pkg") => "config")
+          (check (source-path-class "build.ss") => "package-build")
+          (check (source-path-class "build-support/provider-cli.ss")
+                 => "build-support-runtime")
+          (check (source-path-class "src/main.ss") => "runtime-source"))
     (test-case "project package infers runtime roots from build script"
           (let* ((root (path-normalize ".run/parser-build-scope"))
                  (lib-dir (string-append root "/lib"))
