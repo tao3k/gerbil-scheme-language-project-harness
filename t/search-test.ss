@@ -25,7 +25,8 @@
         :unit/search/search-test-part19
         :unit/search/search-test-part20
         :unit/search/search-test-part21
-        :unit/search/search-test-part22)
+        :unit/search/search-test-part22
+        :unit/search/search-test-part23)
 (export search-test)
 ;; TestSuite
 (def search-test
@@ -51,4 +52,5 @@
     search-test-part-19
     search-test-part-20
     search-test-part-21
-    search-test-part-22))
+    search-test-part-22
+    search-test-part-23))

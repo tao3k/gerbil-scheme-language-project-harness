@@ -48,6 +48,9 @@
     "rawSourceSearch": "block",
     "agentSearchJson": "block"
   },
+  "searchCapabilities": {
+    "ownerItems": true
+  },
   "routes": {
     "guide": {
       "argv": [

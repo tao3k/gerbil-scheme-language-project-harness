@@ -145,6 +145,20 @@
 (def (emit-extension-lines index)
   (for-each displayln (project-extension-search-lines index)))
 ;;; Boundary:
+;;; - resolve-owner-file owns owner path fallback semantics.
+;;; - Keep indexed owners first; parse explicit files only when they are Gerbil sources.
+;; SourceFile <- ProjectIndex String
+(def (resolve-owner-file index owner)
+  (or (find-owner index owner)
+      (resolve-explicit-owner-file index owner)))
+;; MaybeSourceFile <- ProjectIndex String
+(def (resolve-explicit-owner-file index owner)
+  (let* ((root (project-index-root index))
+         (path (path-expand owner root)))
+    (and (gerbil-source-path? path)
+         (file-exists? path)
+         (parse-source-file root path))))
+;;; Boundary:
 ;;; - emit-owner-search composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
 ;; Unit <- ProjectIndex (List String) Json
@@ -152,7 +166,7 @@
   (let* ((positionals (positional-args args))
          (owner (and (pair? positionals) (car positionals))))
     (unless owner (error "search owner requires a path"))
-    (let (file (find-owner index owner))
+    (let (file (resolve-owner-file index owner))
       (unless file (error "owner not found" owner))
       (if (and (pair? (cdr positionals)) (equal? (cadr positionals) "items"))
         (let* ((query (option "--query" args))
