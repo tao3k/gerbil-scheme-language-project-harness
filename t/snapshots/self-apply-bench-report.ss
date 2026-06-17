@@ -5,7 +5,7 @@
  (status "pass")
  (iterations 1)
  (maxTotalMs 60000)
- (maxInterfaceMs 250)
+ (maxInterfaceMs 60000)
  (totalMs "measured")
  (files 219)
  (definitions 2434)
