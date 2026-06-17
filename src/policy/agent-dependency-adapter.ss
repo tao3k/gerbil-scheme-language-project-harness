@@ -27,7 +27,7 @@
   "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair")
 ;; Command
 (def +dependency-adapter-search-example-command+
-  "asp gerbil-scheme search pattern poo rationaldict adapter --view seeds .")
+  "asp gerbil-scheme search pattern poo rationaldict adapter --workspace . --view seeds")
 
 ;;; Entry boundary: policy only consumes parser-owned adapter facts.
 ;;; It does not infer adapter quality from raw source text.
@@ -180,7 +180,8 @@
 ;; WitnessKind <- DependencyAdapterQualityFact SourceFile
 (def (dependency-adapter-contract-witness-file? fact file)
   (and (test-owner-path? (source-file-path file))
-       (source-file-calls-adapter? file (dependency-adapter-quality-fact-name fact))
+       (source-file-references-adapter? file
+                                        (dependency-adapter-quality-fact-name fact))
        (source-file-contract-witness-kind file)))
 
 ;; Boolean <- Path
@@ -190,13 +191,43 @@
            (string-contains path "/t/"))))
 
 ;;; Boundary:
-;;; - Adapter witness lookup is call-graph evidence, not text matching.
-;;; - This predicate stays expression-level so test owners can be scanned cheaply.
+;;; - Adapter witness lookup is parser evidence, not raw text matching.
+;;; - POO type descriptors are often passed as arguments to generic tests or
+;;;   bound as local fixtures instead of called as constructors.
+;;; - Keep the exact-callee path as the strongest witness, but accept parser
+;;;   argument and binding facts so R017 does not force fake adapter calls.
+;; Boolean <- SourceFile AdapterName
+(def (source-file-references-adapter? file adapter-name)
+  (or (source-file-calls-adapter? file adapter-name)
+      (source-file-call-mentions-adapter? file adapter-name)
+      (source-file-binding-mentions-adapter? file adapter-name)))
+
+;;; Exact callee matches are the strongest adapter reference signal: a single
+;;; parser-owned ormap proves at least one call site invokes the descriptor
+;;; directly without scanning source text.
 ;; Boolean <- SourceFile AdapterName
 (def (source-file-calls-adapter? file adapter-name)
   (ormap (lambda (call)
            (equal? (call-fact-callee call) adapter-name))
          (source-file-calls file)))
+
+;;; Data-flow transform: project call facts are projected to their argument
+;;; lists, then ormap encodes the existential "any call mentions adapter"
+;;; query.  The one-argument lambda mirrors the call fact stream shape, so this
+;;; stays a parser-fact predicate instead of a hand-written source loop.
+;; Boolean <- SourceFile AdapterName
+(def (source-file-call-mentions-adapter? file adapter-name)
+  (ormap (lambda (call)
+           (member adapter-name (call-fact-arguments call)))
+         (source-file-calls file)))
+
+;;; Binding mentions preserve witness evidence during fixture extraction:
+;;; local adapter aliases still prove the test owner sees the adapter surface.
+;; Boolean <- SourceFile AdapterName
+(def (source-file-binding-mentions-adapter? file adapter-name)
+  (ormap (lambda (binding)
+           (equal? (binding-fact-name binding) adapter-name))
+         (source-file-bindings file)))
 
 ;;; Boundary:
 ;;; - Contract witness calls prove the adapter is exercised by project tests.
@@ -204,21 +235,53 @@
 ;; WitnessKind <- SourceFile
 (def (source-file-contract-witness-kind file)
   (cond
-   ((source-file-has-generic-contract-witness-call? file)
+   ((source-file-has-generic-contract-witness? file)
     "generic-contract-test")
-   ((source-file-has-basic-contract-witness-call? file)
+   ((source-file-has-basic-contract-witness? file)
     "basic-test-call")
    (else #f)))
 
+;; Boolean <- SourceFile
+(def (source-file-has-generic-contract-witness? file)
+  (or (source-file-has-generic-contract-witness-call? file)
+      (source-file-has-generic-contract-witness-definition? file)))
+
+;;; Generic witness calls prove the adapter is exercised through reusable
+;;; protocol/table contract helpers rather than one-off assertions.
 ;; Boolean <- SourceFile
 (def (source-file-has-generic-contract-witness-call? file)
   (source-file-has-any-contract-witness-call?
    file
    +dependency-adapter-generic-contract-witness-callees+))
 
+;;; Generic witness definitions catch local contract helper declarations before
+;;; they are invoked, preserving project-level evidence during test refactors.
+;; Boolean <- SourceFile
+(def (source-file-has-generic-contract-witness-definition? file)
+  (source-file-has-any-contract-witness-definition?
+   file
+   +dependency-adapter-generic-contract-witness-callees+))
+
+;;; Basic witnesses are weaker than generic protocol tests but still useful as
+;;; diagnostic evidence when an adapter is first introduced.
+;; Boolean <- SourceFile
+(def (source-file-has-basic-contract-witness? file)
+  (or (source-file-has-basic-contract-witness-call? file)
+      (source-file-has-basic-contract-witness-definition? file)))
+
+;;; Basic witness calls keep the fallback path parser-owned instead of letting
+;;; arbitrary test text satisfy R017.
 ;; Boolean <- SourceFile
 (def (source-file-has-basic-contract-witness-call? file)
   (source-file-has-any-contract-witness-call?
+   file
+   +dependency-adapter-contract-witness-callees+))
+
+;;; Basic witness definitions support test helper extraction while preserving
+;;; the weaker witness kind until a generic contract helper is present.
+;; Boolean <- SourceFile
+(def (source-file-has-basic-contract-witness-definition? file)
+  (source-file-has-any-contract-witness-definition?
    file
    +dependency-adapter-contract-witness-callees+))
 
@@ -230,3 +293,12 @@
 (def (source-file-has-any-contract-witness-call? file callees)
   (ormap (lambda (call) (member (call-fact-callee call) callees))
          (source-file-calls file)))
+
+;;; Data-flow transform: definition facts are projected to names, then ormap
+;;; checks whether any helper definition belongs to the closed contract-witness
+;;; vocabulary.  The one-argument lambda preserves the definition fact arity and
+;;; avoids mixing helper declarations with raw text search.
+;; Boolean <- SourceFile Callees
+(def (source-file-has-any-contract-witness-definition? file callees)
+  (ormap (lambda (definition) (member (definition-name definition) callees))
+         (source-file-definitions file)))

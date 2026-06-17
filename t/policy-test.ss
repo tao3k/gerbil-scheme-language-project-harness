@@ -7,6 +7,7 @@
         :policy/modularity-test
         :policy/agent-basic-test
         :policy/agent-style-test
+        :policy/agent-dependency-adapter-test
         :policy/agent-poo-test)
 (export policy-test)
 ;; PolicyTest
@@ -15,4 +16,5 @@
     modularity-policy-test
     agent-basic-policy-test
     agent-style-policy-test
+    agent-dependency-adapter-policy-test
     agent-poo-policy-test))

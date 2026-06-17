@@ -26,6 +26,7 @@
         write-controlled-branch-loop-shape-project
         write-predicate-family-combinator-project
         write-dependency-protocol-adapter-project
+        write-dependency-protocol-adapter-argument-witness-project
         write-dependency-manual-object-adapter-project
         write-check-changed-project
         initialize-git-fixture
@@ -117,21 +118,21 @@
     (write-text entrypoint-path source)))
 ;; Unit <- String MaybePackageSource
 (def (write-test-directory-layout-project root . maybe-package-source)
-  (let ((legacy-test (string-append root "/test"))
-        (legacy-tests (string-append root "/tests"))
+  (let ((retired-test (string-append root "/test"))
+        (retired-tests (string-append root "/tests"))
         (native-test (string-append root "/t"))
         (package-path (string-append root "/gerbil.pkg")))
     (ensure-dir ".run")
     (ensure-dir root)
-    (ensure-dir legacy-test)
-    (ensure-dir legacy-tests)
+    (ensure-dir retired-test)
+    (ensure-dir retired-tests)
     (ensure-dir native-test)
     (if (pair? maybe-package-source)
       (write-text package-path (car maybe-package-source))
       (delete-file-if-exists package-path))
-    (write-text (string-append legacy-test "/bad-test.ss")
+    (write-text (string-append retired-test "/bad-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test)\n(def bad-test (test-suite \"bad\"))\n")
-    (write-text (string-append legacy-tests "/bad-tests-test.ss")
+    (write-text (string-append retired-tests "/bad-tests-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test)\n(def bad-tests-test (test-suite \"bad tests\"))\n")
     (write-text (string-append native-test "/good-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test)\n(def good-test (test-suite \"good\"))\n")))
@@ -300,6 +301,12 @@
       (write-text (string-append test-dir "/dict-test.ss")
                   ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def (table-contract-tests adapter) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests (OrderDict. String)) => (OrderDict. String)))))\n")
       (delete-file-if-exists (string-append test-dir "/dict-test.ss")))))
+;; Unit <- String
+(def (write-dependency-protocol-adapter-argument-witness-project root)
+  (write-dependency-protocol-adapter-project root #t #f)
+  (let (test-dir (string-append root "/t"))
+    (write-text (string-append test-dir "/dict-test.ss")
+                ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def order-dict-adapter OrderDict.)\n(def (table-contract-tests adapter sample) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests OrderDict. \"sample\") => OrderDict.))))\n")))
 ;; Unit <- String
 (def (write-dependency-manual-object-adapter-project root)
   (let* ((src (string-append root "/src"))

@@ -275,6 +275,7 @@
         top-form-start
         top-form-end
         top-form-selector
+        declarative-top-form?
         source-file-path
         source-file-line-count
         source-file-package
@@ -352,6 +353,8 @@
          (scope-policy (and package
                             (project-package-source-scope-policy package)))
          (source-roots (configured-source-roots scope-policy))
+         (test-roots (configured-test-roots package))
+         (scan-roots (dedupe (append source-roots test-roots)))
          (ignored-dirs (append +ignored-dirs+
                                (if scope-policy
                                  (source-scope-policy-exclude-directories scope-policy)
@@ -365,11 +368,17 @@
                                   (if (source-directory? path)
                                     (walk-source-directory root path ignored-dirs)
                                     '())))
-                              source-roots)))))))
+                              scan-roots)))))))
 ;; (List String) <- Policy
 (def (configured-source-roots policy)
   (let (roots (and policy (source-scope-policy-roots policy)))
     (if (and roots (pair? roots)) roots ["."])))
+;; (List String) <- MaybePackage
+(def (configured-test-roots package)
+  (let* ((policy (and package (project-package-test-directory-policy package)))
+         (roots (and policy
+                     (test-directory-policy-allowed-directories policy))))
+    (if (and roots (pair? roots)) roots ["t"])))
 ;;; Boundary:
 ;;; - root-config-files composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
