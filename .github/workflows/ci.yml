@@ -161,7 +161,7 @@ jobs:
       - name: Run Gerbil test suites
         run: |
           export GERBIL_LOADPATH="$PWD/src:$PWD/t"
-          gxtest -q t/...
+          gxtest t/...
 
       - name: Run harness check
         run: |
