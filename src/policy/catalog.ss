@@ -18,6 +18,8 @@
 ;; (List Fact)
 (def (agent-steering-facts)
   ["macroFacts"
+   "definitionFacts"
+   "callFacts"
    "bindingFacts"
    "pooFormFacts"
    "higherOrderFacts"
@@ -106,13 +108,13 @@
          (guideTopic "predicate-family-combinator")
          (guideIntent "style")
          (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
-         (requires "parser-owned predicateFamilyFacts plus fieldAccessPatternFacts before rewriting repeated field/role predicate helpers"))
+         (requires "parser-owned predicateFamilyFacts or combined high-count plus cross-caller fieldAccessPatternFacts before rewriting repeated field/role predicate helpers or selector access"))
    (hash (id (policy-rule-id +agent-dependency-protocol-adapter-rule+))
          (severity (policy-rule-severity +agent-dependency-protocol-adapter-rule+))
          (topic "dependency-protocol-adapter")
          (guideTopic "dependency-protocol-adapter")
         (guideIntent "repair")
-        (nextCommand "asp gerbil-scheme search pattern poo rationaldict adapter --view seeds .")
+        (nextCommand "asp gerbil-scheme search pattern poo rationaldict adapter --workspace . --view seeds")
         (requires "query the search-forwarded rationaldict adapter example, then use parser-owned dependencyAdapterQualityFacts plus t/ contract witness before treating imported dependency primitives as an engineering boundary"))
    (hash (id (policy-rule-id +agent-explicit-precise-import-rule+))
          (severity (policy-rule-severity +agent-explicit-precise-import-rule+))
@@ -120,7 +122,21 @@
          (guideTopic "explicit-precise-import")
          (guideIntent "repair")
          (nextCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair")
-         (requires "parser-owned moduleImportFacts should show only-in imports with explicit symbols for governed runtime library, dependency, and owner-local imports"))])
+         (requires "parser-owned moduleImportFacts should show only-in imports with explicit symbols for governed runtime library, dependency, and owner-local imports"))
+   (hash (id (policy-rule-id +agent-package-build-responsibility-rule+))
+         (severity (policy-rule-severity +agent-package-build-responsibility-rule+))
+         (topic "package-build-responsibility")
+         (guideTopic "package-build-responsibility")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme search owner build.ss items --query write-provider-cli --workspace . --view seeds")
+         (requires "package-level build.ss next to gerbil.pkg should stay a build spec/orchestration owner; CLI/search/pattern routing and wrapper/script writer definitions belong in src/cli, src/commands, or build-support/provider-cli"))
+   (hash (id (policy-rule-id +agent-build-runtime-quality-rule+))
+         (severity (policy-rule-severity +agent-build-runtime-quality-rule+))
+         (topic "build-runtime-quality")
+         (guideTopic "build-runtime-quality")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme search owner build-support/provider-cli.ss items --query runtime|launcher|process --workspace . --view seeds")
+         (requires "build/runtime quality warnings require at least two independent parser-owned evidence groups, such as shell helper definitions plus shell control literals or sh -c dispatch plus pipeline literals; keep behavior in Gerbil runtime sources with list command arguments"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -237,5 +253,9 @@
       (string-append
        "|policy dependency-protocol-adapter=" id
        " tells agents that dependency primitives already provide the bottom data structure: run guide --code for the R017 code shape, avoid loose hash/alist objects, build a thin define-type/protocol adapter with precise only-in imports, Key/Value/validate/serialization/equality slots, derived table/set/list/sexp/json/marshal capabilities, and generic t/ contract witnesses"))
+     ((equal? topic "build-runtime-quality")
+      (string-append
+       "|policy build-runtime-quality=" id
+       " uses composite parser-owned definition/call evidence to block generated shell templates and sh -c pipelines in build/runtime support code"))
      (else
       (string-append "|policy " topic "=" id)))))

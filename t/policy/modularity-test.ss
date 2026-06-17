@@ -112,7 +112,7 @@
             (check (type-finding-rule-id finding)
                    => "GERBIL-SCHEME-MOD-R005")
             (check (type-finding-path finding) => "bin/run.ss")))
-    (test-case "modularity policy rejects legacy test directory layout"
+    (test-case "modularity policy rejects retired test directory layout"
           (let* ((root ".run/policy-test-directory-layout")
                  (_ (write-test-directory-layout-project root))
                  (index (collect-project root))

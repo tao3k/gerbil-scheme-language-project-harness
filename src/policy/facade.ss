@@ -35,6 +35,8 @@
         +agent-predicate-family-combinator-rule+
         +agent-dependency-protocol-adapter-rule+
         +agent-explicit-precise-import-rule+
+        +agent-package-build-responsibility-rule+
+        +agent-build-runtime-quality-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -73,4 +75,6 @@
         predicate-family-combinator-finding
         dependency-protocol-adapter-finding
         explicit-precise-import-finding
+        package-build-responsibility-finding
+        build-runtime-quality-finding
         facade-export-conflict-findings)
