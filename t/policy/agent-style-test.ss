@@ -492,6 +492,8 @@
                           (member "GERBIL-SCHEME-AGENT-R015"
                                   (hash-get group "rules")))
                         finding-groups))
+                 (comment-plan (hash-get comment-group "repairPlan"))
+                 (comment-phases (hash-get comment-plan "repairPhases"))
                  (finding (json-finding-by-rule
                            (hash-get packet "findings")
                            "GERBIL-SCHEME-AGENT-R009"))
@@ -511,8 +513,19 @@
             (check (not (not (member "functionQualityProfile"
                                       (hash-get comment-group "requiredWitnesses"))))
                    => #t)
-            (check (hash-get (hash-get comment-group "repairPlan")
-                             "commentRepairOrder")
+            (check (hash-get comment-group "multiPolicy") => #t)
+            (check (hash-get comment-group "repairStrategy")
+                   => "multi-policy-structural-first")
+            (check (hash-get comment-plan "strategy")
+                   => "multi-policy-structural-first")
+            (check (length comment-phases) => 2)
+            (check (hash-get (car comment-phases) "name")
+                   => "primary-shape")
+            (check (hash-get (cadr comment-phases) "name")
+                   => "dependent-comment-rationale")
+            (check (hash-get (cadr comment-phases) "rules")
+                   => ["GERBIL-SCHEME-AGENT-R015"])
+            (check (hash-get comment-plan "commentRepairOrder")
                    => "comment-quality repairs run after structural/style repairs when both hit the same group")
             (check (hash-get finding-repair "repairable") => #t)
             (check (hash-get finding-repair "active") => #t)
@@ -569,7 +582,10 @@
             (check (not (not (string-contains
                               (type-finding-message finding)
                               "combines match state destructuring with a named-let loop")))
-                   => #t)))
+                   => #t)))))
+;; PolicyTest
+(def agent-style-predicate-policy-test
+  (test-suite "gerbil scheme harness predicate style policy"
     (test-case "agent policy reports predicate family combinator repair"
           (let* ((root ".run/policy-predicate-family-combinator")
                  (_ (write-predicate-family-combinator-project root))
@@ -650,4 +666,5 @@
   (test-suite "gerbil scheme harness agent style policy"
     agent-style-typed-policy-test
     agent-style-comment-policy-test
-    agent-style-functional-policy-test))
+    agent-style-functional-policy-test
+    agent-style-predicate-policy-test))
