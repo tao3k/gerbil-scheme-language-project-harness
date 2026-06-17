@@ -37,7 +37,21 @@
    "|cmd info=gerbil-scheme-harness info --json ."
    "|cmd check=gerbil-scheme-harness check --changed ."
    "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 2000 --max-interface-ms 50 ."
-   "|more guide-detail=gerbil-scheme-harness guide --policy | --extensions | --poo | --exemplars | --all"])
+   "|more guide-detail=gerbil-scheme-harness guide --downstream | --policy | --extensions | --poo | --exemplars | --all"])
+
+;; GuideSection
+(.def +guide-downstream-section+
+  id: "downstream"
+  rows:
+  ["|cmd downstream-install=from harness checkout run: gxpkg build"
+   "|downstream gerbil.pkg-depend=(depend: (\"github.com/tao3k/gerbil-scheme-language-project-harness\"))"
+   "|downstream gxtest-import=(import :policy/gxtest)"
+   "|downstream gxtest-fixture=(def project-policy-test (make-project-policy-test \".\"))"
+   "|cmd downstream-test=gxtest t/project-policy-test.ss"
+   "|cmd downstream-policy-check=gerbil-scheme-harness check --full ."
+   "|policy downstream-state-boundary=gxpkg package state belongs under ~/.gerbil; do not create, depend on, or commit repository-local .gerbil"
+   "|policy downstream-policy-ownership=gerbil.pkg owns source-scope, runtime-roots, modularity config, and agent-policy overrides; gxtest should call the harness, not duplicate policy rules"
+   "|policy downstream-reporting=make-project-policy-test prints gerbil-gxtest compact findings plus agent repair lines on failure; use project-policy-report when custom tests need structured status/files/definitions/findings"])
 
 ;; GuideSection
 (.def +guide-extension-section+
@@ -133,11 +147,13 @@
         (policy? (guide-section-flag? args "--policy"))
         (extensions? (or (guide-section-flag? args "--extensions")
                          (guide-section-flag? args "--extension")))
+        (downstream? (guide-section-flag? args "--downstream"))
         (poo? (guide-section-flag? args "--poo"))
         (exemplars? (or (guide-section-flag? args "--exemplars")
                         (guide-section-flag? args "--exemplar"))))
     (append
      [+guide-basic-section+]
+     (if (or all? downstream?) [+guide-downstream-section+] [])
      (if (or all? policy?) [+guide-policy-section+] [])
      (if (or all? extensions?) [+guide-extension-section+] [])
      (if (or all? poo?) [+guide-poo-section+] [])

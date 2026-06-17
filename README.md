@@ -17,14 +17,45 @@ No Python parser is part of this harness.
 
 ## Commands
 
-Use the repository-local wrapper from the harness root. It sets the harness load path and invokes Gerbil:
+Build the repository-local provider wrapper from the harness root:
 
 ```sh
-bin/gerbil-scheme-harness agent guide .
+gxi build.ss compile
+../../.bin/gerbil-scheme-harness guide --downstream
 ```
 
 After `gxpkg build`, the installed entrypoint is expected to be
 `gerbil-scheme-harness`.
+## Downstream gxtest Quickstart
+Install this harness from its checkout into the global Gerbil package store:
+```sh
+gxpkg build
+```
+Downstream packages should depend on the installed harness package in
+`gerbil.pkg`:
+```scheme
+(package: your/package
+ depend: ("github.com/tao3k/gerbil-scheme-language-project-harness"))
+```
+Add a small `gxtest` fixture, for example `t/project-policy-test.ss`:
+```scheme
+;;; -*- Gerbil -*-
+(import :std/test
+        :policy/gxtest)
+
+(export project-policy-test)
+
+(def project-policy-test
+  (make-project-policy-test "."))
+```
+Then run:
+```sh
+gxtest t/project-policy-test.ss
+```
+Gerbil package-manager state belongs under the global `~/.gerbil` store. Do
+not create or commit a repository-local `.gerbil` directory for this harness.
+For the full onboarding contract, see
+`docs/60-69-user/60.01-downstream-gxtest-onboarding.org`.
 
 ## Alignment Target
 

@@ -21,4 +21,4 @@
                "|cmd info=gerbil-scheme-harness info --json ."
                "|cmd check=gerbil-scheme-harness check --changed ."
                "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 2000 --max-interface-ms 50 ."
-               "|more guide-detail=gerbil-scheme-harness guide --policy | --extensions | --poo | --exemplars | --all")))
+               "|more guide-detail=gerbil-scheme-harness guide --downstream | --policy | --extensions | --poo | --exemplars | --all")))

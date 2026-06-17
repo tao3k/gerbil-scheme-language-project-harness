@@ -46,8 +46,14 @@
         (package package-name)
         (status "probe-first")
         (missingAction "install-package-before-repository-fallback")
+        (globalStoreRoot +gerbil-local-package-root-hint+)
+        (localStateWarning
+         "do not create repository-local .gerbil state; gxpkg state belongs under ~/.gerbil")
         (installHint
          (string-append +gerbil-package-manager-id+ " install " package-name))
+        (globalBuildHint "run gxpkg build from the package checkout when developing locally")
+        (gxtestImportHint "(import :policy/gxtest)")
+        (testEntrypointHint "(make-project-policy-test \".\")")
         (owner "asp-client")))
 ;; Json <- Repository
 (def (git-repository-candidate repository)
@@ -63,5 +69,10 @@
         (backend "rust-sql")
         (mode "local-source-before-git")
         (packageManager +gerbil-package-manager-id+)
+        (globalStoreRoot +gerbil-local-package-root-hint+)
         (missingLocalAction "install-package-before-repository-fallback")
+        (localStateWarning
+         "do not create repository-local .gerbil state; gxpkg state belongs under ~/.gerbil")
+        (gxtestImportHint "(import :policy/gxtest)")
+        (testEntrypointHint "(make-project-policy-test \".\")")
         (fallbackPolicy "repository-source-after-install-check")))
