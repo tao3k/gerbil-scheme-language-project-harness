@@ -66,9 +66,8 @@
     (check (> (json-get packet "definitions") 0) => #t)
     (check (not (not (member "macroFacts" (json-get steering "facts")))) => #t)
     (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-R011") => #t)
-    (check (string-prefix? "./bin/gerbil-scheme-harness check"
-                           (json-get commands "check"))
-           => #t)))
+    (check (json-get commands "check")
+           => "gerbil-scheme-harness check .")))
 ;; MissingRequiredFields <- Packet Schema
 (def (missing-required-fields packet schema)
   (filter (lambda (key)
