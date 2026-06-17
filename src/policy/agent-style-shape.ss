@@ -12,6 +12,10 @@
         controlled-branch-shape-finding
         predicate-family-combinator-findings
         predicate-family-combinator-finding)
+;; Integer
+(def +field-access-helper-evidence-min-access-count+ 8)
+;; Integer
+(def +field-access-helper-evidence-min-caller-count+ 3)
 
 ;;; Branch-shape entrypoint:
 ;;; - Emit findings only after parser-owned control-flow facts group repeated shapes.
@@ -35,8 +39,11 @@
 ;; (List TypeFinding) <- ProjectIndex SourceFile
 (def (file-predicate-family-combinator-findings index file)
   (if (index-source-runtime-file-path? index (source-file-path file))
-    (filter-map (cut predicate-family-combinator-finding file <>)
-                (source-file-predicate-family-facts file))
+    (append
+     (filter-map (cut predicate-family-combinator-finding file <>)
+                 (source-file-predicate-family-facts file))
+     (filter-map (cut field-access-helper-finding file <>)
+                 (source-file-field-access-pattern-facts file)))
     '()))
 
 ;; TypeFinding <- SourceFile PredicateFamilyFact
@@ -86,6 +93,54 @@
                              "stay in the same owner unless exports require a facade change"
                              "do not rewrite IO/runtime/macro boundaries without witness"])))
         (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+
+;; TypeFinding <- SourceFile FieldAccessPatternFact
+(def (field-access-helper-finding file fact)
+  (and (field-access-helper-evidence-complete? fact)
+       (make-type-finding
+        (policy-rule-id +agent-predicate-family-combinator-rule+)
+        (policy-rule-severity +agent-predicate-family-combinator-rule+)
+        (source-file-path file)
+        (field-access-helper-message fact)
+        (field-access-pattern-fact-selector fact)
+        (field-access-helper-details fact))))
+
+;; Boolean <- FieldAccessPatternFact
+(def (field-access-helper-evidence-complete? fact)
+  (and (>= (field-access-pattern-fact-access-count fact)
+           +field-access-helper-evidence-min-access-count+)
+       (>= (length (field-access-pattern-fact-callers fact))
+           +field-access-helper-evidence-min-caller-count+)))
+
+;; Message <- FieldAccessPatternFact
+(def (field-access-helper-message fact)
+  (string-append
+   "field access "
+   (field-access-pattern-fact-field-key fact)
+   " repeats "
+   (number->string (field-access-pattern-fact-access-count fact))
+   " times across "
+   (number->string (length (field-access-pattern-fact-callers fact)))
+   " callers; extract a small selector helper before adding more hash/field reads"))
+
+;; PolicyDetails <- FieldAccessPatternFact
+(def (field-access-helper-details fact)
+  (hash (styleGuide "predicate-family-combinator")
+        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+        (qualityReference "gerbil-utils")
+        (evidenceSource "parser-owned fieldAccessPatternFacts")
+        (policySignals (field-access-helper-policy-signals fact))
+        (accessCountGate +field-access-helper-evidence-min-access-count+)
+        (callerCountGate +field-access-helper-evidence-min-caller-count+)
+        (fieldAccessPattern (field-access-pattern-repair-evidence fact))
+        (agentRepairStandard
+         "extract a local selector helper only after native parser evidence shows both high access count and cross-caller spread; keep packet keys stable and preserve caller behavior")
+        (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+
+;; (List PolicySignal) <- FieldAccessPatternFact
+(def (field-access-helper-policy-signals fact)
+  ["high-field-access-count"
+   "cross-caller-field-access"])
 
 ;; RepairEvidence <- FieldAccessPatternFact
 (def (field-access-pattern-repair-evidence fact)

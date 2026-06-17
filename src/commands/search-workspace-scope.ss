@@ -30,6 +30,9 @@
       (emit-workspace-scope-lines packet))
     0))
 
+;;; Boundary:
+;;; - The renderer consumes an already-scoped packet and must not rediscover files.
+;;; - Keep line order stable because agents use it as the first workspace receipt.
 ;; Unit <- Json
 (def (emit-workspace-scope-lines packet)
   (let* ((coverage (hash-get packet 'coverage))

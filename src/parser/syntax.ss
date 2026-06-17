@@ -9,6 +9,7 @@
         (only-in :std/srfi/13 string-prefix?))
 
 (export +definition-heads+
+        +declarative-top-level-heads+
         definitions-from-form
         calls-from-form
         module-import-facts-from-form
@@ -24,6 +25,7 @@
         case-lambda-body-stxes
         match-body-stxes
         top-form-from
+        declarative-top-form?
         module-refs
         export-symbols
         string-datums)
@@ -48,6 +50,11 @@
     let let* letrec let-values let*-values
     cond case and or when unless match
     syntax-case syntax-rules identifier-rules))
+;; FFI forms declare native ABI surfaces at module load/compile time.
+;; Their nested call facts are declarations, not executable effects.
+(def +declarative-top-level-heads+
+  '("declare" "c-declare" "c-define-type" "define-c-lambda"
+    "begin-ffi" "begin-foreign" "c-define" "namespace"))
 ;;; Boundary:
 ;;; - definitions-from-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -66,7 +73,12 @@
          name-datums)))
 ;; CallsFromForm <- Relpath Form Datum
 (def (calls-from-form relpath form datum)
-  (calls-from-stx relpath form (form-caller-name datum) '()))
+  (if (declarative-top-level-datum? datum)
+    '()
+    (calls-from-stx relpath form (form-caller-name datum) '())))
+;; Boolean <- Datum
+(def (declarative-top-level-datum? datum)
+  (declarative-top-level-head? (top-form-datum-head datum)))
 ;;; Boundary:
 ;;; - calls-from-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -544,6 +556,9 @@
          (loc (stx-source form)))
     (make-top-form (form-kind head) (datum->string head) relpath
                    (source-start-line loc) (source-end-line loc))))
+;; Boolean <- TopForm
+(def (declarative-top-form? form)
+  (equal? (top-form-kind form) "declarative"))
 ;; Head <- Datum
 (def (top-form-datum-head datum)
   (cond
@@ -559,8 +574,12 @@
    ((eq? head 'import) "import")
    ((eq? head 'export) "export")
    ((eq? head 'include) "include")
+   ((declarative-top-level-head? head) "declarative")
    ((member head +definition-heads+) "definition")
    (else "form")))
+;; Boolean <- Head
+(def (declarative-top-level-head? head)
+  (and head (member (datum->string head) +declarative-top-level-heads+)))
 ;;; Boundary:
 ;;; - module-refs composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

@@ -55,6 +55,10 @@
   sourceOwners: ["object.ss"
                  "mop.ss"
                  "proto.ss"
+                 "table.ss"
+                 "trie.ss"
+                 "type.ss"
+                 "rationaldict.ss"
                  ":gerbil/runtime/c3"
                  "src/gerbil/test/c3-test.ss"]
   agentScenario: "agent-does-not-know-gerbil-poo-object-system"
@@ -88,6 +92,21 @@
        (poo-selector "io-serialization-method-family"
                      "marshal"
                      "gerbil-poo://io.ss#marshal")
+       (poo-selector "required-slot-protocol"
+                     "methods.table"
+                     "gerbil-poo://table.ss#methods.table")
+       (poo-selector "role-translation-adapter"
+                     "Set<-Table."
+                     "gerbil-poo://table.ss#Set<-Table.")
+       (poo-selector "representation-invariant"
+                     "$Costep"
+                     "gerbil-poo://trie.ss#$Costep")
+       (poo-selector "type-descriptor-composition"
+                     "List."
+                     "gerbil-poo://type.ss#List.")
+       (poo-selector "dependency-backed-adapter"
+                     "RationalSet"
+                     "gerbil-poo://rationaldict.ss#RationalSet")
        (poo-selector "method-resolution-order"
                      "class-precedence-list"
                      "gerbil-runtime://c3.ss#class-precedence-list")
@@ -138,6 +157,31 @@
                          ["(marshal type x port)" "slot:.marshal"]
                          ["json<-" "<-json" "bytes<-" "<-bytes"]
                          "gerbil-poo://io.ss#marshal")
+       (poo-form-mapping "required-slot-protocol"
+                         "methods.table"
+                         "define-type"
+                         ["Key" "Value" ".empty" ".acons" ".ref"
+                          ".remove" ".foldl" ".foldr"]
+                         ["derive-secondary-capabilities"]
+                         "gerbil-poo://table.ss#methods.table")
+       (poo-form-mapping "role-translation-adapter"
+                         "Set<-Table."
+                         "define-type"
+                         ["Table key/value callbacks" "set element callbacks"]
+                         ["translate-role-not-storage"]
+                         "gerbil-poo://table.ss#Set<-Table.")
+       (poo-form-mapping "representation-invariant"
+                         "$Costep"
+                         "defstruct"
+                         ["height" "key"]
+                         ["height-before-next-step" "key-high-bits"]
+                         "gerbil-poo://trie.ss#$Costep")
+       (poo-form-mapping "type-descriptor-composition"
+                         "List."
+                         "define-type"
+                         ["element protocol descriptor"]
+                         ["derive-sexp-json-bytes-marshal"]
+                         "gerbil-poo://type.ss#List.")
        (poo-form-mapping "mro-regression-test"
                          "class-precedence-list"
                          "check"
@@ -198,12 +242,30 @@
                          "follow-json-marshal-bytes-method-family-and-runtime-source-witnesses"
                          ["gerbil-poo://io.ss#marshal"
                           "gerbil-poo://io.ss#methods.bytes<-marshal"
-                          "gerbil-poo://io.ss#@method:json"])]
+                          "gerbil-poo://io.ss#@method:json"])
+       (poo-failure-case "protocol-adapter-without-required-slots"
+                         "adapter-contract-missing"
+                         "table-or-set-adapter-that-skips-required-slot-protocol"
+                         "follow-methods.table-and-set-from-table-role-translation"
+                         ["gerbil-poo://table.ss#methods.table"
+                          "gerbil-poo://table.ss#Set<-Table."])
+       (poo-failure-case "dense-data-structure-without-local-invariants"
+                         "representation-invariant-missing"
+                         "trie-like-structure-without-adjacent-height-or-path-contracts"
+                         "keep-representation-invariants-local-to-structs"
+                         ["gerbil-poo://trie.ss#$Costep"
+                          "gerbil-poo://trie.ss#$Unstep"])]
   qualitySignals: ["active-extension-fact" "dependency-backed-mapping"
                    "real-project-c3-test" "mro-linearization-witness"
                    "slot-order-witness" "thin-macro-bridge"
                    "object-slot-resolution-model"
-                   "io-serialization-method-family" "minimal-forms"
+                   "io-serialization-method-family"
+                   "required-slot-protocol"
+                   "role-translation-adapter"
+                   "representation-invariant-locality"
+                   "type-descriptor-composition"
+                   "dependency-backed-adapter"
+                   "minimal-forms"
                    "failure-cases"]
   witness: "dependency-backed-poo-mapping"
   missing: []
@@ -465,6 +527,15 @@
   [(hash (role "slot-spec-application")
          (symbol "apply-slot-spec")
          (selector "gerbil-poo://object.ss#apply-slot-spec"))
+   (hash (role "object-materialization")
+         (symbol "instantiate-object!")
+         (selector "gerbil-poo://object.ss#instantiate-object!"))
+   (hash (role "precedence-materialization")
+         (symbol "compute-precedence-list!")
+         (selector "gerbil-poo://object.ss#compute-precedence-list!"))
+   (hash (role "slot-function-materialization")
+         (symbol "compute-slot-funs!")
+         (selector "gerbil-poo://object.ss#compute-slot-funs!"))
    (hash (role "slot-cache-read")
          (symbol ".ref")
          (selector "gerbil-poo://object.ss#.ref"))
@@ -516,6 +587,9 @@
          (correctiveAction "follow-apply-slot-spec-superfun-form")
          (selectors ["gerbil-poo://object.ss#apply-slot-spec"]))]
   qualitySignals: ["dependency-backed-mapping" "apply-slot-spec-source"
+                   "object-materialization-source"
+                   "precedence-materialization-source"
+                   "slot-function-materialization-source"
                    "ref-cache-source" "real-project-slot-cache-test"
                    "superfun-witness"]
   witness: "real-project-slot-cache-witness"

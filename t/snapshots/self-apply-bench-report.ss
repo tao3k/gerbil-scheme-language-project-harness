@@ -7,8 +7,8 @@
  (maxTotalMs 60000)
  (maxInterfaceMs 50)
  (totalMs "measured")
- (files 202)
- (definitions 2180)
+ (files 218)
+ (definitions 2415)
  (findings 0)
  (performanceFindings ())
  (slowestBenchmark

@@ -2,7 +2,9 @@
 ;;; Agent-facing build/runtime support quality policy.
 
 (import :parser/facade
+        :policy/detection
         :policy/model
+        :policy/poo-source
         (only-in :std/srfi/13 string-contains string-prefix? string-suffix?)
         (only-in :std/sugar cut filter filter-map hash ormap)
         :types/findings)
@@ -57,79 +59,95 @@
               (project-index-files index)))
 
 ;;; Finding contract:
-;;; - build-support files are allowed to install Gerbil launchers.
-;;; - shell templates and sh -c pipelines require at least two evidence groups.
+;;; - The detection combinator owns the multi-evidence decision.
+;;; - This rule owns the agent-facing repair message and build-support scope.
 ;; MaybeTypeFinding <- SourceFile
 (def (build-runtime-quality-finding file)
-  (let (groups (build-runtime-quality-evidence-groups file))
-    (and (build-runtime-composite-evidence? groups)
+  (let (result (build-runtime-quality-detection file))
+    (and result
          (make-type-finding
           (policy-rule-id +agent-build-runtime-quality-rule+)
           (policy-rule-severity +agent-build-runtime-quality-rule+)
           (source-file-path file)
           "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers"
-          (build-runtime-evidence-selector file groups)
-          (runtime-quality-details groups)))))
+          (detection-result-selector result (source-file-path file))
+          (runtime-quality-details result)))))
 
 ;;; Intentional raw data record:
 ;;; - Details stay JSON-shaped for command output because TypeFinding receipts
 ;;;   cross the provider JSON boundary as key/value diagnostic evidence.
 ;;; - This is not runtime object construction or a dependency protocol adapter.
-;; PolicyDetails <- (List EvidenceGroup)
-(def (runtime-quality-details groups)
-  (hash (kind "build-runtime-quality")
-        (evidenceGroups (map evidence-group-name groups))
-        (evidenceCounts (map evidence-group-count groups))
-        (evidenceSelectors (map evidence-group-selector groups))
+;; PolicyDetails <- DetectionResult
+(def (runtime-quality-details result)
+  (let (details (detection-result-details result))
+    (hash (kind "build-runtime-quality")
+        (detectionCombiner (hash-get details 'detectionCombiner))
+        (detectionPrototype (hash-get details 'detectionPrototype))
+        (detectionCombinerKind (hash-get details 'detectionCombinerKind))
+        (detectionThreshold (hash-get details 'detectionThreshold))
+        (requiredGroups (hash-get details 'requiredGroups))
+        (missingGroups (hash-get details 'missingGroups))
+        (detectionDescription (hash-get details 'detectionDescription))
+        (detectionSourcePattern (hash-get details 'detectionSourcePattern))
+        (detectionSourceOwners (hash-get details 'detectionSourceOwners))
+        (detectionQualitySignals (hash-get details 'detectionQualitySignals))
+        (detectionWitness (hash-get details 'detectionWitness))
+        (evidenceGroups (hash-get details 'evidenceGroups))
+        (evidenceCounts (hash-get details 'evidenceCounts))
+        (evidenceSelectors (hash-get details 'evidenceSelectors))
         (requiredEvidence "at least two independent parser-owned groups")
         (allowedShape "Gerbil runtime wrapper source plus list command arguments")
         (disallowedShape "generated shell templates or sh -c pipelines")
-        (next "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers")))
+        (next "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers"))))
 
 ;;; Dispatch boundary keeps build-support and package build checks separate:
 ;;; launcher files are allowed to write executables, while build.ss is only
 ;;; checked for shell pipeline orchestration.
-;; (List EvidenceGroup) <- SourceFile
-(def (build-runtime-quality-evidence-groups file)
+;; MaybeDetectionResult <- SourceFile
+(def (build-runtime-quality-detection file)
   (cond
    ((build-support-source-file? file)
-    (build-support-shell-template-evidence-groups file))
+    (run-detection-prototype
+     file
+     (build-support-shell-template-detection-prototype)))
    ((package-build-file? file)
-    (package-build-shell-pipeline-evidence-groups file))
-   (else '())))
+    (run-detection-prototype
+     file
+     (package-build-shell-pipeline-detection-prototype)))
+   (else #f)))
 
-;;; Composite evidence prevents noisy single-token findings from strings that
-;;; are legitimate launcher snippets; at least two parser-owned groups must
-;;; agree before this policy emits a warning.
-;; Boolean <- (List EvidenceGroup)
-(def (build-runtime-composite-evidence? groups)
-  (>= (length groups) +build-runtime-min-evidence-groups+))
+;;; Launcher quality is declared as a prototype: the threshold base owns the
+;;; combiner shape, while this overlay owns build-support evidence slots.
+;; DetectionPrototype <-
+(def (build-support-shell-template-detection-prototype)
+  (detection-prototype-extend
+   +threshold-detection-prototype+
+   (poo-source-pattern-detection-overlay 'prototype-composition)
+   (detection-prototype
+    "build-support-shell-template-composite"
+    'threshold
+    [shell-helper-definition-evidence
+     shell-control-literal-evidence
+     shell-writer-call-evidence]
+    +build-runtime-min-evidence-groups+
+    '()
+    "build-support shell-template drift requires multiple parser-owned evidence groups")))
 
-;;; Launcher quality is checked through independent signals: helper naming,
-;;; shell-control literals, and writer calls. This keeps generated scripts
-;;; possible while catching shell-template drift.
-;; (List EvidenceGroup) <- SourceFile
-(def (build-support-shell-template-evidence-groups file)
-  (filter-map (cut <> file)
-              [shell-helper-definition-evidence
-               shell-control-literal-evidence
-               shell-writer-call-evidence]))
-
-;;; Boundary:
-;;; - build.ss orchestration should stay in Gerbil argv lists.
-;;; - filter-map keeps dispatch and payload evidence independent.
-;;; - The composite gate decides whether those groups become a warning.
-;;; Data flow:
-;;; - Each extractor consumes the same SourceFile and returns maybe one group,
-;;;   so filter-map is the exact maybe-projection shape.
-;;; Invariant:
-;;; - The cut thunk preserves extractor arity and selector order as new groups
-;;;   are added.
-;; (List EvidenceGroup) <- SourceFile
-(def (package-build-shell-pipeline-evidence-groups file)
-  (filter-map (cut <> file)
-              [shell-dispatch-call-evidence
-               shell-pipeline-literal-evidence]))
+;;; Package build quality is a stricter prototype: the all-of base owns the
+;;; required-group semantics, and the overlay names the build.ss evidence.
+;; DetectionPrototype <-
+(def (package-build-shell-pipeline-detection-prototype)
+  (detection-prototype-extend
+   +all-of-detection-prototype+
+   (poo-source-pattern-detection-overlay 'prototype-composition)
+   (detection-prototype
+    "package-build-shell-pipeline-all-of"
+    'all-of
+    [shell-dispatch-call-evidence
+     shell-pipeline-literal-evidence]
+    0
+    ["shell-dispatch-call" "shell-pipeline-literal"]
+    "package build shell-pipeline drift requires dispatch and payload evidence")))
 
 ;;; Data flow:
 ;;; The source file provides parser-owned DefinitionFact values.
@@ -374,34 +392,3 @@
   (length
    (filter (cut string-contains text <>)
            +shell-control-literal-markers+)))
-
-;;; Intentional raw data record:
-;;; - EvidenceGroup is positional diagnostic data: name, count, selector.
-;;; - Keeping it as a list avoids adding object-like records to a policy helper
-;;;   module and keeps runtime semantics out of the policy evidence packet.
-;; EvidenceGroup <- String Integer Selector
-(def (evidence-group name count selector)
-  (list name count selector))
-
-;;; Accessors keep diagnostic packets opaque to policy callers.
-;; String <- EvidenceGroup
-(def (evidence-group-name group)
-  (car group))
-
-;;; Accessors keep diagnostic packets opaque to policy callers.
-;; Integer <- EvidenceGroup
-(def (evidence-group-count group)
-  (cadr group))
-
-;;; Accessors keep diagnostic packets opaque to policy callers.
-;; Selector <- EvidenceGroup
-(def (evidence-group-selector group)
-  (caddr group))
-
-;;; Findings should point at the strongest first evidence group when available,
-;;; otherwise the file path is the fallback selector.
-;; Selector <- SourceFile (List EvidenceGroup)
-(def (build-runtime-evidence-selector file groups)
-  (if (pair? groups)
-    (evidence-group-selector (car groups))
-    (source-file-path file)))

@@ -2,6 +2,12 @@
 (package: sample/poo-trie-descriptor)
 (import :clan/poo/mop :clan/poo/brace)
 
+(define-type (Costep. @ [Type.])
+  height: Height
+  key: Key
+  .sexp<-: costep->sexp
+  .validate: validate-costep)
+
 (define-type (Trie. @ [Wrap. methods.table] .validate .wrap .unwrap)
   Wrapper: Identity
   Value: Any

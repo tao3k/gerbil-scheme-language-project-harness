@@ -26,6 +26,11 @@
         self-apply-findings-snapshot
         finding-snapshot
         check-report-snapshot)
+
+;; String <- Json
+(def (snapshot-packet-id packet)
+  (hash-get packet 'id))
+
 ;;; Invariant:
 ;;; - snapshot-load owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
@@ -104,7 +109,7 @@
 ;; String <- Pattern
 (def (pattern-evidence-snapshot pattern)
   (list 'pattern
-        (list 'id (hash-get pattern 'id))
+        (list 'id (snapshot-packet-id pattern))
         (list 'extension (hash-get pattern 'extension))
         (list 'focus (hash-get pattern 'focus))
         (source-ref-snapshot (hash-get pattern 'sourceRef))
@@ -189,7 +194,7 @@
 ;; Snapshot <- Failure
 (def (pattern-failure-case-snapshot failure)
   (list 'failureCase
-        (list 'id (hash-get failure 'id))
+        (list 'id (snapshot-packet-id failure))
         (if (hash-key? failure 'riskKind)
           (list 'riskKind (hash-get failure 'riskKind))
           (list 'risk (hash-get failure 'risk)))
@@ -227,7 +232,7 @@
          (source-ref (hash-get details 'sourceRef))
          (acquisition (hash-get details 'acquisition)))
     (list 'runtimeSourceFact
-          (list 'id (hash-get fact 'id))
+          (list 'id (snapshot-packet-id fact))
           (list 'summary (hash-get fact 'summary))
           (list 'evidenceGrade (hash-get fact 'evidenceGrade))
           (list 'witness (hash-get fact 'witness))
@@ -275,7 +280,7 @@
 ;; String <- Failure
 (def (evidence-failure-case-snapshot failure)
   (list 'failureCase
-        (list 'id (hash-get failure 'id))
+        (list 'id (snapshot-packet-id failure))
         (list 'risk (failure-risk-snapshot failure))
         (list 'correction (failure-correction-snapshot failure))))
 ;; String <- Failure
@@ -317,7 +322,7 @@
 ;; Snapshot <- LanguageEvidenceFact
 (def (language-evidence-fact-snapshot fact)
   (list 'languageEvidenceFact
-        (list 'id (hash-get fact 'id))
+        (list 'id (snapshot-packet-id fact))
         (list 'summary (hash-get fact 'summary))
         (list 'evidenceGrade (hash-get fact 'evidenceGrade))
         (list 'witness (hash-get fact 'witness))
@@ -401,7 +406,7 @@
 ;; Snapshot <- Example
 (def (source-example-snapshot example)
   (list 'sourceExample
-        (list 'id (hash-get example 'id))
+        (list 'id (snapshot-packet-id example))
         (list 'role (hash-get example 'role))
         (list 'symbol (hash-get example 'symbol))
         (list 'selector (hash-get example 'selector))
@@ -416,7 +421,7 @@
 ;; Snapshot <- Comment
 (def (source-comment-snapshot comment)
   (list 'sourceComment
-        (list 'id (hash-get comment 'id))
+        (list 'id (snapshot-packet-id comment))
         (list 'selector (hash-get comment 'selector))
         (list 'extractor (hash-get comment 'extractor))
         (list 'summary (hash-get comment 'summary))
@@ -473,7 +478,7 @@
 ;; Snapshot <- Fact
 (def (compare-fact-snapshot fact)
   (list 'comparison
-        (list 'id (hash-get fact 'id))
+        (list 'id (snapshot-packet-id fact))
         (list 'summary (hash-get fact 'summary))
         (list 'evidenceGrade (hash-get fact 'evidenceGrade))
         (list 'witness (hash-get fact 'witness))

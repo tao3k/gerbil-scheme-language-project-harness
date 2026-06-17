@@ -83,6 +83,26 @@ Those facts then flow into:
 This is the correct architecture.  Policy is no longer the parser.  Policy
 consumes parser-owned facts and tells the agent when a style repair is allowed.
 
+** Composite warning gates
+Single counters are not code-quality policy by themselves.  A fact such as
+=fieldAccessPattern.accessCount= is native parser evidence, not a complete
+warning trigger.  It may appear in a finding payload, but it must not be the
+only reason a warning fires.
+
+Agent-facing quality warnings should use composite gates:
+- at least two parser-owned signals, such as high repeated field access plus
+  cross-caller spread;
+- or one parser-owned structural signal plus one independent policy signal,
+  such as function quality, comment quality, control-flow shape, dependency
+  adapter quality, or protocol evidence;
+- explicit thresholds may exist, but only as evidence gates inside a larger
+  policy bundle.  They are not definitions of "good Scheme" on their own.
+
+The R016 field-access selector-helper path follows this rule.  Repeated access
+count alone remains advisory parser evidence.  A warning is allowed only when
+the parser also shows cross-caller spread, so the agent is repairing a real
+owner shape rather than mechanically reacting to a number.
+
 The implementation quality has also improved.  =src/parser/quality-shape.ss=
 uses small reducers, =filter-map=, =foldl=, query-key projection helpers, and
 explicit repair evidence.  It is closer to the =gerbil-utils= style than the

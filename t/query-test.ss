@@ -160,7 +160,7 @@
                 (not
                  (string-contains
                   message
-                  "search fzf '<term>' owner --view seeds --workspace <workspace-root>")))
+                  "search fzf '<term>' owner --workspace <workspace-root> --view seeds")))
                => #t))))
     (test-case "owner query rejects paths outside explicit workspace before indexing"
       (let (result (query-output ["src/types/facade.ss"

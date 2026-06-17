@@ -44,7 +44,7 @@
             0)
         (if (and (not owner) names-only? (pair? terms))
           (begin
-            (displayln "query --names-only requires an owner selector; workspace term discovery is `search fzf '<term>' owner --view seeds --workspace <workspace-root>`")
+            (displayln "query --names-only requires an owner selector; workspace term discovery is `search fzf '<term>' owner --workspace <workspace-root> --view seeds`")
             2)
           (begin
             (unless owner (error "query requires an owner path"))

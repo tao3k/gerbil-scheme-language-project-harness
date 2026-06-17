@@ -117,6 +117,9 @@
               "|agentScenario id=agent-adds-computed-poo-slot-without-cache-or-superfun-semantics"
               "intent=query-slot-cache-and-apply-slot-spec-before-adding-computed-slots"
               "|selector role=slot-spec-application symbol=apply-slot-spec selector=gerbil-poo://object.ss#apply-slot-spec"
+              "|selector role=object-materialization symbol=instantiate-object! selector=gerbil-poo://object.ss#instantiate-object!"
+              "|selector role=precedence-materialization symbol=compute-precedence-list! selector=gerbil-poo://object.ss#compute-precedence-list!"
+              "|selector role=slot-function-materialization symbol=compute-slot-funs! selector=gerbil-poo://object.ss#compute-slot-funs!"
               "|selector role=slot-cache-read symbol=.ref selector=gerbil-poo://object.ss#.ref"
               "|selector role=slot-cache-read-existing symbol=.ref/cached selector=gerbil-poo://object.ss#.ref/cached"
               "|selector role=real-project-slot-cache-test symbol=putslot-test selector=gerbil-poo-test://t/object-test.ss#testing-putslot"
@@ -124,10 +127,13 @@
               "|form role=slot-cache-regression-test symbol=putslot-test head=check"
               "|failureCase id=uncached-slot-side-effect"
               "|failureCase id=missing-superfun-chain"
+              "|qualitySignal id=object-materialization-source"
+              "|qualitySignal id=precedence-materialization-source"
+              "|qualitySignal id=slot-function-materialization-source"
               "|qualitySignal id=ref-cache-source"
               "|qualitySignal id=real-project-slot-cache-test"
               "|qualitySignal id=superfun-witness"
-              "|quality verified missing=- selectorCount=5 formCount=4 failureCaseCount=2"
+              "|quality verified missing=- selectorCount=8 formCount=4 failureCaseCount=2"
               "next=search pattern poo slot cache computed"])
             (check-output-contains
              io-output
@@ -244,9 +250,13 @@
               "|agentScenario id=agent-adds-computed-poo-slot-without-cache-or-superfun-semantics"
               "intent=query-slot-cache-and-apply-slot-spec-before-adding-computed-slots"
               "|selector role=slot-spec-application symbol=apply-slot-spec selector=gerbil-poo://object.ss#apply-slot-spec"
+              "|selector role=object-materialization symbol=instantiate-object! selector=gerbil-poo://object.ss#instantiate-object!"
+              "|selector role=precedence-materialization symbol=compute-precedence-list! selector=gerbil-poo://object.ss#compute-precedence-list!"
+              "|selector role=slot-function-materialization symbol=compute-slot-funs! selector=gerbil-poo://object.ss#compute-slot-funs!"
               "|selector role=slot-cache-read symbol=.ref selector=gerbil-poo://object.ss#.ref"
               "|form role=computed-slot symbol=computed-slot-spec head=computed-slot-spec"
               "|failureCase id=uncached-slot-side-effect"
+              "|qualitySignal id=object-materialization-source"
               "|qualitySignal id=real-project-slot-cache-test"
               "missing=-"])
             (check (not (contains? finite-output "|pattern id=poo-object-system")) => #t)

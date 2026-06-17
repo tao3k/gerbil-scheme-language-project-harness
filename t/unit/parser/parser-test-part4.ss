@@ -16,6 +16,11 @@
   (find (lambda (call)
           (equal? (call-fact-arguments call) [argument]))
         calls))
+;; FindCallByCallee <- (List CallFact) Callee
+(def (find-call-by-callee calls callee)
+  (find (lambda (call)
+          (equal? (call-fact-callee call) callee))
+        calls))
 ;; Boolean <- (List QualityFacet) QualityFacet
 (def (quality-facet-member? facets facet)
   (not (not (member facet facets))))
@@ -106,10 +111,13 @@
             (check (map poo-form-fact-role forms) => ["generic" "generic"])
             (check (poo-form-fact-generic location) => "location")
             (check (poo-form-fact-options location)
-                   => ["slot:location" "from:type" "default:"])
+                   => ["slot:location" "slotName:location"
+                       "from:type" "dispatchSource:type"
+                       "default:" "defaultStrategy:default"])
             (check (poo-form-fact-generic factory) => "factory")
             (check (poo-form-fact-options factory)
-                   => ["compute-default:"])))
+                   => ["compute-default:" "defaultStrategy:computed"
+                       "dispatchSource:instance"])))
     (test-case "native reader classifies POO object slot syntax"
           (let* ((root (path-normalize "."))
                  (file (parse-source-file root "t/fixtures/parser/poo-object-slots.ss"))
@@ -129,6 +137,34 @@
                        "slot:child:mixin-override"
                        "slot:label:default"
                        "slot:greeting:inherited-computed"])))
+    (test-case "native reader captures POO slot-cache inheritance witness"
+          (let* ((root (path-normalize "."))
+                 (file (parse-source-file root "t/fixtures/parser/poo-slot-cache-inheritance.ss"))
+                 (forms (source-file-poo-forms file))
+                 (cache-node (find-poo-form forms "cache-node"))
+                 (calls (source-file-calls file))
+                 (ref-call (find-call-by-callee calls ".ref"))
+                 (ref-cached-call (find-call-by-callee calls ".ref/cached"))
+                 (apply-slot-spec-call (find-call-by-callee calls "apply-slot-spec")))
+            (check (source-file-parse-error file) => #f)
+            (check (map poo-form-fact-name forms)
+                   => ["root-cache" "left-cache" "right-cache" "cache-node"])
+            (check (poo-form-fact-supers cache-node)
+                   => ["left-cache" "right-cache"])
+            (check (poo-form-fact-slots cache-node)
+                   => ["stable" "inherited-count" "cached-child"
+                       "super-label" "local-cache"])
+            (check (poo-form-fact-options cache-node)
+                   => ["slot:stable:default"
+                       "slot:inherited-count:inherited-computed"
+                       "slot:cached-child:mixin-override"
+                       "slot:super-label:inherited-computed"
+                       "slot:local-cache:self-computed"])
+            (check (map call-fact-callee calls)
+                   => [".o" "compute-cache" ".ref" ".ref/cached" "apply-slot-spec"])
+            (check (call-fact-caller ref-call) => "slot-cache-boundary")
+            (check (call-fact-caller ref-cached-call) => "slot-cache-boundary")
+            (check (call-fact-caller apply-slot-spec-call) => "slot-cache-boundary")))
     (test-case "JSON projection exposes POO object slot syntax facts"
           (let* ((root (path-normalize "."))
                  (file (parse-source-file root "t/fixtures/parser/poo-object-slots.ss"))

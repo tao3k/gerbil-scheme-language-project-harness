@@ -388,7 +388,7 @@
     "agent-needs-high-quality-gerbil-code-conventions"
     "prefer-domain-owners-t-tests-directional-data-flow-and-named-control-flow"
     ["domain-owner-names" "t-test-layout" "real-project-t-tests" "directional-data-flow-names" "named-control-flow-helpers" "vague-definition-policy" "top-level-executable-policy"]
-    [(hash (id "legacy-test-directory")
+    [(hash (id "retired-test-directory")
            (risk "agent-creates-top-level-test-directory-for-gerbil-unit-tests")
            (correction "use-t-directory-and-native-std-test-suites"))
      (hash (id "generic-owner-name")

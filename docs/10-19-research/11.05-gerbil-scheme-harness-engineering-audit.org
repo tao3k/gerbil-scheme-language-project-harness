@@ -68,7 +68,7 @@ Commands and observed receipts:
   - =configurableInterface= exposes source scope, build scope fallback, and
     agent-policy fields owned by =gerbil.pkg= policy.
 
-- =asp gerbil-scheme search structural --view seeds .=
+- =asp gerbil-scheme search structural --workspace . --view seeds=
   - Structural feed: 119 owners, 1066 symbols, 17730 syntax facts, 376
     dependency usages.
   - Compact evidence includes POO/class/interface facts, =lambda= facts,
@@ -238,7 +238,7 @@ Gap:
 The module layout is generally healthy.  There are clear owners for parser,
 policy, commands, protocol, snapshots, and tests.  =check --full .= passes with
 zero findings, which means the current policy suite does not see facade bloat,
-legacy test layout, vague names, or known generated-code policy drift.
+retired test layout, vague names, or known generated-code policy drift.
 
 Main concern:
 
@@ -483,7 +483,7 @@ Finding shape:
 Add a provider-owned command or view:
 
 #+begin_src shell
-./bin/gerbil-scheme-harness search capability --view seeds .
+./bin/gerbil-scheme-harness search capability --workspace . --view seeds
 #+end_src
 
 It should summarize:
@@ -623,10 +623,10 @@ GERBIL_LOADPATH=src:t gxtest t/parser-test.ss t/policy-test.ss t/search-test.ss 
 GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss
 ./bin/gerbil-scheme-harness check --full .
 ./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .
-asp gerbil-scheme search structural --view seeds .
-asp gerbil-scheme search fzf 'configurable interface' owner tests --view seeds --workspace .
-asp gerbil-scheme search fzf 'gxi version runtime-source' owner tests --view seeds --workspace .
-asp gerbil-scheme search fzf 'defrules macro witness' owner tests --view seeds --workspace .
+asp gerbil-scheme search structural --workspace . --view seeds
+asp gerbil-scheme search fzf 'configurable interface' owner tests --workspace . --view seeds
+asp gerbil-scheme search fzf 'gxi version runtime-source' owner tests --workspace . --view seeds
+asp gerbil-scheme search fzf 'defrules macro witness' owner tests --workspace . --view seeds
 #+end_src
 
 * Bottom Line

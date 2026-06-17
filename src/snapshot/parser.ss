@@ -6,6 +6,10 @@
 
 (export parser-source-file-snapshot)
 
+;; Selector <- Json
+(def (parser-json-selector packet)
+  (hash-get packet 'selector))
+
 ;;; Boundary:
 ;;; - parser-source-file-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -305,7 +309,7 @@
         (list 'definitionArity (hash-get evidence 'definitionArity))
         (list 'path (hash-get evidence 'path))
         (list 'lineSpan (snapshot-list (hash-get evidence 'lineSpan)))
-        (list 'selector (hash-get evidence 'selector))
+        (list 'selector (parser-json-selector evidence))
         (list 'contract (hash-get evidence 'contract))
         (list 'quality (hash-get evidence 'quality))
         (list 'qualityFacets
@@ -333,7 +337,7 @@
         (list 'kind (hash-get evidence 'kind))
         (list 'name (hash-get evidence 'name))
         (list 'arity (hash-get evidence 'arity))
-        (list 'selector (hash-get evidence 'selector))))
+        (list 'selector (parser-json-selector evidence))))
 
 ;; Snapshot <- Json
 (def (parser-repair-higher-order-snapshot evidence)
@@ -342,7 +346,7 @@
         (list 'name (hash-get evidence 'name))
         (list 'role (hash-get evidence 'role))
         (list 'operandCount (hash-get evidence 'operandCount))
-        (list 'selector (hash-get evidence 'selector))))
+        (list 'selector (parser-json-selector evidence))))
 
 ;; Snapshot <- Json
 (def (parser-repair-control-flow-snapshot evidence)
@@ -352,7 +356,7 @@
         (list 'role (hash-get evidence 'role))
         (list 'bindingCount (hash-get evidence 'bindingCount))
         (list 'bodyFormCount (hash-get evidence 'bodyFormCount))
-        (list 'selector (hash-get evidence 'selector))))
+        (list 'selector (parser-json-selector evidence))))
 
 ;; Snapshot <- CommentQualityFact
 (def (parser-comment-quality-fact-snapshot fact)
@@ -408,7 +412,7 @@
             (list 'commentQuestions
                   (snapshot-list (hash-get evidence 'commentQuestions)))
             (list 'agentRepairMode (hash-get evidence 'agentRepairMode))
-            (list 'selector (hash-get evidence 'selector))))))
+            (list 'selector (parser-json-selector evidence))))))
 
 ;;; Matched fact snapshots mirror evidence variants while preserving type-specific witness fields and deterministic output order.
 ;; Snapshot <- Json
@@ -426,7 +430,7 @@
             (list 'hygienicSyntax (hash-get fact 'hygienicSyntax))
             (list 'qualityFacets
                   (snapshot-list (hash-get fact 'qualityFacets)))
-            (list 'selector (hash-get fact 'selector))))
+            (list 'selector (parser-json-selector fact))))
      ((equal? fact-kind "poo")
       (list 'matchedFact
             (list 'factKind fact-kind)
@@ -441,7 +445,7 @@
             (list 'specializers (snapshot-list (hash-get fact 'specializers)))
             (list 'specializerTypes
                   (snapshot-list (hash-get fact 'specializerTypes)))
-            (list 'selector (hash-get fact 'selector))))
+            (list 'selector (parser-json-selector fact))))
      ((equal? fact-kind "higher-order")
       (list 'matchedFact
             (list 'factKind fact-kind)
@@ -452,7 +456,7 @@
             (list 'arities (snapshot-list (hash-get fact 'arities)))
             (list 'formals (snapshot-list (hash-get fact 'formals)))
             (list 'caller (hash-get fact 'caller))
-            (list 'selector (hash-get fact 'selector))))
+            (list 'selector (parser-json-selector fact))))
      (else
       (list 'matchedFact
             (list 'factKind fact-kind)
@@ -462,7 +466,7 @@
             (list 'caller (hash-get fact 'caller))
             (list 'bindingCount (hash-get fact 'bindingCount))
             (list 'bodyFormCount (hash-get fact 'bodyFormCount))
-            (list 'selector (hash-get fact 'selector)))))))
+            (list 'selector (parser-json-selector fact)))))))
 ;;; Boundary:
 ;;; - parser-call-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

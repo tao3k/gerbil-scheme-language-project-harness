@@ -38,7 +38,7 @@
       (if (or package (pair? module-imports)) "active" "weak")
       "Gerbil package/module/namespace/import facts should preserve project module shape instead of flattening into small-Scheme files."
       "parser-owned-package-and-module-facts"
-      "search owner <path> --view seeds ."
+      "search owner <path> --workspace . --view seeds"
       ["capability" "posture" "package" "module" "namespace" "import" "export"]
       (hash (files (length files))
             (package (if package (project-package-name package) #f))
@@ -86,7 +86,7 @@
       (if (pair? higher-order-facts) "active" "available")
       "Pure data transforms should prefer Gerbil higher-order and functional combinators before introducing manual loops."
       "parser-owned-higher-order-facts"
-      "search structural --view seeds ."
+      "search structural --workspace . --view seeds"
       ["capability" "posture" "higher-order" "map" "filter" "fold" "for/fold" "cut" "functional"]
       (hash (higherOrderForms (length higher-order-facts))
             (higherOrderSelectors (take* (map higher-order-fact-selector higher-order-facts) 8)))
@@ -100,7 +100,7 @@
       (if (pair? control-flow-facts) "active" "available")
       "Named control-flow facts identify where loops are IO/state/generator drivers rather than pure data transforms."
       "parser-owned-control-flow-facts"
-      "search structural --view seeds ."
+      "search structural --workspace . --view seeds"
       ["capability" "posture" "control-flow" "named-let" "loop" "generator" "state" "driver"]
       (hash (controlFlowForms (length control-flow-facts))
             (controlFlowSelectors (take* (map control-flow-fact-selector control-flow-facts) 8)))

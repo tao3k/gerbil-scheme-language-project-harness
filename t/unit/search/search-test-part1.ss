@@ -87,14 +87,28 @@
                      "--query"
                      "type-compatible"
                      "--names-only"]))
-    (test-case "guide exposes gerbil-poo engineering pattern policies"
-          (let (output (guide-output []))
-            (check-output-contains
-             output
-             ["|policy gerbil-build-discovery=prefer :std/make + :clan/base + :clan/building all-gerbil-modules discovery"
-              "|policy cli-option-composition=keep src/cli.ss as a thin dispatcher"
-              "|policy protocol-surface-minimality=define the minimal protocol slot surface first"
-              "|policy reusable-contract-tests=prefer small t/ owners that apply generic contract tests to type descriptors"
-              "|policy poo-thin-macro-bridge=POO syntax macros such as brace/@method should stay thin syntax bridges"
-              "|policy poo-slot-resolution=POO object edits must account for C3 precedence and lazy slot cache resolution"
-              "|policy poo-serialization-method-family=json<-/<-json, marshal/unmarshal, bytes<-/<-bytes, and string<-/<-string should be modeled as method/type slots"])))))
+    (test-case "guide defaults to compact basic command surface"
+      (let (output (guide-output []))
+        (check-output-contains
+         output
+         ["|cmd prime=gerbil-scheme-harness search prime --workspace . --view seeds"
+          "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --workspace . --view seeds"
+          "|more guide-detail=gerbil-scheme-harness guide --policy | --extensions | --poo | --exemplars | --all"])
+        (check (contains? output "|policy poo-thin-macro-bridge=") => #f)
+        (check (contains? output "|guideExemplar id=") => #f)))
+    (test-case "guide exposes heavy policy extension and POO details behind flags"
+      (check-output-contains
+       (guide-output ["--policy"])
+       ["|policy gerbil-build-discovery=prefer :std/make + :clan/base + :clan/building all-gerbil-modules discovery"
+        "|policy cli-option-composition=keep src/cli.ss as a thin dispatcher"
+        "|policy protocol-surface-minimality=define the minimal protocol slot surface first"
+        "|policy reusable-contract-tests=prefer small t/ owners that apply generic contract tests to type descriptors"])
+      (check-output-contains
+       (guide-output ["--extensions"])
+       ["|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds"
+        "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds"])
+      (check-output-contains
+       (guide-output ["--poo"])
+       ["|policy poo-thin-macro-bridge=POO syntax macros such as brace/@method should stay thin syntax bridges"
+        "|policy poo-slot-resolution=POO object edits must account for C3 precedence and lazy slot cache resolution"
+        "|policy poo-serialization-method-family=json<-/<-json, marshal/unmarshal, bytes<-/<-bytes, and string<-/<-string should be modeled as method/type slots"]))))

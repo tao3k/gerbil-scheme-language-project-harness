@@ -62,9 +62,10 @@
         "gerbil-scheme-harness",
         "search",
         "prime",
+        "--workspace",
+        ".",
         "--view",
-        "seeds",
-        "."
+        "seeds"
       ]
     },
     "owner": {
@@ -73,9 +74,10 @@
         "search",
         "owner",
         "{path}",
+        "--workspace",
+        ".",
         "--view",
-        "seeds",
-        "."
+        "seeds"
       ]
     },
     "query": {
@@ -98,9 +100,10 @@
         "{query}",
         "owner",
         "tests",
+        "--workspace",
+        ".",
         "--view",
-        "seeds",
-        "."
+        "seeds"
       ]
     },
     "ingest": {
@@ -110,9 +113,10 @@
         "ingest",
         "owner",
         "tests",
+        "--workspace",
+        ".",
         "--view",
-        "seeds",
-        "."
+        "seeds"
       ],
       "stdinMode": "pipe-candidates"
     },

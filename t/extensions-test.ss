@@ -120,9 +120,9 @@
                => #t)
         (check (hash-get first-selector 'selector)
                => "gerbil-poo://object.ss#defclass")
-        (check (length (hash-get pattern 'selectors)) => 11)
-        (check (length (hash-get pattern 'minimalForms)) => 9)
-        (check (length (hash-get pattern 'failureCases)) => 7)
+        (check (length (hash-get pattern 'selectors)) => 16)
+        (check (length (hash-get pattern 'minimalForms)) => 13)
+        (check (length (hash-get pattern 'failureCases)) => 9)
         (check (not (not (member "dependency-backed-mapping"
                                   (hash-get pattern 'qualitySignals))))
                => #t)))

@@ -258,6 +258,7 @@
         top-form-start
         top-form-end
         top-form-selector
+        declarative-top-form?
         source-file-path
         source-file-line-count
         source-file-package

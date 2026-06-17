@@ -143,7 +143,7 @@
     (target "fzf")
     (scope ".run/extensions-poo-search-prime")
     (fields
-     (command "gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")))))
+     (command "gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))))
  (notes
   ((note
     (kind "parser")

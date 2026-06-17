@@ -44,6 +44,18 @@
       (symbol "apply-slot-spec")
       (selector "gerbil-poo://object.ss#apply-slot-spec"))
      (selector
+      (role "object-materialization")
+      (symbol "instantiate-object!")
+      (selector "gerbil-poo://object.ss#instantiate-object!"))
+     (selector
+      (role "precedence-materialization")
+      (symbol "compute-precedence-list!")
+      (selector "gerbil-poo://object.ss#compute-precedence-list!"))
+     (selector
+      (role "slot-function-materialization")
+      (symbol "compute-slot-funs!")
+      (selector "gerbil-poo://object.ss#compute-slot-funs!"))
+     (selector
       (role "slot-cache-read")
       (symbol ".ref")
       (selector "gerbil-poo://object.ss#.ref"))
@@ -109,6 +121,9 @@
       (selectors ("gerbil-poo://object.ss#apply-slot-spec")))))
    (qualitySignals ("dependency-backed-mapping"
                     "apply-slot-spec-source"
+                    "object-materialization-source"
+                    "precedence-materialization-source"
+                    "slot-function-materialization-source"
                     "ref-cache-source"
                     "real-project-slot-cache-test"
                     "superfun-witness"))

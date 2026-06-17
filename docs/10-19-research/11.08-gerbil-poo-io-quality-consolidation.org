@@ -1,11 +1,13 @@
-#+TITLE: 11.08 Gerbil POO I/O Source Quality and Harness Consolidation
+#+TITLE: 11.08 Gerbil POO Source Quality and Harness Consolidation
 #+DATE: 2026-06-16
 #+PROPERTY: JD_ID 11.08
 #+PROPERTY: ASP_STATUS research-quality-consolidation
 
 * Scope
 This note records the local Gerbil harness follow-up from the
-=gerbil-poo= source study, focused on =.data/gerbil-poo/io.ss=.
+=gerbil-poo= source study, starting from =.data/gerbil-poo/io.ss= and
+now extended across the object, MOP, table, trie, type, and adapter
+sources.
 
 The purpose is not to copy =io.ss= into the harness.  The purpose is to
 make its engineering style explicit, then use that style as the quality
@@ -28,6 +30,13 @@ Primary source evidence:
 #+begin_src text
 asp gerbil-scheme query --selector .data/gerbil-poo/io.ss:1-220 --workspace . --code
 asp gerbil-scheme query --selector .data/gerbil-poo/io.ss:220-430 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/object.ss:28:36 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/mop.ss:112:117 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/table.ss:1:140 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/table.ss:140:280 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/trie.ss:24:44 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/type.ss:60:77 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/rationaldict.ss:42:48 --workspace . --code
 #+end_src
 
 Harness comparison selectors:
@@ -50,9 +59,22 @@ The =io.ss= file showed these source-level domains:
 | Writeenv hook | =defmethod (@method :wr object)= is a focused printer hook with local helpers bound near use. |
 | Typed values | =TV= plus =:wr= method isolates typed-value rendering from object rendering. |
 
-* What =io.ss= Gets Right
+This follow-up added these non-I/O quality witnesses:
+
+| Source | Evidence shape | Quality dimension |
+|--------+----------------+-------------------|
+| =object.ss= | =defstruct object= carries supers, slots, defaults, instance cache, precedence list, slot function table, and all-slot order with adjacent typed comments. | Object kernel state is explicit data; parser facts should expose slot ownership and cache/inheritance boundaries rather than flattening objects into calls. |
+| =mop.ss= | =@@method :sexp object= delegates through type-owned =.sexp<-= when present, then an object slot, then identity fallback. | MOP methods own dispatch/fallback order; policy should preserve protocol ownership while still treating method bodies as executable. |
+| =table.ss= | =methods.table= declares a protocol over required slots, then derives validation, ref options, folds, merges, conversions, lenses, marshal, and equality. | Best-practice adapters compose capabilities from a small required protocol surface instead of duplicating per-consumer table logic. |
+| =table.ss= | =Set<-Table.= adapts a table protocol into a set protocol by reusing table methods and mapping key/value callbacks to element callbacks. | Adapter quality includes clear role translation: table key/value protocol to set element protocol. |
+| =trie.ss= | Trie node, step, costep, and unstep structs document path-height invariants directly next to the representation. | Data-structure code can be dense when representation invariants are local and typed; report quality should record those invariants as first-class evidence. |
+| =type.ss= | =Tuple= and =List.= validate nested type descriptors and derive sexp/json/bytes/marshal behavior from element protocols. | Type descriptors are protocol-composition witnesses, not only domain examples. |
+| =rationaldict.ss= | =RationalSet= derives a set from =RationalDict.= via =Set<-Table.= and a table whose key/value types are explicit. | Dependency adapters should expose imported protocol ownership and derived capabilities together. |
+
+* What the POO Sources Get Right
 ** Domain sections are architectural boundaries
-=io.ss= is organized by protocol domain:
+=io.ss= is the clearest compact example, but the same discipline appears
+across the other POO sources.  =io.ss= is organized by protocol domain:
 
 1. byte I/O
 2. representation printing
@@ -64,9 +86,10 @@ The =io.ss= file showed these source-level domains:
 8. typed values
 
 Each section introduces one protocol layer and keeps related fallback
-logic nearby.  The file is not small, but it is locally understandable.
-An agent can read one section without needing to infer the whole object
-system.
+logic nearby.  =object.ss=, =table.ss=, =trie.ss=, and =type.ss= do the
+same thing for runtime state, table capabilities, trie representation,
+and typed descriptors.  These files are not small, but they are locally
+understandable when read by protocol section.
 
 ** Generic declarations are contracts, not incidental calls
 The =.defgeneric= forms are compact contract points.  Their comments
@@ -114,24 +137,37 @@ In =:pr= and =:wr=, helpers such as =d=, =s=, =w=, =comma=, =sn=, and
 =wr-fields= are scoped inside the method or immediately adjacent to it.
 They reduce visual weight without exporting accidental abstractions.
 
+** Representation invariants are adjacent to the data they explain
+=trie.ss= documents branch height, skip height, costep key reconstruction,
+and unstep callback contracts directly next to the structs.  This is a
+different kind of quality from smallness: dense data-structure code is
+acceptable when invariants are local, typed, and test-backed.
+
+** Protocol adapters translate roles explicitly
+=Set<-Table.= and =RationalSet= show the adapter style the harness should
+reward.  They do not duplicate table operations.  They translate table
+key/value callbacks into set element callbacks and keep the dependency
+adapter boundary visible.
+
 * Current Harness Gap
 The harness has the right semantic direction, but the source and tests
 are still heavier than this quality bar.
 
-** POO parser facts still encode classification as scattered branches
+** POO parser classifications now have data-owned tables
 =src/parser/poo.ss= now has better names such as =poo-form-slots= and
-=poo-form-options=, but the parser still spreads option and slot
-classification across several conditionals:
+=poo-form-options=.  The next code pass also moved the main option and
+slot classifications into explicit parser-owned constants:
 
 - generic options: =slot:=, =from:=, =default:=, =compute-default:=
 - object slot syntax: =?=, ===>=, ===>.+=, =(next-method ...)=
 - define-type options: =sealed:=, =transparent:=, =slots:=,
   =constructor:=, =final:=
 
-The next quality step is to make these classification tables explicit
-and data-owned.  That would match =io.ss=, where protocol names and
-fallback order are visible as first-class structure rather than being
-rediscovered in branch bodies.
+This matches =io.ss=, where protocol names and fallback order are visible
+as first-class structure rather than being rediscovered in branch bodies.
+The remaining parser work is not to add more hard-coded branches; it is
+to grow these small tables when new parser-owned POO syntax evidence
+requires it.
 
 ** POO structural tests are still assertion-heavy
 =t/unit/search/structural-index.ss= now has
@@ -200,24 +236,76 @@ This turns the fixture suite into a POO best-practices corpus rather than
 a pile of parser examples.
 
 * Quality Consolidation Target
-The target is for harness POO support to read like =io.ss=:
+The target is for harness POO support to read like the best parts of
+=gerbil-poo=:
 
-| =io.ss= property | Harness target |
-|------------------+----------------|
+| POO source property | Harness target |
+|---------------------+----------------|
 | Domain sections | POO parser helpers grouped by declaration family and fact family. |
 | Generic contracts | =defgeneric= facts expose option contracts without evaluating defaults. |
 | Protocol methods | method facts expose generic, receiver, receiverType, specializers, and dispatchArity. |
 | Adapter types | =define-type= fixtures show derived protocol capability composition. |
+| Representation invariants | trie/object fixtures expose cache, height, and inheritance invariants as parser facts or test data. |
+| Dependency adapters | rationaldict/table fixtures show imported dependency ownership plus derived protocol methods. |
 | Local helpers | parser/test helpers remove repeated ceremony without creating broad abstractions. |
 | Explicit fallbacks | guide and structural facts tell agents the first command and owner facts to read. |
 
-* Next Implementation Plan
-** P0: data-drive POO structural assertions
-Replace the flat =check-structural-index-poo-facts= body with small fact
-specs and two runner helpers:
+* Milestone Execution Ledger
+This report is no longer a loose list of follow-up edits. Future work should
+move by milestone, and each milestone must close with source-owned evidence,
+policy output, and verification gates.
+| Milestone | Scope | Status | Exit evidence |
+|-----------+-------+--------+---------------|
+| M0: Research baseline | POO source study across =proto.ss=, =object.ss=, =mop.ss=, =io.ss=, =table.ss=, =trie.ss=, =type.ss=, and =rationaldict.ss=. | landed | 11.08 and 31.31 name bounded source selectors and quality dimensions. |
+| M1: Parser/search fact corpus | Parser-owned POO facts, structural owner facts, fixtures, search pattern packets, and guide examples. | landed | =poo-structural-specs=, POO parser classification tables, protocol-conversion fixtures, adapter/invariant fixtures, and guide output exist. |
+| M2: Source-backed policy bridge | Bring real =clan/poo= and =gerbil-poo://= pattern metadata into policy detection without making individual rules own the pattern registry. | landed | =src/policy/detection.ss= uses =clan/poo/proto=; =src/policy/poo-source.ss= bridges =src/extensions/poo-patterns.ss= into detector overlays; R020 finding details include source pattern, source owners, quality signals, and witness data. |
+| M3: Policy-warning repair loop | Use policy warnings to improve actual Scheme source quality, starting from POO-adjacent owners and avoiding one-off hard-coded quality thresholds. | active next | Full policy check emits repair-ready grouped findings; agent repairs code shape; rerun check reaches =findings=0= with focused tests. |
+| M4: Source graph alignment | Connect upstream POO materialization selectors to fixture-level cache/inheritance facts as explicit source-specific graph edges. | pending | Search output can traverse from =gerbil-poo://proto.ss=, =object.ss=, and =mop.ss= selectors to harness fixture facts and repair guidance. |
+| M5: Release-grade closure | Freeze the best-practice corpus as a regression suite and only then start a fresh source-research round. | pending | Parser tests, search tests, policy tests, =asp gerbil-scheme check --full .=, =gxi build.ss compile=, and Org lint all pass together. |
+Milestone discipline:
+1. M0/M1 are the evidence base; do not re-open them without new source
+   selectors.
+2. M2 owns POO dependency integration and source-backed policy provenance.
+3. M3 owns real code-quality repairs triggered by policy output.
+4. M4 owns graph/search alignment, not additional style warnings.
+5. M5 is the stop rule before beginning another research cycle.
+* Closure Status
+The current implementation has landed the local harness pieces needed before
+the next source-research round:
 
-- =check-poo-fact-fields=
-- =check-poo-fact-query-keys=
+| Item | Status | Evidence |
+|------+--------+----------|
+| POO structural assertions | landed | =+poo-structural-specs+= groups existence, fields, and query keys by fact. |
+| POO parser classification tables | landed | =src/parser/poo.ss= owns define-type options, generic option families, slot operator kinds, and inherited slot call heads as constants. |
+| MOP generic semantic options | landed | =.defgeneric= facts preserve raw option tokens and add =slotName:=, =dispatchSource:=, and =defaultStrategy:= parser tokens. |
+| POO IO hook family options | landed | =:pr=, =:wr=, =:json=, and =:write-json= facts now expose =hookFamily:poo-io= plus concrete =runtimeHook:= tokens in structural owner facts. |
+| Slot-cache inheritance fixture | landed | =poo-slot-cache-inheritance.ss= exposes multi-super ownership plus =default=, =inherited-computed=, and =mixin-override= slot facts as structural query keys. |
+| Slot-cache boundary calls | landed | Structural call facts for =.ref=, =.ref/cached=, and =apply-slot-spec= now expose =slot-cache-boundary= roles and =cacheOperation:= query keys. |
+| Slot-cache materialization pattern | landed | =poo-slot-cache-computed= exposes =instantiate-object!=, =compute-precedence-list!=, and =compute-slot-funs!= selectors plus materialization quality signals. |
+| Pattern CLI ownership | landed | External =asp gerbil-scheme search pattern ...= reaches =:commands/search= through the search compatibility entrypoint, so rich pattern selection stays in the CLI/search owner rather than the build wrapper. |
+| Package build responsibility policy | landed | =GERBIL-SCHEME-AGENT-R019= checks package-root =build.ss= beside =gerbil.pkg= for parser-owned CLI/search routing evidence and wrapper/script writer definition evidence. Routing belongs in =src/cli= or =src/commands=; generated provider wrapper materialization belongs in =build-support/provider-cli.ss=. |
+| Provider wrapper script owner | landed | Runtime wrapper behavior lives in Gerbil script sources using =:std/misc/process= list commands and =main= entrypoints. =build-support/provider-cli.ss= only installs launchers/config data; native timeout/link/diagnose behavior lives in =build-support/native-wrapper-runtime.ss= using =open-process=, =process-pid=, =process-status=, and quiet =kill= process calls. |
+| Build runtime quality policy | landed | =GERBIL-SCHEME-AGENT-R020= uses composite parser-owned evidence groups rather than a single hard-coded callee. It warns only when at least two groups align, such as shell helper definitions plus shell-control literals in =build-support/*.ss=, or =sh -c= dispatch plus pipeline literals in package build code. The current =build.ss= static artifact refresh now enumerates =src/**/*.ss= in Gerbil and invokes =gxc= with list arguments instead of =find | xargs=. |
+| POO policy detection prototypes | landed | =src/policy/detection.ss= now uses =clan/poo/proto= composition for detector descriptors. Evidence extractors still produce parser-owned =EvidenceGroup= values; prototype overlays provide ordered =extend=/=override= slots for extractors, thresholds, required groups, descriptions, and source-backed POO pattern metadata. =src/policy/poo-source.ss= is the policy bridge from =src/extensions/poo-patterns.ss= to detection overlays, so =GERBIL-SCHEME-AGENT-R020= carries =poo-prototype-composition= source owners, quality signals, and witness data without directly owning the pattern registry. This keeps multiple detection data-owned and tied to the real POO dependency instead of hard-coding one larger rule or one fixed threshold. |
+| Grouped repair planner payload | landed | Agent repair JSON now exposes =multiPolicy=, =repairStrategy=, and ordered =repairPhases= per finding group. Multi-policy groups such as typed-combinator plus comment-quality warnings become one structural-first repair boundary, with dependent comment rationale repaired after the code shape stabilizes. |
+| M3 policy-warning repair loop | landed | Adding the milestone guide surface triggered =GERBIL-SCHEME-MOD-R002= and =GERBIL-SCHEME-AGENT-R015= in =src/commands/guide.ss=. The repair followed the emitted =agentRepair.nextCommand=, collapsed M3 routing onto the existing source-backed typed-combinator exemplar branch, added the missing engineering boundary comment, and returned =asp gerbil-scheme check --full .= to =findings=0=. |
+| M4 slot-cache source-selector edges | landed | Structural call facts for =.ref=, =.ref/cached=, and =apply-slot-spec= now carry =sourceSelector= fields and =sourceSelector:gerbil-poo://object.ss#...= query keys. Owner-bounded structural JSON for =poo-slot-cache-inheritance.ss= exposes these as search-visible edges from fixture call facts back to the upstream POO object materialization selectors. |
+| M5 verification stop rule | landed | Before the next source-research round, the current slice passed =asp gerbil-scheme check --full .=, =search-test=, =parser-test=, =agent-basic-policy-test=, =agent-repair-policy-test=, =gxi build.ss compile=, and Org lint for both 11.08 and 31.31. |
+| POO parser fixture helpers | started | =parser-test-part3.ss= now uses helper checks for supers and required slots in rationaldict/type-validation fixture assertions. |
+| Protocol-conversion fixture | landed | =poo-io-hooks.ss= includes =methods.string<-json= and =methods.bytes<-marshal= adapter shapes. |
+| Table/trie/type adapter fixtures | landed | =poo-trie-descriptor.ss= includes =Costep.=; =poo-type-validation.ss= includes =Tuple.=; structural specs validate both. |
+| Guide surface | landed | =guide-lines= exposes POO protocol-conversion and adapter/invariant fixture exemplars plus policy lines. |
+
+* Detailed Backlog By Milestone
+The backlog below is subordinate to the milestone ledger. Do not pick isolated
+items from this section unless the owning milestone is active.
+** P0: data-drive POO structural assertions
+Status: landed.  The flat =check-structural-index-poo-facts= body has
+been replaced by fact-grouped specs that carry required fields and query
+keys together.
+
+The runner now validates each POO fact as one record instead of splitting
+existence, field, and query-key checks across separate lists.
 
 Keep the existing fixture owners and expected facts.  This should be a
 behavior-preserving refactor.
@@ -230,9 +318,10 @@ gxi build.ss compile
 #+end_src
 
 ** P0: data-drive POO parser fixture checks
-Introduce parser-test helpers that express expected POO forms as compact
-data.  The helpers should preserve the same assertions currently made in
-=parser-test.ss=, but remove repeated =find-poo-form= / =member= ceremony.
+Status: started.  The rationaldict and type-validation fixture checks
+now use local helpers for expected supers and required slots.  The
+remaining parser-test work is to continue this pattern across older
+POO fixture blocks when they are touched.
 
 Closure gate:
 
@@ -240,8 +329,8 @@ Closure gate:
 GERBIL_LOADPATH=src:t gxi -e '(import :std/test :parser-test) (run-tests! parser-test)'
 #+end_src
 
-** P1: centralize POO classification tables
-Move slot/operator classification into small tables or named constants:
+** P1: keep POO classification tables as the extension point
+Slot/operator classification now lives in small tables or named constants:
 
 | Syntax | Fact kind |
 |--------+-----------|
@@ -251,14 +340,31 @@ Move slot/operator classification into small tables or named constants:
 | =(next-method ...)= | =inherited-computed= |
 | keyword value | =self-computed= |
 
-Likewise centralize generic options and define-type options.
+Generic options and define-type options follow the same pattern. =.defgeneric=
+options now keep raw source tokens such as =slot:location= and =from:type= while
+also exposing semantic tokens such as =slotName:location=,
+=dispatchSource:type=, =dispatchSource:instance=, and
+=defaultStrategy:computed=.  Slot-cache and inheritance fixtures use the same
+slot operator table, so C3/superfun-sensitive slots are visible as
+=slot:<name>:inherited-computed=, =slot:<name>:mixin-override=, and
+=slot:<name>:default= structural query keys.  Body-level calls to =.ref=,
+=.ref/cached=, and =apply-slot-spec= are annotated in structural call facts as
+slot-cache boundaries without changing the parser call-fact model.  The rich
+slot-cache pattern also exposes the upstream materialization selectors
+=instantiate-object!=, =compute-precedence-list!=, and =compute-slot-funs!= so
+agent-facing search no longer treats cache setup as an anonymous object-system
+fallback.
 
 This is the parser equivalent of =io.ss= adapter definitions: the
-semantic contract becomes visible data.
+semantic contract is visible data.  Future syntax support should extend these
+tables with parser evidence and fixtures instead of adding isolated conditional
+branches; future source-alignment work should connect these materialization
+selectors into source-specific graph edges rather than adding string-only
+heuristics.
 
 ** P1: add an =io.ss= style protocol-conversion fixture
-Add one compact fixture that models the =io.ss= design, not the full
-source:
+Status: landed.  =poo-io-hooks.ss= now includes compact adapters that
+model the =io.ss= design, not the full source:
 
 - =.defgeneric= with =default:=
 - =defmethod (@method :write-json object)=
@@ -267,10 +373,29 @@ source:
 - =define-type (methods.bytes<-marshal ...)=
 
 This gives the harness a best-practice witness for protocol conversion
-composition.
+composition, validated through structural owner facts.
+
+** P1: add table/trie/type adapter quality fixtures
+Status: landed for the current report scope.  The fixture suite now has
+compact witnesses that model the cross-source quality dimensions without
+copying full upstream files:
+
+- =methods.table= style required-slot protocol plus derived conversion
+  methods;
+- =Set<-Table.= role translation from key/value table callbacks to
+  element-level set callbacks;
+- trie representation invariant comments for branch, skip, costep, and
+  unstep;
+- typed descriptor composition for =Tuple= or =List.= style nested
+  protocol derivation;
+- =RationalSet= style dependency adapter showing imported table
+  ownership and derived capabilities.
+
+These fixtures should become parser/search evidence before any new
+style warning is added.
 
 ** P2: guide surface
-Guide output should point agents to this quality bar:
+Status: landed.  Guide output points agents to this quality bar:
 
 - read POO owner facts before editing POO forms
 - prefer adapter =define-type= over repeated hash/alist conversion
@@ -297,5 +422,8 @@ For this harness, "POO best practice" means:
 6. tests validate the fact contract through data, not repeated hand-coded
    assertion blocks.
 
-That is the quality bar demonstrated by =.data/gerbil-poo/io.ss= and the
-bar the Gerbil harness should converge toward.
+That is the quality bar demonstrated by =.data/gerbil-poo/io.ss=,
+=object.ss=, =mop.ss=, =table.ss=, =trie.ss=, =type.ss=, and
+=rationaldict.ss=.  The Gerbil harness should converge toward that bar
+through parser facts, guide output, and data-driven tests before adding
+new warning rules.

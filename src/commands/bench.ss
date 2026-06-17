@@ -48,13 +48,19 @@
             (durationMs elapsed-ms)
             (averageMicros (average-duration-micros elapsed-ms iterations))
             (averageMs (average-duration-ms elapsed-ms iterations))))))
+;; String <- Benchmark
+(def (benchmark-name benchmark)
+  (hash-get benchmark 'name))
+;; Milliseconds <- Benchmark
+(def (benchmark-duration-ms benchmark)
+  (hash-get benchmark 'durationMs))
 ;;; Boundary:
 ;;; - sum-duration-ms composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
 ;; Integer <- Benchmarks
 (def (sum-duration-ms benchmarks)
   (foldl (lambda (benchmark total)
-           (+ total (hash-get benchmark 'durationMs)))
+           (+ total (benchmark-duration-ms benchmark)))
          0
          benchmarks))
 ;;; Boundary:
@@ -63,8 +69,8 @@
 ;; SlowestBenchmark <- Benchmarks
 (def (slowest-benchmark benchmarks)
   (foldl (lambda (benchmark best)
-           (if (> (hash-get benchmark 'durationMs)
-                  (hash-get best 'durationMs))
+           (if (> (benchmark-duration-ms benchmark)
+                  (benchmark-duration-ms best))
              benchmark
              best))
          (car benchmarks)
@@ -79,8 +85,8 @@
             (totalMs total-ms)
             (maxTotalMs max-total-ms)
             (exceededByMs (- total-ms max-total-ms))
-            (slowestBenchmarkName (hash-get slowest 'name))
-            (slowestBenchmarkDurationMs (hash-get slowest 'durationMs)))]
+            (slowestBenchmarkName (benchmark-name slowest))
+            (slowestBenchmarkDurationMs (benchmark-duration-ms slowest)))]
      '())
    (bench-interface-findings max-interface-ms benchmarks)))
 
@@ -93,21 +99,21 @@
     (filter-map
      (lambda (benchmark)
        (and (bench-interface-benchmark? benchmark)
-            (> (hash-get benchmark 'durationMs) max-interface-ms)
+            (> (benchmark-duration-ms benchmark) max-interface-ms)
             (hash
              (kind "interface-threshold-exceeded")
              (severity "warning")
              (summary "structural interface benchmark exceeded --max-interface-ms")
-             (benchmarkName (hash-get benchmark 'name))
-             (durationMs (hash-get benchmark 'durationMs))
+             (benchmarkName (benchmark-name benchmark))
+             (durationMs (benchmark-duration-ms benchmark))
              (maxInterfaceMs max-interface-ms)
              (exceededByMs
-              (- (hash-get benchmark 'durationMs) max-interface-ms)))))
+              (- (benchmark-duration-ms benchmark) max-interface-ms)))))
      benchmarks)
     '()))
 ;; Boolean <- Benchmark
 (def (bench-interface-benchmark? benchmark)
-  (member (hash-get benchmark 'name)
+  (member (benchmark-name benchmark)
           ["structural-interface-packet" "structural-owner-facts-packet"]))
 ;;; Boundary:
 ;;; - bench-packet coordinates multiple evidence fields.
@@ -169,9 +175,9 @@
    (hash-get packet 'performanceFindings))
   (for-each
    (lambda (benchmark)
-     (displayln "|bench name=" (hash-get benchmark 'name)
+     (displayln "|bench name=" (benchmark-name benchmark)
                 " iterations=" (hash-get benchmark 'iterations)
-                " durationMs=" (hash-get benchmark 'durationMs)
+                " durationMs=" (benchmark-duration-ms benchmark)
                 " averageMicros=" (hash-get benchmark 'averageMicros)
                 " averageMs=" (hash-get benchmark 'averageMs)))
    (hash-get packet 'benchmarks)))

@@ -10,7 +10,7 @@
 
 ;;; Boundary:
 ;;; - Export facts mirror import facts so agent search can reason about public API shape.
-;;; - Keep the legacy flat export symbol list separate from this item-scoped DSL evidence.
+;;; - Keep the retired flat export symbol list separate from this item-scoped DSL evidence.
 ;; (List ModuleExportFact) <- Relpath Form
 (def (module-export-facts-from-form relpath form)
   (filter-map (cut module-export-fact-from-stx relpath <>)

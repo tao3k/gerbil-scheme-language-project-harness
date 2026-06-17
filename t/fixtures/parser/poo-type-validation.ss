@@ -2,6 +2,12 @@
 (package: sample/poo-type-validation)
 (import :clan/poo/mop)
 
+(define-type (Tuple. @ [Type.] types)
+  types: TypeList
+  .element?: tuple?
+  .json<-: tuple->json
+  .marshal: marshal-tuple)
+
 (define-type (EmailAddress. @ [String.] .validate)
   .validate: => (lambda (super)
                   (lambda (x)

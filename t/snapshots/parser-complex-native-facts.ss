@@ -230,7 +230,7 @@
             (receiverType "")
             (supers ())
             (slots ())
-            (options ())
+            (options ("dispatchSource:instance"))
             (specializers ())
             (specializerTypes ())
             (selector "t/fixtures/parser/complex-syntax.ss:26-26"))

@@ -524,7 +524,7 @@
 
 ;;; Boundary:
 ;;; - first-non-ascii-space keeps SRFI-13 character-set conversion out of the trim path.
-;;; - Indexed character pairs expose the first non-ASCII-space offset without a loop.
+;;; - Indexed character pairs expose the first non-ASCII-space character index without a loop.
 ;; Integer <- SourceLine SourceLength
 (def (first-non-ascii-space text length)
   (let (hit (find (lambda (entry)
@@ -552,8 +552,8 @@
       (char=? ch #\return)))
 
 ;;; Boundary:
-;;; - Comment markers are stripped by finding the first non-semicolon offset.
-;;; - Keep the body substring unchanged after that offset for parser evidence.
+;;; - Comment markers are stripped by finding the first non-semicolon character index.
+;;; - Keep the body substring unchanged after that index for parser evidence.
 ;; SourceLine <- SourceLine
 (def (drop-leading-semicolons text)
   (let (hit (find (lambda (entry)

@@ -63,6 +63,33 @@
    (lambda (fragment)
      (check (contains? output fragment) => #t))
    fragments))
+;; EnsureDir <- String
+(def (ensure-dir path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (create-directory path))))
+;; Unit <- String SourceLine
+(def (write-text path text)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (delete-file path)))
+  (call-with-output-file path
+    (lambda (port) (display text port))))
+;; Root <- Unit
+(def (write-runtime-source-fixture)
+  (let* ((root ".run/guide-runtime-source")
+         (std-root (string-append root "/.data/gerbil/src/std"))
+         (source-path (string-append std-root "/sugar.ss")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir (string-append root "/.data"))
+    (ensure-dir (string-append root "/.data/gerbil"))
+    (ensure-dir (string-append root "/.data/gerbil/src"))
+    (ensure-dir std-root)
+    (write-text
+     source-path
+     ";;; -*- Gerbil -*-\n;;; Fixture comment for runtime-source guide routing.\n(defrule (defsyntax-call (macro ctx formals ...) body ...)\n  (defsyntax (macro stx)\n    #'(fixture-runtime-source macro)))\n")
+    root))
 ;; SearchTest
 ;; TestSuite
 (def search-test-part-10
@@ -117,4 +144,15 @@
               "repository=https://git.cons.io/mighty-gerbils/gerbil"
               "|qualitySignal id=source-index-required"
               "next=search runtime-source macro sugar module-sugar"])
-            (check (not (contains? output "pending")) => #t)))))
+            (check (not (contains? output "pending")) => #t)))
+    (test-case "guide code runtime-source positional query resolves versioned std source"
+          (let* ((root (write-runtime-source-fixture))
+                 (output
+                  (parameterize ((current-directory root))
+                    (guide-output ["--code" "runtime-source" "macro" "."]))))
+            (check-output-contains
+             output
+             ["Fixture comment for runtime-source guide routing"
+              "(defrule (defsyntax-call"])
+            (check (contains? output "typed-combinator-style-findings") => #f)
+            (check (guide-code-render-metadata-free? output) => #t)))))

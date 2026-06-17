@@ -286,7 +286,7 @@
                                     (target "fzf")
                                     (scope (project-index-root index))
                                     (fields (hash (command
-                                                   "gerbil-scheme-harness search fzf '<term>' owner tests --view seeds ."))))))
+                                                   "gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"))))))
            (notes (list (hash (kind "parser")
                               (message "core-read-module native Scheme reader facts")))))))
     (when package

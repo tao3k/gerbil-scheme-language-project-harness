@@ -7,6 +7,7 @@
 (import :constants
         :commands/guide
         :commands/search-extension
+        :commands/search-owner-items
         :commands/search-render
         :commands/search-structural
         :commands/search-workspace-scope
@@ -129,8 +130,8 @@
                     " defs=" (length (source-file-definitions file))
                     " imports=" (length (source-file-imports file))))
        (take* (ranked-files index) 12))
-      (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")
-      (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")))
+      (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")
+      (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))
   0)
 ;; String <- ProjectIndex
 (def (emit-package-line index)
@@ -155,16 +156,21 @@
       (unless file (error "owner not found" owner))
       (if (and (pair? (cdr positionals)) (equal? (cadr positionals) "items"))
         (let* ((query (option "--query" args))
-               (matches (matching-definitions (source-file-definitions file)
-                                              (if query [query] '()))))
+               (terms (owner-item-query-terms query))
+               (definition-matches
+                (matching-definitions (source-file-definitions file) terms))
+               (syntax-matches (matching-owner-syntax-facts file terms)))
           (cond
            ((flag? "--code" args)
             (for-each (lambda (defn)
                         (display (read-definition-code (project-index-root index) defn)))
-                      matches))
+                      definition-matches))
            ((flag? "--names-only" args)
-            (for-each (lambda (defn) (displayln (definition-name defn))) matches))
-           (else (emit-owner-items file matches))))
+            (for-each (lambda (defn) (displayln (definition-name defn)))
+                      definition-matches)
+            (for-each (lambda (fact) (displayln (hash-get fact 'name)))
+                      syntax-matches))
+           (else (emit-owner-items file definition-matches syntax-matches))))
         (if json?
           (write-json-line (source-file-json file))
           (emit-owner file))))
@@ -194,19 +200,6 @@
    (take* (source-file-definitions file) 30))
   (displayln "nextCommand=gerbil-scheme-harness query " (source-file-path file)
              " --term '<symbol>' --workspace . --names-only"))
-;;; Boundary:
-;;; - emit-owner-items composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- SourceFile Matches
-(def (emit-owner-items file matches)
-  (displayln "[gerbil-owner-items] path=" (source-file-path file)
-             " matches=" (length matches))
-  (for-each
-   (lambda (defn)
-     (displayln "|item kind=" (definition-kind defn)
-                " name=" (definition-name defn)
-                " selector=" (definition-selector defn)))
-   matches))
 ;;; Boundary:
 ;;; - emit-symbol-search composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -273,7 +266,7 @@
            (take* matches 24))
           (when (pair? matches)
             (displayln "recommendedNext=gerbil-scheme-harness search owner "
-                       (source-file-path (car matches)) " --view seeds .")))))
+                       (source-file-path (car matches)) " --workspace . --view seeds")))))
     0))
 ;; Boolean <- View
 (def (language-evidence-view? view)

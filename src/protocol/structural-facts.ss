@@ -10,6 +10,19 @@
         :support/list)
 
 (export structural-syntax-fact-json)
+
+;; ConfigConstant
+(def +poo-slot-cache-call-boundaries+
+  '((".ref" "slot-cache-read" "ref" "gerbil-poo://object.ss#.ref")
+    (".ref/cached" "slot-cache-read-existing" "ref-cached"
+     "gerbil-poo://object.ss#.ref/cached")
+    ("apply-slot-spec" "slot-spec-application" "apply-slot-spec"
+     "gerbil-poo://object.ss#apply-slot-spec")))
+
+;; ConfigConstant
+(def +poo-operator-call-heads+
+  '(".o" ".@" ".mix" ".ref" ".ref/cached" "apply-slot-spec"))
+
 ;;; Boundary:
 ;;; - structural-syntax-fact-json composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -185,6 +198,8 @@
    (filter identity
            (append [(poo-form-fact-name fact)
                     (poo-form-fact-kind fact)
+                    (string-append "syntaxHead:" (poo-form-fact-kind fact))
+                    (string-append "poo-syntax:" (poo-form-fact-kind fact))
                     (poo-form-fact-role fact)
                     (poo-form-fact-path fact)
                     (poo-form-fact-generic fact)
@@ -198,6 +213,7 @@
 ;; Json <- Fact
 (def (poo-form-fields-json fact)
   (hash (role (poo-form-fact-role fact))
+        (syntaxHead (poo-form-fact-kind fact))
         (generic (or (poo-form-fact-generic fact) ""))
         (receiver (or (poo-form-fact-receiver fact) ""))
         (receiverType (or (poo-form-fact-receiver-type fact) ""))
@@ -523,6 +539,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; Json <- Fact
 (def (call-structural-fact-json fact)
+  (let (boundary (poo-slot-cache-call-boundary fact))
   (hash (id (native-syntax-fact-id "call" (call-fact-path fact)
                                    (call-fact-callee fact)
                                    (call-fact-start fact)))
@@ -534,12 +551,54 @@
         (location (fact-location-json (call-fact-path fact)
                                       (call-fact-start fact)
                                       (call-fact-end fact)))
-        (queryKeys (dedupe [(call-fact-callee fact)
-                            (or (call-fact-caller fact) "")
-                            (call-fact-path fact)]))
-        (fields (hash (arity (call-fact-arity fact))
-                      (caller (or (call-fact-caller fact) ""))
-                      (arguments (call-fact-arguments fact))
-                      (argumentTypes
-                       (map (lambda (type) (or type "unknown"))
-                            (call-fact-argument-types fact)))))))
+        (queryKeys (call-structural-query-keys fact boundary))
+        (fields (call-structural-fields fact boundary)))))
+;;; Boundary:
+;;; - Slot-cache call boundaries make .ref/.ref-cached/apply-slot-spec searchable.
+;;; - They annotate existing call facts without changing parser call-fact shape.
+;; MaybePair <- CallFact
+(def (poo-slot-cache-call-boundary fact)
+  (assoc (call-fact-callee fact) +poo-slot-cache-call-boundaries+))
+;; (List String) <- CallFact MaybePair
+(def (call-structural-query-keys fact boundary)
+  (let (callee (call-fact-callee fact))
+    (dedupe
+     (append [callee
+              (or (call-fact-caller fact) "")
+              (call-fact-path fact)]
+             (if (poo-operator-call-head? callee)
+               ["poo-operator"
+                (string-append "operator:" callee)
+                (string-append "pooOperator:" callee)]
+               '())
+             (if boundary
+               ["slot-cache-boundary"
+                (cadr boundary)
+                (string-append "cacheOperation:" (caddr boundary))
+                (string-append "sourceSelector:" (cadddr boundary))]
+               '())))))
+;;; Intent:
+;;; Boundary: keep ordinary call fields stable while adding POO slot-cache metadata.
+;;; ParserEvidence: derive metadata from native callee symbols in call facts.
+;;; Policy: this is structural search evidence, not a policy whitelist.
+;; Hash <- CallFact MaybePair
+(def (call-structural-fields fact boundary)
+  (let (fields (hash (arity (call-fact-arity fact))
+                     (caller (or (call-fact-caller fact) ""))
+                     (arguments (call-fact-arguments fact))
+                     (argumentTypes
+                      (map (lambda (type) (or type "unknown"))
+                           (call-fact-argument-types fact)))))
+    (when boundary
+      (hash-put! fields 'role "slot-cache-boundary")
+      (hash-put! fields 'slotCacheRole (cadr boundary))
+      (hash-put! fields 'cacheOperation (caddr boundary))
+      (hash-put! fields 'sourceSelector (cadddr boundary)))
+    (when (poo-operator-call-head? (call-fact-callee fact))
+      (hash-put! fields 'operator (call-fact-callee fact))
+      (hash-put! fields 'pooOperator #t))
+    fields))
+
+;; Boolean <- String
+(def (poo-operator-call-head? callee)
+  (member callee +poo-operator-call-heads+))

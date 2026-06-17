@@ -57,7 +57,7 @@
                             (list 'scope (snapshot-project-root index))
                             (list 'fields
                                   (list 'command
-                                        "gerbil-scheme-harness search fzf '<term>' owner tests --view seeds .")))))
+                                        "gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))))
           (list 'notes
                 (list (list 'note
                             (list 'kind "parser")

@@ -3,6 +3,8 @@
 
 (import :gerbil/gambit
         :parser/facade
+        :policy/agent-build
+        :policy/agent-build-support
         :policy/agent-comment
         :policy/agent-dependency-adapter
         :policy/agent-import
@@ -36,6 +38,8 @@
         predicate-family-combinator-finding
         dependency-protocol-adapter-finding
         explicit-precise-import-finding
+        package-build-responsibility-finding
+        build-runtime-quality-finding
         facade-export-conflict-findings)
 ;; ConfigConstant
 (def +generic-owner-segments+
@@ -76,11 +80,6 @@
 ;; String
 (def +functional-preservation-reader-callees+
   '("read" "read-char" "read-line" "read-syntax"))
-;; FFI forms declare native ABI surfaces at module load/compile time.
-;; Treat their nested parser call facts as declarations, not executable effects.
-(def +declarative-top-level-heads+
-  '("declare" "c-declare" "c-define-type" "define-c-lambda"
-    "begin-ffi" "begin-foreign" "c-define" "namespace"))
 ;; Integer
 (def +macro-runtime-source-witness-explanation-min-length+ 32)
 ;; Integer
@@ -105,6 +104,8 @@
    (predicate-family-combinator-findings index)
    (dependency-protocol-adapter-findings index)
    (explicit-precise-import-findings index)
+   (package-build-responsibility-findings index)
+   (build-runtime-quality-findings index)
    (facade-export-conflict-findings index)))
 ;;; Boundary:
 ;;; - facade-intent-findings composes first-class procedures.
@@ -236,9 +237,6 @@
            (and (declarative-top-form? form)
                 (call-within-top-form-range? call form)))
          (source-file-forms file)))
-;; Boolean <- TopForm
-(def (declarative-top-form? form)
-  (member (top-form-head form) +declarative-top-level-heads+))
 ;; Boolean <- CallFact TopForm
 (def (call-within-top-form-range? call form)
   (and (<= (top-form-start form) (call-fact-start call))

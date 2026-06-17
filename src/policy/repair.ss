@@ -77,7 +77,7 @@
   (map finding-group-json (finding-groups findings)))
 
 ;;; Group findings by selector when possible, then path. This is intentionally
-;;; independent from functionQualityProfiles so legacy policy findings still get
+;;; independent from functionQualityProfiles so retired policy findings still get
 ;;; a repair plan while parser-level profiles come online.
 ;; (List FindingGroup) <- (List TypeFinding)
 (def (finding-groups findings)
@@ -115,6 +115,9 @@
          (primary (primary-finding findings))
          (rules (map type-finding-rule-id findings))
          (suppressed (suppressed-dependent-rules rules))
+         (repair-order (repair-order-rules rules primary suppressed))
+         (strategy (repair-strategy rules suppressed))
+         (phases (repair-phases repair-order suppressed))
          (next (or (agent-rule-guide-next-command
                     (type-finding-rule-id primary))
                    "")))
@@ -124,16 +127,20 @@
           (rules rules)
           (severityMax (finding-group-severity findings))
           (primaryRule (type-finding-rule-id primary))
+          (multiPolicy (repair-multi-policy-group? rules))
+          (repairStrategy strategy)
           (primaryRepairClass
            (or (agent-rule-topic (type-finding-rule-id primary))
                "policy-finding"))
           (suppressedRules suppressed)
           (requiredWitnesses (finding-group-required-witnesses rules))
-          (repairOrder (repair-order-rules rules primary suppressed))
+          (repairOrder repair-order)
           (repairPlan
 	          (hash (nextCommand next)
 	                (action "inspect-code-shape")
 	                (guideCodeFlag "--code")
+                  (strategy strategy)
+                  (repairPhases phases)
 	                (instruction
 	                  "run the primary guide --code command, inspect the code shape, apply one grouped repair, preserve listed witnesses, then rerun check")
 	                (commentRepairOrder
@@ -245,6 +252,54 @@
            (filter (lambda (rule) (not (member rule suppressed)))
                    rules)
            suppressed)))
+
+;;; Strategy names are derived from group shape, not from one rule id.
+;;; Multi-policy groups with suppressed comment rules require shape-first repair,
+;;; while simple groups keep the single guide command contract.
+;; RepairStrategy <- (List RuleId) (List RuleId)
+(def (repair-strategy rules suppressed)
+  (cond
+   ((and (repair-multi-policy-group? rules) (pair? suppressed))
+    "multi-policy-structural-first")
+   ((repair-multi-policy-group? rules)
+    "multi-policy-single-edit")
+   (else "single-policy-guide")))
+
+;;; Boolean output is JSON-visible, so agents can distinguish grouped repairs
+;;; from independent one-rule warnings without re-parsing rule arrays.
+;; Boolean <- (List RuleId)
+(def (repair-multi-policy-group? rules)
+  (> (length (dedupe rules)) 1))
+
+;;; Repair phases turn a grouped rule list into an ordered action packet.
+;;; Suppressed comment rules become an explicit second phase instead of hidden
+;;; warning noise, preserving structure-first repair.
+;; (List RepairPhase) <- (List RuleId) (List RuleId)
+(def (repair-phases repair-order suppressed)
+  (let ((primary-rules (filter (lambda (rule) (not (member rule suppressed)))
+                               repair-order)))
+    (filter identity
+            [(and (pair? primary-rules)
+                  (repair-phase
+                   "primary-shape"
+                   primary-rules
+                   "inspect-code-shape"
+                   "apply the primary structural/style repair once for this group"))
+             (and (pair? suppressed)
+                  (repair-phase
+                   "dependent-comment-rationale"
+                   suppressed
+                   "repair-comment-rationale-after-shape"
+                   "update engineering comments after the code shape is stable"))])))
+
+;;; Phase packets are intentionally small: name, rules, action, instruction.
+;;; The rule ids still route to the central guide catalog.
+;; RepairPhase <- String (List RuleId) Action Instruction
+(def (repair-phase name rules action instruction)
+  (hash (name name)
+        (rules rules)
+        (action action)
+        (instruction instruction)))
 
 ;;; Boundary:
 ;;; - count-finding-severity composes first-class procedures.

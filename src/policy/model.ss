@@ -31,7 +31,9 @@
         +agent-comment-quality-rule+
         +agent-predicate-family-combinator-rule+
         +agent-dependency-protocol-adapter-rule+
-        +agent-explicit-precise-import-rule+)
+        +agent-explicit-precise-import-rule+
+        +agent-package-build-responsibility-rule+
+        +agent-build-runtime-quality-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -109,3 +111,9 @@
 ;; ConfigConstant
 (def +agent-explicit-precise-import-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R018" "warning"))
+;; ConfigConstant
+(def +agent-package-build-responsibility-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R019" "warning"))
+;; ConfigConstant
+(def +agent-build-runtime-quality-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R020" "warning"))

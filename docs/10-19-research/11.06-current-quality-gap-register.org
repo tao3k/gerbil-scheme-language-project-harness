@@ -26,8 +26,8 @@ Observed during the 2026-06-14 quality loop:
 asp gerbil-scheme search prime --workspace languages/gerbil-scheme-language-project-harness --view seeds
 ./bin/gerbil-scheme-harness check --json .
 ./bin/gerbil-scheme-harness info --json .
-./bin/gerbil-scheme-harness search capability posture --view seeds .
-./bin/gerbil-scheme-harness search runtime-source gxi version macro bootstrap ranking --view seeds .
+./bin/gerbil-scheme-harness search capability posture --workspace . --view seeds
+./bin/gerbil-scheme-harness search runtime-source gxi version macro bootstrap ranking --workspace . --view seeds
 #+end_src
 
 Current baseline:
@@ -212,6 +212,6 @@ GERBIL_LOADPATH=src:t gxtest -v t/parser-test.ss t/policy-test.ss t/search-test.
 GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss t/bench-test.ss
 ./bin/gerbil-scheme-harness check --json .
 ./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .
-./bin/gerbil-scheme-harness search capability posture --view seeds .
-./bin/gerbil-scheme-harness search runtime-source gxi version macro bootstrap ranking --view seeds .
+./bin/gerbil-scheme-harness search capability posture --workspace . --view seeds
+./bin/gerbil-scheme-harness search runtime-source gxi version macro bootstrap ranking --workspace . --view seeds
 #+end_src

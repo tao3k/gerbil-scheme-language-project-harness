@@ -97,7 +97,7 @@
             (check (not (contains? lang-output "pending")) => #t)
             (check (contains? style-output "|fact id=scheme-style") => #t)
             (check (contains? style-output "gerbil-utils-style-audit-and-harness-policy") => #t)
-            (check (contains? style-output "|failureCase id=legacy-test-directory") => #t)
+            (check (contains? style-output "|failureCase id=retired-test-directory") => #t)
             (check (contains? style-output "|failureCase id=vague-definition-name") => #t)
             (check (contains? style-output "|failureCase id=top-level-executable-call") => #t)
             (check (contains? style-output "selector=gerbil-utils://t/base-test.ss#base-test") => #t)

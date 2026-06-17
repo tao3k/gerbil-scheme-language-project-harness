@@ -53,78 +53,130 @@
    "t/fixtures/parser/poo-rationaldict-adapter.ss"
    "t/fixtures/parser/poo-type-validation.ss"
    "t/fixtures/parser/poo-trace-debug.ss"
+   "t/fixtures/parser/poo-slot-cache-inheritance.ss"
    "t/fixtures/parser/poo-method-dispatch.ss"])
 
-;; (List (List Kind Name Field Expected))
-(def +poo-structural-field-specs+
-  [["custom" "point" 'role "object"]
-   ["custom" "point" 'supers ["base"]]
-   ["custom" "point" 'slots ["x" "y" "total" "level" "child" "label" "greeting"]]
-   ["method" ":pr" 'specializers ["object"]]
-   ["method" ":wr" 'specializers ["object"]]
-   ["method" ":json" 'specializers ["object"]]
-   ["method" ":write-json" 'specializers ["object"]]
-   ["method" ":write-json" 'dispatchArity 1]
-   ["custom" "F_q." 'role "type"]
-   ["custom" "F_q." 'supers ["expt<-mul-inv."]]
-   ["custom" "F_2^n." 'supers ["F_q."]]
-   ["custom" "F_2^8" 'supers ["F_2^n."]]
-   ["custom" "F_2^8" 'slots [".n:" ".xn:"]]
-   ["custom" "Trie." 'supers ["Wrap." "methods.table"]]
-   ["custom" "RationalDict." 'supers ["methods.table"]]
-   ["custom" "RationalSet" 'supers ["Set<-Table."]]
-   ["custom" "EmailAddress." 'role "type"]
-   ["custom" "EmailAddress." 'supers ["String."]]
-   ["custom" "PositiveList." 'supers ["List."]]
-   ["custom" "trace-probe" 'role "object"]
-   ["custom" "trace-probe" 'supers ["base"]]
-   ["method" ":pr" 'specializers ["trace-probe"]]
-   ["method" ":wr" 'specializers ["trace-probe"]]
-   ["generic" "distance" 'generic "distance"]
-   ["method" "distance" 'specializers ["Point" "Point"]]
-   ["method" "distance" 'specializerTypes ["Point" "Point"]]
-   ["method" "distance" 'dispatchArity 2]
-   ["generic" ":intersect" 'generic ":intersect"]
-   ["method" ":intersect" 'receiver "line"]
-   ["method" ":intersect" 'receiverType "<Line>"]
-   ["method" ":intersect" 'specializers ["line:<Line>" "circle:<Circle>" "ctx:<Ctx>"]]
-   ["method" ":intersect" 'dispatchArity 3]])
-
-;; (List (List Kind Name QueryKey))
-(def +poo-structural-query-key-specs+
-  [["custom" "point" "slot:level:inherited-computed"]
-   ["custom" "point" "slot:child:mixin-override"]
-   ["method" ":write-json" "object"]
-   ["custom" "F_q." "expt<-mul-inv."]
-   ["custom" "F_q." ".mul:"]
-   ["custom" "F_q." ".n<-:"]
-   ["custom" "F_q." ".<-n:"]
-   ["custom" "F_2^n." ".element?:"]
-   ["custom" "F_2^n." ".=?:"]
-   ["custom" "Trie." "methods.table"]
-   ["custom" "Trie." "T:"]
-   ["custom" "Trie." "Unstep:"]
-   ["custom" "Trie." "Step:"]
-   ["custom" "Trie." ".acons:"]
-   ["custom" "Trie." ".<-list:"]
-   ["custom" "RationalDict." "Key:"]
-   ["custom" "RationalDict." ".key?:"]
-   ["custom" "RationalDict." ".sexp<-:"]
-   ["custom" "RationalSet" "Table:"]
-   ["custom" "RationalSet" ".min-elt:"]
-   ["custom" "EmailAddress." ".validate:"]
-   ["custom" "EmailAddress." ".sexp<-:"]
-   ["custom" "PositiveList." "Elt:"]
-   ["custom" "PositiveList." ".validate:"]
-   ["custom" "trace-probe" "slot:value:inherited-computed"]
-   ["custom" "trace-probe" "slot:runner:self-computed"]])
-
-;; (List (List Kind Name))
-(def +poo-structural-fact-specs+
-  [["call" "raise-type-error"]
-   ["call" "trace-inherited-slot"]
-   ["call" "traced-function"]
-   ["call" "trace-poo"]])
+;; (List (List Kind Name Fields QueryKeys))
+(def +poo-structural-specs+
+  [["custom" "point"
+    [['role "object"]
+     ['supers ["base"]]
+     ['slots ["x" "y" "total" "level" "child" "label" "greeting"]]]
+    ["slot:level:inherited-computed" "slot:child:mixin-override"]]
+   ["method" ":pr"
+    [['specializers ["object"]]
+     ['options ["hookFamily:poo-io" "runtimeHook:printer"]]]
+    ["hookFamily:poo-io" "runtimeHook:printer"]]
+   ["method" ":wr"
+    [['specializers ["object"]]
+     ['options ["hookFamily:poo-io" "runtimeHook:writeenv"]]]
+    ["hookFamily:poo-io" "runtimeHook:writeenv"]]
+   ["method" ":json"
+    [['specializers ["object"]]
+     ['options ["hookFamily:poo-io" "runtimeHook:json-read"]]]
+    ["hookFamily:poo-io" "runtimeHook:json-read"]]
+   ["method" ":write-json"
+    [['specializers ["object"]]
+     ['options ["hookFamily:poo-io" "runtimeHook:json-write"]]
+     ['dispatchArity 1]]
+    ["object" "hookFamily:poo-io" "runtimeHook:json-write"]]
+   ["custom" "methods.string<-json"
+    [['role "type"]
+     ['slots [".string<-:" ".<-string:"]]]
+    [".string<-:" ".<-string:"]]
+   ["custom" "methods.bytes<-marshal"
+    [['role "type"]
+     ['slots [".bytes<-:" ".<-bytes:"]]]
+    [".bytes<-:" ".<-bytes:"]]
+   ["custom" "cache-node"
+    [['role "object"]
+     ['supers ["left-cache" "right-cache"]]
+     ['slots ["stable" "inherited-count" "cached-child"
+              "super-label" "local-cache"]]]
+    ["slot:stable:default"
+     "slot:inherited-count:inherited-computed"
+     "slot:cached-child:mixin-override"
+     "slot:super-label:inherited-computed"]]
+   ["call" ".ref"
+    [['role "slot-cache-boundary"]
+     ['slotCacheRole "slot-cache-read"]
+     ['cacheOperation "ref"]
+     ['sourceSelector "gerbil-poo://object.ss#.ref"]]
+    ["slot-cache-boundary" "slot-cache-read" "cacheOperation:ref"
+     "sourceSelector:gerbil-poo://object.ss#.ref"]]
+   ["call" ".ref/cached"
+    [['role "slot-cache-boundary"]
+     ['slotCacheRole "slot-cache-read-existing"]
+     ['cacheOperation "ref-cached"]
+     ['sourceSelector "gerbil-poo://object.ss#.ref/cached"]]
+    ["slot-cache-boundary" "slot-cache-read-existing" "cacheOperation:ref-cached"
+     "sourceSelector:gerbil-poo://object.ss#.ref/cached"]]
+   ["call" "apply-slot-spec"
+    [['role "slot-cache-boundary"]
+     ['slotCacheRole "slot-spec-application"]
+     ['cacheOperation "apply-slot-spec"]
+     ['sourceSelector "gerbil-poo://object.ss#apply-slot-spec"]]
+    ["slot-cache-boundary" "slot-spec-application"
+     "cacheOperation:apply-slot-spec"
+     "sourceSelector:gerbil-poo://object.ss#apply-slot-spec"]]
+   ["custom" "F_q."
+    [['role "type"]
+     ['supers ["expt<-mul-inv."]]]
+    ["expt<-mul-inv." ".mul:" ".n<-:" ".<-n:"]]
+   ["custom" "F_2^n."
+    [['supers ["F_q."]]]
+    [".element?:" ".=?:"]]
+   ["custom" "F_2^8"
+    [['supers ["F_2^n."]]
+     ['slots [".n:" ".xn:"]]]
+    []]
+   ["custom" "Costep."
+    [['role "type"]
+     ['supers ["Type."]]]
+    ["height:" "key:" ".validate:"]]
+   ["custom" "Trie."
+    [['supers ["Wrap." "methods.table"]]]
+    ["methods.table" "T:" "Unstep:" "Step:" ".acons:" ".<-list:"]]
+   ["custom" "RationalDict."
+    [['supers ["methods.table"]]]
+    ["Key:" ".key?:" ".sexp<-:"]]
+   ["custom" "RationalSet"
+    [['supers ["Set<-Table."]]]
+    ["Table:" ".min-elt:"]]
+   ["custom" "EmailAddress."
+    [['role "type"]
+     ['supers ["String."]]]
+    [".validate:" ".sexp<-:"]]
+   ["custom" "Tuple."
+    [['role "type"]
+     ['supers ["Type."]]]
+    ["types:" ".json<-:" ".marshal:"]]
+   ["custom" "PositiveList."
+    [['supers ["List."]]]
+    ["Elt:" ".validate:"]]
+   ["custom" "trace-probe"
+    [['role "object"]
+     ['supers ["base"]]]
+    ["slot:value:inherited-computed" "slot:runner:self-computed"]]
+   ["method" ":pr" [['specializers ["trace-probe"]]] []]
+   ["method" ":wr" [['specializers ["trace-probe"]]] []]
+   ["generic" "distance" [['generic "distance"]] []]
+   ["method" "distance"
+    [['specializers ["Point" "Point"]]
+     ['specializerTypes ["Point" "Point"]]
+     ['dispatchArity 2]]
+    []]
+   ["generic" ":intersect" [['generic ":intersect"]] []]
+   ["method" ":intersect"
+    [['receiver "line"]
+     ['receiverType "<Line>"]
+     ['specializers ["line:<Line>" "circle:<Circle>" "ctx:<Ctx>"]]
+     ['dispatchArity 3]]
+    []]
+   ["call" "raise-type-error" [] []]
+   ["call" "trace-inherited-slot" [] []]
+   ["call" "traced-function" [] []]
+   ["call" "trace-poo" [] []]])
 
 ;; Integer
 (def (check-structural-index-queryable-facts)
@@ -200,34 +252,29 @@
 ;; Unit <- Packet
 (def (check-structural-index-poo-facts facts-packet)
   (for-each (lambda (spec)
-              (check-poo-structural-field facts-packet spec))
-            +poo-structural-field-specs+)
-  (for-each (lambda (spec)
-              (check-poo-structural-query-key facts-packet spec))
-            +poo-structural-query-key-specs+)
-  (for-each (lambda (spec)
-              (check-poo-structural-fact facts-packet spec))
-            +poo-structural-fact-specs+))
+              (check-poo-structural-spec facts-packet spec))
+            +poo-structural-specs+))
 
-;; Unit <- Packet (List Kind Name Field Expected)
-(def (check-poo-structural-field facts-packet spec)
+;; Unit <- Packet (List Kind Name Fields QueryKeys)
+(def (check-poo-structural-spec facts-packet spec)
   (match spec
-    ([kind name field expected]
+    ([kind name fields query-keys]
+     (check (packet-has-syntax-fact? facts-packet kind name) => #t)
+     (for-each (lambda (field-spec)
+                 (check-poo-structural-field facts-packet kind name field-spec))
+               fields)
+     (for-each (lambda (query-key)
+                 (check (packet-has-syntax-fact-query-key?
+                         facts-packet kind name query-key)
+                        => #t))
+               query-keys))))
+
+;; Unit <- Packet Kind Name (List Field Expected)
+(def (check-poo-structural-field facts-packet kind name spec)
+  (match spec
+    ([field expected]
      (check (packet-has-syntax-fact-field? facts-packet kind name field expected)
             => #t))))
-
-;; Unit <- Packet (List Kind Name QueryKey)
-(def (check-poo-structural-query-key facts-packet spec)
-  (match spec
-    ([kind name key]
-     (check (packet-has-syntax-fact-query-key? facts-packet kind name key)
-            => #t))))
-
-;; Unit <- Packet (List Kind Name)
-(def (check-poo-structural-fact facts-packet spec)
-  (match spec
-    ([kind name]
-     (check (packet-has-syntax-fact? facts-packet kind name) => #t))))
 
 ;; Unit
 (def (check-structural-index-quality-shape-facts)
@@ -286,14 +333,13 @@
 
 ;; (List SyntaxFact) <- ProjectIndex (List OwnerPath)
 (def (owner-facts index owners)
-  (match owners
-    ([] '())
-    ([owner . rest]
-     (let (file (find-owner index owner))
-       (unless file (error "owner not found" owner))
-       (append (hash-get (native-syntax-owner-facts-packet-json index file)
-                         'facts)
-               (owner-facts index rest))))))
+  (apply append
+         (map (lambda (owner)
+                (let (file (find-owner index owner))
+                  (unless file (error "owner not found" owner))
+                  (hash-get (native-syntax-owner-facts-packet-json index file)
+                            'facts)))
+              owners)))
 
 ;; Unit <- String
 (def (write-quality-shape-structural-project root)
