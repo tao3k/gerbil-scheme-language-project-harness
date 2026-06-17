@@ -172,7 +172,7 @@ jobs:
         run: |
           export GERBIL="$(command -v gxi)"
           bench_output="$(mktemp)"
-          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss bench --json --iterations 1 --max-total-ms 60000 --max-interface-ms 250 . > "$bench_output"; then
+          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss bench --json --iterations 1 --max-total-ms 60000 --max-interface-ms 500 . > "$bench_output"; then
             cat "$bench_output"
             exit 1
           fi

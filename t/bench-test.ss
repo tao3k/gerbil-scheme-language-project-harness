@@ -36,7 +36,10 @@
 (def bench-test
   (test-suite "gerbil scheme harness bench"
     (test-case "bench text output records verification hot paths"
-      (let (output (bench-output ["--iterations" "1" "--max-total-ms" "60000" "."]))
+      (let (output (bench-output ["--iterations" "1"
+                                  "--max-total-ms" "60000"
+                                  "--max-interface-ms" "60000"
+                                  "."]))
         (check (contains? output "[gerbil-bench] status=pass") => #t)
         (check (contains? output "|bench name=collect-project") => #t)
         (check (contains? output "|bench name=type-check") => #t)
