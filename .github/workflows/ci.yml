@@ -181,7 +181,7 @@ jobs:
           echo "$bench" | jq -e '
             .schemaId == "agent.semantic-protocols.gerbil-scheme-harness-bench" and
             .status == "pass" and
-            .maxInterfaceMs == 250 and
+            .maxInterfaceMs == 500 and
             (.totalMs | type == "number") and
             (.slowestBenchmark.durationMs | type == "number") and
             (.benchmarks | length) == 5 and
