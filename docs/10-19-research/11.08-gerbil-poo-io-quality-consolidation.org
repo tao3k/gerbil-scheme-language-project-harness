@@ -1,0 +1,301 @@
+#+TITLE: 11.08 Gerbil POO I/O Source Quality and Harness Consolidation
+#+DATE: 2026-06-16
+#+PROPERTY: JD_ID 11.08
+#+PROPERTY: ASP_STATUS research-quality-consolidation
+
+* Scope
+This note records the local Gerbil harness follow-up from the
+=gerbil-poo= source study, focused on =.data/gerbil-poo/io.ss=.
+
+The purpose is not to copy =io.ss= into the harness.  The purpose is to
+make its engineering style explicit, then use that style as the quality
+bar for the harness POO parser facts, structural facts, fixtures, and
+tests.
+
+Related context:
+
+- Top-level source alignment report:
+  [[file:../../../../docs/30-39-research/31.31-gerbil-poo-source-alignment-report.org][31.31 Gerbil POO Source Alignment Report]]
+- Current harness quality ledger:
+  [[file:11.06-current-quality-gap-register.org][11.06 Current Quality Gap Register]]
+
+* Evidence Used
+This pass used ASP search and bounded selectors rather than raw source
+dumps.
+
+Primary source evidence:
+
+#+begin_src text
+asp gerbil-scheme query --selector .data/gerbil-poo/io.ss:1-220 --workspace . --code
+asp gerbil-scheme query --selector .data/gerbil-poo/io.ss:220-430 --workspace . --code
+#+end_src
+
+Harness comparison selectors:
+
+#+begin_src text
+asp gerbil-scheme query --selector languages/gerbil-scheme-language-project-harness/src/parser/poo.ss:180-330 --workspace . --code
+asp gerbil-scheme query --selector languages/gerbil-scheme-language-project-harness/t/unit/search/structural-index.ss:48-193 --workspace . --code
+#+end_src
+
+The =io.ss= file showed these source-level domains:
+
+| Domain | Source shape |
+|--------+--------------|
+| Byte I/O | =.defgeneric= declarations for object byte and byte-vector I/O, with defaults close to the generic. |
+| Representation printing | =defmethod (@method :pr object)= and a local =print-class-object= helper. |
+| JSON I/O | =defmethod (@method :write-json object)= and =defmethod (@method :json object)= with explicit fallback order. |
+| String/JSON adapter | =define-type (methods.string<-json @ [] .json<- .<-json)= derives string conversion from JSON conversion. |
+| Marshal/unmarshal | Generic declarations plus compact product macros. |
+| Bytes adapters | =methods.bytes<-marshal=, =methods.marshal<-bytes=, and =methods.marshal<-fixed-length-bytes= compose capabilities. |
+| Writeenv hook | =defmethod (@method :wr object)= is a focused printer hook with local helpers bound near use. |
+| Typed values | =TV= plus =:wr= method isolates typed-value rendering from object rendering. |
+
+* What =io.ss= Gets Right
+** Domain sections are architectural boundaries
+=io.ss= is organized by protocol domain:
+
+1. byte I/O
+2. representation printing
+3. JSON I/O
+4. marshaling
+5. byte conversion
+6. string conversion
+7. writeenv printing
+8. typed values
+
+Each section introduces one protocol layer and keeps related fallback
+logic nearby.  The file is not small, but it is locally understandable.
+An agent can read one section without needing to infer the whole object
+system.
+
+** Generic declarations are contracts, not incidental calls
+The =.defgeneric= forms are compact contract points.  Their comments
+state direction and arity, and defaults stay adjacent to the generic.
+This makes the default behavior visible without forcing callers to read
+method implementations.
+
+Examples of the pattern:
+
+- =object-read-byte=
+- =read-bytes-into=
+- =object-read-bytes=
+- =object-write-bytes=
+- =marshal=
+- =unmarshal=
+- =bytes<-=
+- =<-bytes=
+- =string<-=
+- =<-string=
+
+** Methods extend protocols without taking ownership of the protocol
+The =:pr=, =:json=, =:write-json=, and =:wr= methods are not generic
+condition dumps.  They are protocol extensions with explicit fallback
+order.  The method owns dispatch and fallback; adapter types own derived
+capabilities.
+
+** Adapter types compose capabilities
+The =define-type= adapters are the strongest reusable design signal:
+
+#+begin_src scheme
+(define-type (methods.string<-json @ [] .json<- .<-json)
+  .string<-: (compose string<-json .json<-)
+  .<-string: (compose .<-json json<-string))
+#+end_src
+
+This is the shape the harness should reward:
+
+- small derived capability type
+- explicit required slots
+- no hidden string heuristic
+- no duplicated conversion logic in every consumer
+
+** Local helpers stay local
+In =:pr= and =:wr=, helpers such as =d=, =s=, =w=, =comma=, =sn=, and
+=wr-fields= are scoped inside the method or immediately adjacent to it.
+They reduce visual weight without exporting accidental abstractions.
+
+* Current Harness Gap
+The harness has the right semantic direction, but the source and tests
+are still heavier than this quality bar.
+
+** POO parser facts still encode classification as scattered branches
+=src/parser/poo.ss= now has better names such as =poo-form-slots= and
+=poo-form-options=, but the parser still spreads option and slot
+classification across several conditionals:
+
+- generic options: =slot:=, =from:=, =default:=, =compute-default:=
+- object slot syntax: =?=, ===>=, ===>.+=, =(next-method ...)=
+- define-type options: =sealed:=, =transparent:=, =slots:=,
+  =constructor:=, =final:=
+
+The next quality step is to make these classification tables explicit
+and data-owned.  That would match =io.ss=, where protocol names and
+fallback order are visible as first-class structure rather than being
+rediscovered in branch bodies.
+
+** POO structural tests are still assertion-heavy
+=t/unit/search/structural-index.ss= now has
+=+poo-structural-fixture-owners+= and =check-structural-index-poo-facts=,
+which is better than mixing every POO assertion into the generic
+structural test.
+
+The remaining problem is that =check-structural-index-poo-facts= is still
+a long flat checklist.  It should become data-driven:
+
+#+begin_src scheme
+(poo-fact-spec
+ owner: "t/fixtures/parser/poo-method-dispatch.ss"
+ kind: "method"
+ name: ":intersect"
+ fields: ((receiver . "line")
+          (receiverType . "<Line>")
+          (dispatchArity . 3))
+ queryKeys: ("line:<Line>" "circle:<Circle>" "ctx:<Ctx>"))
+#+end_src
+
+The test should iterate facts, not duplicate the assertion shape for
+every fixture.
+
+** Parser tests repeat the same fixture ceremony
+The POO parser tests repeatedly perform the same sequence:
+
+1. parse a fixture
+2. collect =source-file-poo-forms=
+3. find one form by name
+4. check role, supers, slots, options, and specializers
+
+This should be collapsed into helpers such as:
+
+- =find-required-poo-form=
+- =check-poo-form-core=
+- =check-poo-form-slots-contain=
+- =check-poo-form-query-shape=
+
+This is not a cosmetic cleanup.  Without it, every new high-quality
+fixture makes the tests more fragile and harder for agents to edit.
+
+** Fixture coverage is useful but not yet organized as a design system
+The current fixture set covers important axes:
+
+- object slot syntax
+- IO hooks
+- finite-field descriptors
+- trie descriptors
+- rationaldict adapters
+- validation
+- trace/debug hooks
+- multi-dispatch
+
+The next step is to group fixtures by design intent:
+
+| Intent | Fixtures |
+|--------+----------|
+| object composition | object slots, trace/debug |
+| protocol dispatch | defgeneric, method dispatch, IO hooks |
+| type descriptors | finite-field, trie, validation |
+| dependency adapters | rationaldict/table |
+| protocol conversion | future =io.ss= style fixture |
+
+This turns the fixture suite into a POO best-practices corpus rather than
+a pile of parser examples.
+
+* Quality Consolidation Target
+The target is for harness POO support to read like =io.ss=:
+
+| =io.ss= property | Harness target |
+|------------------+----------------|
+| Domain sections | POO parser helpers grouped by declaration family and fact family. |
+| Generic contracts | =defgeneric= facts expose option contracts without evaluating defaults. |
+| Protocol methods | method facts expose generic, receiver, receiverType, specializers, and dispatchArity. |
+| Adapter types | =define-type= fixtures show derived protocol capability composition. |
+| Local helpers | parser/test helpers remove repeated ceremony without creating broad abstractions. |
+| Explicit fallbacks | guide and structural facts tell agents the first command and owner facts to read. |
+
+* Next Implementation Plan
+** P0: data-drive POO structural assertions
+Replace the flat =check-structural-index-poo-facts= body with small fact
+specs and two runner helpers:
+
+- =check-poo-fact-fields=
+- =check-poo-fact-query-keys=
+
+Keep the existing fixture owners and expected facts.  This should be a
+behavior-preserving refactor.
+
+Closure gates:
+
+#+begin_src shell
+GERBIL_LOADPATH=src:t gxi -e '(import :std/test :search-test) (run-tests! search-test)'
+gxi build.ss compile
+#+end_src
+
+** P0: data-drive POO parser fixture checks
+Introduce parser-test helpers that express expected POO forms as compact
+data.  The helpers should preserve the same assertions currently made in
+=parser-test.ss=, but remove repeated =find-poo-form= / =member= ceremony.
+
+Closure gate:
+
+#+begin_src shell
+GERBIL_LOADPATH=src:t gxi -e '(import :std/test :parser-test) (run-tests! parser-test)'
+#+end_src
+
+** P1: centralize POO classification tables
+Move slot/operator classification into small tables or named constants:
+
+| Syntax | Fact kind |
+|--------+-----------|
+| =?= | =default= |
+| ===>= | =inherited-computed= |
+| ===>.+= | =mixin-override= |
+| =(next-method ...)= | =inherited-computed= |
+| keyword value | =self-computed= |
+
+Likewise centralize generic options and define-type options.
+
+This is the parser equivalent of =io.ss= adapter definitions: the
+semantic contract becomes visible data.
+
+** P1: add an =io.ss= style protocol-conversion fixture
+Add one compact fixture that models the =io.ss= design, not the full
+source:
+
+- =.defgeneric= with =default:=
+- =defmethod (@method :write-json object)=
+- =defmethod (@method :wr object)=
+- =define-type (methods.string<-json ...)=
+- =define-type (methods.bytes<-marshal ...)=
+
+This gives the harness a best-practice witness for protocol conversion
+composition.
+
+** P2: guide surface
+Guide output should point agents to this quality bar:
+
+- read POO owner facts before editing POO forms
+- prefer adapter =define-type= over repeated hash/alist conversion
+- keep protocol fallback order explicit
+- use local helpers for display/writeenv rendering
+
+This belongs in the existing guide policy surface, not in a new policy
+rule until real-project findings justify enforcement.
+
+* Non-Goals
+- Do not copy all of =io.ss= into fixtures.
+- Do not make brace syntax a parser fact without expansion-level evidence.
+- Do not add policy warnings for style before fixtures and docs are stable.
+- Do not rewrite unrelated workspace-scope changes while doing this cleanup.
+
+* Working Definition of "Best Practice"
+For this harness, "POO best practice" means:
+
+1. the source is organized around protocol boundaries;
+2. generic declarations expose contracts;
+3. methods own dispatch and fallback, not data conversion policy;
+4. adapter types compose derived capabilities;
+5. parser facts expose those boundaries to agents;
+6. tests validate the fact contract through data, not repeated hand-coded
+   assertion blocks.
+
+That is the quality bar demonstrated by =.data/gerbil-poo/io.ss= and the
+bar the Gerbil harness should converge toward.

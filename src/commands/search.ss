@@ -9,6 +9,7 @@
         :commands/search-extension
         :commands/search-render
         :commands/search-structural
+        :commands/search-workspace-scope
         :extensions/facade
         :language/facade
         :parser/facade
@@ -48,6 +49,8 @@
             (collect-project-package-only root)
             args
             json?))
+          ((equal? view "workspace-scope")
+           (emit-workspace-scope root json?))
           ((equal? view "extension")
            (emit-extension-search
             (collect-project-package-only root)

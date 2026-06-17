@@ -21,6 +21,7 @@
 
 Usage:
   gerbil-scheme-harness search <view> ... [--json] [--code] [PROJECT_ROOT]
+  gerbil-scheme-harness search workspace-scope [--json] [PROJECT_ROOT]
   gerbil-scheme-harness query <owner-path> --term <symbol> [--term <symbol>] [--workspace PROJECT_ROOT] [--names-only | --code]
   gerbil-scheme-harness query --from-hook direct-source-read --selector <workspace-path:start-end> --workspace PROJECT_ROOT --code
   gerbil-scheme-harness check [--changed | --full] [--json] [--whitelist PATH] [PROJECT_ROOT]
