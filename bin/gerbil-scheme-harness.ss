@@ -2,4 +2,4 @@
 (import :gerbil/gambit
         :cli)
 
-(exit (apply main (cddr (command-line))))
+(exit (apply main (provider-command-line-args (command-line))))
