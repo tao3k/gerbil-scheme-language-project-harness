@@ -630,7 +630,15 @@
 ;;       ```\n\
 ;;     %\n\
 (def (generate f n)\n\
-  (vector))\n")
+  (vector))\n\
+\n\
+;; bad-doc\n\
+;;   : (-> Number Number)\n\
+;;   | doc 100%\n\
+;;       `bad-doc x` uses an invalid doc marker.\n\
+;;     %\n\
+(def (bad-doc x)\n\
+  x)\n")
             (let* ((index (collect-project root))
                    (source (find-source-file (project-index-files index)
                                              "src/core.ss"))
@@ -640,7 +648,11 @@
                    (generate-contract
                     (find-typed-contract
                      (source-file-typed-contract-facts source)
-                     "generate")))
+                     "generate"))
+                   (bad-doc-contract
+                    (find-typed-contract
+                     (source-file-typed-contract-facts source)
+                     "bad-doc")))
               (check (typed-contract-fact-contract contract)
                      => "(forall (a) (-> (-> a a Order) (List a) (List a) Order))")
               (check (typed-contract-fact-contract-output contract) => "Order")
@@ -781,7 +793,7 @@
                           (car (hash-get json-typed-comment 'docs))
                           'hasResultExamples)
                          => #t)
-                  (check (hash-get (hash-get json-typed-comment 'signatureType)
+                (check (hash-get (hash-get json-typed-comment 'signatureType)
                                    'valid)
                          => #t)
                   (check (hash-get
@@ -789,6 +801,9 @@
                                     'typeSpec)
                           'display)
                          => "(function ((function (Number) a) Number) (vector a))"))
+                (check (member "doc-marker-invalid:100%"
+                               (typed-contract-fact-reasons bad-doc-contract))
+                       => #t)
                 (let* ((bad-hash
                         (scheme-type-expression-text-json "(Hash String)"))
                        (bad-hash-type (hash-get bad-hash 'typeSpec))

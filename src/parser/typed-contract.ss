@@ -509,13 +509,26 @@
   (and typed-comment
        (hash-get typed-comment 'signatureType)))
 
+;;; Boundary:
+;;; - Doc metadata syntax owns the =m%= fence marker.
+;;; - A value such as =100%= is a malformed marker, not a documentation score.
 ;; : (-> TypedCommentMetadata (List SignatureReason) )
 (def (typed-comment-structural-invalid-reasons typed-comment)
   (append
    (typed-contract-json-invalid-reasons
     "type-signature"
     (typed-comment-signature-type typed-comment))
-   (typed-comment-runtime-contract-invalid-reasons typed-comment)))
+   (typed-comment-runtime-contract-invalid-reasons typed-comment)
+   (filter-map
+    (lambda (doc)
+      (let (marker (hash-get doc 'marker))
+        (and marker
+             (not (equal? marker ""))
+             (not (equal? marker "m%"))
+             (string-append "doc-marker-invalid:" marker))))
+    (if typed-comment
+      (or (hash-get typed-comment 'docs) [])
+      []))))
 
 ;; : (-> TypedCommentMetadata (List SignatureReason) )
 (def (typed-comment-runtime-contract-invalid-reasons typed-comment)
