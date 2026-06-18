@@ -472,6 +472,7 @@
    "src/parser/quality-shape.ss"
    "src/parser/query.ss"
    "src/parser/selectors.ss"
+   "src/parser/source-scope.ss"
    "src/parser/source-class.ss"
    "src/parser/support.ss"
    "src/parser/syntax.ss"

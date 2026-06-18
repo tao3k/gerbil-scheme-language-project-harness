@@ -3,7 +3,8 @@
 
 (import :parser/core
         :parser/package
-        :parser/source-class)
+        :parser/source-class
+        :parser/source-scope)
 
 (export +source-extensions+
         +config-files+
