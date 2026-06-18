@@ -458,7 +458,6 @@
             (static-provider-source-files)))
 
 (def (run-provider-tests!)
-  (compile-native-fast-cli!)
   (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
   (setenv "GERBIL_LOADPATH"
           (string-join

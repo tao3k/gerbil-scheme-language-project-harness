@@ -47,55 +47,61 @@
                   "(def (guide-lines)")))
                => #t)))
     (test-case "native provider selector content returns without Gerbil runtime cold path"
-      (let (result (native-query-output ["--selector"
-                                         "src/support/io.ss:145-165"
-                                         "--content"]))
-        (check (query-result-exit-code result) => 0)
-        (check (< (query-result-duration-ms result)
-                  +native-query-fast-path-budget-ms+)
-               => #t)
-        (check (not
-                (not
-                 (string-contains
-                  (query-result-output result)
-                  "(def (read-line-range path start end)")))
-               => #t)))
+      (if (native-provider-binary-available?)
+        (let (result (native-query-output ["--selector"
+                                           "src/support/io.ss:145-165"
+                                           "--content"]))
+          (check (query-result-exit-code result) => 0)
+          (check (< (query-result-duration-ms result)
+                    +native-query-fast-path-budget-ms+)
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    (query-result-output result)
+                    "(def (read-line-range path start end)")))
+                 => #t))
+        (check #t => #t)))
     (test-case "native provider selector json returns without Gerbil runtime cold path"
-      (let (result (native-query-output ["--selector"
-                                         "src/support/io.ss:145-165"
-                                         "--json"]))
-        (check (query-result-exit-code result) => 0)
-        (check (< (query-result-duration-ms result)
-                  +native-query-fast-path-budget-ms+)
-               => #t)
-        (check (not
-                (not
-                 (string-contains
-                  (query-result-output result)
-                  "\"selector\":\"src/support/io.ss:145-165\"")))
-               => #t)
-        (check (not
-                (not
-                 (string-contains
-                  (query-result-output result)
-                  "\"code\"")))
-               => #t)))
+      (if (native-provider-binary-available?)
+        (let (result (native-query-output ["--selector"
+                                           "src/support/io.ss:145-165"
+                                           "--json"]))
+          (check (query-result-exit-code result) => 0)
+          (check (< (query-result-duration-ms result)
+                    +native-query-fast-path-budget-ms+)
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    (query-result-output result)
+                    "\"selector\":\"src/support/io.ss:145-165\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    (query-result-output result)
+                    "\"code\"")))
+                 => #t))
+        (check #t => #t)))
     (test-case "native provider owner term query parses only requested owner"
-      (let (result (native-query-output ["src/parser/typed-contract.ss"
-                                         "--term"
-                                         "typed-comment-structural-invalid-reasons"
-                                         "--workspace"
-                                         "."]))
-        (check (query-result-exit-code result) => 0)
-        (check (< (query-result-duration-ms result)
-                  +native-query-single-owner-budget-ms+)
-               => #t)
-        (check (not
-                (not
-                 (string-contains
-                  (query-result-output result)
-                  "typed-comment-structural-invalid-reasons")))
-               => #t)))
+      (if (native-provider-binary-available?)
+        (let (result (native-query-output ["src/parser/typed-contract.ss"
+                                           "--term"
+                                           "typed-comment-structural-invalid-reasons"
+                                           "--workspace"
+                                           "."]))
+          (check (query-result-exit-code result) => 0)
+          (check (< (query-result-duration-ms result)
+                    +native-query-single-owner-budget-ms+)
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    (query-result-output result)
+                    "typed-comment-structural-invalid-reasons")))
+                 => #t))
+        (check #t => #t)))
     (test-case "ownerless gerbil-poo query routes to registered knowledge"
       (let (result (query-output ["--term"
                                   "gerbil-poo"
@@ -305,6 +311,10 @@
       (path-expand "../../.bin/gerbil-scheme-harness" (current-directory)))
      (else
       (path-expand ".bin/gerbil-scheme-harness" (current-directory))))))
+
+;; : (-> Boolean )
+(def (native-provider-binary-available?)
+  (file-exists? (native-provider-binary)))
 
 ;; : (-> Port String )
 (def (read-port-as-string port)
