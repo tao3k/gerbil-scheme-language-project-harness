@@ -136,136 +136,136 @@
 
 ;; : (-> Definition Selector )
 (def (definition-selector defn)
-  (string-append (definition-path defn) ":"
-                 (number->string (definition-start defn))
-                 "-"
-                 (number->string (definition-end defn))))
+  (selector-from definition-path definition-start definition-end defn))
 
 ;; : (-> CallFact Selector )
 (def (call-fact-selector call)
-  (string-append (call-fact-path call) ":"
-                 (number->string (call-fact-start call))
-                 "-"
-                 (number->string (call-fact-end call))))
+  (selector-from call-fact-path call-fact-start call-fact-end call))
 
 ;; : (-> Fact Selector )
 (def (module-import-fact-selector fact)
-  (string-append (module-import-fact-path fact) ":"
-                 (number->string (module-import-fact-start fact))
-                 "-"
-                 (number->string (module-import-fact-end fact))))
+  (selector-from module-import-fact-path
+                 module-import-fact-start
+                 module-import-fact-end
+                 fact))
 
 ;; : (-> Fact Selector )
 (def (module-export-fact-selector fact)
-  (string-append (module-export-fact-path fact) ":"
-                 (number->string (module-export-fact-start fact))
-                 "-"
-                 (number->string (module-export-fact-end fact))))
+  (selector-from module-export-fact-path
+                 module-export-fact-start
+                 module-export-fact-end
+                 fact))
 
 ;; : (-> Fact Selector )
 (def (macro-fact-selector fact)
-  (string-append (macro-fact-path fact) ":"
-                 (number->string (macro-fact-start fact))
-                 "-"
-                 (number->string (macro-fact-end fact))))
+  (selector-from macro-fact-path macro-fact-start macro-fact-end fact))
 
 ;; : (-> Fact Selector )
 (def (binding-fact-selector fact)
-  (string-append (binding-fact-path fact) ":"
-                 (number->string (binding-fact-start fact))
-                 "-"
-                 (number->string (binding-fact-end fact))))
+  (selector-from binding-fact-path binding-fact-start binding-fact-end fact))
 
 ;; : (-> Fact Selector )
 (def (poo-form-fact-selector fact)
-  (string-append (poo-form-fact-path fact) ":"
-                 (number->string (poo-form-fact-start fact))
-                 "-"
-                 (number->string (poo-form-fact-end fact))))
+  (selector-from poo-form-fact-path poo-form-fact-start poo-form-fact-end fact))
 
 ;; : (-> Fact Selector )
 (def (higher-order-fact-selector fact)
-  (string-append (higher-order-fact-path fact) ":"
-                 (number->string (higher-order-fact-start fact))
-                 "-"
-                 (number->string (higher-order-fact-end fact))))
+  (selector-from higher-order-fact-path
+                 higher-order-fact-start
+                 higher-order-fact-end
+                 fact))
 
 ;; : (-> ControlFlowFact Selector )
 (def (control-flow-fact-selector fact)
-  (string-append (control-flow-fact-path fact) ":"
-                 (number->string (control-flow-fact-start fact))
-                 "-"
-                 (number->string (control-flow-fact-end fact))))
+  (selector-from control-flow-fact-path
+                 control-flow-fact-start
+                 control-flow-fact-end
+                 fact))
 
 ;; : (-> PredicateFamilyFact Selector )
 (def (predicate-family-fact-selector fact)
-  (string-append (predicate-family-fact-path fact) ":"
-                 (number->string (predicate-family-fact-start fact))
-                 "-"
-                 (number->string (predicate-family-fact-end fact))))
+  (selector-from predicate-family-fact-path
+                 predicate-family-fact-start
+                 predicate-family-fact-end
+                 fact))
 
 ;; : (-> FieldAccessPatternFact Selector )
 (def (field-access-pattern-fact-selector fact)
-  (string-append (field-access-pattern-fact-path fact) ":"
-                 (number->string (field-access-pattern-fact-start fact))
-                 "-"
-                 (number->string (field-access-pattern-fact-end fact))))
+  (selector-from field-access-pattern-fact-path
+                 field-access-pattern-fact-start
+                 field-access-pattern-fact-end
+                 fact))
 
 ;; : (-> ProjectionBurstFact Selector )
 (def (projection-burst-fact-selector fact)
-  (string-append (projection-burst-fact-path fact) ":"
-                 (number->string (projection-burst-fact-start fact))
-                 "-"
-                 (number->string (projection-burst-fact-end fact))))
+  (selector-from projection-burst-fact-path
+                 projection-burst-fact-start
+                 projection-burst-fact-end
+                 fact))
 
 ;; : (-> BooleanConditionFact Selector )
 (def (boolean-condition-fact-selector fact)
-  (string-append (boolean-condition-fact-path fact) ":"
-                 (number->string (boolean-condition-fact-start fact))
-                 "-"
-                 (number->string (boolean-condition-fact-end fact))))
+  (selector-from boolean-condition-fact-path
+                 boolean-condition-fact-start
+                 boolean-condition-fact-end
+                 fact))
 
 ;; : (-> LoopDriverFact Selector )
 (def (loop-driver-fact-selector fact)
-  (string-append (loop-driver-fact-path fact) ":"
-                 (number->string (loop-driver-fact-start fact))
-                 "-"
-                 (number->string (loop-driver-fact-end fact))))
+  (selector-from loop-driver-fact-path
+                 loop-driver-fact-start
+                 loop-driver-fact-end
+                 fact))
 
 ;; : (-> DependencyAdapterQualityFact Selector )
 (def (dependency-adapter-quality-fact-selector fact)
-  (string-append (dependency-adapter-quality-fact-path fact) ":"
-                 (number->string (dependency-adapter-quality-fact-start fact))
-                 "-"
-                 (number->string (dependency-adapter-quality-fact-end fact))))
+  (selector-from dependency-adapter-quality-fact-path
+                 dependency-adapter-quality-fact-start
+                 dependency-adapter-quality-fact-end
+                 fact))
 
 ;; : (-> FunctionQualityProfile Selector )
 (def (function-quality-profile-selector fact)
-  (string-append (function-quality-profile-path fact) ":"
-                 (number->string (function-quality-profile-start fact))
-                 "-"
-                 (number->string (function-quality-profile-end fact))))
+  (selector-from function-quality-profile-path
+                 function-quality-profile-start
+                 function-quality-profile-end
+                 fact))
 
 ;; : (-> TypedContractFact Selector )
 (def (typed-contract-fact-selector fact)
-  (string-append (typed-contract-fact-path fact) ":"
-                 (number->string (typed-contract-fact-comment-start fact))
-                 "-"
-                 (number->string (typed-contract-fact-comment-end fact))))
+  (selector-from typed-contract-fact-path
+                 typed-contract-fact-comment-start
+                 typed-contract-fact-comment-end
+                 fact))
 
 ;; : (-> CommentQualityFact Selector )
 (def (comment-quality-fact-selector fact)
-  (string-append (comment-quality-fact-path fact) ":"
-                 (number->string (comment-quality-fact-comment-start fact))
-                 "-"
-                 (number->string (comment-quality-fact-comment-end fact))))
+  (selector-from comment-quality-fact-path
+                 comment-quality-fact-comment-start
+                 comment-quality-fact-comment-end
+                 fact))
 
 ;; : (-> Form Selector )
 (def (top-form-selector form)
-  (string-append (top-form-path form) ":"
-                 (number->string (top-form-start form))
+  (selector-from top-form-path top-form-start top-form-end form))
+
+;;; Selector projection boundary:
+;;; - Fact-specific selector functions keep their public names.
+;;; - Accessor-based projection keeps the `path:start-end` encoding in one place.
+;; : (-> (-> Fact Path) (-> Fact Line) (-> Fact Line) Fact Selector)
+(def (selector-from path-accessor start-accessor end-accessor fact)
+  (source-range-selector (path-accessor fact)
+                         (start-accessor fact)
+                         (end-accessor fact)))
+
+;;; Range selector encoding is shared by parser, search, snapshots, and CLI query.
+;;; Keep the string shape centralized so colon/dash compatibility cannot drift.
+;; : (-> Path Line Line Selector)
+(def (source-range-selector path start end)
+  (string-append path ":"
+                 (number->string start)
                  "-"
-                 (number->string (top-form-end form))))
+                 (number->string end)))
 
 ;;; Path normalization boundary:
 ;;; - Project paths are stored relative to the collected root.
