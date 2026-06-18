@@ -145,21 +145,38 @@
 ;; : (-> (List Definition) (List BindingFact) )
 (def (duplicate-type-bindings bindings)
   (let (state
-        (foldl (lambda (binding state)
-                 (if (poo-method-type-binding? binding)
-                   state
-                   (let* ((seen (car state))
-                          (dupes (cdr state))
-                          (key (list (type-binding-path binding)
-                                     (type-binding-name binding)
-                                     (type-binding-kind binding)))
-                          (prior (assoc key seen)))
-                     (if prior
-                       (cons seen (cons [binding (cdr prior)] dupes))
-                       (cons (cons (cons key binding) seen) dupes)))))
+        (foldl duplicate-type-binding-step
                (cons '() '())
                bindings))
     (reverse (cdr state))))
+
+;;; Reducer step:
+;;; - POO methods are intentionally skipped before keying.
+;;; - Non-method bindings flow through one association update boundary.
+;; : (-> TypeBinding DuplicateState DuplicateState )
+(def (duplicate-type-binding-step binding state)
+  (if (poo-method-type-binding? binding)
+    state
+    (record-type-binding-duplicate binding state)))
+
+;;; Duplicate state is `(seen . dupes)` where seen maps stable binding keys to
+;;; the first binding fact and dupes keeps the later/earlier pair for repair.
+;; : (-> TypeBinding DuplicateState DuplicateState )
+(def (record-type-binding-duplicate binding state)
+  (let* ((seen (car state))
+         (dupes (cdr state))
+         (prior (assoc (type-binding-key binding) seen)))
+    (if prior
+      (cons seen (cons [binding (cdr prior)] dupes))
+      (cons (cons (cons (type-binding-key binding) binding) seen) dupes))))
+
+;;; Binding keys deliberately include owner path and definition kind so
+;;; overloaded method-like facts do not collapse unrelated source evidence.
+;; : (-> TypeBinding DuplicateKey )
+(def (type-binding-key binding)
+  (list (type-binding-path binding)
+        (type-binding-name binding)
+        (type-binding-kind binding)))
 
 ;;; Boundary:
 ;;; - POO methods are overload/specializer entries under one generic, not duplicate definitions.

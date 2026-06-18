@@ -177,11 +177,15 @@
           facts))
 
 ;; : (-> (-> Fact Value) Value (List Fact) Boolean)
+;;; Boolean witness checks share the same accessor contract as list joins so
+;;; context classification cannot drift from comment evidence selection.
 (def (any-fact-matching-field? accessor expected facts)
   (ormap (cut fact-field-equal? accessor expected <>)
          facts))
 
 ;; : (-> (-> Fact Value) Value Fact Boolean)
+;;; Keep equality in one predicate so future nil/alias normalization has one
+;;; parser-owned boundary instead of four duplicated fact-specific lambdas.
 (def (fact-field-equal? accessor expected fact)
   (equal? (accessor fact) expected))
 
