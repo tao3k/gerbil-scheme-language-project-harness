@@ -8,10 +8,19 @@
         :support/args)
 
 (export agent-main)
-;;; Invariant:
-;;; - agent-main owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; AgentMain <- (List XX)
+;; agent-main
+;;   : (-> (List String) Integer)
+;;   | doc m%
+;;       `agent-main args` dispatches harness agent subcommands and returns a
+;;       process-style status code.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (agent-main '("doctor" "--workspace" "."))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (agent-main args)
   (match args
     (["doctor" . rest]

@@ -13,18 +13,18 @@
         finding-agent-repair-parts
         finding-guide-detail-parts)
 
-;; Boolean <- TypeFinding
+;; : (-> TypeFinding Boolean )
 (def (repairable-finding? finding)
   (and (finding-agent-repair-json finding) #t))
 
 ;;; Boundary:
 ;;; - repairable-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- (List TypeFinding)
+;; : (-> (List TypeFinding) (List TypeFinding) )
 (def (repairable-findings findings)
   (filter repairable-finding? findings))
 
-;; Json <- (List XX)
+;; : (-> (List XX) Json )
 (def (agent-repair-report-json findings)
   (let* ((repairable (repairable-findings findings))
          (warnings (count-finding-severity repairable "warning"))
@@ -40,7 +40,7 @@
 	         (instruction
 	           "follow the primary findingGroup.repairPlan.nextCommand before editing; the --code flag is the repair action that shows the code shape to follow"))))
 
-;; (List RepairSummaryPart) <- (List TypeFinding)
+;; : (-> (List TypeFinding) (List RepairSummaryPart) )
 (def (agent-repair-summary-parts findings)
   (let* ((repairable (repairable-findings findings))
          (warnings (count-finding-severity repairable "warning"))
@@ -58,7 +58,7 @@
 	       "next=follow-primary-findingGroup-repairPlan-nextCommand"
 	       "action=inspect-code-shape"])))
 
-;; Json <- (List TypeFinding)
+;; : (-> (List TypeFinding) Json )
 (def (repair-plan-json findings)
   (let (groups (finding-groups-json findings))
     (hash (status (if (null? groups) "none" "active"))
@@ -72,19 +72,19 @@
 ;;; Finding groups are the agent-facing repair unit.
 ;;; Mapping after grouping prevents repeated warnings from becoming repeated
 ;;; repair instructions for the same selector.
-;; Json <- (List TypeFinding)
+;; : (-> (List TypeFinding) Json )
 (def (finding-groups-json findings)
   (map finding-group-json (finding-groups findings)))
 
 ;;; Group findings by selector when possible, then path. This is intentionally
 ;;; independent from functionQualityProfiles so retired policy findings still get
 ;;; a repair plan while parser-level profiles come online.
-;; (List FindingGroup) <- (List TypeFinding)
+;; : (-> (List TypeFinding) (List FindingGroup) )
 (def (finding-groups findings)
   (reverse
    (foldl add-finding-to-group '() findings)))
 
-;; (List FindingGroup) <- TypeFinding (List FindingGroup)
+;; : (-> TypeFinding (List FindingGroup) (List FindingGroup) )
 (def (add-finding-to-group finding groups)
   (let* ((key (finding-group-key finding))
          (prior (assoc key groups)))
@@ -96,11 +96,11 @@
 ;;; Removing the prior group keeps fold state immutable.
 ;;; The replacement group is consed by add-finding-to-group with the new finding
 ;;; at the front, then reversed during JSON projection.
-;; (List FindingGroup) <- GroupKey (List FindingGroup)
+;; : (-> GroupKey (List FindingGroup) (List FindingGroup) )
 (def (remove-finding-group key groups)
   (filter (lambda (group) (not (equal? (car group) key))) groups))
 
-;; GroupKey <- TypeFinding
+;; : (-> TypeFinding GroupKey )
 (def (finding-group-key finding)
   (string-append (type-finding-path finding)
                  "|"
@@ -109,7 +109,7 @@
 ;;; Group JSON preserves both the primary rule and suppressed dependents.
 ;;; Agents get one next command plus the repair order, so comment polish does
 ;;; not race ahead of structural/style fixes.
-;; Json <- FindingGroup
+;; : (-> FindingGroup Json )
 (def (finding-group-json group)
   (let* ((findings (reverse (cdr group)))
          (primary (primary-finding findings))
@@ -150,7 +150,7 @@
 
 ;;; Primary finding selects the strongest repair class in a group.
 ;;; Lower numeric priority wins so structural drift controls comment-only noise.
-;; TypeFinding <- (List TypeFinding)
+;; : (-> (List TypeFinding) TypeFinding )
 (def (primary-finding findings)
   (foldl (lambda (finding best)
            (if (< (rule-repair-priority (type-finding-rule-id finding))
@@ -160,7 +160,7 @@
          (car findings)
          (cdr findings)))
 
-;; Integer <- RuleId
+;; : (-> RuleId Integer )
 (def (rule-repair-priority rule-id)
   (cond
    ((equal? rule-id "GERBIL-SCHEME-AGENT-R017") 8)
@@ -174,19 +174,19 @@
 ;;; Definition names are best-effort metadata for repair receipts.
 ;;; The group key remains selector/path based when parser facts do not expose a
 ;;; definition name.
-;; String <- (List TypeFinding)
+;; : (-> (List TypeFinding) String )
 (def (finding-group-definition-name findings)
   (or (ormap finding-definition-name findings)
       ""))
 
-;; String <- TypeFinding
+;; : (-> TypeFinding String )
 (def (finding-definition-name finding)
   (or (finding-detail-field finding 'definition)
       (finding-detail-field finding 'target)
       (finding-detail-field finding 'subject)
       (finding-detail-field finding 'targetName)))
 
-;; Value <- TypeFinding Field
+;; : (-> TypeFinding Field Value )
 (def (finding-detail-field finding field)
   (let (details (type-finding-details finding))
     (and details
@@ -195,7 +195,7 @@
 
 ;;; Group severity is a max over member severities.
 ;;; Any error makes the whole repair boundary error-level for CI reporting.
-;; Severity <- (List TypeFinding)
+;; : (-> (List TypeFinding) Severity )
 (def (finding-group-severity findings)
   (if (ormap (lambda (finding)
                (equal? (type-finding-severity finding) "error"))
@@ -206,7 +206,7 @@
 ;;; Suppression keeps dependent comment warnings visible but non-primary.
 ;;; When stronger shape rules are present, agents repair structure first and
 ;;; revisit comments after code shape stabilizes.
-;; (List RuleId) <- (List RuleId)
+;; : (-> (List RuleId) (List RuleId) )
 (def (suppressed-dependent-rules rules)
   (if (and (member "GERBIL-SCHEME-AGENT-R015" rules)
            (ormap (cut member <> rules)
@@ -220,13 +220,13 @@
 ;;; Required witnesses merge rule needs into a deduped checklist.
 ;;; The apply/map shape keeps the witness catalog rule-owned while the group
 ;;; owns aggregation.
-;; (List Witness) <- (List RuleId)
+;; : (-> (List RuleId) (List Witness) )
 (def (finding-group-required-witnesses rules)
   (dedupe
    (apply append
           (map rule-required-witnesses rules))))
 
-;; (List Witness) <- RuleId
+;; : (-> RuleId (List Witness) )
 (def (rule-required-witnesses rule-id)
   (cond
    ((equal? rule-id "GERBIL-SCHEME-AGENT-R017")
@@ -245,7 +245,7 @@
 
 ;;; Repair order starts with the primary rule and appends suppressed rules last.
 ;;; This sequence gives the agent a deterministic one-pass repair plan.
-;; (List RuleId) <- (List RuleId) TypeFinding (List RuleId)
+;; : (-> (List RuleId) TypeFinding (List RuleId) (List RuleId) )
 (def (repair-order-rules rules primary suppressed)
   (dedupe
    (append [(type-finding-rule-id primary)]
@@ -256,7 +256,7 @@
 ;;; Strategy names are derived from group shape, not from one rule id.
 ;;; Multi-policy groups with suppressed comment rules require shape-first repair,
 ;;; while simple groups keep the single guide command contract.
-;; RepairStrategy <- (List RuleId) (List RuleId)
+;; : (-> (List RuleId) (List RuleId) RepairStrategy )
 (def (repair-strategy rules suppressed)
   (cond
    ((and (repair-multi-policy-group? rules) (pair? suppressed))
@@ -267,14 +267,14 @@
 
 ;;; Boolean output is JSON-visible, so agents can distinguish grouped repairs
 ;;; from independent one-rule warnings without re-parsing rule arrays.
-;; Boolean <- (List RuleId)
+;; : (-> (List RuleId) Boolean )
 (def (repair-multi-policy-group? rules)
   (> (length (dedupe rules)) 1))
 
 ;;; Repair phases turn a grouped rule list into an ordered action packet.
 ;;; Suppressed comment rules become an explicit second phase instead of hidden
 ;;; warning noise, preserving structure-first repair.
-;; (List RepairPhase) <- (List RuleId) (List RuleId)
+;; : (-> (List RuleId) (List RuleId) (List RepairPhase) )
 (def (repair-phases repair-order suppressed)
   (let ((primary-rules (filter (lambda (rule) (not (member rule suppressed)))
                                repair-order)))
@@ -294,7 +294,7 @@
 
 ;;; Phase packets are intentionally small: name, rules, action, instruction.
 ;;; The rule ids still route to the central guide catalog.
-;; RepairPhase <- String (List RuleId) Action Instruction
+;; : (-> String (List RuleId) Action Instruction RepairPhase )
 (def (repair-phase name rules action instruction)
   (hash (name name)
         (rules rules)
@@ -304,14 +304,14 @@
 ;;; Boundary:
 ;;; - count-finding-severity composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- (List TypeFinding) Severity
+;; : (-> (List TypeFinding) Severity Integer )
 (def (count-finding-severity findings severity)
   (length
    (filter (lambda (finding)
              (equal? (type-finding-severity finding) severity))
            findings)))
 
-;; RepairTrigger <- Warnings Errors
+;; : (-> Warnings Errors RepairTrigger )
 (def (repair-trigger warnings errors)
   (cond
    ((and (> warnings 0) (> errors 0)) "warning-or-error")
@@ -319,7 +319,7 @@
    ((> warnings 0) "warning")
    (else "none")))
 
-;; Json <- TypeFinding
+;; : (-> TypeFinding Json )
 (def (finding-agent-repair-json finding)
   (let (route (finding-guide-route (type-finding-rule-id finding)))
     (and route
@@ -336,7 +336,7 @@
 	               (nextCommand (caddr route))
 	               (instruction "inspect-code-shape-with-guide-code-before-edit")))))
 
-;; FindingAgentRepairParts <- TypeFinding
+;; : (-> TypeFinding FindingAgentRepairParts )
 (def (finding-agent-repair-parts finding)
   (let (repair (finding-agent-repair-json finding))
     (if repair
@@ -354,7 +354,7 @@
 	       (string-append "instruction=" (hash-get repair 'instruction))]
       [])))
 
-;; String <- TypeFinding
+;; : (-> TypeFinding String )
 (def (finding-guide-detail-parts finding)
   (let (repair (finding-agent-repair-json finding))
     (if repair
@@ -368,6 +368,6 @@
 ;;; Boundary:
 ;;; - finding-guide-route reads the central agent rule catalog.
 ;;; - Keep packet shape and invariants stable.
-;; GuideRoute <- Rule
+;; : (-> Rule GuideRoute )
 (def (finding-guide-route rule)
   (agent-rule-guide-route rule))

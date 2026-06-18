@@ -6,7 +6,7 @@
         :policy/agent-style-shape
         :policy/model
         (only-in :std/srfi/13 string-prefix?)
-        (only-in :std/sugar cut filter filter-map foldl hash ormap)
+        (only-in :std/sugar cut filter filter-map foldl hash hash-get ormap)
         :support/list
         :types/findings)
 
@@ -34,12 +34,12 @@
   '(".def" "define-type" "defclass" ".defclass" "defmethod" ".defmethod"
     "defgeneric" ".defgeneric" "defprotocol" ".defprotocol"))
 ;;; Entry boundary: emit at most one typed-combinator finding per owner so repair stays file-scoped.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (typed-combinator-style-findings index)
   (filter-map (cut typed-combinator-style-finding index <>)
               (project-index-files index)))
 ;;; Policy gate: combine typed contracts, parser-owned implementation evidence, and coverage before repair.
-;; TypeFinding <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile TypeFinding )
 (def (typed-combinator-style-finding index file)
   (and (source-file-path file)
        (typed-combinator-style-source-file? index file)
@@ -65,9 +65,14 @@
                (typed-combinator-style-quality-facets file))
               (repair-evidence
                (typed-combinator-style-repair-evidence file))
+              (typed-doc-missing-targets
+               (typed-combinator-style-missing-doc-targets file))
+              (typed-doc-missing?
+               (pair? typed-doc-missing-targets))
               (quality-repair-triggered?
                (and (typed-combinator-style-quality-repair-source-file? file)
-                    (typed-combinator-style-quality-repair-triggered? quality-facets)))
+                    (typed-combinator-style-quality-repair-triggered?
+                     file quality-facets)))
               (module-engineering-comment?
                (source-file-has-engineering-module-comment? file))
               (implementation-evidence-callers
@@ -105,6 +110,7 @@
                       (> invalid-typed-comment-count 0)
                       missing-implementation-evidence?
                       implementation-coverage-insufficient?
+                      typed-doc-missing?
                       quality-repair-triggered?])
               (make-type-finding
                (policy-rule-id +agent-typed-combinator-style-rule+)
@@ -115,7 +121,9 @@
                                                invalid-typed-comment-count
                                                missing-implementation-evidence?
                                                implementation-coverage-insufficient?
+                                               typed-doc-missing?
                                                quality-repair-triggered?
+                                               (length typed-doc-missing-targets)
                                                covered-definition-count
                                                function-definition-count
                                                minimum-covered-definition-count)
@@ -137,18 +145,39 @@
                 minimum-covered-definition-count
                 uncovered-definition-names
                 implementation-coverage-insufficient?
+                typed-doc-missing-targets
                 quality-facets
                 repair-evidence
+                typed-doc-missing?
                 quality-repair-triggered?))))))
 
 ;;; Repair payload: keep agent-facing fields bounded while preserving enough evidence to edit safely.
-;; PolicyDetails <- SourceFile Nat Nat Nat Nat Nat Evidence Nat Boolean Coverage QualityFacets RepairEvidence Boolean
-(def (typed-combinator-style-details file definition-count typed-comment-line-count valid-typed-comment-count invalid-typed-comment-count missing-count implementation-evidence implementation-evidence-count missing-implementation-evidence? implementation-evidence-callers covered-definition-names covered-definition-count function-definition-count minimum-covered-definition-count uncovered-definition-names implementation-coverage-insufficient? quality-facets repair-evidence quality-repair-triggered?)
+;; : (-> SourceFile Nat Nat Nat Nat Nat Evidence Nat Boolean Coverage QualityFacets RepairEvidence Boolean PolicyDetails )
+(def (typed-combinator-style-details file definition-count typed-comment-line-count valid-typed-comment-count invalid-typed-comment-count missing-count implementation-evidence implementation-evidence-count missing-implementation-evidence? implementation-evidence-callers covered-definition-names covered-definition-count function-definition-count minimum-covered-definition-count uncovered-definition-names implementation-coverage-insufficient? typed-doc-missing-targets quality-facets repair-evidence typed-doc-missing? quality-repair-triggered?)
   (hash (styleGuide "typed-combinator-style")
         (styleCommand "asp gerbil-scheme guide --code --topic typed-combinator-style --intent style")
         (expectedCommentPrefix ";;")
-        (expectedCommentShape "adjacent contract block such as ;; (Z <- YY) <- (Z <- XX YY) XX")
-        (signatureShape "adjacent Haskell-like transform signature block, one or more lines, no inline function name")
+        (expectedCommentShape "adjacent Scheme-native typed block such as ;; : (forall (a) (-> (-> a a Order) (List a) (List a) Order))")
+        (signatureShape "adjacent Scheme-native signature block using ;; : (forall (a) (-> Input Output)), optional ;; | type aliases, U unions, Values, and Refine predicates")
+        (expectedDocShape "full form for exported helpers, macros, and policy-sensitive helpers: leading name matching the definition, ;;   : signature, optional ;;   | type/contract/requires/warning/rationale fields, and ;;   | doc m% with # Examples fenced Scheme input/result")
+        (typedDocRequiredWhen "exported arity-bearing helper, macro, src/policy helper, or policy-sensitive helper")
+        (typedCommentMetadataFields
+         ["leadingName" "signatureType" "localTypes" "runtimeContracts"
+          "runtimeContractsDetailed" "requires" "requiresDetailed"
+          "warnings" "rationales" "docs" "docs.examples"
+          "docs.hasResultExamples" "refinements"])
+        (runtimeWitnessPolicy
+         "use | contract for runtime predicate evidence, | requires for named preconditions, and | warning/| rationale only with concrete parser-visible witness")
+        (typedDocMissing typed-doc-missing?)
+        (typedDocMissingCount (length typed-doc-missing-targets))
+        (typedDocMissingTargets
+         (take-at-most typed-doc-missing-targets 12))
+        (typedCommentMigrationNeeded
+         (not
+          (not
+           (member "scheme-native-typed-block-migration" quality-facets))))
+        (typedCommentMigration
+         "rewrite legacy ;; Output <- Input comments to Scheme-native ;; : (-> Input Output) blocks; add ;; | type aliases for Order, Refine, or finite enum names")
         (contractLinePolicy "multi-line typed-combinator-style contracts are allowed when needed to preserve precision")
         (compositionShape "compact expression-level helper or combinator chain; prefer map/filter/fold/cut/curry/compose when behavior fits")
         (qualityReference "gerbil-utils")
@@ -180,7 +209,7 @@
         (implementationEvidenceSource
          "parser-owned higherOrderFacts plus callFacts; do not use raw text heuristics")
         (qualityFacetSource
-         "parser-owned typedContractFacts.qualityFacets derived from native call, higher-order, and control-flow facts")
+         "parser-owned typedContractFacts, higherOrderFacts, and functionQualityProfiles derived from native call, higher-order, and control-flow facts")
         (qualityFacets quality-facets)
         (qualityFacetSteering
          (typed-combinator-style-quality-facet-steering quality-facets))
@@ -211,22 +240,38 @@
 ;;; - Runtime source and real tests must keep typed-combinator contracts.
 ;;; - t/scenarios contains fixture projects that intentionally encode bad shapes.
 ;; Boolean <- ProjectIndex SourceFile
+;;; Source-class scope guard:
+;;; - Parser source classes own fixture/scenario/generated classification.
+;;; - Policy only decides which parser-owned classes are actionable.
+;; : (-> ProjectIndex SourceFile Boolean )
 (def (typed-combinator-style-source-file? index file)
   (let (path (source-file-path file))
     (and path
-         (not (string-prefix? "t/scenarios/" path))
+         (typed-combinator-style-actionable-source-class? (source-path-class path))
          (ormap (lambda (accept?) (accept? path))
                 [(cut index-source-runtime-file-path? index <>)
                  (cut string-prefix? "t/" <>)]))))
 
 ;;; Quality-trigger scope excludes parser fixtures: fixture owners intentionally
 ;;; encode bad and unusual syntax that policy tests assert elsewhere.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (typed-combinator-style-quality-repair-source-file? file)
   (let (path (source-file-path file))
     (and path
-         (not (string-prefix? "t/fixtures/" path)))))
-;; Boolean <- Nat Nat Nat Nat Nat
+         (typed-combinator-style-actionable-source-class? (source-path-class path)))))
+
+;;; Actionable source classes:
+;;; - Generated data, fixtures, snapshots, and policy scenario projects are
+;;;   evidence fixtures, not owners the agent should repair in place.
+;;; - New parser-owned classes can be excluded here without path matching.
+;; : (-> SourceClass Boolean )
+(def (typed-combinator-style-actionable-source-class? source-class)
+  (not (member source-class
+               ["policy-scenario"
+                "fixture"
+                "snapshot-output"
+                "generated"])))
+;; : (-> Nat Nat Nat Nat Nat Boolean )
 (def (typed-combinator-style-missing-implementation-evidence? definition-count valid-typed-comment-count invalid-typed-comment-count missing-count implementation-evidence-count module-engineering-comment?)
   (and (> definition-count 1)
        (> valid-typed-comment-count 0)
@@ -238,14 +283,111 @@
 ;;; Boundary:
 ;;; - source-file-has-engineering-module-comment? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (source-file-has-engineering-module-comment? file)
   (ormap
    (lambda (fact)
      (and (equal? (comment-quality-fact-target-kind fact) "module")
           (pair? (comment-quality-fact-comment-lines fact))))
    (source-file-comment-quality-facts file)))
-;; Boolean <- Nat Nat Nat Nat Nat Nat
+
+;;; Boundary:
+;;; - Full-form documentation is required for public and policy-sensitive helpers.
+;;; - Ordinary private helpers may keep the short `;; :` form.
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-missing-doc-targets file)
+  (unique-strings
+   (append
+    (filter-map (cut typed-combinator-style-profile-missing-doc-target file <>)
+                (source-file-function-quality-profiles file))
+    (filter-map (cut typed-combinator-style-macro-missing-doc-target file <>)
+                (source-file-macros file)))))
+
+;; : (-> SourceFile FunctionQualityProfile MaybeTargetName )
+(def (typed-combinator-style-profile-missing-doc-target file profile)
+  (and (typed-combinator-style-profile-requires-doc? profile)
+       (not (typed-combinator-style-profile-has-doc? file profile))
+       (function-quality-profile-name profile)))
+
+;; : (-> FunctionQualityProfile Boolean )
+(def (typed-combinator-style-profile-requires-doc? profile)
+  (and (> (function-quality-profile-arity profile) 0)
+       (or (function-quality-profile-exported profile)
+           (string-prefix? "src/policy/" (function-quality-profile-path profile)))))
+
+;; : (-> SourceFile FunctionQualityProfile Boolean )
+(def (typed-combinator-style-profile-has-doc? file profile)
+  (let (fact
+        (typed-combinator-style-typed-contract-fact
+         file
+         (function-quality-profile-name profile)))
+    (and fact
+         (typed-combinator-style-typed-comment-has-full-doc?
+          fact
+          (function-quality-profile-name profile)))))
+
+;; : (-> SourceFile MacroFact MaybeTargetName )
+(def (typed-combinator-style-macro-missing-doc-target file macro)
+  (and (not (typed-combinator-style-macro-has-doc? file macro))
+       (macro-fact-name macro)))
+
+;; : (-> SourceFile MacroFact Boolean )
+(def (typed-combinator-style-macro-has-doc? file macro)
+  (let (fact
+        (typed-combinator-style-typed-contract-fact
+         file
+         (macro-fact-name macro)))
+    (and fact
+         (typed-combinator-style-typed-comment-has-full-doc?
+          fact
+          (macro-fact-name macro)))))
+
+;;; Boundary:
+;;; - Typed contract lookup is keyed by parser-owned definition name.
+;;; - Policy must not scan source text to decide whether docs are complete.
+;; : (-> SourceFile String MaybeTypedContractFact )
+(def (typed-combinator-style-typed-contract-fact file name)
+  (find (lambda (fact)
+          (equal? (typed-contract-fact-definition-name fact) name))
+        (source-file-typed-contract-facts file)))
+
+;; : (-> TypedContractFact String Boolean)
+(def (typed-combinator-style-typed-comment-has-full-doc? fact expected-name)
+  (let (typed-comment (typed-contract-fact-typed-comment fact))
+    (and typed-comment
+         (hash-get typed-comment 'fullForm)
+         (equal? (hash-get typed-comment 'leadingName) expected-name)
+         (typed-combinator-style-docs-have-body?
+          (or (hash-get typed-comment 'docs) []))
+         (typed-combinator-style-docs-have-result-example?
+          (or (hash-get typed-comment 'docs) [])))))
+
+;;; Boundary:
+;;; - Documentation body evidence comes from typed-comment metadata.
+;;; - Empty `| doc` sections cannot satisfy public helper documentation.
+;; : (-> (List Json) Boolean)
+(def (typed-combinator-style-docs-have-body? docs)
+  (ormap (lambda (doc)
+           (let (body (or (hash-get doc 'body) ""))
+             (not (blank-string? body))))
+         docs))
+
+;;; Boundary:
+;;; - Result examples prove the doc block carries repair-checkable output.
+;;; - Accept either section-level result evidence or parsed example packets.
+;; : (-> (List Json) Boolean)
+(def (typed-combinator-style-docs-have-result-example? docs)
+  (ormap (lambda (doc)
+           (or (hash-get doc 'hasResultExamples)
+               (ormap typed-combinator-style-example-has-result?
+                      (or (hash-get doc 'examples) []))))
+         docs))
+
+;; : (-> Json Boolean)
+(def (typed-combinator-style-example-has-result? example)
+  (not (not (hash-get example 'hasExpectedResult))))
+
+;; : (-> Nat Nat Nat Nat Nat Nat Boolean )
 (def (typed-combinator-style-implementation-coverage-insufficient? function-definition-count covered-definition-count minimum-covered-definition-count valid-typed-comment-count invalid-typed-comment-count missing-count module-engineering-comment?)
   (and (> function-definition-count 2)
        (> valid-typed-comment-count 0)
@@ -253,40 +395,40 @@
        (= missing-count 0)
        (not module-engineering-comment?)
        (< covered-definition-count minimum-covered-definition-count)))
-;; Nat <- Nat
+;; : (-> Nat Nat )
 (def (typed-combinator-style-minimum-covered-definition-count function-definition-count)
   (if (zero? function-definition-count)
     0
     (quotient (+ function-definition-count 1) 2)))
 ;;; Coverage denominator: constants are excluded so only arity-bearing helpers need expression evidence.
-;; (List Definition) <- SourceFile
+;; : (-> SourceFile (List Definition) )
 (def (typed-combinator-style-function-definitions file)
   (filter (lambda (defn)
             (and (> (definition-arity defn) 0)
                  (not (poo-declarative-definition? defn))))
           (source-file-definitions file)))
-;; Boolean <- Definition
+;; : (-> Definition Boolean )
 (def (poo-declarative-definition? defn)
   (member (definition-kind defn) +poo-declarative-definition-kinds+))
 ;;; Coverage numerator: parser evidence is attributed by caller before compacting duplicate facts.
-;; (List String) <- (List Evidence)
+;; : (-> (List Evidence) (List String) )
 (def (typed-combinator-style-evidence-callers implementation-evidence)
   (unique-strings
    (filter non-empty-string?
            (map (lambda (evidence) (hash-get evidence 'caller))
                 implementation-evidence))))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (non-empty-string? value)
   (and (string? value)
        (> (string-length value) 0)))
 ;;; Coverage report: expose covered helpers so agents can see which functions already match the style.
-;; (List String) <- SourceFile (List String)
+;; : (-> SourceFile (List String) (List String) )
 (def (typed-combinator-style-covered-definition-names file implementation-evidence-callers)
   (filter (cut member <> implementation-evidence-callers)
           (map definition-name
                (typed-combinator-style-function-definitions file))))
 ;;; Repair target list: uncovered helpers tell the agent where to add expression-level evidence first.
-;; (List String) <- SourceFile (List String)
+;; : (-> SourceFile (List String) (List String) )
 (def (typed-combinator-style-uncovered-definition-names file implementation-evidence-callers)
   (filter (lambda (name) (not (member name implementation-evidence-callers)))
           (map definition-name
@@ -294,7 +436,7 @@
 ;;; Boundary:
 ;;; - typed-combinator-style-implementation-evidence composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List Evidence) <- SourceFile
+;; : (-> SourceFile (List Evidence) )
 (def (typed-combinator-style-implementation-evidence file)
   (append
    (map higher-order-style-evidence
@@ -306,7 +448,7 @@
 
 ;;; Quality facets summarize parser-owned style evidence for a source owner.
 ;;; Keep advisory signals available even when they do not trigger a finding.
-;; (List QualityFacet) <- SourceFile
+;; : (-> SourceFile (List QualityFacet) )
 (def (typed-combinator-style-quality-facets file)
   (unique-strings
    (append
@@ -315,11 +457,28 @@
                 (source-file-typed-contract-facts file)))
     (apply append
            (map higher-order-quality-facets
-                (source-file-higher-order-forms file))))))
+                (source-file-higher-order-forms file)))
+    (apply append
+           (map typed-combinator-style-profile-quality-facets
+                (source-file-function-quality-profiles file))))))
+
+;;; R015 consumes only the profile facets that steer gerbil-utils/base.ss style
+;;; abstraction.  Broader profile facts stay available to search/report without
+;;; turning every legacy contract migration hint into an actionable warning.
+;; : (-> FunctionQualityProfile (List QualityFacet) )
+(def (typed-combinator-style-profile-quality-facets profile)
+  (filter (lambda (facet)
+            (member facet
+                    ["base-style-combinator-composition"
+                     "higher-order-constructor-abstraction"
+                     "arity-specialized-function-factory"
+                     "wrapper-lambda-drift"
+                     "function-specialization-opportunity"]))
+          (function-quality-profile-quality-facets profile)))
 
 ;;; Native facet steering turns parser-owned Gerbil quality facts into bounded repair moves.
 ;;; This keeps agent freedom in naming while constraining the rewrite strategy to witnessed syntax.
-;; (List RepairMove) <- (List QualityFacet)
+;; : (-> (List QualityFacet) (List RepairMove) )
 (def (typed-combinator-style-quality-facet-steering quality-facets)
   (filter identity
           [(and (member "expression-level-composition" quality-facets)
@@ -328,52 +487,87 @@
                 "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness")
            (and (member "over-abstracted-contract-risk" quality-facets)
                 "replace abstract grouped contracts with concrete domain/result names or add parser-owned callsite evidence")
+           (and (member "scheme-native-typed-block-migration" quality-facets)
+                "migrate legacy ;; Output <- Input contract comments to adjacent Scheme-native ;; : (-> Input Output) blocks; add ;; | type aliases for enum/refinement names")
            (and (member "combinator-composition" quality-facets)
                 "prefer cut/curry/rcurry/compose helper composition when arity evidence already matches")
+           (and (member "lambda-local-abstraction" quality-facets)
+                "prefer small local lambda/function-factory helpers when the behavior is a reusable transform")
+           (and (member "parameterized-transform" quality-facets)
+                "keep lambda parameters meaningful and push repeated destructuring into named helpers")
            (and (member "case-lambda-optimization-boundary" quality-facets)
                 "preserve case-lambda or common-case specialization and document the optimization boundary")
+           (and (member "multi-arity-abstraction" quality-facets)
+                "use case-lambda when a helper has real arity variants instead of branching on raw argument lists")
+           (and (member "function-specialization-abstraction" quality-facets)
+                "use cut/curry/rcurry for first-class specialization instead of repeated wrapper lambdas")
+           (and (member "function-pipeline-abstraction" quality-facets)
+                "use compose/rcompose/!>/!!> when the data flow is a reusable function pipeline")
+           (and (member "base-style-combinator-composition" quality-facets)
+                "model reusable data flow after gerbil-utils/base.ss combinators: compose a small first-class boundary instead of expanding call-site scaffolding")
+           (and (member "higher-order-constructor-abstraction" quality-facets)
+                "preserve function-constructor boundaries that combine case-lambda with returned procedures")
+           (and (member "arity-specialized-function-factory" quality-facets)
+                "use nested case-lambda only for real arity specialization and keep the optimization boundary explicit")
+           (and (member "wrapper-lambda-drift" quality-facets)
+                "extract repeated wrapper lambdas into a named factory, curry/rcurry specializer, or compose/rcompose pipeline")
+           (and (member "function-specialization-opportunity" quality-facets)
+                "repair anonymous specialization by introducing one first-class helper boundary before changing call sites")
            (and (member "builder-or-fold-combinator" quality-facets)
                 "prefer for/fold or with-list-builder only when parser facts show a real accumulator or builder boundary")]))
 
 ;;; Repair evidence carries concrete parser witnesses into guide output.
 ;;; Agents may choose the rewrite shape, but the witness set stays bounded.
-;; (List RepairEvidence) <- SourceFile
+;; : (-> SourceFile (List RepairEvidence) )
 (def (typed-combinator-style-repair-evidence file)
   (map typed-contract-fact-repair-evidence
        (source-file-typed-contract-facts file)))
 
 ;;; Quality facets are parser-owned repair triggers, not passive advice.
 ;;; The policy turns manual-loop drift into warnings so self-apply can repair.
-;; Boolean <- (List QualityFacet)
-(def (typed-combinator-style-quality-repair-triggered? quality-facets)
-  (not
-   (not
-    (ormap (cut member <> quality-facets)
-           ["manual-loop-drift"
-            "over-abstracted-contract-risk"]))))
+;; : (-> SourceFile (List QualityFacet) Boolean )
+(def (typed-combinator-style-quality-repair-triggered? file quality-facets)
+  (or (not
+       (not
+        (ormap (cut member <> quality-facets)
+               ["manual-loop-drift"
+                "over-abstracted-contract-risk"
+                "scheme-native-typed-block-migration"])))
+      (and (typed-combinator-style-runtime-wrapper-source-file? file)
+           (not
+            (not
+             (ormap (cut member <> quality-facets)
+                    ["wrapper-lambda-drift"
+                     "function-specialization-opportunity"]))))))
+
+;; : (-> SourceFile Boolean )
+(def (typed-combinator-style-runtime-wrapper-source-file? file)
+  (let (path (source-file-path file))
+    (and path
+         (not (string-prefix? "t/" path)))))
 
 ;;; Boundary:
 ;;; - typed-combinator-style-higher-order-fact? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- HigherOrderFact
+;; : (-> HigherOrderFact Boolean )
 (def (typed-combinator-style-higher-order-fact? fact)
   (ormap (cut equal? (higher-order-fact-role fact) <>)
          +typed-combinator-style-higher-order-roles+))
 ;;; Boundary:
 ;;; - typed-combinator-style-call-fact? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (typed-combinator-style-call-fact? fact)
   (ormap (cut equal? (call-fact-callee fact) <>)
          +typed-combinator-style-call-heads+))
-;; Evidence <- HigherOrderFact
+;; : (-> HigherOrderFact Evidence )
 (def (higher-order-style-evidence fact)
   (hash (kind "higher-order")
         (name (higher-order-fact-name fact))
         (role (higher-order-fact-role fact))
         (caller (or (higher-order-fact-caller fact) ""))
         (selector (higher-order-fact-selector fact))))
-;; Evidence <- CallFact
+;; : (-> CallFact Evidence )
 (def (call-style-evidence fact)
   (hash (kind "call")
         (name (call-fact-callee fact))
@@ -382,8 +576,8 @@
 ;;; Boundary:
 ;;; - typed-combinator-style-message coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; Message <- DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Boolean Nat Nat Nat
-(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? quality-repair-triggered? covered-definition-count function-definition-count minimum-covered-definition-count)
+;; : (-> DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Boolean Boolean Nat Nat Nat Nat Message )
+(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? typed-doc-missing? quality-repair-triggered? typed-doc-missing-count covered-definition-count function-definition-count minimum-covered-definition-count)
   (string-append
    "Scheme source owner has "
    (number->string definition-count)
@@ -407,25 +601,31 @@
       " arity-bearing definitions, below minimum "
       (number->string minimum-covered-definition-count))
      "")
+   (if typed-doc-missing?
+     (string-append
+      "; "
+      (number->string typed-doc-missing-count)
+      " public/policy-sensitive helpers need full typed doc blocks with | doc m%, # Examples, and result comments")
+     "")
    (if quality-repair-triggered?
      "; parser-owned quality facets require repair toward compact expression-level composition"
      "")
-   "; typed-combinator-style has three criteria: adjacent Haskell-like transform signature block such as ;; (Z <- YY) <- (Z <- XX YY) XX, compact expression-level composition, and optimization-boundary comments for specialized branches"))
-;; Integer <- Integer Integer
+   "; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))
+;; : (-> Integer Integer Integer )
 (def (typed-combinator-style-missing-count definition-count typed-comment-count)
   (if (> definition-count typed-comment-count)
     (- definition-count typed-comment-count)
     0))
-;; ContractSummary <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile ContractSummary )
 (def (file-typed-combinator-style-summary index file)
   (typed-contract-fact-summary (source-file-typed-contract-facts file)))
-;; Integer <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile Integer )
 (def (file-typed-combinator-style-count index file)
   (cadr (file-typed-combinator-style-summary index file)))
 ;;; Boundary:
 ;;; - typed-contract-fact-summary composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; ContractSummary <- (List TypedContractFact)
+;; : (-> (List TypedContractFact) ContractSummary )
 (def (typed-contract-fact-summary facts)
   (foldl (lambda (fact summary)
            (if (equal? (typed-contract-fact-quality fact) "invalid")
@@ -440,7 +640,7 @@
 ;;; Boundary:
 ;;; - file-typed-contract-invalid-reasons composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List InvalidContractReason) <- SourceFile
+;; : (-> SourceFile (List InvalidContractReason) )
 (def (file-typed-contract-invalid-reasons file)
   (unique-strings
    (apply append
@@ -450,16 +650,16 @@
 ;;; Boundary:
 ;;; - file-typed-contract-invalid-examples composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List InvalidContractExample) <- SourceFile
+;; : (-> SourceFile (List InvalidContractExample) )
 (def (file-typed-contract-invalid-examples file)
   (map typed-contract-fact-example
        (take-at-most (filter invalid-typed-contract-fact?
                              (source-file-typed-contract-facts file))
                      3)))
-;; Boolean <- TypedContractFact
+;; : (-> TypedContractFact Boolean )
 (def (invalid-typed-contract-fact? fact)
   (equal? (typed-contract-fact-quality fact) "invalid"))
-;; InvalidContractExample <- TypedContractFact
+;; : (-> TypedContractFact InvalidContractExample )
 (def (typed-contract-fact-example fact)
   (hash (definition (typed-contract-fact-definition-name fact))
         (selector (typed-contract-fact-selector fact))
@@ -472,7 +672,7 @@
 ;;; Boundary:
 ;;; - unique-strings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (unique-strings values)
   (reverse
    (foldl (lambda (value out)
@@ -484,6 +684,6 @@
 ;;; Boundary:
 ;;; - string-has-uppercase? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceLine
+;; : (-> SourceLine Boolean )
 (def (string-has-uppercase? text)
   (ormap char-upper-case? (string->list text)))

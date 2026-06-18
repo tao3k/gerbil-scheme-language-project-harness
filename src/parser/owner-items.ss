@@ -45,7 +45,7 @@
 ;; (List ConfigFileName)
 (def +owner-items-config-files+ '("gerbil.pkg" "build.ss"))
 
-;; Boolean <- Path
+;; : (-> Path Boolean )
 (def (owner-items-source-path? path)
   (or (member (path-extension path) +owner-items-source-extensions+)
       (member (path-strip-directory path) +owner-items-config-files+)))
@@ -54,7 +54,7 @@
 ;;; - Owner-items needs a lightweight SourceFile without the full project walk.
 ;;; - Native forms, definitions, calls, imports, and top-forms are collected in
 ;;;   one pass so CLI owner browsing stays cheap and parser-owned.
-;; SourceFile <- ProjectRoot OwnerPath
+;; : (-> ProjectRoot OwnerPath SourceFile )
 (def (parse-owner-items-source-file root path)
   (let* ((fullpath (source-full-path root path))
          (relpath (relative-path root fullpath))
@@ -139,7 +139,7 @@
 ;;; Syntax projection:
 ;;; - Owner-items exposes imports, exports, calls, and top forms in one stream.
 ;;; - Stable sorting below keeps agent-visible output deterministic.
-;; (List SyntaxFactJson) <- SourceFile
+;; : (-> SourceFile (List SyntaxFactJson) )
 (def (owner-items-syntax-fact-json file)
   (stable-owner-items-syntax-facts
    (append
@@ -151,13 +151,13 @@
 ;;; Stability boundary:
 ;;; - Syntax facts may be gathered from several parser surfaces.
 ;;; - Sorting by synthetic id prevents output churn when collection order moves.
-;; (List SyntaxFactJson) <- (List SyntaxFactJson)
+;; : (-> (List SyntaxFactJson) (List SyntaxFactJson) )
 (def (stable-owner-items-syntax-facts facts)
   (sort facts
         (lambda (a b)
           (string<? (hash-get a 'id) (hash-get b 'id)))))
 
-;; SyntaxFactJson <- ModuleImportFact
+;; : (-> ModuleImportFact SyntaxFactJson )
 (def (owner-module-import-fact-json fact)
   (hash (id (owner-syntax-fact-id "import"
                                    (module-import-fact-path fact)
@@ -181,7 +181,7 @@
                       (symbols (module-import-fact-symbols fact))
                       (alias (or (module-import-fact-alias fact) ""))))))
 
-;; SyntaxFactJson <- ModuleExportFact
+;; : (-> ModuleExportFact SyntaxFactJson )
 (def (owner-module-export-fact-json fact)
   (hash (id (owner-syntax-fact-id "export"
                                   (module-export-fact-path fact)
@@ -206,7 +206,7 @@
                       (alias (or (module-export-fact-alias fact) ""))
                       (module (or (module-export-fact-module fact) ""))))))
 
-;; SyntaxFactJson <- CallFact
+;; : (-> CallFact SyntaxFactJson )
 (def (owner-call-fact-json fact)
   (hash (id (owner-syntax-fact-id "call"
                                   (call-fact-path fact)
@@ -228,7 +228,7 @@
                       (arity (call-fact-arity fact))
                       (arguments (call-fact-arguments fact))))))
 
-;; SyntaxFactJson <- TopForm
+;; : (-> TopForm SyntaxFactJson )
 (def (owner-top-form-fact-json fact)
   (hash (id (owner-syntax-fact-id "top-form"
                                   (top-form-path fact)
@@ -247,11 +247,11 @@
                             (top-form-path fact)]))
         (fields (hash (role (top-form-kind fact))))))
 
-;; String <- Kind Path Name Start
+;; : (-> Kind Path Name Start String )
 (def (owner-syntax-fact-id kind path name start)
   (string-append kind ":" path ":" name ":" (number->string start)))
 
-;; Json <- Path Start End
+;; : (-> Path Start End Json )
 (def (owner-fact-location-json path start end)
   (hash (path path)
         (lineRange (string-append (number->string start)
@@ -261,7 +261,7 @@
 ;;; Size boundary:
 ;;; - Line count is advisory owner metadata.
 ;;; - Read failures become zero so owner browsing can still show parse errors.
-;; Integer <- SourcePath
+;; : (-> SourcePath Integer )
 (def (owner-source-line-count path)
   (with-catch
    (lambda (_) 0)
@@ -270,7 +270,7 @@
 ;;; Read strategy:
 ;;; - Prefer core-read-module for ordinary Gerbil modules.
 ;;; - Fall back to syntax reading for #lang, custom preludes, config, and errors.
-;; OwnerReadResult <- SourcePath
+;; : (-> SourcePath OwnerReadResult )
 (def (owner-read-native-forms path)
   (with-catch
    (lambda (exn)
@@ -298,7 +298,7 @@
 ;;; Syntax fallback:
 ;;; - Suppress reader chatter so owner-items output remains protocol text.
 ;;; - Wrap single forms as a list to match core-read-module body shape.
-;; OwnerReadResult <- SourcePath
+;; : (-> SourcePath OwnerReadResult )
 (def (owner-read-syntax-forms path)
   (parameterize ((current-output-port (open-output-string))
                  (current-error-port (open-output-string)))
@@ -309,7 +309,7 @@
 ;;; #lang fallback:
 ;;; - Gerbil's module reader does not own non-Gerbil #lang headers.
 ;;; - Drop the language line and read the remaining body forms directly.
-;; OwnerReadResult <- SourcePath
+;; : (-> SourcePath OwnerReadResult )
 (def (owner-read-lang-syntax-forms path)
   (let* ((lines (read-file-lines path))
          (body-text (join-lines (cdr lines)))
@@ -329,7 +329,7 @@
 ;;; Header probe:
 ;;; - A failed file read should not block owner browsing.
 ;;; - The result only selects the lightweight read strategy above.
-;; Boolean <- SourcePath
+;; : (-> SourcePath Boolean )
 (def (owner-file-starts-with-lang? path)
   (with-catch
    (lambda (_) #f)
@@ -340,7 +340,7 @@
 ;;; Prelude probe:
 ;;; - Non-core preludes can break core-read-module in this standalone path.
 ;;; - The first lines are enough because package metadata lives at the top.
-;; Boolean <- SourcePath
+;; : (-> SourcePath Boolean )
 (def (owner-file-has-non-core-prelude? path)
   (with-catch
    (lambda (_) #f)

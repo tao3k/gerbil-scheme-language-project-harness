@@ -25,10 +25,20 @@
 ;; String
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
-;;; Invariant:
-;;; - evidence-main owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; String <- (List String)
+;; evidence-main
+;;   : (-> (List String)
+;;         Integer)
+;;   | doc m%
+;;       `evidence-main args` dispatches `graph` and `analyze` actions and
+;;       returns zero after writing the selected evidence packet surface.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (evidence-main '("graph" "--workspace" "."))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (evidence-main args)
   (match args
     ([] (error "expected evidence <graph|analyze>"))
@@ -49,14 +59,26 @@
              (write-json-line packet)
              (display-evidence-analysis-request packet)))))
        0))))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (evidence-project-root args)
   (let (workspace (option "--workspace" args))
     (if workspace workspace (project-root args))))
 ;;; Boundary:
 ;;; - evidence-graph-packet coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; String <- String
+;; evidence-graph-packet
+;;   : (-> String Json)
+;;   | doc m%
+;;       `evidence-graph-packet root` builds the semantic evidence graph packet
+;;       for the current Gerbil harness project and exposes the next receipt
+;;       command as graph gap metadata.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (hash-get (evidence-graph-packet ".") 'protocolId)
+;;       ;; => "agent.semantic-protocols.evidence-graph"
+;;       ```
+;;     %
 (def (evidence-graph-packet root)
   (let* ((index (collect-project root))
          (owner-path (evidence-owner-path index))
@@ -112,10 +134,20 @@
      (edges edges)
      (gaps gaps)
      (fields (hash (next "pipe JSON to `asp graph render --packet - --view seeds`"))))))
-;;; Boundary:
-;;; - evidence-analysis-request-packet coordinates multiple evidence fields.
-;;; - Keep packet shape and invariants stable.
-;; String <- String
+;; evidence-analysis-request-packet
+;;   : (-> String
+;;         Json)
+;;   | doc m%
+;;       `evidence-analysis-request-packet root` wraps the evidence graph in a
+;;       graph-turbo request packet for downstream ranking.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (hash-get (evidence-analysis-request-packet ".") 'packetKind)
+;;       ;; => "graph-turbo-request"
+;;       ```
+;;     %
 (def (evidence-analysis-request-packet root)
   (let* ((graph (evidence-graph-packet root))
          (analysis-graph (evidence-analysis-graph graph))
@@ -151,7 +183,7 @@
      (summary request-summary)
      (graphs [analysis-graph])
      (fields (hash (next "pipe JSON to `asp graph render --packet - --view seeds`"))))))
-;; String <- Packet
+;; : (-> Packet String )
 (def (display-evidence-graph packet)
   (let (summary (hash-get packet 'summary))
     (displayln "evidence-graph nodes=" (hash-get summary 'nodes)
@@ -160,7 +192,7 @@
                " claims=" (hash-get summary 'claims)
                " stale-items=" (hash-get summary 'staleItems)
                " gaps=" (hash-get summary 'gaps))))
-;; String <- Packet
+;; : (-> Packet String )
 (def (display-evidence-analysis-request packet)
   (let (summary (hash-get packet 'summary))
     (displayln "evidence-analysis profile=" (hash-get packet 'profile)
@@ -172,7 +204,7 @@
                " stale-items=" (hash-get summary 'staleItems)
                " gaps=" (hash-get summary 'gaps)
                " next=\"asp graph render --packet - --view seeds\"")))
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (evidence-owner-path index)
   (let (package (project-index-package index))
     (cond
@@ -180,10 +212,10 @@
      ((pair? (project-index-files index))
       (source-file-path (car (project-index-files index))))
      (else "."))))
-;; String <- Prefix Value
+;; : (-> Prefix Value String )
 (def (evidence-node-id prefix value)
   (string-append prefix ":" value))
-;; String <- NodeId String Label OwnerPath Status Fields
+;; : (-> NodeId String Label OwnerPath Status Fields String )
 (def (evidence-node node-id kind label owner-path status fields)
   (hash (nodeId node-id)
         (kind kind)
@@ -194,13 +226,13 @@
                         (line 1)
                         (column 0)))
         (fields fields)))
-;; String <- EdgeId String FromNodeId ToNodeId
+;; : (-> EdgeId String FromNodeId ToNodeId String )
 (def (evidence-edge edge-id kind from-node-id to-node-id)
   (hash (edgeId edge-id)
         (kind kind)
         (fromNodeId from-node-id)
         (toNodeId to-node-id)))
-;; String <- Nodes Edges Gaps
+;; : (-> Nodes Edges Gaps String )
 (def (evidence-summary nodes edges gaps)
   (hash (nodes (length nodes))
         (edges (length edges))
@@ -208,10 +240,21 @@
         (claims (count-node-kind nodes "invariant-candidate"))
         (staleItems 0)
         (gaps (length gaps))))
-;;; Invariant:
-;;; - count-node-kind owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Integer <- Nodes String
+;; count-node-kind
+;;   : (-> (List Json)
+;;         String
+;;         Integer)
+;;   | doc m%
+;;       `count-node-kind nodes kind` counts graph nodes whose `kind` field
+;;       matches `kind`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (count-node-kind [(hash (kind "owner")) (hash (kind "claim"))] "owner")
+;;       ;; => 1
+;;       ```
+;;     %
 (def (count-node-kind nodes kind)
   (length (filter (lambda (node)
                     (equal? (hash-get node 'kind) kind))
@@ -221,24 +264,34 @@
   (hash (languageId +language-id+)
         (providerId +provider-id+)
         (namespace "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness")))
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (evidence-project index)
   (let ((root (project-index-root index))
         (package (project-index-package index)))
     (hash (root root)
           (package (if package (project-package-name package) "gerbil-scheme-project"))
           (fields (hash)))))
-;;; Boundary:
-;;; - evidence-analysis-graph composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- Graph
+;; evidence-analysis-graph
+;;   : (-> Json
+;;         Json)
+;;   | doc m%
+;;       `evidence-analysis-graph graph` projects the packet graph into the
+;;       compact analysis graph shape consumed by graph-turbo.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (hash-get (evidence-analysis-graph (evidence-graph-packet ".")) 'graphId)
+;;       ;; => "gerbil-scheme.evidence.graph"
+;;       ```
+;;     %
 (def (evidence-analysis-graph graph)
   (hash (graphId (hash-get graph 'graphId))
         (summary (hash-get graph 'summary))
         (nodes (map evidence-analysis-node (hash-get graph 'nodes)))
         (edges (map evidence-analysis-edge (hash-get graph 'edges)))
         (gaps (hash-get graph 'gaps))))
-;; String <- Node
+;; : (-> Node String )
 (def (evidence-analysis-node node)
   (let* ((location (hash-get node 'location))
          (path (hash-get node 'ownerPath))
@@ -253,22 +306,32 @@
           (startLine line)
           (endLine line)
           (fields (hash-get node 'fields)))))
-;; String <- Edge
+;; : (-> Edge String )
 (def (evidence-analysis-edge edge)
   (hash (source (hash-get edge 'fromNodeId))
         (target (hash-get edge 'toNodeId))
         (relation (hash-get edge 'kind))
         (fields (hash (edgeId (hash-get edge 'edgeId))))))
-;;; Boundary:
-;;; - evidence-analysis-seed-ids composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- Graph
+;; evidence-analysis-seed-ids
+;;   : (-> Json
+;;         (List String))
+;;   | doc m%
+;;       `evidence-analysis-seed-ids graph` returns the node ids whose role is
+;;       `owner`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (evidence-analysis-seed-ids (hash (nodes [(hash (id "n1") (role "owner"))])))
+;;       ;; => ("n1")
+;;       ```
+;;     %
 (def (evidence-analysis-seed-ids graph)
   (map (lambda (node) (hash-get node 'id))
        (filter (lambda (node)
                  (equal? (hash-get node 'role) "owner"))
                (hash-get graph 'nodes))))
-;; String <- String
+;; : (-> String String )
 (def (evidence-node-role kind)
   (cond
    ((equal? kind "owner") "owner")

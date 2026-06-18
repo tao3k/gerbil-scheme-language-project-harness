@@ -18,10 +18,19 @@
         :types/facade)
 
 (export check-main)
-;;; Boundary:
-;;; - check-main composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; CheckMain <- (List TypeFinding)
+;; check-main
+;;   : (-> (List String) Integer)
+;;   | doc m%
+;;       `check-main args` runs the Gerbil harness policy check and returns a
+;;       process-style status code.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (check-main '("--workspace" "." "--full"))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (check-main args)
   (let* ((root (project-root args))
          (json? (flag? "--json" args))
@@ -61,28 +70,37 @@
         (display-agent-repair-summary findings)
         (for-each display-finding findings)))
     (if (equal? status "pass") 0 1)))
-;; String <- (List TypeFinding)
+;; : (-> (List TypeFinding) String )
 (def (check-scope args)
   (if (and (flag? "--changed" args)
            (not (flag? "--full" args)))
     "changed"
     "full"))
-;; String <- String
+;; : (-> String String )
 (def (changed-project-paths root)
   (dedupe
    (append
     (git-paths root ["diff" "--name-only" "--" "."])
     (git-paths root ["ls-files" "--others" "--exclude-standard" "--" "."]))))
-;; String <- String (List String)
+;; : (-> String (List String) String )
 (def (git-paths root args)
   (let (output (git-output root (cons "git" args)))
     (if (string=? output "")
       '()
       (string-tokenize output))))
-;;; Boundary:
-;;; - git-output composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; GitOutput <- String String
+;; git-output
+;;   : (-> String (List String) String)
+;;   | doc m%
+;;       `git-output root command` runs a git command in `root` and returns its
+;;       output, or the empty string when git reports a non-zero status.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (git-output "." ["git" "status" "--short"])
+;;       ;; => status text
+;;       ```
+;;     %
 (def (git-output root command)
   (let (status 0)
     (with-catch
@@ -96,24 +114,42 @@
                           (lambda (exit-status _settings)
                             (set! status exit-status))))
          (if (zero? status) output ""))))))
-;;; Boundary:
-;;; - filter-changed-findings composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- (List TypeFinding) ChangedPaths
+;; filter-changed-findings
+;;   : (-> (List TypeFinding) ChangedPaths (List TypeFinding))
+;;   | doc m%
+;;       `filter-changed-findings findings changed-paths` keeps only findings
+;;       whose source path is covered by the changed-path set.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (filter-changed-findings findings ["src/orders/core.ss"])
+;;       ;; => changed-path findings
+;;       ```
+;;     %
 (def (filter-changed-findings findings changed-paths)
   (filter (lambda (finding)
             (changed-path? (type-finding-path finding) changed-paths))
           findings))
-;;; Boundary:
-;;; - changed-path? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- String ChangedPaths
+;; changed-path?
+;;   : (-> String ChangedPaths Boolean)
+;;   | doc m%
+;;       `changed-path? path changed-paths` returns `#t` when `path` is the
+;;       changed file itself or the owner directory of a changed file.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (changed-path? "src/orders" ["src/orders/core.ss"])
+;;       ;; => #t
+;;       ```
+;;     %
 (def (changed-path? path changed-paths)
   (ormap (lambda (changed-path)
            (or (string=? path changed-path)
                (string-prefix? (string-append path "/") changed-path)))
          changed-paths))
-;; TypeFinding <- TypeFinding
+;; : (-> TypeFinding TypeFinding )
 (def (display-finding finding)
   (displayln "|finding rule=" (type-finding-rule-id finding)
              " severity=" (type-finding-severity finding)
@@ -122,10 +158,19 @@
              " message=" (type-finding-message finding))
   (display-agent-repair finding)
   (display-finding-details finding))
-;;; Boundary:
-;;; - display-agent-repair-summary composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- (List TypeFinding)
+;; display-agent-repair-summary
+;;   : (-> (List TypeFinding) Unit)
+;;   | doc m%
+;;       `display-agent-repair-summary findings` emits the compact repair
+;;       summary line when any finding carries agent repair guidance.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (display-agent-repair-summary [])
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (display-agent-repair-summary findings)
   (let (parts (agent-repair-summary-parts findings))
     (when (pair? parts)
@@ -135,10 +180,19 @@
                   (display part))
                 parts)
       (newline))))
-;;; Boundary:
-;;; - display-agent-repair composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- TypeFinding
+;; display-agent-repair
+;;   : (-> TypeFinding Unit)
+;;   | doc m%
+;;       `display-agent-repair finding` emits a repair metadata line when the
+;;       finding carries actionable repair parts.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (display-agent-repair finding)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (display-agent-repair finding)
   (let (parts (finding-agent-repair-parts finding))
     (when (pair? parts)
@@ -151,14 +205,26 @@
 ;; ConfigConstant
 (def +finding-detail-keys+
   '(advice next keepNamedLetWhen styleGuide styleCommand
+    expectedCommentShape signatureShape typedCommentMigrationNeeded
+    typedCommentMigration expectedDocShape typedDocRequiredWhen
+    typedDocMissing typedDocMissingCount typedDocMissingTargets
     repairAction guideCodeFlag searchExampleCommand repairCodeCommand codeShapeExemplar
     adapterRepairShape agentRepairStandard
     qualityFacets qualityFacetSteering requiredWitness rewriteScope
     evidence kind name selector))
-;;; Boundary:
-;;; - display-finding-details composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- TypeFinding
+;; display-finding-details
+;;   : (-> TypeFinding Unit)
+;;   | doc m%
+;;       `display-finding-details finding` prints normalized detail fields and
+;;       guide-oriented repair hints for a finding.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (display-finding-details finding)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (display-finding-details finding)
   (let* ((details (type-finding-details finding))
          (parts (and details
@@ -174,24 +240,42 @@
                   (display part))
                 all-parts)
       (newline))))
-;; FindingDetailPart <- Details Key
+;; : (-> Details Key FindingDetailPart )
 (def (finding-detail-part details key)
   (let (value (finding-detail-value details key))
     (and value
          (string-append (symbol->string key)
                         "="
                         (datum->display-string value)))))
-;;; Boundary:
-;;; - finding-detail-value composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; FindingDetailValue <- Details Key
+;; finding-detail-value
+;;   : (-> Details Key (U #f Datum))
+;;   | doc m%
+;;       `finding-detail-value details key` safely returns a detail value, using
+;;       `#f` when the details map cannot provide the key.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (finding-detail-value details 'selector)
+;;       ;; => "src/core.ss:10-12"
+;;       ```
+;;     %
 (def (finding-detail-value details key)
   (with-catch
    (lambda (_) #f)
    (lambda () (hash-get details key))))
-;;; Boundary:
-;;; - datum->display-string composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- Datum
+;; datum->display-string
+;;   : (-> Datum String)
+;;   | doc m%
+;;       `datum->display-string value` renders any displayable datum into the
+;;       compact field-value string used by check output.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (datum->display-string '(typed doc))
+;;       ;; => "(typed doc)"
+;;       ```
+;;     %
 (def (datum->display-string value)
   (call-with-output-string "" (cut display value <>)))

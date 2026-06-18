@@ -2,7 +2,7 @@
 (package: sample/orders)
 (export total)
 
-;; Number <- (List Number)
+;; : (-> (List Number) Number )
 (def (total xs)
   (for/fold ((acc 0)) ((x xs))
     (+ acc x)))

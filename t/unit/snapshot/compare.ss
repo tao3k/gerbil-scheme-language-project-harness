@@ -8,7 +8,7 @@
 
 (export check-compare-snapshot-fields
         check-compare-snapshot-fixtures)
-;; String <- String
+;; : (-> String String )
 (def (compare-fact-by-id id)
   (or (find (lambda (fact)
               (equal? (hash-get fact 'id) id))

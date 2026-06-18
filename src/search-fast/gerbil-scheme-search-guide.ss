@@ -9,7 +9,7 @@
 ;;; Arg normalization:
 ;;; - Fast-path binaries may be invoked as `search guide` or directly as `guide`.
 ;;; - Strip the routing prefix and leave topic/rule flags untouched.
-;; Args <- CommandLine
+;; : (-> CommandLine Args )
 (def (search-guide-args)
   (let (args (cddr (command-line)))
     (cond
@@ -26,7 +26,7 @@
 ;;; Entrypoint:
 ;;; - Guide sections own rendering content.
 ;;; - This wrapper only adapts process argv to line output.
-;; ExitCode <- Args
+;; : (-> Args ExitCode )
 (def (main . args)
   (for-each displayln (guide-section-lines-for args))
   0)

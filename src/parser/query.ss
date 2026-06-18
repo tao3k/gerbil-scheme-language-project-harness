@@ -9,10 +9,19 @@
 (export matching-definitions
         ranked-files
         ranked-query-files)
-;;; Boundary:
-;;; - matching-definitions composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List Definition) <- (List Definition) (List Definition)
+;; matching-definitions
+;;   : (-> (List Definition) (List String) (List Definition))
+;;   | doc m%
+;;       `matching-definitions definitions terms` keeps definitions whose names
+;;       contain at least one query term, case-insensitively.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (matching-definitions definitions '("policy"))
+;;       ;; => matching definitions
+;;       ```
+;;     %
 (def (matching-definitions definitions terms)
   (if (null? terms)
     definitions
@@ -23,19 +32,37 @@
                                  (string-downcase term)))
               terms))
      definitions)))
-;;; Boundary:
-;;; - ranked-files composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex
+;; ranked-files
+;;   : (-> ProjectIndex (List SourceFile))
+;;   | doc m%
+;;       `ranked-files index` returns source files ordered by descending
+;;       definition count.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (map source-file-path (ranked-files index))
+;;       ;; => owner paths
+;;       ```
+;;     %
 (def (ranked-files index)
   (sort (project-index-files index)
         (lambda (a b)
           (> (length (source-file-definitions a))
              (length (source-file-definitions b))))))
-;;; Boundary:
-;;; - ranked-query-files composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex Query
+;; ranked-query-files
+;;   : (-> ProjectIndex String (List SourceFile))
+;;   | doc m%
+;;       `ranked-query-files index query` ranks source files by query score,
+;;       then by definition count and stable owner path.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (ranked-query-files index "typed doc")
+;;       ;; => ranked source files
+;;       ```
+;;     %
 (def (ranked-query-files index query)
   (let* ((terms (query-terms query))
          (scored
@@ -49,7 +76,7 @@
                (lambda (left right)
                  (ranked-query-file>? (car left) (cdr left)
                                       (car right) (cdr right)))))))
-;; Boolean <- Left LeftScore Right RightScore
+;; : (-> Left LeftScore Right RightScore Boolean )
 (def (ranked-query-file>? left left-score right right-score)
   (cond
    ((> left-score right-score) #t)
@@ -59,21 +86,39 @@
    ((< (length (source-file-definitions left))
        (length (source-file-definitions right))) #f)
    (else (string<? (source-file-path left) (source-file-path right)))))
-;;; Invariant:
-;;; - source-file-query-score owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Integer <- SourceFile (List SourceFile)
+;; source-file-query-score
+;;   : (-> SourceFile (List String) Integer)
+;;   | doc m%
+;;       `source-file-query-score file terms` counts how many normalized terms
+;;       are present in the file query haystack.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (source-file-query-score file '("macro" "policy"))
+;;       ;; => 2
+;;       ```
+;;     %
 (def (source-file-query-score file terms)
   (let (haystack (string-downcase (source-file-query-haystack file)))
     (length (filter (cut string-contains haystack <>)
                     terms))))
-;; SourceFileQueryHaystack <- SourceFile
+;; : (-> SourceFile SourceFileQueryHaystack )
 (def (source-file-query-haystack file)
   (join (source-file-query-terms file) " "))
-;;; Boundary:
-;;; - source-file-query-terms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- SourceFile
+;; source-file-query-terms
+;;   : (-> SourceFile (List String))
+;;   | doc m%
+;;       `source-file-query-terms file` returns searchable terms derived from a
+;;       source file path, package metadata, imports, exports, and definitions.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (source-file-query-terms file)
+;;       ;; => searchable terms
+;;       ```
+;;     %
 (def (source-file-query-terms file)
   (filter searchable-term?
           (append
@@ -104,17 +149,17 @@
                         (source-file-dependency-adapter-quality-facts file))
            (append-map* call-query-terms
                         (source-file-calls file)))))
-;; Integer <- Definition
+;; : (-> Definition Integer )
 (def (definition-query-terms defn)
   [(definition-name defn)
    (definition-kind defn)
    (definition-selector defn)])
-;; Integer <- Form
+;; : (-> Form Integer )
 (def (top-form-query-terms form)
   [(top-form-head form)
    (top-form-kind form)
    (top-form-selector form)])
-;; Integer <- String
+;; : (-> String Integer )
 (def (module-import-query-terms import)
   (append ["import" "module-import"
            (module-import-fact-module import)
@@ -123,7 +168,7 @@
            (module-import-fact-alias import)
            (module-import-fact-selector import)]
           (module-import-fact-symbols import)))
-;; Integer <- Macro
+;; : (-> Macro Integer )
 (def (macro-query-terms macro)
   ["macro"
    (macro-fact-name macro)
@@ -131,7 +176,7 @@
    (macro-fact-transformer macro)
    (macro-fact-phase macro)
    (macro-fact-selector macro)])
-;; Integer <- Binding
+;; : (-> Binding Integer )
 (def (binding-query-terms binding)
   ["binding"
    (binding-fact-name binding)
@@ -139,7 +184,7 @@
    (binding-fact-scope binding)
    (binding-fact-value-type binding)
    (binding-fact-selector binding)])
-;; (List SearchTerm) <- PooFormFact
+;; : (-> PooFormFact (List SearchTerm) )
 (def (poo-query-terms fact)
   (append ["poo"
            "object-system"
@@ -155,7 +200,7 @@
           (poo-form-fact-options fact)
           (poo-form-fact-specializers fact)
           (poo-form-fact-specializer-types fact)))
-;; (List SearchTerm) <- HigherOrderFact
+;; : (-> HigherOrderFact (List SearchTerm) )
 (def (higher-order-query-terms fact)
   ["higher-order"
    (higher-order-fact-name fact)
@@ -163,7 +208,7 @@
    (higher-order-fact-role fact)
    (higher-order-fact-caller fact)
    (higher-order-fact-selector fact)])
-;; Integer <- ControlFlowFact
+;; : (-> ControlFlowFact Integer )
 (def (control-flow-query-terms fact)
   ["control-flow"
    (control-flow-fact-name fact)
@@ -172,7 +217,7 @@
    (control-flow-fact-caller fact)
    (control-flow-fact-selector fact)])
 
-;; (List SearchTerm) <- DependencyAdapterQualityFact
+;; : (-> DependencyAdapterQualityFact (List SearchTerm) )
 (def (dependency-adapter-quality-query-terms fact)
   (append ["dependency-adapter-quality"
            "dependency-protocol-adapter"
@@ -196,43 +241,79 @@
           [(dependency-adapter-quality-fact-manual-object-encoding-risk fact)
            (dependency-adapter-quality-fact-generic-contract-witness-kind fact)]))
 
-;;; Boundary:
-;;; - call-query-terms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- CallFact
+;; call-query-terms
+;;   : (-> CallFact (List String))
+;;   | doc m%
+;;       `call-query-terms call` returns searchable terms for a call fact,
+;;       including callee, caller, selector, and argument types.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (call-query-terms call)
+;;       ;; => call search terms
+;;       ```
+;;     %
 (def (call-query-terms call)
   (append ["call"
            (call-fact-callee call)
            (call-fact-caller call)
            (call-fact-selector call)]
           (filter searchable-term? (call-fact-argument-types call))))
-;;; Boundary:
-;;; - query-terms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- Query
+;; query-terms
+;;   : (-> String (List String))
+;;   | doc m%
+;;       `query-terms query` tokenizes a query and returns searchable lowercase
+;;       terms.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (query-terms "Typed Doc")
+;;       ;; => ("typed" "doc")
+;;       ```
+;;     %
 (def (query-terms query)
   (map string-downcase
        (filter searchable-term? (split-query query))))
-;;; Invariant:
-;;; - split-query owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; SplitQuery <- Query
+;; split-query
+;;   : (-> String (List String))
+;;   | doc m%
+;;       `split-query query` tokenizes a query string using Gerbil's string
+;;       tokenizer.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (split-query "macro policy")
+;;       ;; => ("macro" "policy")
+;;       ```
+;;     %
 (def (split-query query)
   (string-tokenize query))
-;; Boolean <- Char
+;; : (-> Char Boolean )
 (def (query-separator? char)
   (or (char=? char #\space)
       (char=? char #\tab)
       (char=? char #\newline)
       (char=? char #\return)
       (char=? char #\|)))
-;;; Boundary:
-;;; - append-map* composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- (YY <- XX) Values
+;; append-map*
+;;   : (forall (a b) (-> (-> a (List b)) (List a) (List b)))
+;;   | doc m%
+;;       `append-map* proc values` maps `proc` across `values` and appends the
+;;       returned lists.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (append-map* (lambda (x) [x x]) '(1 2))
+;;       ;; => (1 1 2 2)
+;;       ```
+;;     %
 (def (append-map* proc values)
   (apply append (map proc values)))
-;; Boolean <- SearchTerm
+;; : (-> SearchTerm Boolean )
 (def (searchable-term? value)
   (and value
        (string? value)

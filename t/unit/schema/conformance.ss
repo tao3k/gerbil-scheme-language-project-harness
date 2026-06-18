@@ -14,10 +14,10 @@
         check-extension-pattern-json-schema-conformance
         check-compare-json-schema-conformance
         check-structural-index-json-schema-conformance)
-;; Json <- Table Key
+;; : (-> Table Key Json )
 (def (json-get table key)
   (hash-get table key))
-;; Json <- (List XX)
+;; : (-> (List XX) Json )
 (def (search-json args)
   (let* ((status #f)
          (output
@@ -27,7 +27,7 @@
                 (set! status (search-main args)))))))
     (check status => 0)
     (call-with-input-string output read-json)))
-;; Json <- (List XX)
+;; : (-> (List XX) Json )
 (def (info-json args)
   (let* ((status #f)
          (output
@@ -37,10 +37,10 @@
                 (set! status (info-main args)))))))
     (check status => 0)
     (call-with-input-string output read-json)))
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (schema-json file)
   (call-with-input-file (string-append "schemas/" file) read-json))
-;; Integer <- Packet SchemaFile
+;; : (-> Packet SchemaFile Integer )
 (def (check-packet-conforms-to-schema! packet schema-file)
   (let (schema (schema-json schema-file))
     (check (missing-required-fields packet schema) => [])
@@ -48,7 +48,7 @@
      (lambda (entry)
        (check (json-get packet (car entry)) => (cdr entry)))
      (top-level-const-fields schema))))
-;; Boolean <- Rules String
+;; : (-> Rules String Boolean )
 (def (has-rule-id? rules id)
   (cond
    ((null? rules) #f)
@@ -68,12 +68,12 @@
     (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-R011") => #t)
     (check (json-get commands "check")
            => "gerbil-scheme-harness check .")))
-;; MissingRequiredFields <- Packet Schema
+;; : (-> Packet Schema MissingRequiredFields )
 (def (missing-required-fields packet schema)
   (filter (lambda (key)
             (not (hash-key? packet key)))
           (json-get schema "required")))
-;; TopLevelConstFields <- Schema
+;; : (-> Schema TopLevelConstFields )
 (def (top-level-const-fields schema)
   (filter-map
    (lambda (entry)
@@ -254,14 +254,14 @@
            => [0 1])
     (check (json-get (json-get map-fact "fields") "operandCount")
            => 2)))
-;; SyntaxFactJson <- (List SyntaxFactJson) SyntaxFactKind SyntaxFactName
+;; : (-> (List SyntaxFactJson) SyntaxFactKind SyntaxFactName SyntaxFactJson )
 (def (find-syntax-fact facts kind name)
   (or (find (lambda (fact)
               (and (equal? (json-get fact "kind") kind)
                    (equal? (json-get fact "name") name)))
             facts)
       (error "syntax fact not found" kind name)))
-;; FindSyntaxFactField <- (List XX) String String String Expected
+;; : (-> (List XX) String String String Expected FindSyntaxFactField )
 (def (find-syntax-fact-field facts kind name field expected)
   (or (find (lambda (fact)
               (and (equal? (json-get fact "kind") kind)

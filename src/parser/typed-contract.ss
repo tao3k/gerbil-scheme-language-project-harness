@@ -3,13 +3,15 @@
 
 (import :gerbil/gambit
         :parser/model
+        :parser/typed-comment-metadata
+        :parser/typed-contract-scheme
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/13
                  string-contains
                  string-prefix?
-                 string-ref
                  string-trim
                  string-trim-both)
+        (only-in :std/srfi/1 iota last take-while)
         (only-in :std/sugar andmap cut filter filter-map find foldl hash ormap while with-catch)
         :support/list)
 
@@ -18,7 +20,18 @@
 ;;; Boundary:
 ;;; - typed-contract-facts-from-definitions composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypedContractFact) <- FullPath Relpath (List Definition) (List CallFact) (List HigherOrderFact) (List ControlFlowFact)
+;; typed-contract-facts-from-definitions
+;;   : (-> FullPath Relpath (List Definition) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (List TypedContractFact) )
+;;   | doc m%
+;;       `typed-contract-facts-from-definitions fullpath relpath definitions calls higher-order-forms control-flow-forms`
+;;       attaches adjacent typed comment facts to parsed definitions while preserving parser-owned implementation evidence.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (typed-contract-facts-from-definitions fullpath relpath [] [] [] [])
+;;       ;; => ()
+;;       ```
+;;     %
 (def (typed-contract-facts-from-definitions fullpath relpath definitions calls higher-order-forms control-flow-forms)
   (with-catch
    (lambda (_) '())
@@ -32,13 +45,17 @@
 ;;; Boundary:
 ;;; - typed-contract-fact-from-definition coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; (Maybe TypedContractFact) <- Relpath (List SourceLine) Definition (List CallFact) (List HigherOrderFact) (List ControlFlowFact)
+;; : (-> Relpath (List SourceLine) Definition (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (Maybe TypedContractFact) )
 (def (typed-contract-fact-from-definition relpath lines definition calls higher-order-forms control-flow-forms)
-  (let* ((comment-line-number (fx1- (definition-start definition)))
-         (line (line-at* lines (fx1- comment-line-number)))
-         (contract (typed-contract-comment-body line)))
-    (and contract
-         (let* ((tokens (typed-contract-tokens contract))
+  (let (entry (typed-contract-entry-near-definition lines definition))
+    (and entry
+         (let* ((comment-start (car entry))
+                (comment-end (cadr entry))
+                (contract (caddr entry))
+                (block-style (cadddr entry))
+                (block-facets (typed-contract-entry-facets entry))
+                (typed-comment (typed-contract-entry-typed-comment entry))
+                (tokens (typed-contract-tokens contract))
                 (arrow-count (typed-contract-arrow-count contract))
                 (group-count (typed-contract-group-count contract))
                 (contract-output (typed-contract-output contract))
@@ -59,9 +76,10 @@
                 (matched-control-flow
                  (definition-control-flow-forms definition control-flow-forms))
                 (quality-facets
-                 (typed-contract-quality-facets
-                  definition quality arity-alignment reasons
-                  matched-calls matched-higher-order matched-control-flow))
+                (typed-contract-quality-facets
+                 definition quality arity-alignment reasons
+                 matched-calls matched-higher-order matched-control-flow
+                  block-style block-facets))
                 (repair-evidence
                  (typed-contract-repair-evidence
                   relpath definition contract quality quality-facets
@@ -74,8 +92,8 @@
             relpath
             (definition-start definition)
             (definition-end definition)
-            comment-line-number
-            comment-line-number
+            comment-start
+            comment-end
             contract
             contract-output
             contract-inputs
@@ -87,16 +105,18 @@
             quality
             reasons
             quality-facets
-            repair-evidence)))))
+            repair-evidence
+            typed-comment)))))
 
 ;;; Quality facets are parser-owned evidence for later policy decisions.
 ;;; Keep style signals separate from hard findings so guidance stays flexible.
-;; (List QualityFacet) <- Definition SignatureQuality ArityAlignment (List SignatureReason) (List CallFact) (List HigherOrderFact) (List ControlFlowFact)
-(def (typed-contract-quality-facets definition quality arity-alignment reasons calls higher-order-forms control-flow-forms)
+;; : (-> Definition SignatureQuality ArityAlignment (List SignatureReason) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) BlockStyle (List QualityFacet) (List QualityFacet) )
+(def (typed-contract-quality-facets definition quality arity-alignment reasons calls higher-order-forms control-flow-forms block-style block-facets)
   (dedupe-strings
    (filter identity
            (append
             [(if (pair? reasons) "contract-invalid" "contract-valid")
+             block-style
              quality
              arity-alignment
              (and (> (definition-arity definition) 0) "arity-bearing-definition")
@@ -108,16 +128,17 @@
                   "combinator-candidate")
              (and (over-abstracted-contract-risk? quality calls higher-order-forms)
                   "over-abstracted-contract-risk")]
+            block-facets
             (map control-flow-facet control-flow-forms)))))
 
-;; Boolean <- Definition (List SignatureReason) (List CallFact) (List HigherOrderFact) (List ControlFlowFact)
+;; : (-> Definition (List SignatureReason) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) Boolean )
 (def (combinator-candidate? definition reasons calls higher-order-forms control-flow-forms)
   (and (not (pair? reasons))
        (> (definition-arity definition) 0)
        (or (manual-loop-drift? control-flow-forms)
            (and (pair? calls) (not (pair? higher-order-forms))))))
 
-;; Boolean <- SignatureQuality (List CallFact) (List HigherOrderFact)
+;; : (-> SignatureQuality (List CallFact) (List HigherOrderFact) Boolean )
 (def (over-abstracted-contract-risk? quality calls higher-order-forms)
   (and (member quality ["higher-order-transform" "grouped-transform"])
        (not (pair? calls))
@@ -125,7 +146,7 @@
 
 ;;; Manual-loop drift is a style signal, not a forced rewrite by itself.
 ;;; Runtime/control boundaries suppress the signal when loops encode structure.
-;; Boolean <- (List ControlFlowFact)
+;; : (-> (List ControlFlowFact) Boolean )
 (def (manual-loop-drift? control-flow-forms)
   (and (control-flow-role-present? control-flow-forms "manual-loop")
        (not (ormap (cut control-flow-role-present? control-flow-forms <>)
@@ -134,18 +155,18 @@
 
 ;;; Role lookup keeps control-flow facet detection declarative.
 ;;; Callers can compose role predicates without inlining loop tests.
-;; Boolean <- (List ControlFlowFact) String
+;; : (-> (List ControlFlowFact) String Boolean )
 (def (control-flow-role-present? control-flow-forms role)
   (ormap (lambda (fact) (equal? (control-flow-fact-role fact) role))
          control-flow-forms))
 
-;; QualityFacet <- ControlFlowFact
+;; : (-> ControlFlowFact QualityFacet )
 (def (control-flow-facet fact)
   (string-append "control-flow:" (control-flow-fact-role fact)))
 
 ;;; Repair evidence packages parser witnesses for guide output.
 ;;; Keep allowed moves flexible while preserving runtime and macro boundaries.
-;; RepairEvidence <- Relpath Definition SignatureContract SignatureQuality (List QualityFacet) (List CallFact) (List HigherOrderFact) (List ControlFlowFact)
+;; : (-> Relpath Definition SignatureContract SignatureQuality (List QualityFacet) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) RepairEvidence )
 (def (typed-contract-repair-evidence relpath definition contract quality quality-facets calls higher-order-forms control-flow-forms)
   (hash (factSource "native-parser")
         (trigger "typed-combinator-style")
@@ -171,7 +192,7 @@
         (witnessNeeded (typed-contract-witness-needed quality-facets))
         (agentRepairMode "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
 
-;; (List RepairMove) <- (List QualityFacet)
+;; : (-> (List QualityFacet) (List RepairMove) )
 (def (typed-contract-allowed-moves quality-facets)
   (dedupe-strings
    (append ["add-or-expand-adjacent-typed-contract-block"]
@@ -183,7 +204,7 @@
              ["replace-manual-loop-with-higher-order-combinator-when-no-state-witness"]
              []))))
 
-;; (List WitnessName) <- (List QualityFacet)
+;; : (-> (List QualityFacet) (List WitnessName) )
 (def (typed-contract-witness-needed quality-facets)
   (dedupe-strings
    (append
@@ -197,7 +218,7 @@
 
 ;;; Definition-scoped call evidence stays attached to the owning helper.
 ;;; Matching by caller name avoids comment-text or selector substring heuristics.
-;; (List CallFact) <- Definition (List CallFact)
+;; : (-> Definition (List CallFact) (List CallFact) )
 (def (definition-calls definition calls)
   (filter (lambda (fact)
             (equal? (or (call-fact-caller fact) "")
@@ -206,7 +227,7 @@
 
 ;;; Definition-scoped higher-order evidence exposes the combinator witness.
 ;;; Matching by caller name keeps map/filter/fold advice parser-owned.
-;; (List HigherOrderFact) <- Definition (List HigherOrderFact)
+;; : (-> Definition (List HigherOrderFact) (List HigherOrderFact) )
 (def (definition-higher-order-forms definition facts)
   (filter (lambda (fact)
             (equal? (or (higher-order-fact-caller fact) "")
@@ -215,21 +236,21 @@
 
 ;;; Definition-scoped control-flow evidence separates real structure from style advice.
 ;;; Matching by caller name keeps loop-risk detection local to the helper.
-;; (List ControlFlowFact) <- Definition (List ControlFlowFact)
+;; : (-> Definition (List ControlFlowFact) (List ControlFlowFact) )
 (def (definition-control-flow-forms definition facts)
   (filter (lambda (fact)
             (equal? (or (control-flow-fact-caller fact) "")
                     (definition-name definition)))
           facts))
 
-;; Json <- CallFact
+;; : (-> CallFact Json )
 (def (call-repair-evidence fact)
   (hash (kind "call")
         (name (call-fact-callee fact))
         (arity (call-fact-arity fact))
         (selector (call-fact-source-selector fact))))
 
-;; Json <- HigherOrderFact
+;; : (-> HigherOrderFact Json )
 (def (higher-order-repair-evidence fact)
   (hash (kind "higher-order")
         (name (higher-order-fact-name fact))
@@ -237,7 +258,7 @@
         (operandCount (higher-order-fact-operand-count fact))
         (selector (higher-order-source-selector fact))))
 
-;; Json <- ControlFlowFact
+;; : (-> ControlFlowFact Json )
 (def (control-flow-repair-evidence fact)
   (hash (kind "control-flow")
         (name (control-flow-fact-name fact))
@@ -246,28 +267,28 @@
         (bodyFormCount (control-flow-fact-body-form-count fact))
         (selector (control-flow-source-selector fact))))
 
-;; Selector <- Definition
+;; : (-> Definition Selector )
 (def (definition-source-selector definition)
   (string-append (definition-path definition) ":"
                  (number->string (definition-start definition))
                  "-"
                  (number->string (definition-end definition))))
 
-;; Selector <- CallFact
+;; : (-> CallFact Selector )
 (def (call-fact-source-selector fact)
   (string-append (call-fact-path fact) ":"
                  (number->string (call-fact-start fact))
                  "-"
                  (number->string (call-fact-end fact))))
 
-;; Selector <- HigherOrderFact
+;; : (-> HigherOrderFact Selector )
 (def (higher-order-source-selector fact)
   (string-append (higher-order-fact-path fact) ":"
                  (number->string (higher-order-fact-start fact))
                  "-"
                  (number->string (higher-order-fact-end fact))))
 
-;; Selector <- ControlFlowFact
+;; : (-> ControlFlowFact Selector )
 (def (control-flow-source-selector fact)
   (string-append (control-flow-fact-path fact) ":"
                  (number->string (control-flow-fact-start fact))
@@ -277,11 +298,130 @@
 ;;; Stable de-duplication keeps quality facets compact while preserving first evidence.
 ;;; Do not sort here.
 ;;; Source-order facets make repair payloads easier to trace.
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (dedupe-strings items)
   (dedupe items))
 
-;; SignatureContract <- SourceLine
+;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-contract-entry-near-definition lines definition)
+  (or (typed-contract-block-entry lines definition)
+      (typed-contract-legacy-entry lines definition)))
+
+;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-contract-legacy-entry lines definition)
+  (let* ((comment-line-number (fx1- (definition-start definition)))
+         (line (line-at* lines (fx1- comment-line-number)))
+         (contract (typed-contract-comment-body line)))
+    (and contract
+         [comment-line-number
+          comment-line-number
+          contract
+          "legacy-contract"
+          (typed-contract-legacy-facets contract)
+          (typed-comment-empty-metadata "legacy-contract" contract)])))
+
+;; : (-> SignatureContract (List QualityFacet))
+(def (typed-contract-legacy-facets contract)
+  (if (string-contains contract "<-")
+    ["legacy-typed-contract"
+     "scheme-native-typed-block-migration"]
+    []))
+
+;; : (-> TypedContractEntry (List QualityFacet))
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet))
+(def (typed-contract-entry-facets entry)
+  (let (tail (cddddr entry))
+    (if (pair? tail)
+      (car tail)
+      [])))
+
+;; : (-> TypedContractEntry TypedCommentMetadata)
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-contract-entry-typed-comment entry)
+  (let (tail (cddddr entry))
+    (if (and (pair? tail) (pair? (cdr tail)))
+      (cadr tail)
+      (typed-comment-empty-metadata "legacy-contract" (caddr entry)))))
+
+;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-contract-block-entry lines definition)
+  (let (block
+        (typed-comment-block-before lines
+                                    (fx1- (definition-start definition))))
+    (typed-comment-block-signature-entry block)))
+
+;;; Invariant:
+;;; - typed-comment-block-before returns source-order entries.
+;;; - The block is contiguous and immediately above the definition.
+;; : (-> (List SourceLine) LineNumber (List TypedCommentLine))
+;; | type TypedCommentLine = (Tuple LineNumber TypedCommentText)
+(def (typed-comment-block-before lines line-number)
+  (map (lambda (current)
+         [current (typed-comment-text (line-at* lines (fx1- current)))])
+       (reverse
+        (take-while (lambda (current)
+                      (typed-comment-line? (line-at* lines (fx1- current))))
+                    (iota line-number line-number -1)))))
+
+;; : (-> SourceLine Boolean)
+(def (typed-comment-line? line)
+  (and (string? line)
+       (let (trimmed (string-trim line))
+         (and (string-prefix? ";;" trimmed)
+              (not (string-prefix? ";;; -*-" trimmed))))))
+
+;; : (-> SourceLine TypedCommentText)
+(def (typed-comment-text line)
+  (string-trim (drop-leading-semicolons (string-trim line))))
+
+;; : (-> (List TypedCommentLine) (Maybe TypedContractEntry))
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-comment-block-signature-entry block)
+  (let (signature-start (find typed-comment-signature-start? block))
+    (and signature-start
+         (typed-comment-signature-entry block signature-start))))
+
+;; : (-> TypedCommentLine Boolean)
+(def (typed-comment-signature-start? entry)
+  (string-prefix? ":" (string-trim (cadr entry))))
+
+;; : (-> (List TypedCommentLine) TypedCommentLine TypedContractEntry)
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-comment-signature-entry block signature-start)
+  (let* ((signature-entries
+          (cons signature-start
+                (take-while (lambda (entry)
+                              (not (typed-comment-section-start? entry)))
+                            (cdr (member signature-start block)))))
+         (entries (member signature-start block))
+         (section-entries (drop entries (length signature-entries)))
+         (parts
+          (filter-map
+           (lambda (entry)
+             (let* ((text (string-trim (cadr entry)))
+                    (part (if (typed-comment-signature-start? entry)
+                            (typed-comment-strip-signature-marker text)
+                            text)))
+               (and (not (blank-string? part)) part)))
+           signature-entries)))
+    [(typed-comment-signature-comment-start block signature-start)
+     (typed-comment-block-end-line entries)
+     (join-nonblank-with-space parts)
+     "scheme-native-block"
+     (typed-comment-section-facets section-entries)
+     (typed-comment-metadata block
+                             signature-start
+                             (join-nonblank-with-space parts)
+                             section-entries)]))
+
+;; : (-> (List TypedCommentLine) LineNumber)
+(def (typed-comment-block-end-line entries)
+  (car (last entries)))
+
+;; : (-> SourceLine SignatureContract )
 (def (typed-contract-comment-body line)
   (and (string? line)
        (let (trimmed (string-trim line))
@@ -289,9 +429,10 @@
               (not (string-prefix? ";;; -*-" trimmed))
               (let (body (typed-contract-body-text trimmed))
                 (and (not (blank-string? body))
+                     (not (string-prefix? "|" (string-trim body)))
                      body))))))
 
-;; SignatureContract <- SourceLine
+;; : (-> SourceLine SignatureContract )
 (def (typed-contract-body-text trimmed)
   (let (body (string-trim (drop-leading-semicolons trimmed)))
     (if (string-prefix? ":" body)
@@ -301,7 +442,7 @@
 ;;; Invariant:
 ;;; - drop-leading-semicolons owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; SourceLine <- SourceLine
+;; : (-> SourceLine SourceLine )
 (def (drop-leading-semicolons text)
   (let ((length (string-length text))
         (index 0))
@@ -310,7 +451,7 @@
       (set! index (fx1+ index)))
     (substring text index length)))
 
-;; (List SignatureReason) <- Definition SignatureContract (List SignatureToken) Integer Integer
+;; : (-> Definition SignatureContract (List SignatureToken) Integer Integer (List SignatureReason) )
 (def (typed-contract-invalid-reasons definition contract tokens arrow-count group-count)
   (append
    (if (string-contains contract ";") ["inline-comment"] [])
@@ -321,11 +462,14 @@
    (if (typed-contract-unknown-token? tokens)
      ["unknown-or-any-token"]
      [])
+   (if (typed-contract-placeholder-token? tokens)
+     ["placeholder-type-variable-token"]
+     [])
    (if (typed-contract-simple-placeholder? tokens arrow-count group-count)
      ["placeholder-contract-without-domain-or-higher-order-shape"]
      [])))
 
-;; SignatureQuality <- (List SignatureReason) Integer Integer
+;; : (-> (List SignatureReason) Integer Integer SignatureQuality )
 (def (typed-contract-quality reasons arrow-count group-count)
   (cond
    ((pair? reasons) "invalid")
@@ -334,21 +478,21 @@
    ((> group-count 0) "grouped-transform")
    (else "domain-transform")))
 
-;; ArityAlignment <- Definition Integer Integer
+;; : (-> Definition Integer Integer ArityAlignment )
 (def (typed-contract-arity-alignment definition arrow-count contract-input-count)
   (cond
    ((= arrow-count 0) "declaration")
    ((= (definition-arity definition) contract-input-count) "aligned")
    (else "input-count-mismatch")))
 
-;; Boolean <- Definition
+;; : (-> Definition Boolean )
 (def (typed-contract-transform-definition? definition)
   (> (definition-arity definition) 0))
 
 ;;; Boundary:
 ;;; - typed-contract-simple-placeholder? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- (List SignatureToken) Integer Integer
+;; : (-> (List SignatureToken) Integer Integer Boolean )
 (def (typed-contract-simple-placeholder? tokens arrow-count group-count)
   (and (= arrow-count 1)
        (find typed-contract-generic-token? tokens)
@@ -357,24 +501,33 @@
 ;;; Boundary:
 ;;; - typed-contract-unknown-token? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- (List SignatureToken)
+;; : (-> (List SignatureToken) Boolean )
 (def (typed-contract-unknown-token? tokens)
   (not (not (find (lambda (token)
                     (member token ["Any" "Unknown"]))
                   tokens))))
 
-;; Boolean <- SignatureToken
+;; : (-> SignatureToken Boolean )
 (def (typed-contract-domain-token? token)
   (and (not (typed-contract-generic-token? token))
        (not (member token ["List" "Maybe" "NonEmptyList" "Vector" "Hash"]))
        (not (member token ["Boolean" "String" "Integer" "Number" "Unit" "Character"]))))
 
-;; Boolean <- SignatureToken
+;; : (-> SignatureToken Boolean )
 (def (typed-contract-generic-token? token)
   (or (typed-contract-type-variable-token? token)
       (member token ["Fact" "Value" "TypeSpec" "Side" "Groups" "Key"])))
 
-;; Boolean <- SignatureToken
+;;; Boundary:
+;;; - Placeholder symbols are low-information type variables from old comments.
+;;; - Keep this as token evidence so policy can repair docs without text scans.
+;; : (-> (List SignatureToken) Boolean )
+(def (typed-contract-placeholder-token? tokens)
+  (not (not (find (lambda (token)
+                    (member token ["XX" "YY" "ZZ"]))
+                  tokens))))
+
+;; : (-> SignatureToken Boolean )
 (def (typed-contract-type-variable-token? token)
   (and (<= (string-length token) 2)
        (string-all-uppercase? token)))
@@ -382,7 +535,7 @@
 ;;; Boundary:
 ;;; - string-all-uppercase? is a predicate over characters.
 ;;; - Keep the non-empty guard separate from the universal character check.
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (string-all-uppercase? text)
   (let (chars (string->list text))
     (and (pair? chars)
@@ -394,7 +547,7 @@
 ;;; Invariant:
 ;;; - typed-contract-tokens owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; (List SignatureToken) <- SignatureContract
+;; : (-> SignatureContract (List SignatureToken) )
 (def (typed-contract-tokens contract)
   (let ((length (string-length contract))
         (index 0)
@@ -414,15 +567,15 @@
        (cons (substring contract start index) tokens)
        tokens))))
 
-;; TypeExpr <- SignatureContract
+;; : (-> SignatureContract TypeExpr )
 (def (typed-contract-output contract)
   (let (arrow (string-contains contract "<-"))
-    (string-trim-both
-     (if arrow
-       (substring contract 0 arrow)
-       contract))))
+    (if arrow
+      (string-trim-both (substring contract 0 arrow))
+      (or (scheme-contract-output contract)
+          contract))))
 
-;; (List TypeExpr) <- SignatureContract
+;; : (-> SignatureContract (List TypeExpr) )
 (def (typed-contract-inputs contract)
   (let (arrow (string-contains contract "<-"))
     (if arrow
@@ -430,114 +583,18 @@
        (substring contract
                   (+ arrow (string-length "<-"))
                   (string-length contract)))
-      [])))
-
-;;; Boundary:
-;;; - split-top-level-type-exprs is a depth-aware parser for type arguments.
-;;; - Fold state tracks index, parenthesis depth, current token start, and output.
-;; (List TypeExpr) <- TypeExprs
-(def (split-top-level-type-exprs text)
-  (let* ((length (string-length text))
-         (state
-          (foldl (cut split-type-expr-step text <> <>)
-                 [0 0 #f '()]
-                 (string->list text))))
-    (split-type-expr-state-output text state)))
-
-;;; Boundary:
-;;; - split-type-expr-step owns one-character type-parser state transitions.
-;;; - Keep branch shape shallow so contract tokenization remains policy-auditable.
-;; SplitTypeExprState <- TypeExprs Character SplitTypeExprState
-(def (split-type-expr-step text ch state)
-  (let ((index (car state))
-        (depth (cadr state))
-        (start (caddr state))
-        (out (cadddr state)))
-    (if (split-type-expr-boundary? ch depth)
-      (split-type-expr-close-state text index depth start out)
-      [(fx1+ index)
-       (split-type-expr-next-depth ch depth)
-       (or start index)
-       out])))
-
-;; Boolean <- Character Depth
-(def (split-type-expr-boundary? ch depth)
-  (and (= depth 0) (char=? ch #\space)))
-
-;; Depth <- Character Depth
-(def (split-type-expr-next-depth ch depth)
-  (cond
-   ((char=? ch #\() (fx1+ depth))
-   ((char=? ch #\)) (max 0 (fx1- depth)))
-   (else depth)))
-
-;; SplitTypeExprState <- TypeExprs Index Depth Start (List TypeExpr)
-(def (split-type-expr-close-state text index depth start out)
-  [(fx1+ index)
-   depth
-   #f
-   (if start
-     (cons-nonblank-type-expr (substring text start index) out)
-     out)])
-
-;; (List TypeExpr) <- TypeExprs SplitTypeExprState
-(def (split-type-expr-state-output text state)
-  (let ((index (car state))
-        (start (caddr state))
-        (out (cadddr state)))
-    (reverse
-     (if start
-       (cons-nonblank-type-expr (substring text start index) out)
-       out))))
-
-;; (List TypeExpr) <- TypeExpr (List TypeExpr)
-(def (cons-nonblank-type-expr value out)
-  (let (trimmed (string-trim-both value))
-    (if (blank-string? trimmed)
-      out
-      (cons trimmed out))))
-
-;; Boolean <- Character
-(def (typed-contract-token-char? ch)
-  (or (char-upper-case? ch)
-      (char-lower-case? ch)
-      (char-numeric? ch)))
-
-;;; Boundary:
-;;; - Count only literal top-level arrow tokens in the source contract text.
-;;; - Indexed character pairs keep the two-character lookahead bounded.
-;; Integer <- SignatureContract
-(def (typed-contract-arrow-count contract)
-  (let (text-length (string-length contract))
-    (length
-     (filter (lambda (entry)
-               (let (index (fx1- (cdr entry)))
-                 (and (< index (fx1- text-length))
-                      (char=? (car entry) #\<)
-                      (char=? (string-ref contract (fx1+ index)) #\-))))
-             (map-indexed cons (string->list contract))))))
-
-;;; Boundary:
-;;; - Group count is a direct predicate count over parentheses.
-;;; - Keep this independent from depth parsing so contract quality facts stay cheap.
-;; Integer <- SignatureContract
-(def (typed-contract-group-count contract)
-  (length
-   (filter (lambda (ch)
-             (or (char=? ch #\()
-                 (char=? ch #\))))
-           (string->list contract))))
+      (or (scheme-contract-inputs contract) []))))
 
 ;;; Boundary:
 ;;; - line-at* is zero-based and total over malformed indices.
 ;;; - Guard before list-ref so typed contract facts never raise on drifted spans.
-;; (Maybe SourceLine) <- (List SourceLine) LineNumber
+;; : (-> (List SourceLine) LineNumber (Maybe SourceLine) )
 (def (line-at* lines index)
   (and (>= index 0)
        (< index (length lines))
        (list-ref lines index)))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (blank-string? value)
   (or (not (string? value))
       (= (string-length (string-trim value)) 0)))

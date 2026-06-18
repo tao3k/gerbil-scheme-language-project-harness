@@ -25,6 +25,7 @@
         write-controlled-branch-shape-project
         write-controlled-branch-loop-shape-project
         write-predicate-family-combinator-project
+        write-projection-burst-project
         write-dependency-protocol-adapter-project
         write-dependency-protocol-adapter-argument-witness-project
         write-dependency-manual-object-adapter-project
@@ -42,18 +43,18 @@
         write-large-policy-test
         write-padded-policy-test
         write-complex-policy-test)
-;; FilterRule <- RuleId (List XX)
+;; : (-> RuleId (List XX) FilterRule )
 (def (filter-rule rule-id findings)
   (filter (lambda (finding)
             (equal? (type-finding-rule-id finding) rule-id))
           findings))
-;; Json <- (List TypeFinding) RuleId
+;; : (-> (List TypeFinding) RuleId Json )
 (def (json-finding-by-rule findings rule-id)
   (cond
    ((null? findings) #f)
    ((equal? (hash-get (car findings) "ruleId") rule-id) (car findings))
    (else (json-finding-by-rule (cdr findings) rule-id))))
-;; CheckOutput <- (List TypeFinding)
+;; : (-> (List TypeFinding) CheckOutput )
 (def (policy-check-output args)
   (let* ((status #f)
          (output
@@ -62,7 +63,7 @@
               (parameterize ((current-output-port out))
                 (set! status (check-main args)))))))
     (cons status output)))
-;; Unit <- String FacadeName FacadeSource CoreSource
+;; : (-> String FacadeName FacadeSource CoreSource Unit )
 (def (write-policy-project root facade-name facade-source core-source)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" facade-name))
@@ -76,7 +77,7 @@
     (delete-file-if-exists owner-entry-path)
     (write-text facade-path facade-source)
     (write-text core-path core-source)))
-;; Unit <- String OwnerName FacadeSource CoreSource
+;; : (-> String OwnerName FacadeSource CoreSource Unit )
 (def (write-owner-entry-policy-project root owner-name facade-source core-source)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" owner-name))
@@ -92,7 +93,7 @@
     (delete-file-if-exists facade-entry-path)
     (write-text facade-path facade-source)
     (write-text core-path core-source)))
-;; Unit <- String OwnerName FacadeSource CoreSource
+;; : (-> String OwnerName FacadeSource CoreSource Unit )
 (def (write-facade-policy-project root owner-name facade-source core-source)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" owner-name))
@@ -108,7 +109,7 @@
     (delete-file-if-exists repeated-entry-path)
     (write-text facade-path facade-source)
     (write-text core-path core-source)))
-;; Unit <- String Source
+;; : (-> String Source Unit )
 (def (write-bin-entrypoint-project root source)
   (let* ((bin (string-append root "/bin"))
          (entrypoint-path (string-append bin "/run.ss")))
@@ -116,7 +117,7 @@
     (ensure-dir root)
     (ensure-dir bin)
     (write-text entrypoint-path source)))
-;; Unit <- String MaybePackageSource
+;; : (-> String MaybePackageSource Unit )
 (def (write-test-directory-layout-project root . maybe-package-source)
   (let ((retired-test (string-append root "/test"))
         (retired-tests (string-append root "/tests"))
@@ -136,7 +137,7 @@
                 ";;; -*- Gerbil -*-\n(import :std/test)\n(def bad-tests-test (test-suite \"bad tests\"))\n")
     (write-text (string-append native-test "/good-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test)\n(def good-test (test-suite \"good\"))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-vague-definition-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -146,7 +147,7 @@
     (ensure-dir owner)
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(def (process order) order)\n(def (order-total order) order)\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-top-level-executable-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -156,7 +157,7 @@
     (ensure-dir owner)
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(import :std/misc/ports)\n(displayln \"bad\")\n(def (named) #t)\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-search-fast-entrypoint-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/search-fast")))
@@ -167,7 +168,7 @@
     (write-text
      (string-append owner "/gerbil-scheme-search-example.ss")
      ";;; -*- Gerbil -*-\n(import :gerbil/gambit)\n(export main)\n(def (main . args) 0)\n(exit (apply main (cdr (command-line))))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-ffi-declare-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/ffi")))
@@ -177,7 +178,7 @@
     (ensure-dir owner)
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(declare\n  (block)\n  (standard-bindings))\n(def (named) #t)\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-poo-declarative-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/poo")))
@@ -188,7 +189,7 @@
     (write-text
      (string-append owner "/core.ss")
      ";;; -*- Gerbil -*-\n(import :clan/poo/object)\n(.def +sample-pattern+\n  selectors:\n      [(hash (role \"selector\")\n             (symbol \"defclass\"))]\n  qualitySignals: [\"source-backed\"])\n(def (named) #t)\n")))
-;; String <- String
+;; : (-> String String )
 (def (write-functional-idiom-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -200,7 +201,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export total)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export total)\n(def (total xs)\n  (let loop ((rest xs) (acc 0))\n    (if (null? rest) acc (loop (cdr rest) (+ acc (car rest))))))\n")))
-;; String <- String
+;; : (-> String String )
 (def (write-functional-idiom-positive-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -212,7 +213,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export total)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export total)\n(def (total xs)\n  (for/fold ((acc 0)) ((x xs)) (+ acc x)))\n")))
-;; String <- String
+;; : (-> String String )
 (def (write-functional-idiom-caller-scope-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -224,7 +225,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export total manual-total)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export total manual-total)\n(def (total xs)\n  (for/fold ((acc 0)) ((x xs)) (+ acc x)))\n(def (manual-total xs)\n  (let loop ((rest xs) (acc 0))\n    (if (null? rest) acc (loop (cdr rest) (+ acc (car rest))))))\n")))
-;; String <- String
+;; : (-> String String )
 (def (write-functional-idiom-reader-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -236,7 +237,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export read-values)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import :std/misc/ports)\n(export read-values)\n(def (read-values port)\n  (let loop ((out '()))\n    (let (line (read-line port))\n      (if (eof-object? line) (reverse out) (loop (cons line out))))))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-controlled-branch-shape-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -248,7 +249,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export decode-order)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export decode-order)\n(def (decode-order event)\n  (match event\n    (['created id] id)\n    (else #f))\n  (match event\n    (['cancelled id] id)\n    (else #f)))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-controlled-branch-loop-shape-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -260,7 +261,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export select-orders)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export select-orders)\n(def (select-orders facts state)\n  (match state\n    ([seen out remaining]\n     (let lp ((rest facts) (seen seen) (out out) (remaining remaining))\n       (cond\n        ((or (null? rest) (<= remaining 0))\n         [seen out remaining])\n        (else\n         (lp (cdr rest) seen out remaining)))))))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-predicate-family-combinator-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -270,7 +271,20 @@
     (ensure-dir owner)
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n;;; Predicate boundary:\n;;; - Keep duplicated role extraction visible for predicate-family policy tests.\n;; Boolean <- CreatedEventFact\n(def (created-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (equal? (field-string fields 'role) \"created\"))))\n;;; Predicate boundary:\n;;; - Keep the accepted role set inline so repeated field access remains detectable.\n;; Boolean <- PaymentEventFact\n(def (paid-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (member (field-string fields 'role) '(\"paid\" \"settled\")))))\n;;; Predicate boundary:\n;;; - Keep cancellation as a single-purpose predicate for family grouping evidence.\n;; Boolean <- CancelledEventFact\n(def (cancelled-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (equal? (field-string fields 'role) \"cancelled\"))))\n")))
-;; Unit <- String Complete Witness
+;; : (-> String Unit )
+(def (write-projection-burst-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (write-text (string-append root "/gerbil.pkg")
+                "(package: sample/orders)\n")
+    (write-text
+     (string-append owner "/core.ss")
+     ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; String <- OrderFact\n(def (emit-order-line order)\n  (displayln\n   (string-append\n    \"id=\" (hash-get order 'id)\n    \" state=\" (hash-get order 'state)\n    \" total=\" (hash-get order 'total)\n    \" currency=\" (hash-get order 'currency)\n    \" id2=\" (hash-get order 'id)\n    \" state2=\" (hash-get order 'state)))\n  (displayln\n   (string-append\n    \"total2=\" (hash-get order 'total)\n    \" currency2=\" (hash-get order 'currency)\n    \" id3=\" (hash-get order 'id)\n    \" state3=\" (hash-get order 'state)\n    \" total3=\" (hash-get order 'total)\n    \" currency3=\" (hash-get order 'currency))))\n")))
+;; : (-> String Complete Witness Unit )
 (def (write-dependency-protocol-adapter-project root complete? witness?)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders"))
@@ -301,13 +315,13 @@
       (write-text (string-append test-dir "/dict-test.ss")
                   ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def (table-contract-tests adapter) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests (OrderDict. String)) => (OrderDict. String)))))\n")
       (delete-file-if-exists (string-append test-dir "/dict-test.ss")))))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-dependency-protocol-adapter-argument-witness-project root)
   (write-dependency-protocol-adapter-project root #t #f)
   (let (test-dir (string-append root "/t"))
     (write-text (string-append test-dir "/dict-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def order-dict-adapter OrderDict.)\n(def (table-contract-tests adapter sample) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests OrderDict. \"sample\") => OrderDict.))))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-dependency-manual-object-adapter-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders"))
@@ -324,7 +338,7 @@
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/orderdict\n           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n           list->orderdict orderdict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./table methods.table))\n(define-type (OrderDict. @ [methods.table] Value)\n  Key: String\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: (lambda (d k) (hash-get (hash) k))\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n")
     (write-text (string-append test-dir "/dict-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def (table-contract-tests adapter) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests (OrderDict. String)) => (OrderDict. String)))))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-check-changed-project root)
   (let* ((src (string-append root "/src"))
          (changed (string-append src "/changed"))
@@ -339,26 +353,26 @@
                 ";;; -*- Gerbil -*-\n(package: sample/changed)\n(def changed-value 1)\n")
     (write-text (string-append stable "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/stable)\n(def stable-value 1)\n")))
-;; InitializeGitFixture <- String
+;; : (-> String InitializeGitFixture )
 (def (initialize-git-fixture root)
   (run-git root ["init"])
   (run-git root ["config" "user.email" "gerbil-harness@example.invalid"])
   (run-git root ["config" "user.name" "Gerbil Harness Test"])
   (run-git root ["add" "."])
   (run-git root ["commit" "-m" "baseline"]))
-;; RunGit <- String (List XX)
+;; : (-> String (List XX) RunGit )
 (def (run-git root args)
   (void
    (run-process (cons "git" args)
                 directory: root
                 stderr-redirection: #t)))
-;; ResetFixtureRoot <- String
+;; : (-> String ResetFixtureRoot )
 (def (reset-fixture-root root)
   (when (file-exists? root)
     (void
      (run-process ["rm" "-rf" root]
                   stderr-redirection: #t))))
-;; String <- String
+;; : (-> String String )
 (def (write-functional-idiom-control-context-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -370,7 +384,7 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export drain)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export drain)\n(def (drain xs)\n  (let/cc stop\n    (let loop ((rest xs))\n      (if (null? rest) (stop #f) (loop (cdr rest)))))\n  (try (void) (finally (void))))\n")))
-;; Unit <- String Allowed
+;; : (-> String Allowed Unit )
 (def (write-macro-runtime-source-project root allowed?)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/macros")))
@@ -384,7 +398,7 @@
       (delete-file-if-exists (string-append root "/gerbil.pkg")))
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/macros)\n(defsyntax (with-order stx)\n  #'(void))\n")))
-;; String <- String Declared
+;; : (-> String Declared String )
 (def (write-protocol-evidence-project root declared?)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -398,22 +412,22 @@
                  (if declared? "(defprotocol <Renderable>)\n" "")
                  "(defgeneric :render)\n"
                  "(defmethod (:render (value <Renderable>)) value)\n"))))
-;; EnsureDir <- String
+;; : (-> String EnsureDir )
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-;; Unit <- String SourceLine
+;; : (-> String SourceLine Unit )
 (def (write-text path text)
   (delete-file-if-exists path)
   (call-with-output-file path
     (lambda (port) (display text port))))
-;; DeleteFileIfExists <- String
+;; : (-> String DeleteFileIfExists )
 (def (delete-file-if-exists path)
   (with-catch
    (lambda (_) #f)
    (lambda () (delete-file path))))
-;; Unit <- String OwnerName
+;; : (-> String OwnerName Unit )
 (def (write-large-policy-source root owner-name)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" owner-name))
@@ -440,10 +454,10 @@
           (when (fx< index 610)
             (display ";; padding\n" port)
             (lp (fx1+ index))))))))
-;; Unit <- String OwnerName
+;; : (-> String OwnerName Unit )
 (def (write-large-policy-test root owner-name)
   (write-padded-policy-test root owner-name 650))
-;; Unit <- String OwnerName PaddingLineCount
+;; : (-> String OwnerName PaddingLineCount Unit )
 (def (write-padded-policy-test root owner-name padding-line-count)
   (let* ((test-dir (string-append root "/t"))
          (source-path (string-append test-dir "/" owner-name "-test.ss")))
@@ -465,7 +479,7 @@
           (when (fx< index padding-line-count)
             (display ";; generated replay padding\n" port)
             (lp (fx1+ index))))))))
-;; Unit <- String OwnerName TestCaseCount
+;; : (-> String OwnerName TestCaseCount Unit )
 (def (write-complex-policy-test root owner-name test-case-count)
   (let* ((test-dir (string-append root "/t"))
          (source-path (string-append test-dir "/" owner-name "-test.ss")))

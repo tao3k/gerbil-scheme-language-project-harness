@@ -203,7 +203,7 @@
         (check (poo-extension-active? index) => #f)
         (check (project-extension-json index) => '())
         (check (project-extension-search-lines index) => '())))))
-;; Unit <- String PackageName (List XX)
+;; : (-> String PackageName (List XX) Unit )
 (def (write-extension-project root package-name dependencies)
   (let* ((src (string-append root "/src"))
          (package-path (string-append root "/gerbil.pkg"))
@@ -220,10 +220,10 @@
                  ")\n"))
     (write-text source-path
                 (string-append "(package: " package-name "/main)\n(def answer 42)\n"))))
-;; DependencyListSource <- (List DependencyName)
+;; : (-> (List DependencyName) DependencyListSource )
 (def (dependency-list-source dependencies)
   (string-append "(" (quoted-string-list-source dependencies) ")"))
-;; QuotedStringListSource <- (List DependencyName)
+;; : (-> (List DependencyName) QuotedStringListSource )
 (def (quoted-string-list-source dependencies)
   (match dependencies
     ([] "")
@@ -231,12 +231,12 @@
     ([dependency . more]
      (string-append "\"" dependency "\" "
                     (quoted-string-list-source more)))))
-;; EnsureDir <- String
+;; : (-> String EnsureDir )
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-;; Unit <- String SourceLine
+;; : (-> String SourceLine Unit )
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)

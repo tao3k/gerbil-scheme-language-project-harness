@@ -23,22 +23,22 @@
         guide-code-lines
         guide-main
         print-guide)
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (guide-lines-for args)
   (guide-section-lines-for args))
 
 ;; (List String)
 (def (guide-lines)
   (guide-section-lines-for []))
-;; Boolean <- (List String) Flag
+;; : (-> (List String) Flag Boolean )
 (def (arg-present? args flag)
   (and (member flag args) #t))
-;; Boolean <- Value Fragment
+;; : (-> Value Fragment Boolean )
 (def (string-has? value fragment)
   (and value (string-contains value fragment) #t))
 ;;; Catalog route lookup: accept a full finding/rule fragment, then keep the
 ;;; first catalog-backed guide topic so guide and repair do not drift.
-;; RuleTopic <- Rule
+;; : (-> Rule RuleTopic )
 (def (rule-topic rule)
   (and rule
        (let (matches
@@ -47,26 +47,26 @@
                                 (agent-rule-guide-topic rule-id)))
                          (agent-steering-rule-ids)))
          (and (pair? matches) (car matches)))))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-intent args)
   (or (option "--intent" args)
       (option "--role" args)
       "study"))
-;; IntentTopic <- String
+;; : (-> String IntentTopic )
 (def (intent-topic intent)
   (cond
    ((equal? intent "witness") "macro-runtime-source")
    (else #f)))
-;; Topic <- (List String)
+;; : (-> (List String) Topic )
 (def (positional-topic args)
   (let (positionals (positional-args (drop-project-root args)))
     (and (pair? positionals) (car positionals))))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (runtime-source-topic-token? topic)
   (or (equal? topic "macro")
       (equal? topic "runtime-source")
       (equal? topic "macro-runtime-source")))
-;; Query <- (List String)
+;; : (-> (List String) Query )
 (def (runtime-source-guide-query args)
   (or (option "--query" args)
       (let (positionals (positional-args (drop-project-root args)))
@@ -81,7 +81,7 @@
 ;;; Boundary:
 ;;; - Add aliases only when they route to an existing source-backed exemplar.
 ;;; - Keep topic fallback stable so policy repair nextCommand rows remain valid.
-;; CanonicalTopic <- String
+;; : (-> String CanonicalTopic )
 (def (canonical-topic topic)
   (cond
    ((or (equal? topic "poo") (equal? topic "poo-policy")) "poo-policy")
@@ -119,7 +119,7 @@
         (equal? topic "import-precision"))
     "explicit-precise-import")
    (else "higher-order-control")))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-topic args)
   (canonical-topic
    (or (option "--topic" args)
@@ -128,16 +128,25 @@
        (intent-topic (guide-intent args))
        (positional-topic args)
        "typed-combinator-style")))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-level args)
   (or (option "--level" args) "normal"))
-;; Boolean <- Level
+;; : (-> Level Boolean )
 (def (advanced-level? level)
   (or (equal? level "advanced") (equal? level "full")))
-;;; Boundary:
-;;; - emit-exemplar-source composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- String String (List XX) IncludeFileComment
+;; emit-exemplar-source
+;;   : (-> String String (List Symbol) Boolean Unit)
+;;   | doc m%
+;;       `emit-exemplar-source root owner symbols include-file-comment?` prints
+;;       the requested exemplar definitions from an owner source file.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-exemplar-source "." "src/support/list.ss" '(dedupe) #t)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (emit-exemplar-source root owner symbols include-file-comment?)
   (let* ((index (collect-project root))
          (file (guide-source-file index owner)))
@@ -151,39 +160,67 @@
      (map (lambda (symbol)
             (guide-definition file owner symbol))
           symbols))))
-;;; Invariant:
-;;; - emit-definition-exemplar-sources owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Unit <- String (List Definition)
+;; emit-definition-exemplar-sources
+;;   : (-> String (List Definition) Unit)
+;;   | doc m%
+;;       `emit-definition-exemplar-sources root definitions` prints each
+;;       exemplar definition with its leading comments, separated by blank
+;;       definition boundaries.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-definition-exemplar-sources "." [])
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (emit-definition-exemplar-sources root definitions)
   (display
    (join (map (cut read-definition-with-leading-comments root <>)
               definitions)
          "\n")))
-;;; Invariant:
-;;; - guide-source-file owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; String <- ProjectIndex String
+;; guide-source-file
+;;   : (-> ProjectIndex String SourceFile)
+;;   | doc m%
+;;       `guide-source-file index owner` returns the indexed source file for
+;;       the requested owner path, or fails with owner context.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (source-file-path (guide-source-file index "src/orders/core.ss"))
+;;       ;; => "src/orders/core.ss"
+;;       ```
+;;     %
 (def (guide-source-file index owner)
   (or (find (lambda (file) (equal? (source-file-path file) owner))
             (project-index-files index))
       (error "guide exemplar owner not found" owner)))
-;;; Invariant:
-;;; - guide-definition owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; String <- SourceFile String Symbol
+;; guide-definition
+;;   : (-> SourceFile String Symbol Definition)
+;;   | doc m%
+;;       `guide-definition file owner symbol` returns the named definition from
+;;       the source file, or fails with owner and symbol context.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (definition-name (guide-definition file "src/orders/core.ss" 'order-total))
+;;       ;; => "order-total"
+;;       ```
+;;     %
 (def (guide-definition file owner symbol)
   (or (find (lambda (defn) (equal? (definition-name defn) symbol))
             (source-file-definitions file))
       (error "guide exemplar definition not found" owner symbol)))
-;; (List HigherOrderFact) <- String
+;; : (-> String (List HigherOrderFact) )
 (def (emit-higher-order-exemplar-source root)
   (emit-exemplar-source root
                          "src/checker/arity.ss"
                          ["call-arity-finding/known-signature"
                           "run-arity-checks"]
                          #t))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-typed-combinator-style-exemplar-source root)
   (emit-exemplar-source root
                          "src/policy/agent-style.ss"
@@ -191,25 +228,25 @@
                           "typed-combinator-style-function-definitions"
                           "typed-combinator-style-evidence-callers"]
                          #f))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-typed-combinator-style-more-source root)
   (emit-exemplar-source root
                          "src/policy/agent.ss"
                          ["functional-idiom-advice-findings"]
                          #f))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-poo-policy-exemplar-source root)
   (emit-exemplar-source root
                          "src/parser/poo.ss"
                          ["poo-form-facts-from-form"]
                          #t))
-;; Unit <- RuntimeSourceQuery
+;; : (-> RuntimeSourceQuery Unit )
 (def (emit-macro-runtime-source-exemplar-source query)
   (emit-runtime-source-exemplar-source query 0 1))
 ;;; Boundary:
 ;;; - Emit only source/comment text selected from runtime-source acquisition facts.
 ;;; - Keep search packet rows out of guide --code output.
-;; Unit <- RuntimeSourceQuery StartIndex Limit
+;; : (-> RuntimeSourceQuery StartIndex Limit Unit )
 (def (emit-runtime-source-exemplar-source query start limit)
   (let* ((examples (runtime-source-examples query))
          (sources (take* (filter-map runtime-source-example-source
@@ -218,7 +255,7 @@
     (if (pair? sources)
       (display (join sources "\n"))
       (error "runtime-source exemplar selector did not resolve" query))))
-;; (List RuntimeSourceExample) <- (List RuntimeSourceExample) StartIndex
+;; : (-> (List RuntimeSourceExample) StartIndex (List RuntimeSourceExample) )
 (def (drop* xs n)
   (cond
    ((or (fx<= n 0) (null? xs)) xs)
@@ -226,7 +263,7 @@
 ;;; Intent:
 ;;; - Prefer runtime examples that carry source comment extraction evidence.
 ;;; - Preserve the acquisition packet order for examples without comments.
-;; (List RuntimeSourceExample) <- RuntimeSourceQuery
+;; : (-> RuntimeSourceQuery (List RuntimeSourceExample) )
 (def (runtime-source-examples query)
   (let* ((facts (filter (lambda (fact)
                           (evidence-fact-matches-query? fact query))
@@ -243,7 +280,7 @@
 ;;; Boundary:
 ;;; - Comment-backed selectors teach agents the code plus nearby rationale first.
 ;;; - Un-commented examples remain available through progressive --more output.
-;; (List RuntimeSourceExample) <- (List RuntimeSourceExample) (List SourceComment)
+;; : (-> (List RuntimeSourceExample) (List SourceComment) (List RuntimeSourceExample) )
 (def (prioritize-runtime-source-examples examples comments)
   (let* ((selectors (filter-map (cut hash-get <> 'selector) comments))
          (commented (filter (lambda (example)
@@ -253,7 +290,7 @@
                          (not (member (hash-get example 'selector) selectors)))
                        examples)))
     (append commented rest)))
-;; Boolean <- Fact Query
+;; : (-> Fact Query Boolean )
 (def (evidence-fact-matches-query? fact query)
   (let ((haystack (join (hash-get fact 'terms) " "))
         (q (string-downcase query)))
@@ -262,7 +299,7 @@
 ;;; Boundary:
 ;;; - Resolve gerbil-runtime-source selectors through the active runtime tree.
 ;;; - Do not fall back to local harness examples when runtime source is absent.
-;; SourceText <- RuntimeSourceExample
+;; : (-> RuntimeSourceExample SourceText )
 (def (runtime-source-example-source example)
   (let* ((selector (hash-get example 'selector))
          (parts (runtime-source-selector-parts selector)))
@@ -274,7 +311,7 @@
                 (runtime-source-symbol-source root relpath symbol))))))
 ;;; Selector grammar is owned by selectorResolver.output in runtime-source facts.
 ;;; Keep parsing exact so malformed selectors surface as unresolved evidence.
-;; SelectorParts <- RuntimeSourceSelector
+;; : (-> RuntimeSourceSelector SelectorParts )
 (def (runtime-source-selector-parts selector)
   (let* ((prefix "gerbil-runtime-source://")
          (prefix-len (string-length prefix)))
@@ -285,7 +322,7 @@
            (and hash-index
                 [(substring body 0 hash-index)
                  (substring body (fx1+ hash-index) (string-length body))])))))
-;; RuntimeSourceRoot <- Relpath
+;; : (-> Relpath RuntimeSourceRoot )
 (def (runtime-source-root-for relpath)
   (find (lambda (root)
           (file-exists? (path-expand relpath root)))
@@ -326,13 +363,13 @@
          (d8 (runtime-source-parent-directory d7)))
     (dedupe [d0 d1 d2 d3 d4 d5 d6 d7 d8])))
 
-;; Directory <- Directory
+;; : (-> Directory Directory )
 (def (runtime-source-parent-directory dir)
   (path-normalize (path-expand ".." dir)))
 ;;; Boundary:
 ;;; - Prefer parser-owned definitions before top-form fallback for macro-rule forms.
 ;;; - Both paths use source ranges from the native parser.
-;; SourceText <- RuntimeSourceRoot Relpath Symbol
+;; : (-> RuntimeSourceRoot Relpath Symbol SourceText )
 (def (runtime-source-symbol-source root relpath symbol)
   (let* ((file (parse-source-file root relpath))
          (definition (find (lambda (defn)
@@ -345,7 +382,7 @@
       (runtime-source-top-form-source root file symbol)))))
 ;;; Top-form fallback covers macro-form exemplars where the selector names the form head.
 ;;; Definition selectors must be handled before this branch.
-;; SourceText <- RuntimeSourceRoot SourceFile Symbol
+;; : (-> RuntimeSourceRoot SourceFile Symbol SourceText )
 (def (runtime-source-top-form-source root file symbol)
   (let (form (find (lambda (form)
                     (or (equal? (top-form-head form) symbol)
@@ -356,14 +393,14 @@
          (read-line-range (path-expand (source-file-path file) root)
                           (top-form-start form)
                           (top-form-end form)))))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-controlled-branch-shape-exemplar-source root)
   (emit-exemplar-source root
                          "src/commands/search-render.ss"
                          ["ranked-syntax-facts"
                           "select-ranked-syntax-facts"]
                          #t))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-engineering-comment-quality-exemplar-source root)
   (emit-exemplar-source root
                          "src/policy/agent-comment.ss"
@@ -371,7 +408,7 @@
                           "comment-quality-fact-summary"
                           "weak-required-comment-quality-fact?"]
                          #f))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-predicate-family-combinator-exemplar-source root)
   (emit-exemplar-source root
                          "src/parser/quality-shape.ss"
@@ -385,7 +422,7 @@
 ;;; Boundary:
 ;;; - R017 default guidance is sourced from the dependency adapter itself.
 ;;; - The resolver stays bounded to the active workspace and its parent chain.
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-poo-rationaldict-exemplar-source root)
   (let (source-root (poo-rationaldict-exemplar-root root))
     (if source-root
@@ -398,7 +435,7 @@
 ;;; Boundary:
 ;;; - External package exemplars are parsed by the same native parser.
 ;;; - This keeps guide --code source-backed without copying dependency code.
-;; Unit <- String Relpath (List Symbol)
+;; : (-> String Relpath (List Symbol) Unit )
 (def (emit-external-exemplar-source root relpath symbols)
   (let (file (parse-source-file root relpath))
     (emit-definition-exemplar-sources
@@ -414,7 +451,7 @@
 ;;; - The lambda probes only the exact rationaldict source path.
 ;;; Invariant:
 ;;; - Keep lookup non-recursive so guide --code remains deterministic.
-;; MaybeRoot <- String
+;; : (-> String MaybeRoot )
 (def (poo-rationaldict-exemplar-root root)
   (find (lambda (candidate)
           (file-exists?
@@ -423,7 +460,7 @@
          (append [root (current-directory)]
                  (runtime-source-ancestor-directories)))))
 
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-dependency-protocol-adapter-exemplar-source root)
   (emit-exemplar-source root
                          "src/parser/dependency-adapter-quality.ss"
@@ -432,7 +469,7 @@
                           "dependency-adapter-manual-object-encoding-risk"
                           "dependency-adapter-quality-facets"]
                          #t))
-;; Unit <- String
+;; : (-> String Unit )
 (def (emit-explicit-precise-import-exemplar-source root)
   (emit-exemplar-source root
                          "src/policy/agent-import.ss"
@@ -441,7 +478,7 @@
                           "explicit-precise-import-details"]
                          #t))
 ;;; Dispatch boundary: normalized topics route only to source-backed exemplar owners.
-;; Unit <- String String String
+;; : (-> String String String Unit )
 (def (emit-topic-exemplar-source topic root runtime-source-query)
   (cond
    ((or (equal? topic "higher-order-control")
@@ -468,7 +505,7 @@
 ;;; Boundary:
 ;;; - emit-progressive-exemplar-source coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; Unit <- String String Advanced String
+;; : (-> String String Advanced String Unit )
 (def (emit-progressive-exemplar-source topic root advanced? runtime-source-query)
   (cond
    ((or (equal? topic "higher-order-control")
@@ -523,7 +560,7 @@
    (else
     (newline)
     (emit-poo-policy-exemplar-source root))))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (default-guide-source-root args)
   (cond
    ((option "--workspace" args) => values)
@@ -531,7 +568,7 @@
    ((file-directory? "languages/gerbil-scheme-language-project-harness/src")
     "languages/gerbil-scheme-language-project-harness")
    (else (project-root args))))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-code-lines args)
   (let* ((topic (guide-topic args))
          (selector (option "--selector" args))
@@ -547,14 +584,14 @@
       (when more?
         (emit-progressive-exemplar-source topic root advanced? runtime-source-query)))))
   [])
-;; Unit <- (List String)
+;; : (-> (List String) Unit )
 (def (print-guide . maybe-args)
   (let (args (if (pair? maybe-args) (car maybe-args) []))
     (for-each displayln (guide-lines-for args))))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (print-guide-code args)
   (guide-code-lines args))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-main args)
   (if (arg-present? args "--code")
     (print-guide-code args)

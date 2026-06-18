@@ -2,7 +2,7 @@
 (package: sample/poo-fq-descriptors)
 (import :clan/poo/mop :clan/poo/brace)
 
-;; FieldDescriptor <- Exponentiation Multiplication
+;; : (-> Exponentiation Multiplication FieldDescriptor )
 (define-type (F_q. @ [expt<-mul-inv.] .expt .mul-expt)
   .q: (expt .p .n)
   .p: undefined
@@ -20,7 +20,7 @@
   .n<-: pack-field-element
   .<-n: unpack-field-element)
 
-;; BinaryFieldFamily <- FieldDescriptor Integer Polynomial Exponentiation Multiplication
+;; : (-> FieldDescriptor Integer Polynomial Exponentiation Multiplication BinaryFieldFamily )
 (define-type (F_2^n. @ [F_q.] .n .xn .expt .mul-expt)
   .p: 2
   .element?: exact-integer?
@@ -34,7 +34,7 @@
   .n<-: identity
   .<-n: identity)
 
-;; ByteField <- BinaryFieldFamily
+;; : (-> BinaryFieldFamily ByteField )
 (define-type (F_2^8 @ [F_2^n.])
   .n: 8
   .xn: 27)

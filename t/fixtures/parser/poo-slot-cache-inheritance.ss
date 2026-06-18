@@ -20,7 +20,7 @@
   (super-label (next-method))
   local-cache: (compute-cache self))
 
-;; SlotValue <- Object SlotSpec Superfun
+;; : (-> Object SlotSpec Superfun SlotValue )
 (def (slot-cache-boundary self spec superfun)
   (.ref self 'stable)
   (.ref/cached self 'stable "missing")

@@ -11,16 +11,16 @@
 ;; Integer
 (def (monotonic-ms)
   (inexact->exact (floor (* 1000.0 (##current-time-point)))))
-;; Integer <- StartMs EndMs
+;; : (-> StartMs EndMs Integer )
 (def (duration-ms start-ms end-ms)
   (- end-ms start-ms))
-;; Integer <- TotalMs Iterations
+;; : (-> TotalMs Iterations Integer )
 (def (average-duration-ms total-ms iterations)
   (quotient total-ms iterations))
-;; Integer <- TotalMs Iterations
+;; : (-> TotalMs Iterations Integer )
 (def (average-duration-micros total-ms iterations)
   (quotient (* total-ms 1000) iterations))
-;; DurationState <- RawDuration
+;; : (-> RawDuration DurationState )
 (def (duration-state value)
   (if (and (number? value) (>= value 0))
     "measured"

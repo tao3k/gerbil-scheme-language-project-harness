@@ -11,7 +11,7 @@
 ;;; Boundary:
 ;;; - Export facts mirror import facts so agent search can reason about public API shape.
 ;;; - Keep the retired flat export symbol list separate from this item-scoped DSL evidence.
-;; (List ModuleExportFact) <- Relpath Form
+;; : (-> Relpath Form (List ModuleExportFact) )
 (def (module-export-facts-from-form relpath form)
   (filter-map (cut module-export-fact-from-stx relpath <>)
               (cdr (stx-list-items form))))
@@ -19,7 +19,7 @@
 ;;; Boundary:
 ;;; - Item parsing keeps wrapper syntax, source spans, and public names on one export fact.
 ;;; - Preserve this join so query/search can explain re-exports without reading the whole module.
-;; (Maybe ModuleExportFact) <- Relpath Item
+;; : (-> Relpath Item (Maybe ModuleExportFact) )
 (def (module-export-fact-from-stx relpath item)
   (let* ((datum (syntax->datum item))
          (loc (stx-source item))
@@ -39,13 +39,13 @@
 ;;; Boundary:
 ;;; - Export names prefer the public alias, then the explicit module re-export, then the first symbol.
 ;;; - This keeps search names stable without pretending wrapper forms are simple direct exports.
-;; (Maybe String) <- Datum MaybeModule (List SymbolName)
+;; : (-> Datum MaybeModule (List SymbolName) (Maybe String) )
 (def (export-fact-name datum module symbols)
   (or (export-alias datum symbols)
       module
       (and (pair? symbols) (car symbols))))
 
-;; ExportModifier <- Datum
+;; : (-> Datum ExportModifier )
 (def (export-modifier datum)
   (if (pair? datum)
     (datum->string (car datum))
@@ -54,7 +54,7 @@
 ;;; Boundary:
 ;;; - Rename wrappers conventionally expose the last symbol as the public alias.
 ;;; - Direct exports and module re-exports have no separate alias field.
-;; (Maybe String) <- Datum (List SymbolName)
+;; : (-> Datum (List SymbolName) (Maybe String) )
 (def (export-alias datum symbols)
   (and (pair? datum)
        (eq? (car datum) 'rename:)
@@ -63,7 +63,7 @@
 
 ;;; Module reference scan is wrapper-only.
 ;;; Direct exports such as :render are public symbols, not module re-exports.
-;; (Maybe ModuleRef) <- Datum
+;; : (-> Datum (Maybe ModuleRef) )
 (def (export-module-ref datum)
   (and (pair? datum)
        (member (car datum) '(import: only-in except-out phi:))
@@ -76,7 +76,7 @@
 
 ;;; Symbol projection: filter-map keeps only public names and leaves modifier
 ;;; tokens behind, preserving deterministic export facts for search packets.
-;; (List SymbolName) <- Datum
+;; : (-> Datum (List SymbolName) )
 (def (export-symbol-list datum)
   (if (symbol? datum)
     [(symbol->string datum)]
@@ -91,7 +91,7 @@
 ;;; Boundary:
 ;;; - Export symbol filtering removes DSL control tokens but keeps public API names searchable.
 ;;; - Keep module references out of symbol facts so runtime/module selectors remain distinct.
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (export-symbol-name? text)
   (and (not (member text ["export" "import:" "except-out" "rename:" "phi:" "only-in"]))
        (not (string-prefix? ":" text))))

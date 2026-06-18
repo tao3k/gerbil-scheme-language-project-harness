@@ -1,0 +1,175 @@
+#+title: 11.09 Gerbil Harness Agent-Code Self Audit
+#+date: 2026-06-17
+
+* Purpose
+
+This audit treats the harness as an adversarial target: code that merely passes
+the current policy gate can still look agent-written when it encodes local path
+hacks, prose-only source references, repeated fixture scaffolding, or
+string-shaped rules instead of parser-owned facts.
+
+The goal is not to shame a file. The goal is to turn visible low-quality
+patterns into parser facts, policy rules, and repair guidance that keep future
+agent edits closer to Gerbil practice.
+
+* Low-quality signals found in the harness
+
+** Policy scope path hardcoding
+
+Before this audit, =src/policy/agent-style.ss= excluded =t/scenarios/= directly
+inside policy scope checks. That is an agent-shaped shortcut: it fixes one
+warning without teaching the parser what kind of source tree that path is.
+
+The fix moves =t/scenarios/= into parser-owned =source-path-class= as
+=policy-scenario=. The policy now branches on source classes instead of path
+prefixes. A new self-audit rule, =GERBIL-SCHEME-AGENT-R021=, rejects policy
+source that hardcodes fixture, scenario, or snapshot path literals and tells the
+agent to move classification into =src/parser/source-class.ss=.
+
+** String-backed research profile overlays
+
+=src/policy/gerbil-utils-source.ss= is useful, but still too prose-shaped. It
+stores gerbil-utils owners as advisory strings and witness paragraphs. That is
+acceptable as an interim research bridge, but it is not a final-quality policy
+surface. The next improvement should register =gerbil-utils://= selectors or an
+equivalent source-owner packet so policy can consume structured owner facts.
+
+** Repeated inline alist lookup
+
+Repeated =(cdr (assq ...))= is now treated as a generated-code smell. One helper
+can be a compatibility bridge, but repetition hides the data model and makes
+debugging depend on local key spelling. The new =GERBIL-SCHEME-AGENT-R022= rule
+uses parser-owned call facts to report repeated inline =assq/cdr= lookups per
+source owner and directs repair toward records, typed profile accessors, or one
+named lookup helper.
+
+** Anonymous result pair access
+
+Repeated =(car result)= and =(cdr result)= in tests is another generated-code
+smell. A command boundary may return a pair, but repeated call sites should use
+named result accessors or a small record. The new
+=GERBIL-SCHEME-AGENT-R023= rule is intentionally narrow: it checks parser-owned
+call facts for repeated direct =car/cdr= access on a test variable named
+=result= and leaves ordinary list traversal alone.
+
+** Missing higher-order abstraction vocabulary
+
+=gerbil-utils/base.ss= shows that high-quality Gerbil often expresses behavior
+as small higher-order abstractions: =lambda= transform helpers, =case-lambda=
+arity specialization, =cut/curry/rcurry= specialization, and
+=compose/rcompose/!>/!!>= pipelines. The harness already parsed many of these
+forms, but the policy vocabulary was too flat. Parser facets now name
+=lambda-local-abstraction=, =parameterized-transform=,
+=multi-arity-abstraction=, =function-specialization-abstraction=, and
+=function-pipeline-abstraction= so agent repair guidance can ask for these
+specific shapes instead of vague "better abstraction".
+
+** Large generated-looking test scaffolds
+
+Several policy tests still write complete project files with repeated
+=write-text= blocks. The policy scenario runner is a better direction because it
+turns before/after project shape into directory-owned fixtures. New tests should
+prefer scenario fixtures when the case represents a repair workflow, and reserve
+inline =write-text= only for tiny parser facts.
+
+** Shell-template prevention is better, but still marker-heavy
+
+=src/policy/agent-build-support.ss= now requires multiple evidence groups, so it
+is no longer a one-marker warning. Still, its shell control model is mostly
+literal-marker based. The next parser improvement should expose shell-template
+roles as structured call/string facts, then let policy compose those roles.
+
+* Reference practices from .data
+
+** gerbil-poo/io.ss
+
+=.data/gerbil-poo/io.ss= organizes serialization as generic families:
+=marshal=, =unmarshal=, =bytes<-=, =<-bytes=, and type descriptors such as
+=methods.bytes<-marshal=. The important practice is capability modeling before
+implementation. The harness should prefer a family of named facts or profiles
+over one large hash with many loosely related fields.
+
+** gerbil-poo/cli.ss
+
+=.data/gerbil-poo/cli.ss= uses =call-with-processed-command-line= and option
+objects to make CLI handling a protocol. That is better than scattering command
+branches and output writers across build files. Harness CLI/build-support code
+should continue moving command behavior into named runtime helpers.
+
+** gerbil-utils/scripts/build-release.ss
+
+=.data/gerbil-utils/scripts/build-release.ss= is script-like but still decomposes
+work into named steps such as =abort=, =in-gerbil=, manifest checks, and version
+selection. The lesson is not "never use display"; it is "make side effects live
+behind named script steps with precise responsibility."
+
+** gerbil/src/std/build-script.ss
+
+=.data/gerbil/src/std/build-script.ss= uses =defbuild-script= to hide the
+repeated build-main boilerplate while keeping command handling explicit. This is
+the model for future harness script quality: use a small macro or protocol when
+the repetition is semantic, not string concatenation.
+
+* Policy changes from this audit
+
+- Parser-owned =source-path-class= now recognizes =policy-scenario=.
+- =typed-combinator-style-source-file?= and
+  =typed-combinator-style-quality-repair-source-file?= consume source classes
+  instead of direct scenario/fixture path checks.
+- New rule =GERBIL-SCHEME-AGENT-R021= detects policy source scope hardcoding
+  through parser-owned call facts.
+- New rule =GERBIL-SCHEME-AGENT-R022= detects repeated inline =assq/cdr= alist
+  lookup through parser-owned call facts.
+- New rule =GERBIL-SCHEME-AGENT-R023= detects repeated anonymous result pair
+  access in tests through parser-owned call facts.
+- Higher-order parser facets now expose =gerbil-utils/base.ss=-style lambda,
+  case-lambda, specialization, and pipeline abstraction evidence.
+- Parser tests now assert scenario, fixture, snapshot, build, config, and
+  runtime source classes.
+- Policy tests cover both the bad hardcoded path literal and the good
+  =source-path-class= repair.
+
+* Next audit targets
+
+1. Turn =gerbil-utils-source.ss= advisory owner strings into registered,
+   provider-owned selector evidence.
+2. Move more policy repair examples from inline =write-text= strings into
+   =t/scenarios/policy/= before/after fixtures.
+3. Add parser facts for shell-template roles so =agent-build-support.ss= can
+   reduce literal marker lists.
+4. Continue comparing new policy code against =gerbil-poo/io.ss= style: small
+   capability families, explicit method/protocol boundaries, and data only at
+   JSON/report edges.
+* Gerbil-utils/base higher-order abstraction policy update
+
+The =base.ss= study shows that high-quality Gerbil code is not merely shorter.
+Its quality comes from making first-class function boundaries explicit:
+=case-lambda= carries real arity specialization, returned lambdas form small
+function factories, and =cut=/=curry=/=rcurry=/=compose=/=rcompose=/=!>/=!!>=
+name reusable data-flow shapes.
+
+The harness now reflects that distinction in parser-owned facts:
+
+- =function-quality-profile= derives positive facets such as
+  =higher-order-constructor-abstraction=,
+  =arity-specialized-function-factory=, and
+  =base-style-combinator-composition=.
+- Repeated anonymous wrappers only become =wrapper-lambda-drift= when several
+  parser facts agree: the same function profile has at least three anonymous
+  lambdas with repeated non-empty formals and lacks case-lambda, sequence,
+  generator, driver, curry, or composition witnesses.
+- R015 consumes only the profile facets that steer =gerbil-utils/base.ss= style
+  abstraction.  Broader profile facts, such as legacy contract migration, remain
+  searchable evidence and do not become default self-check warnings.
+
+This prevents the previous bad direction where the policy treated callback-heavy
+test/runtime code as low-quality just because it contained multiple lambdas.
+The warning should fire on a real function-factory opportunity, while
+=case-lambda= factories remain positive style evidence.
+
+The self-check repair loop also produced a real code-quality improvement:
+=src/parser/typed-contract.ss= no longer hand-rolls several parser scans with
+named-let loops.  Scheme-native contract parsing was split into
+=src/parser/typed-contract-scheme.ss=, leaving the original owner focused on
+typed-contract fact assembly and bringing the full harness check back to zero
+findings.

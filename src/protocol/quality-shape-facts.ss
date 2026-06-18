@@ -11,7 +11,7 @@
         boolean-condition-structural-fact-json
         loop-driver-structural-fact-json)
 
-;; Json <- PredicateFamilyFact
+;; : (-> PredicateFamilyFact Json )
 (def (predicate-family-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "predicate-family"
                                    (predicate-family-fact-path fact)
@@ -31,7 +31,7 @@
 ;;; Query keys intentionally mix stable identifiers, advice text, and native
 ;;; evidence lists so search can surface the repair boundary without reading
 ;;; the source owner.
-;; (List QueryKey) <- PredicateFamilyFact
+;; : (-> PredicateFamilyFact (List QueryKey) )
 (def (predicate-family-query-keys fact)
   (dedupe
    (filter identity
@@ -49,7 +49,7 @@
                    (predicate-family-fact-repeated-callees fact)
                    (predicate-family-fact-quality-facets fact)))))
 
-;; Json <- PredicateFamilyFact
+;; : (-> PredicateFamilyFact Json )
 (def (predicate-family-fields-json fact)
   (hash (role (predicate-family-fact-role fact))
         (subject (predicate-family-fact-subject fact))
@@ -61,7 +61,7 @@
         (qualityFacets (predicate-family-fact-quality-facets fact))
         (advice (predicate-family-fact-advice fact))))
 
-;; Json <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact Json )
 (def (field-access-pattern-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "field-access-pattern"
                                    (field-access-pattern-fact-path fact)
@@ -80,7 +80,7 @@
 
 ;;; Field-access projection keeps selector-helper vocabulary next to the
 ;;; accessors and callers that justify a future combinator rewrite.
-;; (List QueryKey) <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact (List QueryKey) )
 (def (field-access-pattern-query-keys fact)
   (dedupe
    (filter identity
@@ -96,7 +96,7 @@
                    (field-access-pattern-fact-accessors fact)
                    (field-access-pattern-fact-quality-facets fact)))))
 
-;; Json <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact Json )
 (def (field-access-pattern-fields-json fact)
   (hash (role (field-access-pattern-fact-role fact))
         (fieldKey (field-access-pattern-fact-field-key fact))
@@ -106,7 +106,7 @@
         (qualityFacets (field-access-pattern-fact-quality-facets fact))
         (advice (field-access-pattern-fact-advice fact))))
 
-;; Json <- BooleanConditionFact
+;; : (-> BooleanConditionFact Json )
 (def (boolean-condition-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "boolean-condition"
                                    (boolean-condition-fact-path fact)
@@ -125,7 +125,7 @@
 
 ;;; Boolean-condition query keys keep the individual predicate repair surface
 ;;; discoverable even when the family-level policy is the warning owner.
-;; (List QueryKey) <- BooleanConditionFact
+;; : (-> BooleanConditionFact (List QueryKey) )
 (def (boolean-condition-query-keys fact)
   (dedupe
    (filter identity
@@ -142,7 +142,7 @@
                    (boolean-condition-fact-field-keys fact)
                    (boolean-condition-fact-quality-facets fact)))))
 
-;; Json <- BooleanConditionFact
+;; : (-> BooleanConditionFact Json )
 (def (boolean-condition-fields-json fact)
   (hash (role (boolean-condition-fact-role fact))
         (caller (boolean-condition-fact-caller fact))
@@ -153,7 +153,7 @@
         (qualityFacets (boolean-condition-fact-quality-facets fact))
         (advice (boolean-condition-fact-advice fact))))
 
-;; Json <- LoopDriverFact
+;; : (-> LoopDriverFact Json )
 (def (loop-driver-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "loop-driver"
                                    (loop-driver-fact-path fact)
@@ -172,7 +172,7 @@
 
 ;;; Loop-driver keys expose whether a named let is pure transform drift or an
 ;;; IO/runtime boundary before policy decides whether to suggest a rewrite.
-;; (List QueryKey) <- LoopDriverFact
+;; : (-> LoopDriverFact (List QueryKey) )
 (def (loop-driver-query-keys fact)
   (dedupe
    (filter identity
@@ -186,7 +186,7 @@
                     "loop-driver"]
                    (loop-driver-fact-quality-facets fact)))))
 
-;; Json <- LoopDriverFact
+;; : (-> LoopDriverFact Json )
 (def (loop-driver-fields-json fact)
   (hash (role (loop-driver-fact-role fact))
         (caller (loop-driver-fact-caller fact))

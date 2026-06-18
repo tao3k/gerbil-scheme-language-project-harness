@@ -44,7 +44,7 @@
 ;;; Boundary:
 ;;; - poo-form-facts-from-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PooFormFactsFromForm <- Relpath Form Datum
+;; : (-> Relpath Form Datum PooFormFactsFromForm )
 (def (poo-form-facts-from-form relpath form datum)
   (let ((head (and (pair? datum) (car datum))))
     (if (member head +poo-definition-heads+)
@@ -66,7 +66,7 @@
                                    (poo-form-specializer-types datum))))
            (definition-name-datums datum))
       '())))
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (definition-name-datums datum)
   (let ((head (car datum))
         (second (safe-cadr datum)))
@@ -81,7 +81,7 @@
        ((and (pair? second) (symbol? (car second))) [(car second)])
        (else '())))
      (else '()))))
-;; String <- Head
+;; : (-> Head String )
 (def (poo-form-role head)
   (cond
    ((member head '(defclass .defclass)) "class")
@@ -91,13 +91,13 @@
    ((member head '(defgeneric .defgeneric)) "generic")
    ((member head '(defprotocol .defprotocol)) "protocol")
    (else "poo-form")))
-;; PooFormGeneric <- Head Datum String
+;; : (-> Head Datum String PooFormGeneric )
 (def (poo-form-generic head datum name)
   (cond
    ((member head '(defgeneric .defgeneric)) (datum->string name))
    ((member head '(defmethod .defmethod)) (poo-method-generic datum))
    (else #f)))
-;; PooMethodGeneric <- Datum
+;; : (-> Datum PooMethodGeneric )
 (def (poo-method-generic datum)
   (let (spec (safe-cadr datum))
     (cond
@@ -108,13 +108,13 @@
       (datum->string (safe-cadr spec)))
      ((and (pair? spec) (symbol? (car spec))) (datum->string (car spec)))
      (else #f))))
-;; PooFormReceiver <- Datum
+;; : (-> Datum PooFormReceiver )
 (def (poo-form-receiver datum)
   (let (receiver (car-or-false (poo-method-receiver-datums datum)))
     (and receiver
          (symbol? (car receiver))
          (datum->string (car receiver)))))
-;; TypeSpec <- Datum
+;; : (-> Datum TypeSpec )
 (def (poo-form-receiver-type datum)
   (let (receiver (car-or-false (poo-method-receiver-datums datum)))
     (and receiver
@@ -123,19 +123,19 @@
 ;;; Boundary:
 ;;; - poo-form-specializers composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PooFormSpecializers <- Datum
+;; : (-> Datum PooFormSpecializers )
 (def (poo-form-specializers datum)
   (map poo-specializer-name (poo-method-receiver-datums datum)))
 ;;; Boundary:
 ;;; - poo-form-specializer-types composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; TypeSpec <- Datum
+;; : (-> Datum TypeSpec )
 (def (poo-form-specializer-types datum)
   (filter-map poo-specializer-type (poo-method-receiver-datums datum)))
 ;;; Boundary:
 ;;; - poo-method-receiver-datums composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (poo-method-receiver-datums datum)
   (let (spec (safe-cadr datum))
     (cond
@@ -145,10 +145,10 @@
      ((pair? spec)
       (filter poo-method-receiver-datum? (datum-list-items (cdr spec))))
      (else '()))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (poo-method-receiver-datum? datum)
   (and (pair? datum) (symbol? (car datum))))
-;; PooSpecializerName <- Receiver
+;; : (-> Receiver PooSpecializerName )
 (def (poo-specializer-name receiver)
   (let ((name (safe-cadr receiver))
         (binding (car-or-false receiver)))
@@ -157,17 +157,17 @@
       (string-append (datum->string binding) ":" (datum->string name)))
      (name (datum->string name))
      (else ""))))
-;; TypeSpec <- Receiver
+;; : (-> Receiver TypeSpec )
 (def (poo-specializer-type receiver)
   (and (pair? (cdr receiver))
        (datum->string (cadr receiver))))
-;; CarOrFalse <- (List XX)
+;; : (-> (List XX) CarOrFalse )
 (def (car-or-false items)
   (and (pair? items) (car items)))
 ;;; Boundary:
 ;;; - poo-form-supers composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PooFormSupers <- Head Datum
+;; : (-> Head Datum PooFormSupers )
 (def (poo-form-supers head datum)
   (cond
    ((member head '(defclass .defclass))
@@ -178,7 +178,7 @@
    ((member head '(.def define-type))
     (poo-at-supers datum))
    (else '())))
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (poo-at-supers datum)
   (let (spec (safe-cadr datum))
     (if (and (pair? spec) (symbol? (car spec)))
@@ -192,7 +192,7 @@
 ;;; - Only that reader marker is stripped.
 ;;; - Ordinary list-shaped type names stay visible.
 ;;; - The map is safe because every remaining item is a superclass datum.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (poo-super-items datum)
   (cond
    ((symbol? datum) [(datum->string datum)])
@@ -206,7 +206,7 @@
 ;;; Boundary:
 ;;; - poo-form-slots composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PooFormSlots <- Head Datum
+;; : (-> Head Datum PooFormSlots )
 (def (poo-form-slots head datum)
   (cond
    ((member head '(defclass .defclass))
@@ -216,7 +216,7 @@
    ((eq? head '.def)
     (map car (poo-object-slot-shapes datum)))
    (else '())))
-;; PooSlotName <- Datum
+;; : (-> Datum PooSlotName )
 (def (poo-slot-name datum)
   (cond
    ((symbol? datum) (datum->string datum))
@@ -225,7 +225,7 @@
 ;;; Intent:
 ;;; - Keep class/type/generic option projection declarative.
 ;;; - Filter/map expose which option namespaces are preserved without evaluating defaults.
-;; (List String) <- Head Datum
+;; : (-> Head Datum (List String) )
 (def (poo-form-options head datum)
   (cond
    ((member head '(defclass .defclass))
@@ -242,10 +242,10 @@
            (string-append "slot:" (car shape) ":" (cdr shape)))
          (poo-object-slot-shapes datum)))
    (else '())))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (define-type-option? item)
   (member item +poo-define-type-options+))
-;; MaybeString <- Datum
+;; : (-> Datum MaybeString )
 (def (poo-generic-name datum)
   (let (spec (safe-cadr datum))
     (cond
@@ -255,14 +255,14 @@
 ;;; Boundary:
 ;;; - Runtime hook options are parser facts for protocol hooks, not policy whitelists.
 ;;; - Keep :pr/:wr/:json/:write-json visible to structural search and agent repair.
-;; (List String) <- MaybeString
+;; : (-> MaybeString (List String) )
 (def (poo-runtime-hook-options generic)
   (let (entry (and generic (assoc generic +poo-runtime-hook-option-tokens+)))
     (if entry (cdr entry) '())))
 ;;; Boundary:
 ;;; - poo-generic-options preserves MOP dispatch options without evaluating defaults.
 ;;; - Keep data-flow evidence visible.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (poo-generic-options datum)
   (poo-generic-options-with-default-dispatch
    (dedupe
@@ -270,7 +270,7 @@
 ;;; Invariant:
 ;;; - Option values are skipped only for recognized POO generic keywords.
 ;;; - Unrecognized tokens continue scanning so parser facts stay permissive.
-;; (List String) <- (List Datum)
+;; : (-> (List Datum) (List String) )
 (def (poo-generic-options-from-items items)
   (if (pair? items)
     (let* ((key (car items))
@@ -283,7 +283,7 @@
            (options (poo-generic-options-from-items tail)))
       (if (pair? tokens) (append tokens options) options))
     '()))
-;; (List String) <- Datum Datum
+;; : (-> Datum Datum (List String) )
 (def (poo-generic-option-tokens key value)
   (let (key-name (poo-option-key-name key))
     (if key-name
@@ -294,7 +294,7 @@
         (poo-generic-flag-option-tokens key-name))
        (else '()))
       '())))
-;; (List String) <- String Datum
+;; : (-> String Datum (List String) )
 (def (poo-generic-value-option-tokens key-name value)
   (let (raw (if value
               (string-append key-name (datum->string value))
@@ -305,7 +305,7 @@
      ((equal? key-name "from:")
       [raw (string-append "dispatchSource:" (if value (datum->string value) ""))])
      (else [raw]))))
-;; (List String) <- String
+;; : (-> String (List String) )
 (def (poo-generic-flag-option-tokens key-name)
   (cond
    ((equal? key-name "default:") [key-name "defaultStrategy:default"])
@@ -314,7 +314,7 @@
 ;;; Intent:
 ;;; - Missing from: still carries the MOP default dispatch contract.
 ;;; - Emit it as parser evidence without evaluating the generic body or default.
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (poo-generic-options-with-default-dispatch options)
   (if (ormap (lambda (option)
                (string-prefix? "dispatchSource:" option))
@@ -324,7 +324,7 @@
 ;;; Boundary:
 ;;; - Slot extraction preserves declaration syntax without expanding POO.
 ;;; - Keyword slots consume their value; list and symbol slots consume one item.
-;; (List (Pair String String)) <- Datum
+;; : (-> Datum (List (Pair String String)) )
 (def (poo-object-slot-shapes datum)
   (dedupe
    (poo-object-slot-shapes-from-items (datum-list-items (safe-cddr datum)))))
@@ -333,7 +333,7 @@
 ;;; - Recognized keyword slots consume their value.
 ;;; - Unknown tokens remain skippable.
 ;;; - The keyword lambda keeps slot-name binding local to the matching branch.
-;; (List (Pair String String)) <- (List Datum)
+;; : (-> (List Datum) (List (Pair String String)) )
 (def (poo-object-slot-shapes-from-items items)
   (if (pair? items)
     (let (item (car items))
@@ -353,36 +353,36 @@
               (poo-object-slot-shapes-from-items (cdr items))))
        (else (poo-object-slot-shapes-from-items (cdr items)))))
     '()))
-;; MaybeString <- Datum
+;; : (-> Datum MaybeString )
 (def (poo-keyword-slot-name item)
   (let (key-name (poo-option-key-name item))
     (and key-name (poo-strip-slot-colon key-name))))
-;; String <- String
+;; : (-> String String )
 (def (poo-strip-slot-colon text)
   (if (and (< 0 (string-length text))
            (string-suffix? ":" text))
     (substring text 0 (1- (string-length text)))
     text))
-;; (Pair String String) <- String (List Datum)
+;; : (-> String (List Datum) (Pair String String) )
 (def (poo-keyword-slot-shape name rest)
   (cons name
         (cond
          ((not (pair? rest)) "missing-value")
          ((poo-slot-operator-kind (car rest)))
          (else "self-computed"))))
-;; (List Datum) <- (List Datum)
+;; : (-> (List Datum) (List Datum) )
 (def (poo-keyword-slot-tail rest)
   (cond
    ((not (pair? rest)) '())
    ((poo-slot-operator-kind (car rest))
     (if (pair? (cdr rest)) (cddr rest) '()))
    (else (cdr rest))))
-;; MaybePair <- Datum
+;; : (-> Datum MaybePair )
 (def (poo-list-slot-shape spec)
   (let (name (poo-slot-name spec))
     (and name
          (cons name (poo-list-slot-kind (datum-list-items (cdr spec)))))))
-;; String <- (List Datum)
+;; : (-> (List Datum) String )
 (def (poo-list-slot-kind rest)
   (cond
    ((null? rest) "lexical-constant")
@@ -390,25 +390,25 @@
    ((poo-inherited-slot-call? (car rest)) "inherited-computed")
    (else "self-computed")))
 
-;; MaybeString <- Datum
+;; : (-> Datum MaybeString )
 (def (poo-slot-operator-kind item)
   (let (entry (assq item +poo-slot-operator-kinds+))
     (and entry (cadr entry))))
 
-;; Bool <- Datum
+;; : (-> Datum Bool )
 (def (poo-inherited-slot-call? item)
   (and (pair? item)
        (member (car item) +poo-inherited-slot-call-heads+)))
 ;;; Boundary:
 ;;; - keyword-like-symbols composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (keyword-like-symbols datum)
   (dedupe
    (filter-map (lambda (item)
                  (poo-option-key-name item))
                (flatten datum))))
-;; MaybeString <- Datum
+;; : (-> Datum MaybeString )
 (def (poo-option-key-name item)
   (cond
    ((keyword? item) (datum->string item))

@@ -29,27 +29,27 @@
 (defstruct type-binding (name kind type formals arity path selector))
 ;; TypeParamBindingStruct
 (defstruct type-param-binding (function-name name type path selector))
-;; TypeSpec <- ProjectIndex
+;; : (-> ProjectIndex TypeSpec )
 (def (build-type-env index)
   (build-type-env/signatures index '()))
 ;;; Boundary:
 ;;; - build-type-env/signatures composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; TypeSpec <- ProjectIndex NativeSignatures
+;; : (-> ProjectIndex NativeSignatures TypeSpec )
 (def (build-type-env/signatures index signatures)
   (map (cut definition->type-binding <> signatures)
        (project-definitions index)))
-;; TypeSpec <- ProjectIndex
+;; : (-> ProjectIndex TypeSpec )
 (def (build-param-type-env index)
   (build-param-type-env/signatures index '()))
 ;;; Boundary:
 ;;; - build-param-type-env/signatures composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; TypeSpec <- ProjectIndex NativeSignatures
+;; : (-> ProjectIndex NativeSignatures TypeSpec )
 (def (build-param-type-env/signatures index signatures)
   (append-map (cut definition->param-type-bindings <> signatures)
               (project-definitions index)))
-;; TypeSpec <- Definition NativeSignatures
+;; : (-> Definition NativeSignatures TypeSpec )
 (def (definition->type-binding defn signatures)
   (make-type-binding (definition-name defn)
                      (definition-kind defn)
@@ -59,13 +59,13 @@
                      (definition-arity defn)
                      (definition-path defn)
                      (definition-selector defn)))
-;; (List BindingFact) <- Definition NativeSignatures
+;; : (-> Definition NativeSignatures (List BindingFact) )
 (def (definition->param-type-bindings defn signatures)
   (let (signature-type (signature-type-for (definition-name defn) signatures))
     (if signature-type
       (signature-formal-bindings defn signature-type)
       '())))
-;; (List BindingFact) <- Definition SignatureType
+;; : (-> Definition SignatureType (List BindingFact) )
 (def (signature-formal-bindings defn signature-type)
   (let (formals (definition-formals defn))
     (case (type-kind signature-type)
@@ -85,7 +85,7 @@
 ;;; Invariant:
 ;;; - param-bindings owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; (List BindingFact) <- Definition Formals ParamTypes
+;; : (-> Definition Formals ParamTypes (List BindingFact) )
 (def (param-bindings defn formals param-types)
   (filter-map
    (lambda (param)
@@ -98,25 +98,25 @@
                                      (definition-path defn)
                                      (definition-selector defn)))))
    (map cons formals param-types)))
-;; Boolean <- Type
+;; : (-> Type Boolean )
 (def (useful-param-type? type)
   (not (member (type-kind type) '(unknown any))))
 ;;; Invariant:
 ;;; - repeat-type owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; TypeSpec <- Type Integer
+;; : (-> Type Integer TypeSpec )
 (def (repeat-type type count)
   (make-list count type))
 ;;; Invariant:
 ;;; - append-map owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; Integer <- (YY <- XX) (List XX)
+;; : (-> (-> XX YY ) (List XX) Integer )
 (def (append-map fn items)
   (foldr (lambda (item out) (append (fn item) out)) '() items))
 ;;; Boundary:
 ;;; - duplicate-type-bindings is a keyed fold over path/name/kind triples.
 ;;; - State keeps seen bindings and duplicate pairs separate for repair output.
-;; (List BindingFact) <- (List Definition)
+;; : (-> (List Definition) (List BindingFact) )
 (def (duplicate-type-bindings bindings)
   (let (state
         (foldl (lambda (binding state)
@@ -138,6 +138,6 @@
 ;;; Boundary:
 ;;; - POO methods are overload/specializer entries under one generic, not duplicate definitions.
 ;;; - Keep duplicate type checks focused on owners where a same-name binding really shadows evidence.
-;; Boolean <- TypeBinding
+;; : (-> TypeBinding Boolean )
 (def (poo-method-type-binding? binding)
   (member (type-binding-kind binding) '("defmethod" ".defmethod")))

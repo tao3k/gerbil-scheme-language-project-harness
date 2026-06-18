@@ -14,7 +14,7 @@
         hygienic-macro-pattern-query?
         hygienic-macro-minimal-forms
         hygienic-macro-failure-cases)
-;; RuntimeBin <- String
+;; : (-> String RuntimeBin )
 (def (runtime-bin name)
   (let ((default-bin (path-expand (string-append "bin/" name) (gerbil-home)))
         (sibling-bin (path-expand (string-append "../bin/" name) (gerbil-home))))
@@ -22,7 +22,7 @@
 ;;; Boundary:
 ;;; - runtime-path-normalize composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- String
+;; : (-> String String )
 (def (runtime-path-normalize path)
   (with-catch
    (lambda (_) path)
@@ -30,7 +30,7 @@
 ;;; Boundary:
 ;;; - Runtime evidence must prove active tool identity without leaking checkout paths.
 ;;; - ASP-owned .data paths are implementation details, not agent-facing guidance.
-;; PublicPath <- RuntimePath
+;; : (-> RuntimePath PublicPath )
 (def (runtime-public-path path)
   (cond
    ((not path) path)
@@ -41,14 +41,14 @@
     (string-append "<asp-managed-gerbil-source>/"
                    (path-strip-directory path)))
    (else path)))
-;; GerbilRuntimeTag <- VersionString
+;; : (-> VersionString GerbilRuntimeTag )
 (def (gerbil-runtime-tag version-string)
   (let (start (string-index version-string #\v))
     (and start
          (let* ((tail (substring version-string start (string-length version-string)))
                 (end (string-index tail #\space)))
            (if end (substring tail 0 end) tail)))))
-;; String <- String Summary EvidenceGrade Witness Next (List String) Details (List String) AgentScenario String QualitySignals FailureCases
+;; : (-> String Summary EvidenceGrade Witness Next (List String) Details (List String) AgentScenario String QualitySignals FailureCases String )
 (def (evidence-fact id summary evidence-grade witness next terms details selectors
                     agent-scenario intent quality-signals failure-cases)
   (hash (id id)
@@ -507,7 +507,7 @@
 ;;; Boundary:
 ;;; - hygienic-macro-pattern-evidence coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; Boolean <- (List MacroFact)
+;; : (-> (List MacroFact) Boolean )
 (def (hygienic-macro-pattern-evidence terms)
   (and (hygienic-macro-pattern-query? terms)
        (hash (id "hygienic-macro")
@@ -585,7 +585,7 @@
    (hash (id "racket-macro-assumption")
          (risk "agent-copies-racket-syntax-case-shape-into-gerbil-code")
          (correction "query-gerbil-lang-and-pattern-before-editing-macro-code"))])
-;; Boolean <- (List MacroFact)
+;; : (-> (List MacroFact) Boolean )
 (def (hygienic-macro-pattern-query? terms)
   (and (pair? terms)
        (or (member "hygienic-macro" terms)

@@ -11,7 +11,7 @@
 (export check-language-evidence-snapshot-fields
         check-language-evidence-snapshot-fixtures
         check-guide-and-registry-snapshot-fixtures)
-;; String <- (List String) String
+;; : (-> (List String) String String )
 (def (fact-by-id facts id)
   (or (find (lambda (fact)
               (equal? (hash-get fact 'id) id))

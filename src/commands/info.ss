@@ -6,6 +6,7 @@
         :policy/catalog
         :protocol/json
         :support/args
+        :support/io
         :support/list)
 
 (export info-main
@@ -14,7 +15,7 @@
 ;; String
 (def +info-schema-id+
   "agent.semantic-protocols.gerbil-scheme-harness-info")
-;; JsonPacket <- String
+;; : (-> String JsonPacket )
 (def (info-packet root)
   (let* ((index (collect-project root))
          (package (project-index-package index)))
@@ -29,7 +30,7 @@
           (configurableInterface (configurable-interface-json))
           (agentSteering (agent-steering-json))
           (closureCommands (closure-commands-json)))))
-;; Json <- Package
+;; : (-> Package Json )
 (def (package-info-json package)
   (and package
        (hash (path (project-package-path package))
@@ -55,27 +56,56 @@
   (hash (selfApply "GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss")
         (check "gerbil-scheme-harness check .")
         (bench "gerbil-scheme-harness bench --iterations 1 --max-total-ms 2000 --max-interface-ms 50 .")))
-;; JsonPacket <- Packet
+;; : (-> Packet JsonPacket )
 (def (display-info-packet packet)
-  (displayln "[gerbil-info] language=" (hash-get packet 'languageId)
-             " provider=" (hash-get packet 'providerId)
-             " files=" (hash-get packet 'files)
-             " definitions=" (hash-get packet 'definitions))
+  (emit-field-line
+   "[gerbil-info]"
+   [(line-field "language" (hash-get packet 'languageId))
+    (line-field "provider" (hash-get packet 'providerId))
+    (line-field "files" (hash-get packet 'files))
+    (line-field "definitions" (hash-get packet 'definitions))])
   (let (package (hash-get packet 'package))
     (when package
-      (displayln "|package path=" (hash-get package 'path)
-                 " name=" (hash-get package 'name)
-                 " manager=" (hash-get package 'packageManager))))
-  (displayln "|interface source-scope=gerbil.pkg-policy fields=roots,runtime-roots,exclude-directories explanation=required-for-overrides")
-  (displayln "|interface build-scope=build.ss defbuild-script targets -> runtime-roots when explicit source-scope is absent")
-  (displayln "|interface agent-policy=gerbil.pkg-policy fields=enabled-rules,disabled-rules")
-  (displayln "|agent-steering facts=" (join (agent-steering-facts) ","))
-  (displayln "|agent-steering rules=" (agent-steering-rule-id-string))
+      (emit-field-line
+       "|package"
+       [(line-field "path" (hash-get package 'path))
+        (line-field "name" (hash-get package 'name))
+        (line-field "manager" (hash-get package 'packageManager))])))
+  (emit-text-line
+   "|interface source-scope=gerbil.pkg-policy fields=roots,runtime-roots,exclude-directories explanation=required-for-overrides")
+  (emit-text-line
+   "|interface build-scope=build.ss defbuild-script targets -> runtime-roots when explicit source-scope is absent")
+  (emit-text-line
+   "|interface agent-policy=gerbil.pkg-policy fields=enabled-rules,disabled-rules")
+  (emit-field-line
+   "|agent-steering"
+   [(line-field "facts" (join (agent-steering-facts) ","))])
+  (emit-field-line
+   "|agent-steering"
+   [(line-field "rules" (agent-steering-rule-id-string))])
   (let (closure (hash-get packet 'closureCommands))
-    (displayln "|closure self-apply=" (hash-get closure 'selfApply))
-    (displayln "|closure check=" (hash-get closure 'check))
-    (displayln "|closure bench=" (hash-get closure 'bench))))
-;; InfoMain <- (List XX)
+    (emit-field-line
+     "|closure"
+     [(line-field "self-apply" (hash-get closure 'selfApply))])
+    (emit-field-line
+     "|closure"
+     [(line-field "check" (hash-get closure 'check))])
+    (emit-field-line
+     "|closure"
+     [(line-field "bench" (hash-get closure 'bench))])))
+;; info-main
+;;   : (-> (List String) Integer)
+;;   | doc m%
+;;       `info-main args` emits the harness information packet and returns a
+;;       process-style status code.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (info-main '("--workspace" "."))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (info-main args)
   (let* ((root (project-root args))
          (json? (flag? "--json" args))

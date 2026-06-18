@@ -33,7 +33,7 @@
 ;;; Boundary:
 ;;; - Only the package-root build.ss is governed here.
 ;;; - Wrapper templates and command owners may contain CLI routing elsewhere.
-;; (List PackageBuildFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List PackageBuildFinding) )
 (def (package-build-responsibility-findings index)
   (let (file (package-top-level-build-file index))
     (if file
@@ -47,7 +47,7 @@
 ;;; Invariant:
 ;;; - The rule is intentionally scoped to gerbil.pkg beside build.ss.
 ;;; - Nested helper owners are outside this policy surface.
-;; MaybePackageBuildFile <- ProjectIndex
+;; : (-> ProjectIndex MaybePackageBuildFile )
 (def (package-top-level-build-file index)
   (and (project-index-package index)
        (equal? (project-package-path (project-index-package index)) "gerbil.pkg")
@@ -59,7 +59,7 @@
 ;;; Finding contract:
 ;;; - Evidence comes from parser-owned call arguments, not raw grep.
 ;;; - The repair path preserves build orchestration and moves CLI semantics.
-;; MaybePackageBuildFinding <- PackageBuildFile CallFact
+;; : (-> PackageBuildFile CallFact MaybePackageBuildFinding )
 (def (package-build-responsibility-finding file call)
   (let (evidence (build-routing-call-evidence call))
     (and evidence
@@ -79,7 +79,7 @@
 ;;; - Evidence comes from parser-owned definition names.
 ;;; - Top-level build.ss may delegate to wrapper owners but must not define
 ;;;   wrapper/script materializers itself.
-;; MaybePackageBuildFinding <- PackageBuildFile DefinitionFact
+;; : (-> PackageBuildFile DefinitionFact MaybePackageBuildFinding )
 (def (package-build-wrapper-definition-finding file definition)
   (let (name (definition-name definition))
     (and (package-build-wrapper-definition-name? name)
@@ -98,14 +98,14 @@
 ;;; Evidence boundary:
 ;;; - String arguments are still parser facts.
 ;;; - The marker list names routing responsibilities that do not belong in build.ss.
-;; MaybeBuildRoutingEvidence <- CallFact
+;; : (-> CallFact MaybeBuildRoutingEvidence )
 (def (build-routing-call-evidence call)
   (find runtime-routing-text?
         (filter string? (call-fact-arguments call))))
 
 ;;; Predicate stays intentionally small so future markers extend the data table,
 ;;; not the control flow.
-;; Boolean <- BuildRoutingEvidence
+;; : (-> BuildRoutingEvidence Boolean )
 (def (runtime-routing-text? text)
   (ormap (cut string-contains text <>)
          +package-build-runtime-routing-markers+))
@@ -113,7 +113,7 @@
 ;;; Narrow name gate: only wrapper/script materializer families are blocked.
 ;;; Build helpers may still use ordinary write/compile verbs when they do not
 ;;; own generated command semantics.
-;; Boolean <- MaybeString
+;; : (-> MaybeString Boolean )
 (def (package-build-wrapper-definition-name? name)
   (and (string? name)
        (ormap (cut string-prefix? <> name)
@@ -123,7 +123,7 @@
 
 ;;; Local selector rendering keeps the finding tied to parser-owned definition
 ;;; ranges without adding another dependency to the policy surface.
-;; Selector <- DefinitionFact
+;; : (-> DefinitionFact Selector )
 (def (definition-selector definition)
   (string-append (definition-path definition)
                  ":"

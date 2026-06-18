@@ -32,13 +32,13 @@
     find list-index
     fold foldl foldr fold-left fold-right
     with-list-builder))
-;; (List HigherOrderFact) <- Relpath Form Datum
+;; : (-> Relpath Form Datum (List HigherOrderFact) )
 (def (higher-order-facts-from-form relpath form datum)
   (higher-order-facts-from-stx relpath form (form-caller-name datum)))
 ;;; Boundary:
 ;;; - higher-order-facts-from-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List HigherOrderFact) <- Relpath Exprs String
+;; : (-> Relpath Exprs String (List HigherOrderFact) )
 (def (higher-order-facts-from-stxes relpath exprs caller)
   (apply append
          (map (cut higher-order-facts-from-stx relpath <> caller)
@@ -46,7 +46,7 @@
 ;;; Boundary:
 ;;; - higher-order-facts-from-stx coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; (List HigherOrderFact) <- Relpath ExprStx String
+;; : (-> Relpath ExprStx String (List HigherOrderFact) )
 (def (higher-order-facts-from-stx relpath expr-stx caller)
   (if (not (stx-pair? expr-stx))
     '()
@@ -105,18 +105,18 @@
 ;;; Boundary:
 ;;; - higher-order-facts-from-let-binding-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List HigherOrderFact) <- Relpath (List Definition) String
+;; : (-> Relpath (List Definition) String (List HigherOrderFact) )
 (def (higher-order-facts-from-let-binding-stxes relpath bindings caller)
   (apply append
          (map (cut higher-order-facts-from-let-binding-stx relpath <> caller)
               bindings)))
-;; (List HigherOrderFact) <- Relpath Binding String
+;; : (-> Relpath Binding String (List HigherOrderFact) )
 (def (higher-order-facts-from-let-binding-stx relpath binding caller)
   (let (items (stx-list-items binding))
     (if (and (pair? items) (pair? (cdr items)))
       (higher-order-facts-from-stx relpath (cadr items) caller)
       '())))
-;; (List HigherOrderFact) <- Relpath ExprStx Head Datum String
+;; : (-> Relpath ExprStx Head Datum String (List HigherOrderFact) )
 (def (higher-order-fact-from-stx relpath expr-stx head datum caller)
   (let (loc (stx-source expr-stx))
     (make-higher-order-fact (datum->string head)
@@ -132,7 +132,7 @@
 ;;; Role taxonomy:
 ;;; - Roles are the stable agent-facing vocabulary for advanced composition and syntax-helper evidence.
 ;;; - Add new runtime or utils idioms here before policy consumes them.
-;; String <- Head
+;; : (-> Head String )
 (def (higher-order-role head)
   (cond
    ((eq? head 'lambda) "anonymous-function")
@@ -169,7 +169,7 @@
    (else "higher-order-call")))
 
 ;;; Quality facets expose gerbil-utils-style expression composition as parser-owned evidence.
-;; (List QualityFacet) <- HigherOrderFact
+;; : (-> HigherOrderFact (List QualityFacet) )
 (def (higher-order-quality-facets fact)
   (dedupe
    (filter identity
@@ -188,8 +188,19 @@
                  "multi-value-composition")
             (and (equal? (higher-order-fact-role fact) "autocurry-semantics")
                  "autocurry-application-semantics")
+            (and (equal? (higher-order-fact-role fact) "anonymous-function")
+                 "lambda-local-abstraction")
+            (and (and (equal? (higher-order-fact-role fact) "anonymous-function")
+                      (> (higher-order-fact-operand-count fact) 0))
+                 "parameterized-transform")
             (and (equal? (higher-order-fact-role fact) "syntax-helper-dsl")
                  "syntax-helper-extraction")
+            (and (member (higher-order-fact-role fact)
+                         '("partial-application" "function-curry"))
+                 "function-specialization-abstraction")
+            (and (member (higher-order-fact-role fact)
+                         '("function-composition" "pipeline-composition"))
+                 "function-pipeline-abstraction")
             (and (member (higher-order-fact-role fact)
                          '("generator-transform" "generator-control-inversion"))
                  "generator-interface-duality")
@@ -199,11 +210,13 @@
                  "stateful-protocol-wrapper")
             (and (equal? (higher-order-fact-role fact) "multi-arity-function")
                  "case-lambda-optimization-boundary")
+            (and (equal? (higher-order-fact-role fact) "multi-arity-function")
+                 "multi-arity-abstraction")
             (and (member (higher-order-fact-role fact)
                          '("loop-fold" "list-builder"))
                  "builder-or-fold-combinator")])))
 
-;; Integer <- Head Datum
+;; : (-> Head Datum Integer )
 (def (higher-order-operand-count head datum)
   (cond
    ((eq? head 'lambda) (length (lambda-formal-datums datum)))
@@ -212,7 +225,7 @@
 ;;; Boundary:
 ;;; - higher-order-arities composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List HigherOrderFact) <- Head Datum
+;; : (-> Head Datum (List HigherOrderFact) )
 (def (higher-order-arities head datum)
   (cond
    ((eq? head 'lambda) [(length (lambda-formal-datums datum))])
@@ -224,7 +237,7 @@
 ;;; Boundary:
 ;;; - higher-order-formal-names composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List HigherOrderFact) <- Head Datum
+;; : (-> Head Datum (List HigherOrderFact) )
 (def (higher-order-formal-names head datum)
   (cond
    ((eq? head 'lambda)
@@ -236,19 +249,19 @@
                    (map datum->string (lambda-formals-from-clause clause)))
                  (case-lambda-clause-datums datum)))))
    (else '())))
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (lambda-formal-datums datum)
   (lambda-formals-from-datum (safe-cadr datum)))
 ;;; Boundary:
 ;;; - case-lambda-clause-datums composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (case-lambda-clause-datums datum)
   (filter pair? (safe-cdr datum)))
-;; LambdaFormalsFromClause <- Clause
+;; : (-> Clause LambdaFormalsFromClause )
 (def (lambda-formals-from-clause clause)
   (lambda-formals-from-datum (if (pair? clause) (car clause) '())))
-;; LambdaFormalsFromDatum <- Formals
+;; : (-> Formals LambdaFormalsFromDatum )
 (def (lambda-formals-from-datum formals)
   (cond
    ((symbol? formals) [formals])

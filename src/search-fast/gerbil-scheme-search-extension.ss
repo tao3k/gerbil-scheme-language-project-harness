@@ -5,23 +5,23 @@
 (import :gerbil/gambit)
 (export main)
 
-;; String <- Unit
+;; : (-> Unit String )
 (def +poo-dependency+ "git.cons.io/mighty-gerbils/gerbil-poo")
-;; String <- Unit
+;; : (-> Unit String )
 (def +capabilities+
   "object-system,metaobject-protocol,protocols,policy-protocol,macro-governance,user-override-witness,inherited-gerbil-utils,higher-order-control,typed-combinator-style,pattern-inheritance")
 
-;; Unit <- (List String)
+;; : (-> (List String) Unit )
 (def (emit . parts)
   (for-each display parts)
   (newline))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (option-with-value? arg)
   (or (equal? arg "--view")
       (equal? arg "--workspace")))
 
-;; (List String) <- (List String) (List String)
+;; : (-> (List String) (List String) (List String) )
 (def (collect-positional-args rest out)
   (cond
    ((null? rest) (reverse out))
@@ -31,12 +31,12 @@
     (collect-positional-args (cdr rest) out))
    (else (collect-positional-args (cdr rest) (cons (car rest) out)))))
 
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (positional-args args)
   (collect-positional-args args '()))
 
 ;;; Invariant: insert the separator only between retained positional terms.
-;; String <- (List String) String
+;; : (-> (List String) String String )
 (def (join strings sep)
   (if (null? strings)
     ""
@@ -46,21 +46,21 @@
                         (string-append sep string))
                       (cdr strings))))))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (identity-token? term)
   (or (equal? term "poo")
       (equal? term "gerbil")
       (equal? term "gerbil-poo")
       (equal? term +poo-dependency+)))
 
-;; Boolean <- MaybePathString
+;; : (-> MaybePathString Boolean )
 (def (source-script-path? value)
   (and (string? value)
        (let (length (string-length value))
          (and (fx>= length 3)
               (equal? (substring value (- length 3) length) ".ss")))))
 
-;; (List String) <- Unit
+;; : (-> Unit (List String) )
 (def (entry-args)
   (let (args (command-line))
     (if (and (pair? args)
@@ -70,13 +70,13 @@
       (cdr args))))
 
 ;;; Boundary: extension identity tokens are stripped before composing the next query.
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (focus terms)
   (let (rest (filter (lambda (term) (not (identity-token? term))) terms))
     (if (null? rest) "usage" (join rest " "))))
 
 ;;; Boundary: main owns the line-oriented packet contract for extension discovery.
-;; Integer <- (List String)
+;; : (-> (List String) Integer )
 (def (main . args)
   (let* ((raw-extension-args
           (if (and (pair? args)

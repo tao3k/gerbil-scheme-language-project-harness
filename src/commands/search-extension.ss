@@ -10,10 +10,20 @@
         (only-in :std/sugar cut ormap when))
 
 (export emit-extension-search)
-;;; Boundary:
-;;; - emit-extension-search renders extension facts and registered POO routes.
-;;; - Keep gerbil-poo:// distinct from project activation and source fallback.
-;; Unit <- ProjectIndex (List XX) Json
+;; emit-extension-search
+;;   : (-> ProjectIndex (List String) Boolean Integer)
+;;   | doc m%
+;;       `emit-extension-search index args json?` renders project extension
+;;       facts and registered POO routes without treating registry knowledge as
+;;       project activation.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-extension-search index '("gerbil-poo") #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-extension-search index args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (join positionals " ") "-"))
@@ -51,15 +61,24 @@
           (emit-source-lookup-line (poo-source-ref #f)))
         (displayln "next=" (extension-evidence-next positionals matches))))
     0))
-;; (List SourceRef) <- (List SearchTerm)
+;; : (-> (List SearchTerm) (List SourceRef) )
 (def (registered-extension-source-refs terms)
   (if (poo-extension-lookup-query? terms)
     [(poo-source-ref #f)]
     []))
-;;; Boundary:
-;;; - matching-extension-facts prefers project facts, then registered facts.
-;;; - Registered gerbil-poo knowledge remains queryable without indexing a root.
-;; (List Fact) <- ProjectIndex (List XX)
+;; matching-extension-facts
+;;   : (-> ProjectIndex (List String) (List Fact))
+;;   | doc m%
+;;       `matching-extension-facts index terms` returns project extension facts
+;;       first, then registered facts for known ecosystem routes.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (matching-extension-facts index '("gerbil-poo"))
+;;       ;; => matching extension facts
+;;       ```
+;;     %
 (def (matching-extension-facts index terms)
   (if index
     (let (facts (project-extension-facts index))
@@ -77,14 +96,14 @@
 ;;; Boundary:
 ;;; - extension-fact-matches-term? owns lexical fact matching for extensions.
 ;;; - Keep matching on declared names, dependencies, and capabilities only.
-;; Boolean <- ExtensionFact SearchTerm
+;; : (-> ExtensionFact SearchTerm Boolean )
 (def (extension-fact-matches-term? fact term)
   (or (string-contains (extension-fact-name fact) term)
       (ormap (cut string-contains <> term)
              (extension-fact-dependencies fact))
       (ormap (cut string-contains <> term)
              (extension-fact-capabilities fact))))
-;; String <- (List String) Matches
+;; : (-> (List String) Matches String )
 (def (extension-evidence-next terms matches)
   (let ((extension-name (if (pair? matches)
                           (if (poo-extension-lookup-query? terms)
@@ -100,7 +119,7 @@
 ;;; Boundary:
 ;;; - emit-source-lookup-line mirrors pattern/query source lookup output.
 ;;; - Keep local-source-before-git visible for non-interactive agents.
-;; Unit <- SourceRef
+;; : (-> SourceRef Unit )
 (def (emit-source-lookup-line source-ref)
   (let* ((local-source (hash-get source-ref 'localSource))
          (repository-source (hash-get source-ref 'repositorySource))

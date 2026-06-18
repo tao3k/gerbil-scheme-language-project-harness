@@ -4,6 +4,7 @@
 (import :parser/facade
         :protocol/json
         :protocol/workspace-scope
+        :support/io
         :support/list
         (only-in :std/sort sort))
 
@@ -16,7 +17,7 @@
 ;;; - Workspace scope discovery belongs to the language provider.
 ;;; - This path reads package policy and walks provider-owned source roots only.
 ;;; - It intentionally avoids parsing source forms or building SQL/graph indexes.
-;; Integer <- Root Json
+;; : (-> Root Json Integer )
 (def (emit-workspace-scope root json?)
   (let* ((package-index (collect-project-package-only root))
          (root (project-index-root package-index))
@@ -33,38 +34,41 @@
 ;;; Boundary:
 ;;; - The renderer consumes an already-scoped packet and must not rediscover files.
 ;;; - Keep line order stable because agents use it as the first workspace receipt.
-;; Unit <- Json
+;; : (-> Json Unit )
 (def (emit-workspace-scope-lines packet)
   (let* ((coverage (hash-get packet 'coverage))
          (anchor (hash-get packet 'anchor))
          (files (hash-get packet 'files)))
-    (displayln "[gerbil-workspace-scope] root=" (hash-get packet 'projectRoot)
-               " status=" (hash-get packet 'status)
-               " files=" (length files)
-               " scopeOwner=" (hash-get packet 'scopeOwner)
-               " indexOwner=" (hash-get packet 'indexOwner))
-    (displayln "|anchor path=" (hash-get anchor 'path)
-               " packageManager=" (hash-get anchor 'packageManager)
-               " packageName=" (or (hash-get anchor 'packageName) "-"))
-    (displayln "|coverage configFiles="
-               (join-or-dash (hash-get coverage 'configFiles))
-               " sourceExtensions="
-               (join-or-dash (hash-get coverage 'sourceExtensions))
-               " sourceRoots="
-               (join-or-dash (hash-get coverage 'sourceRoots))
-               " runtimeRoots="
-               (join-or-dash (hash-get coverage 'runtimeRoots))
-               " ignoredPathPrefixes="
-               (join-or-dash (hash-get coverage 'ignoredPathPrefixes)))
+    (emit-field-line
+     "[gerbil-workspace-scope]"
+     [(line-field "root" (hash-get packet 'projectRoot))
+      (line-field "status" (hash-get packet 'status))
+      (line-field "files" (length files))
+      (line-field "scopeOwner" (hash-get packet 'scopeOwner))
+      (line-field "indexOwner" (hash-get packet 'indexOwner))])
+    (emit-field-line
+     "|anchor"
+     [(line-field "path" (hash-get anchor 'path))
+      (line-field "packageManager" (hash-get anchor 'packageManager))
+      (line-field "packageName" (or (hash-get anchor 'packageName) "-"))])
+    (emit-field-line
+     "|coverage"
+     [(line-field "configFiles" (join-or-dash (hash-get coverage 'configFiles)))
+      (line-field "sourceExtensions" (join-or-dash (hash-get coverage 'sourceExtensions)))
+      (line-field "sourceRoots" (join-or-dash (hash-get coverage 'sourceRoots)))
+      (line-field "runtimeRoots" (join-or-dash (hash-get coverage 'runtimeRoots)))
+      (line-field "ignoredPathPrefixes" (join-or-dash (hash-get coverage 'ignoredPathPrefixes)))])
     (for-each
      (lambda (file)
-       (displayln "|file path=" (hash-get file 'path)
-                  " sourceClass=" (hash-get file 'sourceClass)
-                  " sourceKind=" (hash-get file 'sourceKind)))
+       (emit-field-line
+        "|file"
+        [(line-field "path" (hash-get file 'path))
+         (line-field "sourceClass" (hash-get file 'sourceClass))
+         (line-field "sourceKind" (hash-get file 'sourceKind))]))
      (take* files +workspace-scope-preview-limit+))
-    (displayln "nextCommand=asp cache source-index refresh")))
+    (emit-text-line "nextCommand=asp cache source-index refresh")))
 
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (join-or-dash values)
   (if (null? values)
     "-"

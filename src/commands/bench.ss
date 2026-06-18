@@ -9,6 +9,7 @@
         (only-in :std/iter for in-range)
         (only-in :std/sugar filter-map foldl)
         :support/args
+        :support/io
         :support/time
         :types/facade)
 
@@ -17,7 +18,7 @@
 (def +bench-schema-id+ "agent.semantic-protocols.gerbil-scheme-harness-bench")
 ;; Integer
 (def +default-max-interface-ms+ 50)
-;; PositiveIntegerOption <- String (List String) Default
+;; : (-> String (List String) Default PositiveIntegerOption )
 (def (positive-integer-option name args default)
   (let (raw (option name args))
     (if raw
@@ -26,7 +27,7 @@
           value
           (error "invalid positive integer option" name raw)))
       default)))
-;; OptionalPositiveIntegerOption <- String (List String)
+;; : (-> String (List String) OptionalPositiveIntegerOption )
 (def (optional-positive-integer-option name args)
   (let (raw (option name args))
     (and raw
@@ -34,10 +35,19 @@
            (if (and value (integer? value) (> value 0))
              value
              (error "invalid positive integer option" name raw))))))
-;;; Invariant:
-;;; - bench-step owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; BenchStep <- String Iterations Thunk
+;; bench-step
+;;   : (-> String Integer Thunk Benchmark)
+;;   | doc m%
+;;       `bench-step name iterations thunk` runs a benchmark thunk repeatedly
+;;       and returns timing metadata for the named benchmark.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (bench-step "noop" 1 (lambda () #!void))
+;;       ;; => benchmark packet
+;;       ```
+;;     %
 (def (bench-step name iterations thunk)
   (let (start (monotonic-ms))
     (for (_ (in-range iterations))
@@ -48,25 +58,43 @@
             (durationMs elapsed-ms)
             (averageMicros (average-duration-micros elapsed-ms iterations))
             (averageMs (average-duration-ms elapsed-ms iterations))))))
-;; String <- Benchmark
+;; : (-> Benchmark String )
 (def (benchmark-name benchmark)
   (hash-get benchmark 'name))
-;; Milliseconds <- Benchmark
+;; : (-> Benchmark Milliseconds )
 (def (benchmark-duration-ms benchmark)
   (hash-get benchmark 'durationMs))
-;;; Boundary:
-;;; - sum-duration-ms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- Benchmarks
+;; sum-duration-ms
+;;   : (-> (List Benchmark) Integer)
+;;   | doc m%
+;;       `sum-duration-ms benchmarks` returns the total duration for all
+;;       benchmark packets.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (sum-duration-ms benchmarks)
+;;       ;; => 42
+;;       ```
+;;     %
 (def (sum-duration-ms benchmarks)
   (foldl (lambda (benchmark total)
            (+ total (benchmark-duration-ms benchmark)))
          0
          benchmarks))
-;;; Boundary:
-;;; - slowest-benchmark composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; SlowestBenchmark <- Benchmarks
+;; slowest-benchmark
+;;   : (-> (List Benchmark) Benchmark)
+;;   | doc m%
+;;       `slowest-benchmark benchmarks` returns the benchmark packet with the
+;;       largest recorded duration.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (benchmark-name (slowest-benchmark benchmarks))
+;;       ;; => "collect-project"
+;;       ```
+;;     %
 (def (slowest-benchmark benchmarks)
   (foldl (lambda (benchmark best)
            (if (> (benchmark-duration-ms benchmark)
@@ -75,7 +103,7 @@
              best))
          (car benchmarks)
          (cdr benchmarks)))
-;; (List TypeFinding) <- TotalMs MaxTotalMs MaxInterfaceMs Slowest Benchmarks
+;; : (-> TotalMs MaxTotalMs MaxInterfaceMs Slowest Benchmarks (List TypeFinding) )
 (def (bench-performance-findings total-ms max-total-ms max-interface-ms slowest benchmarks)
   (append
    (if (and max-total-ms (> total-ms max-total-ms))
@@ -93,7 +121,7 @@
 ;;; Boundary:
 ;;; - bench-interface-findings keeps ASP handoff performance separate from parser collection.
 ;;; - Only lightweight structural interface paths are judged here.
-;; (List TypeFinding) <- MaxInterfaceMs Benchmarks
+;; : (-> MaxInterfaceMs Benchmarks (List TypeFinding) )
 (def (bench-interface-findings max-interface-ms benchmarks)
   (if max-interface-ms
     (filter-map
@@ -111,14 +139,26 @@
               (- (benchmark-duration-ms benchmark) max-interface-ms)))))
      benchmarks)
     '()))
-;; Boolean <- Benchmark
+;; : (-> Benchmark Boolean )
 (def (bench-interface-benchmark? benchmark)
   (member (benchmark-name benchmark)
           ["structural-interface-packet" "structural-owner-facts-packet"]))
-;;; Boundary:
-;;; - bench-packet coordinates multiple evidence fields.
-;;; - Keep packet shape and invariants stable.
-;; JsonPacket <- String Iterations MaxTotalMs MaxInterfaceMs ProjectIndex (List XX) Benchmarks
+;; bench-packet
+;;   : (-> String Integer (U #f Integer) (U #f Integer) ProjectIndex
+;;         (List TypeFinding) (List Benchmark)
+;;         JsonPacket)
+;;   | doc m%
+;;       `bench-packet root iterations max-total-ms max-interface-ms index
+;;       findings benchmarks` builds the benchmark result packet and threshold
+;;       findings.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (bench-packet "." 1 #f #f index findings benchmarks)
+;;       ;; => benchmark JSON packet
+;;       ```
+;;     %
 (def (bench-packet root iterations max-total-ms max-interface-ms index findings benchmarks)
   (let* ((total-ms (sum-duration-ms benchmarks))
          (slowest (slowest-benchmark benchmarks))
@@ -146,53 +186,90 @@
     (when max-interface-ms
       (hash-put! packet 'maxInterfaceMs max-interface-ms))
     packet))
-;;; Boundary:
-;;; - display-bench-packet composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; JsonPacket <- Packet
+;; display-bench-packet
+;;   : (-> JsonPacket Unit)
+;;   | doc m%
+;;       `display-bench-packet packet` prints the human-readable benchmark
+;;       summary, threshold findings, and per-benchmark rows.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (display-bench-packet packet)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (display-bench-packet packet)
-  (displayln "[gerbil-bench] status=" (hash-get packet 'status)
-             " totalMs=" (hash-get packet 'totalMs)
-             " iterations=" (hash-get packet 'iterations)
-             " files=" (hash-get packet 'files)
-             " definitions=" (hash-get packet 'definitions)
-             " findings=" (hash-get packet 'findings))
-  (displayln "|slowest name=" (hash-get (hash-get packet 'slowestBenchmark) 'name)
-             " durationMs=" (hash-get (hash-get packet 'slowestBenchmark) 'durationMs))
+  (emit-field-line
+   "[gerbil-bench]"
+   [(line-field "status" (hash-get packet 'status))
+    (line-field "totalMs" (hash-get packet 'totalMs))
+    (line-field "iterations" (hash-get packet 'iterations))
+    (line-field "files" (hash-get packet 'files))
+    (line-field "definitions" (hash-get packet 'definitions))
+    (line-field "findings" (hash-get packet 'findings))])
+  (let (slowest (hash-get packet 'slowestBenchmark))
+    (emit-field-line
+     "|slowest"
+     [(line-field "name" (hash-get slowest 'name))
+      (line-field "durationMs" (hash-get slowest 'durationMs))]))
   (for-each
    (lambda (finding)
      (if (equal? (hash-get finding 'kind) "total-threshold-exceeded")
-       (displayln "|performanceFinding kind=" (hash-get finding 'kind)
-                  " severity=" (hash-get finding 'severity)
-                  " maxTotalMs=" (hash-get finding 'maxTotalMs)
-                  " exceededByMs=" (hash-get finding 'exceededByMs)
-                  " slowest=" (hash-get finding 'slowestBenchmarkName))
-       (displayln "|performanceFinding kind=" (hash-get finding 'kind)
-                  " severity=" (hash-get finding 'severity)
-                  " maxInterfaceMs=" (hash-get finding 'maxInterfaceMs)
-                  " exceededByMs=" (hash-get finding 'exceededByMs)
-                  " benchmark=" (hash-get finding 'benchmarkName))))
+       (emit-field-line
+        "|performanceFinding"
+        [(line-field "kind" (hash-get finding 'kind))
+         (line-field "severity" (hash-get finding 'severity))
+         (line-field "maxTotalMs" (hash-get finding 'maxTotalMs))
+         (line-field "exceededByMs" (hash-get finding 'exceededByMs))
+         (line-field "slowest" (hash-get finding 'slowestBenchmarkName))])
+       (emit-field-line
+        "|performanceFinding"
+        [(line-field "kind" (hash-get finding 'kind))
+         (line-field "severity" (hash-get finding 'severity))
+         (line-field "maxInterfaceMs" (hash-get finding 'maxInterfaceMs))
+         (line-field "exceededByMs" (hash-get finding 'exceededByMs))
+         (line-field "benchmark" (hash-get finding 'benchmarkName))])))
    (hash-get packet 'performanceFindings))
   (for-each
    (lambda (benchmark)
-     (displayln "|bench name=" (benchmark-name benchmark)
-                " iterations=" (hash-get benchmark 'iterations)
-                " durationMs=" (benchmark-duration-ms benchmark)
-                " averageMicros=" (hash-get benchmark 'averageMicros)
-                " averageMs=" (hash-get benchmark 'averageMs)))
+     (emit-field-line
+      "|bench"
+      [(line-field "name" (benchmark-name benchmark))
+       (line-field "iterations" (hash-get benchmark 'iterations))
+       (line-field "durationMs" (benchmark-duration-ms benchmark))
+       (line-field "averageMicros" (hash-get benchmark 'averageMicros))
+       (line-field "averageMs" (hash-get benchmark 'averageMs))]))
    (hash-get packet 'benchmarks)))
-;;; Boundary:
-;;; Boundary:
-;;; - Bench runs inside tests and CLI processes that may have done heavy parsing.
-;;; - Force one GC before timing so interface gates measure provider work.
-;; Unit
+;; stabilize-bench-runtime!
+;;   : (-> Unit)
+;;   | doc m%
+;;       `stabilize-bench-runtime!` forces one GC before timing so benchmark
+;;       gates measure provider work instead of earlier in-process parsing.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (stabilize-bench-runtime!)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (stabilize-bench-runtime!)
   (##gc))
 
-;;; Boundary:
-;;; - bench-main coordinates collection, policy, and packet projection timings.
-;;; - Keep thresholds strict while isolating them from previous in-process tests.
-;; BenchMain <- (List XX)
+;; bench-main
+;;   : (-> (List String) Integer)
+;;   | doc m%
+;;       `bench-main args` coordinates collection, policy, and packet projection
+;;       timings, then returns a process-style status code.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (bench-main '("--workspace" "." "--iterations" "1"))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (bench-main args)
   (stabilize-bench-runtime!)
   (let* ((root (project-root args))

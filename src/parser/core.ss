@@ -34,6 +34,7 @@
         project-calls
         project-predicate-family-facts
         project-field-access-pattern-facts
+        project-projection-burst-facts
         project-boolean-condition-facts
         project-loop-driver-facts
         project-dependency-adapter-quality-facts
@@ -161,6 +162,22 @@
         field-access-pattern-fact-quality-facets
         field-access-pattern-fact-advice
         field-access-pattern-fact-selector
+        projection-burst-fact-name
+        projection-burst-fact-kind
+        projection-burst-fact-path
+        projection-burst-fact-start
+        projection-burst-fact-end
+        projection-burst-fact-role
+        projection-burst-fact-caller
+        projection-burst-fact-field-keys
+        projection-burst-fact-access-count
+        projection-burst-fact-accessor-count
+        projection-burst-fact-emitter-count
+        projection-burst-fact-accessors
+        projection-burst-fact-emitters
+        projection-burst-fact-quality-facets
+        projection-burst-fact-advice
+        projection-burst-fact-selector
         boolean-condition-fact-name
         boolean-condition-fact-kind
         boolean-condition-fact-path
@@ -253,6 +270,7 @@
         typed-contract-fact-reasons
         typed-contract-fact-quality-facets
         typed-contract-fact-repair-evidence
+        typed-contract-fact-typed-comment
         typed-contract-fact-selector
         comment-quality-fact-target-kind
         comment-quality-fact-target-name
@@ -296,6 +314,7 @@
         source-file-control-flow-forms
         source-file-predicate-family-facts
         source-file-field-access-pattern-facts
+        source-file-projection-burst-facts
         source-file-boolean-condition-facts
         source-file-loop-driver-facts
         source-file-dependency-adapter-quality-facts
@@ -316,8 +335,8 @@
         source-scope-policy-runtime-roots
         source-scope-policy-exclude-directories
         source-scope-policy-explanation
-        agent-policy-enabled-rules
         agent-policy-disabled-rules
+        agent-policy-explanation
         project-index-root
         project-index-files
         project-index-package)
@@ -328,10 +347,19 @@
 ;; Boolean
 (def +ignored-dirs+
   '(".devenv" ".git" ".cache" ".run" ".gerbil" "build" "dist" "target" "src/gambit" "tree-sitter"))
-;;; Boundary:
-;;; - collect-project composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; ProjectIndex <- String
+;; collect-project
+;;   : (-> String ProjectIndex)
+;;   | doc m%
+;;       `collect-project root` reads package metadata, discovers source files,
+;;       and returns a fully parsed project index rooted at `root`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (project-index-root (collect-project "."))
+;;       ;; => "."
+;;       ```
+;;     %
 (def (collect-project root)
   (let* ((root (path-normalize root))
          (package (read-project-package root))
@@ -339,15 +367,35 @@
     (make-project-index root
                         (map (cut parse-source-file root <>) files)
                         package)))
-;; ProjectIndex <- String
+;; collect-project-package-only
+;;   : (-> String ProjectIndex )
+;;   | doc m%
+;;       `collect-project-package-only root` returns package metadata without
+;;       parsing source owners, which keeps package-policy checks lightweight.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (project-index-files (collect-project-package-only "."))
+;;       ;; => ()
+;;       ```
+;;     %
 (def (collect-project-package-only root)
   (let* ((root (path-normalize root))
          (package (read-project-package root)))
     (make-project-index root '() package)))
-;;; Boundary:
-;;; - collect-source-files composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; CollectSourceFiles <- String MaybePackage
+;; collect-source-files
+;;   : (-> String MaybePackage (List String))
+;;   | doc m%
+;;       `collect-source-files root package` returns config files plus configured
+;;       runtime/test source files after applying package-owned source scope.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (member "gerbil.pkg" (collect-source-files "." #f))
+;;       ;; => #t
+;;       ```
+;;     %
 (def (collect-source-files root . maybe-package)
   (let* ((package (and (pair? maybe-package) (car maybe-package)))
          (scope-policy (and package
@@ -369,32 +417,52 @@
                                     (walk-source-directory root path ignored-dirs)
                                     '())))
                               scan-roots)))))))
-;; (List String) <- Policy
+;; : (-> Policy (List String) )
 (def (configured-source-roots policy)
   (let (roots (and policy (source-scope-policy-roots policy)))
     (if (and roots (pair? roots)) roots ["."])))
-;; (List String) <- MaybePackage
+;; : (-> MaybePackage (List String) )
 (def (configured-test-roots package)
   (let* ((policy (and package (project-package-test-directory-policy package)))
          (roots (and policy
                      (test-directory-policy-allowed-directories policy))))
-    (if (and roots (pair? roots)) roots ["t"])))
-;;; Boundary:
-;;; - root-config-files composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; RootConfigFiles <- String
+    (if policy
+      (or roots '())
+      ["t"])))
+;; root-config-files
+;;   : (-> String (List String))
+;;   | doc m%
+;;       `root-config-files root` returns existing root-level package/config
+;;       files that should participate in project indexing.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (root-config-files ".")
+;;       ;; => config paths
+;;       ```
+;;     %
 (def (root-config-files root)
   (filter file-exists?
           (map (cut path-expand <> root) +config-files+)))
-;;; Boundary:
-;;; - source-directory? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- String
+;; source-directory?
+;;   : (-> String Boolean)
+;;   | doc m%
+;;       `source-directory? path` returns `#t` when `path` exists and is a
+;;       directory, returning `#f` for filesystem errors.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (source-directory? "src")
+;;       ;; => #t
+;;       ```
+;;     %
 (def (source-directory? path)
   (with-catch
    (lambda (_) #f)
    (lambda () (eq? (file-type path) 'directory))))
-;; WalkSourceDirectory <- String Dir IgnoredDirs
+;; : (-> String Dir IgnoredDirs WalkSourceDirectory )
 (def (walk-source-directory root dir ignored-dirs)
   (def (walk dir acc)
     (for/fold (result acc) (entry (sort (directory-files dir) string<?))
@@ -409,27 +477,56 @@
             (cons path result))
            (else result))))))
   (walk dir '()))
-;; Boolean <- String String Entry IgnoredDirs
+;; : (-> String String Entry IgnoredDirs Boolean )
 (def (ignored-source-directory? root path entry ignored-dirs)
   (let (relpath (relative-path root path))
     (or (member entry ignored-dirs)
         (member relpath ignored-dirs))))
-;; Boolean <- String
+;; gerbil-source-path?
+;;   : (-> String Boolean )
+;;   | doc m%
+;;       `gerbil-source-path? path` accepts Gerbil source extensions and root
+;;       config files that participate in parser-owned project indexing.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (gerbil-source-path? "src/parser/core.ss")
+;;       ;; => #t
+;;       ```
+;;     %
 (def (gerbil-source-path? path)
   (or (member (path-extension path) +source-extensions+)
       (member (path-strip-directory path) +config-files+)))
-;;; Boundary:
-;;; - source-line-count composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- String
+;; source-line-count
+;;   : (-> String Integer)
+;;   | doc m%
+;;       `source-line-count path` returns the number of lines in a source file,
+;;       or `0` when the file cannot be read.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (source-line-count "src/parser/core.ss")
+;;       ;; => positive line count
+;;       ```
+;;     %
 (def (source-line-count path)
   (with-catch
    (lambda (_) 0)
    (lambda () (length (read-file-lines path)))))
-;;; Boundary:
-;;; - read-native-forms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- String
+;; read-native-forms
+;;   : (-> String NativeFormsRead)
+;;   | doc m%
+;;       `read-native-forms path` reads a source file into native syntax forms
+;;       and returns a vector containing forms plus read diagnostics.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (vector-ref (read-native-forms "build.ss") 0)
+;;       ;; => syntax forms
+;;       ```
+;;     %
 (def (read-native-forms path)
   (with-catch
    (lambda (exn)
@@ -438,34 +535,40 @@
      (if (member (path-extension path) +source-extensions+)
        (if (file-starts-with-lang? path)
          (read-lang-syntax-forms path)
-         (if (file-has-non-core-prelude? path)
-           (read-syntax-forms path)
-           (with-catch
-            (lambda (_)
-              (read-syntax-forms path))
-            (lambda ()
-              (parameterize ((current-output-port (open-output-string))
-                             (current-error-port (open-output-string)))
-                (let (((values prelude module-id namespace body) (core-read-module path)))
-                  (vector body #f
-                          (datum->string module-id)
-                          (datum->string prelude)
-                          (datum->string namespace))))))))
+         (read-syntax-forms path))
        (read-syntax-forms path)))))
-;;; Invariant:
-;;; - read-syntax-forms owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Integer <- String
+;; read-syntax-forms
+;;   : (-> String NativeFormsRead)
+;;   | doc m%
+;;       `read-syntax-forms path` reads standard Gerbil syntax forms while
+;;       suppressing incidental reader output.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (vector-ref (read-syntax-forms "build.ss") 0)
+;;       ;; => syntax forms
+;;       ```
+;;     %
 (def (read-syntax-forms path)
   (parameterize ((current-output-port (open-output-string))
                  (current-error-port (open-output-string)))
     (let (body (read-syntax-from-file path))
       (vector (if (stx-list? body) (stx-map identity body) [body])
               #f #f #f #f))))
-;;; Boundary:
-;;; - read-lang-syntax-forms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- String
+;; read-lang-syntax-forms
+;;   : (-> String NativeFormsRead)
+;;   | doc m%
+;;       `read-lang-syntax-forms path` skips the `#lang` line and reads the
+;;       remaining file body as syntax forms.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (vector-ref (read-lang-syntax-forms "sample.scm") 0)
+;;       ;; => syntax forms
+;;       ```
+;;     %
 (def (read-lang-syntax-forms path)
   (let* ((lines (read-file-lines path))
          (body-text (join-lines (cdr lines)))
@@ -481,20 +584,38 @@
                     (set! out (cons next out)))))
                 (reverse out))))))
     (vector forms #f #f #f #f)))
-;;; Boundary:
-;;; - file-starts-with-lang? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- String
+;; file-starts-with-lang?
+;;   : (-> String Boolean)
+;;   | doc m%
+;;       `file-starts-with-lang? path` returns whether the first source line is
+;;       a `#lang` declaration.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (file-starts-with-lang? "sample.scm")
+;;       ;; => #t
+;;       ```
+;;     %
 (def (file-starts-with-lang? path)
   (with-catch
    (lambda (_) #f)
    (lambda ()
      (let (lines (read-file-lines path))
        (and (pair? lines) (string-prefix? "#lang" (car lines)))))))
-;;; Boundary:
-;;; - file-has-non-core-prelude? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- String
+;; file-has-non-core-prelude?
+;;   : (-> String Boolean)
+;;   | doc m%
+;;       `file-has-non-core-prelude? path` checks the first lines for a prelude
+;;       declaration outside `:gerbil/core`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (file-has-non-core-prelude? "src/parser/core.ss")
+;;       ;; => #f
+;;       ```
+;;     %
 (def (file-has-non-core-prelude? path)
   (with-catch
    (lambda (_) #f)
@@ -504,10 +625,20 @@
         (and (string-prefix? "prelude:" (string-trim line))
              (not (string-contains line ":gerbil/core"))))
       (take* (read-file-lines path) 12)))))
-;;; Invariant:
-;;; - parse-source-file owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; SourceFile <- String String
+;; parse-source-file
+;;   : (-> String String SourceFile)
+;;   | doc m%
+;;       `parse-source-file root path` materializes one source-file fact packet,
+;;       including definitions, calls, imports, POO forms, quality facts, typed
+;;       contracts, comments, and parse error evidence.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (source-file-path (parse-source-file "." "src/parser/core.ss"))
+;;       ;; => "src/parser/core.ss"
+;;       ```
+;;     %
 (def (parse-source-file root path)
   (let* ((fullpath (source-full-path root path))
          (relpath (relative-path root fullpath))
@@ -627,6 +758,8 @@
                 (predicate-family-facts-from-source relpath ordered-definitions ordered-calls))
                (field-access-pattern-facts
                 (field-access-pattern-facts-from-source relpath ordered-calls))
+               (projection-burst-facts
+                (projection-burst-facts-from-source relpath ordered-calls))
                (boolean-condition-facts
                 (boolean-condition-facts-from-source relpath ordered-definitions ordered-calls))
                (loop-driver-facts
@@ -679,6 +812,7 @@
                             ordered-control-flow-forms
                             predicate-family-facts
                             field-access-pattern-facts
+                            projection-burst-facts
                             boolean-condition-facts
                             loop-driver-facts
                             dependency-adapter-quality-facts

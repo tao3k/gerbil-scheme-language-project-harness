@@ -33,7 +33,10 @@
         +agent-dependency-protocol-adapter-rule+
         +agent-explicit-precise-import-rule+
         +agent-package-build-responsibility-rule+
-        +agent-build-runtime-quality-rule+)
+        +agent-build-runtime-quality-rule+
+        +agent-policy-source-scope-rule+
+        +agent-alist-access-rule+
+        +agent-anonymous-pair-access-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -117,3 +120,12 @@
 ;; ConfigConstant
 (def +agent-build-runtime-quality-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R020" "warning"))
+;; ConfigConstant
+(def +agent-policy-source-scope-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R021" "warning"))
+;; ConfigConstant
+(def +agent-alist-access-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R022" "warning"))
+;; ConfigConstant
+(def +agent-anonymous-pair-access-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R023" "warning"))

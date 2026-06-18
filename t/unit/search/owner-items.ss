@@ -22,7 +22,7 @@
 ;; FixturePath
 (def +owner-items-fixture+ "t/fixtures/parser/complex-syntax.ss")
 
-;; Unit <- ()
+;; : (-> () Unit )
 (def (check-owner-items-limit-budget)
   (let* ((file (parse-owner-items-source-file "."
                                               (path-expand +owner-items-fixture+ ".")))
@@ -33,7 +33,7 @@
     (check (owner-item-query-terms "projection|chain receipt")
            => ["projection" "chain" "receipt"])))
 
-;; Unit <- ()
+;; : (-> () Unit )
 (def (check-provider-launcher-native-fast-route)
   (let* ((config
           (provider-cli-config
@@ -60,7 +60,7 @@
     (check (source-contains? provider-source "write-gerbil-script-launcher") => #f)
     (check (source-contains? provider-source "#!/usr/bin/env gxi") => #f)))
 
-;; Unit <- ()
+;; : (-> () Unit )
 (def (check-owner-items-fast-entrypoint-stays-light)
   (let (source
         (call-with-input-file
@@ -74,7 +74,7 @@
     (check (source-contains? source ":commands/search)") => #f)
     (check (source-contains? source ":cli") => #f)))
 
-;; Unit <- ()
+;; : (-> () Unit )
 (def (check-search-guide-fast-entrypoint-stays-light)
   (let (source
         (call-with-input-file
@@ -86,6 +86,6 @@
     (check (source-contains? source ":commands/search)") => #f)
     (check (source-contains? source ":cli") => #f)))
 
-;; Boolean <- SourceText Needle
+;; : (-> SourceText Needle Boolean )
 (def (source-contains? source needle)
   (and (string-contains source needle) #t))

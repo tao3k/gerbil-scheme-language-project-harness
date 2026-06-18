@@ -18,7 +18,7 @@
 ;;; CLI boundary:
 ;;; - This command is the fast owner-items materializer behind search owner.
 ;;; - It validates unsupported output modes before touching parser facts.
-;; ExitCode <- Args
+;; : (-> Args ExitCode )
 (def (emit-owner-items-command args)
   (let (args (if (and (pair? args) (equal? (car args) "search"))
               (cdr args)
@@ -56,7 +56,7 @@
 ;;; Parse boundary:
 ;;; - Owner paths are resolved inside the requested project root.
 ;;; - The parser owner builds the source file; command code only validates path shape.
-;; SourceFile <- Root OwnerPath
+;; : (-> Root OwnerPath SourceFile )
 (def (parse-explicit-owner-items-file root owner)
   (let (path (path-expand owner root))
     (unless (and (owner-items-source-path? path) (file-exists? path))
@@ -66,7 +66,7 @@
 ;;; Limit boundary:
 ;;; - Missing limits use the public default.
 ;;; - Invalid numeric values fail before rendering partial output.
-;; Nat <- Args
+;; : (-> Args Nat )
 (def (owner-items-limit args)
   (let* ((value (option "--limit" args))
          (parsed (and value (string->number value))))
@@ -78,7 +78,7 @@
 ;;; Definition filter:
 ;;; - Empty term lists are an all-definitions owner browse.
 ;;; - Non-empty terms reuse the single-definition predicate below.
-;; (List Definition) <- (List Definition) (List Term)
+;; : (-> (List Definition) (List Term) (List Definition) )
 (def (matching-definitions definitions terms)
   (if (null? terms)
     definitions
@@ -87,14 +87,14 @@
 ;;; Definition predicate:
 ;;; - Terms are alternatives, matching owner-items pipe semantics.
 ;;; - The predicate stays separate so syntax facts can use their own fields.
-;; Boolean <- Definition (List Term)
+;; : (-> Definition (List Term) Boolean )
 (def (definition-matches-any-term? defn terms)
   (ormap (cut definition-matches-term? defn <>) terms))
 
 ;;; Definition term predicate:
 ;;; - Match normalized parser-owned definition fields, not source text.
 ;;; - Selector matching keeps line-range searches available to agents.
-;; Boolean <- Definition Term
+;; : (-> Definition Term Boolean )
 (def (definition-matches-term? defn term)
   (ormap (cut string-contains <> term)
          [(definition-name defn)
@@ -107,7 +107,7 @@
 ;;; Boundary:
 ;;; - Merge definition matches with parser-owned syntax facts for one owner.
 ;;; - Keep rendering line-oriented so ASP fast-path receipts stay compact.
-;; Unit <- SourceFile Matches SyntaxMatches
+;; : (-> SourceFile Matches SyntaxMatches Unit )
 (def (emit-owner-items file definition-matches syntax-matches . maybe-limit)
   (let* ((limit (owner-items-effective-limit maybe-limit))
          (shown-definitions (take* definition-matches limit))
@@ -133,7 +133,7 @@
     +owner-items-default-limit+))
 
 ;;; Boundary: syntax items preserve parser fact ownership while giving owner-items operator granularity.
-;; Unit <- SyntaxFact
+;; : (-> SyntaxFact Unit )
 (def (emit-owner-syntax-item fact)
   (displayln "|item kind=" (hash-get fact 'kind)
              " name=" (hash-get fact 'name)
@@ -146,14 +146,14 @@
 ;;; Boundary:
 ;;; - Match against structural fields/queryKeys, not raw source text.
 ;;; - Preserve parser-owned fact provenance while filtering owner items.
-;; (List SyntaxFact) <- SourceFile (List String)
+;; : (-> SourceFile (List String) (List SyntaxFact) )
 (def (matching-owner-syntax-facts file terms . maybe-limit)
   (let (facts (owner-items-syntax-fact-json file))
     (if (and (pair? maybe-limit) (car maybe-limit))
       (matching-owner-syntax-facts/limit facts terms (car maybe-limit) [])
       (filter (cut syntax-fact-matches-any-term? <> terms) facts))))
 
-;; (List SyntaxFact) <- (List SyntaxFact) (List String) Integer (List SyntaxFact)
+;; : (-> (List SyntaxFact) (List String) Integer (List SyntaxFact) (List SyntaxFact) )
 (def (matching-owner-syntax-facts/limit facts terms remaining out)
   (cond
    ((or (null? facts) (<= remaining 0))
@@ -168,7 +168,7 @@
 ;;; Boundary:
 ;;; - Empty term lists intentionally match all syntax facts for owner browsing.
 ;;; - Non-empty terms keep predicate matching isolated to one fact at a time.
-;; Boolean <- SyntaxFact (List String)
+;; : (-> SyntaxFact (List String) Boolean )
 (def (syntax-fact-matches-any-term? fact terms)
   (or (null? terms)
       (ormap (cut syntax-fact-matches-term? fact <>) terms)))
@@ -176,7 +176,7 @@
 ;;; Boundary:
 ;;; - This predicate searches normalized syntax fact fields only.
 ;;; - Query semantics stay independent from source text formatting.
-;; Boolean <- SyntaxFact String
+;; : (-> SyntaxFact String Boolean )
 (def (syntax-fact-matches-term? fact term)
   (ormap (cut string-contains <> term)
          (filter string?
@@ -190,7 +190,7 @@
 ;;; Boundary:
 ;;; - Flatten selected structured fields into string search keys.
 ;;; - Keep unsupported field values out of the match surface.
-;; (List String) <- SyntaxFact
+;; : (-> SyntaxFact (List String) )
 (def (syntax-fact-field-values fact)
   (let (fields (hash-get fact 'fields))
     (if fields
@@ -204,7 +204,7 @@
                          slotCacheRole cacheOperation sourceSelector))
       '())))
 
-;; String <- SyntaxFact Key
+;; : (-> SyntaxFact Key String )
 (def (syntax-fact-field-string fact key)
   (let* ((fields (hash-get fact 'fields))
          (value (and fields (hash-get fields key))))
@@ -216,13 +216,13 @@
 ;;; Boundary:
 ;;; - Owner item queries accept pipe and whitespace alternatives.
 ;;; - Empty query strings remain an explicit all-items request.
-;; (List String) <- MaybeString
+;; : (-> MaybeString (List String) )
 (def (owner-item-query-terms query)
   (if query
     (filter owner-item-query-term? (split-owner-item-query query))
     '()))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (owner-item-query-term? value)
   (and (string? value)
        (> (string-length value) 0)))
@@ -230,11 +230,11 @@
 ;;; Boundary:
 ;;; - Split only the owner-items query grammar, not global search parsing.
 ;;; - The helper recursion keeps token state explicit without named-let loops.
-;; (List String) <- String
+;; : (-> String (List String) )
 (def (split-owner-item-query query)
   (split-owner-item-query/chars (string->list query) [] []))
 
-;; (List String) <- (List Char) (List Char) (List String)
+;; : (-> (List Char) (List Char) (List String) (List String) )
 (def (split-owner-item-query/chars chars token out)
   (cond
    ((null? chars)
@@ -245,13 +245,13 @@
    (else
     (split-owner-item-query/chars (cdr chars) (cons (car chars) token) out))))
 
-;; (List String) <- (List Char) (List String)
+;; : (-> (List Char) (List String) (List String) )
 (def (cons-owner-query-token/chars token out)
   (if (null? token)
     out
     (cons (list->string (reverse token)) out)))
 
-;; Boolean <- Char
+;; : (-> Char Boolean )
 (def (owner-item-query-separator? char)
   (or (char=? char #\|)
       (char=? char #\space)

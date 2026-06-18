@@ -81,6 +81,24 @@ On failure, the adapter prints a compact line protocol:
 |finding-detail ...
 #+end_example
 
+* Harness Self-Apply Gates
+Ordinary =gxtest= runs should stay close to normal semantic tests. The harness
+therefore keeps its full source-policy self-apply gate outside the default test
+owner.
+
+Use the fast wiring check during normal development:
+#+begin_src shell
+gxtest t/self-apply-test.ss
+#+end_src
+
+Run the full harness self-apply gate explicitly when auditing source-policy debt:
+#+begin_src shell
+gxtest t/self-apply-full-gate.ss
+#+end_src
+
+The full gate intentionally performs whole-project source analysis and can take
+substantially longer than ordinary Gerbil semantic tests. It should fail with a
+compact debt summary instead of dumping full snapshot reports.
 * Programmatic API
 The downstream test surface is:
 

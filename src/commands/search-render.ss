@@ -12,7 +12,7 @@
         join-or-dash)
 ;; Integer
 (def +syntax-fact-render-limit+ 32)
-;; Selector <- Resolver
+;; : (-> Resolver Selector )
 (def (emit-selector-resolver-line resolver)
   (displayln "|selectorResolver scheme=" (hash-get resolver 'scheme)
              " owner=" (hash-get resolver 'owner)
@@ -21,7 +21,7 @@
              " selectorFormat=" (hash-get resolver 'selectorFormat)
              " output=" (hash-get resolver 'output)
              " indexOwner=" (hash-get resolver 'indexOwner)))
-;; String <- Example
+;; : (-> Example String )
 (def (emit-source-example-line example)
   (let (form (hash-get example 'form))
     (displayln "|sourceExample id=" (hash-get example 'id)
@@ -32,21 +32,21 @@
                " operands=" (join-or-dash (hash-get form 'operands))
                " keywords=" (join-or-dash (hash-get form 'keywords))
                " commentMode=" (hash-get example 'commentMode))))
-;; String <- Comment
+;; : (-> Comment String )
 (def (emit-source-comment-line comment)
   (displayln "|sourceComment id=" (hash-get comment 'id)
              " selector=" (hash-get comment 'selector)
              " extractor=" (hash-get comment 'extractor)
              " summary=" (hash-get comment 'summary)
              " fallback=" (hash-get comment 'fallback)))
-;; Unit <- (List SyntaxFact)
+;; : (-> (List SyntaxFact) Unit )
 (def (emit-structural-syntax-fact-lines facts)
   (for-each emit-syntax-fact-line
             (ranked-syntax-facts facts)))
 ;;; Boundary:
 ;;; - emit-syntax-fact-line coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; Unit <- SyntaxFact
+;; : (-> SyntaxFact Unit )
 (def (emit-syntax-fact-line fact)
   (let* ((fields (hash-get fact 'fields))
          (location (hash-get fact 'location)))
@@ -91,10 +91,19 @@
                " tokens=" (field-list-string fields 'tokens)
                " arrowCount=" (field-string fields 'arrowCount)
                " groupCount=" (field-string fields 'groupCount))))
-;;; Boundary:
-;;; - ranked-syntax-facts composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List SyntaxFact) <- (List SyntaxFact)
+;; ranked-syntax-facts
+;;   : (-> (List SyntaxFact) (List SyntaxFact))
+;;   | doc m%
+;;       `ranked-syntax-facts facts` selects a bounded, role-prioritized syntax
+;;       fact list for compact search rendering.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (ranked-syntax-facts facts)
+;;       ;; => prioritized facts
+;;       ```
+;;     %
 (def (ranked-syntax-facts facts)
   (reverse
    (ranked-syntax-state-output
@@ -103,10 +112,19 @@
            ['() '() +syntax-fact-render-limit+]
            (ranked-syntax-fact-predicates)))))
 
-;;; Boundary:
-;;; - ranked-syntax-fact-predicates composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List SyntaxFactPredicate)
+;; ranked-syntax-fact-predicates
+;;   : (-> (List SyntaxFactPredicate))
+;;   | doc m%
+;;       `ranked-syntax-fact-predicates` returns the selector predicates in the
+;;       priority order used by syntax fact rendering.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (ranked-syntax-fact-predicates)
+;;       ;; => selector predicates
+;;       ```
+;;     %
 (def (ranked-syntax-fact-predicates)
   [poo-syntax-fact?
    dependency-adapter-quality-syntax-fact?
@@ -118,28 +136,55 @@
    macro-or-import-syntax-fact?
    (lambda (_) #t)])
 
-;;; Invariant:
-;;; - ranked-syntax-state-output owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; SyntaxFactList <- RankedSyntaxState
+;; ranked-syntax-state-output
+;;   : (-> RankedSyntaxState (List SyntaxFact))
+;;   | doc m%
+;;       `ranked-syntax-state-output state` extracts the accumulated syntax fact
+;;       output from the ranker state tuple.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (ranked-syntax-state-output ['() facts 0])
+;;       ;; => facts
+;;       ```
+;;     %
 (def (ranked-syntax-state-output state)
   (match state
     ([seen out remaining] out)))
 
-;;; Boundary:
-;;; - select-ranked-syntax-facts composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; RankedSyntaxState <- (List SyntaxFact) SyntaxFactPredicate RankedSyntaxState
+;; select-ranked-syntax-facts
+;;   : (-> (List SyntaxFact) SyntaxFactPredicate RankedSyntaxState RankedSyntaxState)
+;;   | doc m%
+;;       `select-ranked-syntax-facts facts predicate state` folds one predicate
+;;       over the candidate facts and carries the ranker state forward.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (select-ranked-syntax-facts facts predicate ['() '() 8])
+;;       ;; => updated ranker state
+;;       ```
+;;     %
 (def (select-ranked-syntax-facts facts predicate state)
   (foldl (lambda (fact state)
            (select-ranked-syntax-fact predicate fact state))
          state
          facts))
 
-;;; Invariant:
-;;; - select-ranked-syntax-fact owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; RankedSyntaxState <- SyntaxFactPredicate SyntaxFact RankedSyntaxState
+;; select-ranked-syntax-fact
+;;   : (-> SyntaxFactPredicate SyntaxFact RankedSyntaxState RankedSyntaxState)
+;;   | doc m%
+;;       `select-ranked-syntax-fact predicate fact state` appends one unseen
+;;       fact when the predicate matches and ranking capacity remains.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (select-ranked-syntax-fact predicate fact ['() '() 1])
+;;       ;; => updated ranker state
+;;       ```
+;;     %
 (def (select-ranked-syntax-fact predicate fact state)
   (match state
     ([seen out remaining]
@@ -148,7 +193,7 @@
          [(cons id seen) (cons fact out) (- remaining 1)]
          state)))))
 
-;; Boolean <- SyntaxFactPredicate (List SyntaxFactId) Integer SyntaxFact
+;; : (-> SyntaxFactPredicate (List SyntaxFactId) Integer SyntaxFact Boolean )
 (def (ranked-syntax-fact-selected? predicate seen remaining fact)
   (and (> remaining 0)
        (predicate fact)
@@ -157,32 +202,32 @@
 ;;; Predicate selectors share the same syntax field accessor so role and
 ;;; quality checks stay expression-level instead of re-opening the fields hash
 ;;; in each predicate branch.
-;; String <- SyntaxFact Key
+;; : (-> SyntaxFact Key String )
 (def (syntax-fact-field-string fact key)
   (field-string (hash-get fact 'fields) key))
 
-;; Boolean <- SyntaxFact Key (List String)
+;; : (-> SyntaxFact Key (List String) Boolean )
 (def (syntax-fact-field-member? fact key values)
   (member (syntax-fact-field-string fact key) values))
 
-;; Boolean <- SyntaxFact Key String
+;; : (-> SyntaxFact Key String Boolean )
 (def (syntax-fact-field=? fact key expected)
   (equal? (syntax-fact-field-string fact key) expected))
 
-;; Boolean <- SyntaxFact Key (List String)
+;; : (-> SyntaxFact Key (List String) Boolean )
 (def (syntax-fact-value-member? fact key values)
   (member (hash-get fact key) values))
 
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (poo-syntax-fact? fact)
   (syntax-fact-field-member? fact 'role '("class" "generic" "protocol" "method")))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (dependency-adapter-quality-syntax-fact? fact)
   (syntax-fact-field=? fact 'role "dependency-protocol-adapter"))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (macro-or-import-syntax-fact? fact)
   (syntax-fact-value-member? fact 'kind '("macro" "import")))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (higher-order-syntax-fact? fact)
   (syntax-fact-field-member? fact 'role
                              '("anonymous-function"
@@ -192,29 +237,38 @@
                                "sequence-map"
                                "sequence-filter"
                                "sequence-fold")))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (typed-contract-syntax-fact? fact)
   (syntax-fact-field=? fact 'role "typed-combinator-style"))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (invalid-typed-contract-syntax-fact? fact)
   (and (typed-contract-syntax-fact? fact)
        (syntax-fact-field=? fact 'quality "invalid")))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (comment-quality-syntax-fact? fact)
   (syntax-fact-field=? fact 'role "engineering-comment-quality"))
-;; Boolean <- SyntaxFact
+;; : (-> SyntaxFact Boolean )
 (def (weak-comment-quality-syntax-fact? fact)
   (and (comment-quality-syntax-fact? fact)
        (syntax-fact-field-member? fact 'quality '("absent" "weak"))))
-;; String <- Fields Key
+;; : (-> Fields Key String )
 (def (field-string fields key)
   (if (and fields (hash-key? fields key))
     (dash-empty (value->field-string (hash-get fields key)))
     "-"))
-;;; Boundary:
-;;; - field-list-string composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- Fields Key
+;; field-list-string
+;;   : (-> Fields Key String)
+;;   | doc m%
+;;       `field-list-string fields key` renders a list-valued field as a compact
+;;       comma-style output value, falling back to `-` for missing data.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (field-list-string fields 'tokens)
+;;       ;; => "let,lambda"
+;;       ```
+;;     %
 (def (field-list-string fields key)
   (if (and fields (hash-key? fields key))
     (let (value (hash-get fields key))
@@ -223,24 +277,24 @@
        ((string? value) (dash-empty value))
        (else "-")))
     "-"))
-;; DashEmpty <- Value
+;; : (-> Value DashEmpty )
 (def (dash-empty value)
   (cond
    ((not value) "-")
    ((and (string? value) (fx= (string-length value) 0)) "-")
    (else value)))
-;; String <- FieldValue
+;; : (-> FieldValue String )
 (def (value->field-string value)
   (cond
    ((number? value) (number->string value))
    ((boolean? value) (if value "true" "false"))
    (else value)))
-;; DetailList <- Details Key
+;; : (-> Details Key DetailList )
 (def (detail-list details key)
   (if (hash-key? details key)
     (hash-get details key)
     []))
-;; JoinOrDash <- Values
+;; : (-> Values JoinOrDash )
 (def (join-or-dash values)
   (if (null? values)
     "-"

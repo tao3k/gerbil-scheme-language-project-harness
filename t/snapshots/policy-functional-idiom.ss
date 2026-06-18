@@ -5,7 +5,7 @@
    ("GERBIL-SCHEME-AGENT-R009"
     "src/orders/core.ss"
     "src/orders/core.ss:6-9"
-    "manual named let detected; if this is pure accumulation, predicate search, or sequence transformation, prefer for/fold, map/filter/filter-map/append-map, fold, predicate helpers, cut/curry/compose, or with-list-builder; keep named let for IO, stateful control flow, C3-style fixpoint selection, or generator/continuation drivers"))
+    "named-let loop looks like a redundant pure transform; prefer for/fold, map/filter/filter-map/append-map, fold, predicate helpers, cut/curry/compose, or with-list-builder only when parser facts show no IO, stateful control flow, C3-style fixpoint selection, or generator/continuation driver"))
   (guidance
    ((kind "named-let")
     (caller "total")

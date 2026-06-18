@@ -22,12 +22,12 @@
 ;; Generic
 (defgeneric :wr)
 
-;; Void <- TraceProbe Port
+;; : (-> TraceProbe Port Void )
 (defmethod (@method :pr trace-probe)
   (lambda (self port)
     (display "trace-probe" port)))
 
-;; Void <- TraceProbe Port
+;; : (-> TraceProbe Port Void )
 (defmethod (@method :wr trace-probe)
   (lambda (self port)
     (display "trace-probe" port)))

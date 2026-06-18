@@ -6,6 +6,7 @@
         :parser/source-class
         :protocol/json
         :support/args
+        :support/io
         :support/list)
 
 (export emit-structural-index)
@@ -17,7 +18,7 @@
 ;;; Boundary:
 ;;; - emit-structural-index routes interface, owner facts, and explicit artifacts.
 ;;; - Default output stays lightweight so ASP Rust owns full index construction.
-;; Integer <- ProjectIndex (List String) Json
+;; : (-> ProjectIndex (List String) Json Integer )
 (def (emit-structural-index index args json?)
   (let ((owner (option "--owner" args))
         (artifact? (or (flag? "--artifact" args) (flag? "--full" args))))
@@ -30,7 +31,7 @@
 ;;; The hot path must not materialize workspace syntaxFacts.
 ;;; ASP Rust fans out owner facts through --owner.
 ;;; ASP Rust owns graph topology, cache state, and ranking.
-;; Integer <- ProjectIndex Json
+;; : (-> ProjectIndex Json Integer )
 (def (emit-structural-interface index json?)
   (let* ((packet (structural-index-packet-json index))
          (file-hashes (hash-get packet 'fileHashes))
@@ -42,49 +43,63 @@
     (if json?
       (write-json-line packet)
       (begin
-        (displayln "[gerbil-search-structural] root=" (project-index-root index)
-                   " generationId=" (hash-get packet 'generationId)
-                   " mode=" (hash-get packet 'indexMode)
-                   " files=" (length file-hashes)
-                   " owners=" (length owners)
-                   " symbols=" (length symbols)
-                   " syntaxFacts=" (hash-get packet 'nativeSyntaxFactTotal)
-                   " dependencyUsages=" (length dependency-usages))
-        (displayln "|artifact id=" (hash-get packet 'sourceArtifactId)
-                   " schemaId=" (hash-get packet 'schemaId)
-                   " rawSourceStored=false")
-        (displayln "|factInterface mode=" (hash-get fact-interface 'mode)
-                   " granularity=" (hash-get fact-interface 'granularity)
-                   " indexOwner=" (hash-get fact-interface 'indexOwner)
-                   " heavyIndexOwner=" (hash-get fact-interface 'heavyIndexOwner)
-                   " graphTurboOwner=" (hash-get fact-interface 'graphTurboOwner)
-                   " factSchemaId=" (hash-get fact-interface 'factSchemaId))
-        (displayln "|projectionVocabulary facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,predicateFamilyFacts,fieldAccessPatternFacts,booleanConditionFacts,loopDriverFacts,dependencyAdapterQualityFacts,functionQualityProfiles,typedContractFacts,commentQualityFacts,dependencyUsageFacts"
-                   " consumer=asp-rust-structural-index"
-                   " graphTurbo=asp-graph-turbo")
+        (emit-field-line
+         "[gerbil-search-structural]"
+         [(line-field "root" (project-index-root index))
+          (line-field "generationId" (hash-get packet 'generationId))
+          (line-field "mode" (hash-get packet 'indexMode))
+          (line-field "files" (length file-hashes))
+          (line-field "owners" (length owners))
+          (line-field "symbols" (length symbols))
+          (line-field "syntaxFacts" (hash-get packet 'nativeSyntaxFactTotal))
+          (line-field "dependencyUsages" (length dependency-usages))])
+        (emit-field-line
+         "|artifact"
+         [(line-field "id" (hash-get packet 'sourceArtifactId))
+          (line-field "schemaId" (hash-get packet 'schemaId))
+          (line-field "rawSourceStored" "false")])
+        (emit-field-line
+         "|factInterface"
+         [(line-field "mode" (hash-get fact-interface 'mode))
+          (line-field "granularity" (hash-get fact-interface 'granularity))
+          (line-field "indexOwner" (hash-get fact-interface 'indexOwner))
+          (line-field "heavyIndexOwner" (hash-get fact-interface 'heavyIndexOwner))
+          (line-field "graphTurboOwner" (hash-get fact-interface 'graphTurboOwner))
+          (line-field "factSchemaId" (hash-get fact-interface 'factSchemaId))])
+        (emit-field-line
+         "|projectionVocabulary"
+         [(line-field "facts" "macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,predicateFamilyFacts,fieldAccessPatternFacts,booleanConditionFacts,loopDriverFacts,dependencyAdapterQualityFacts,functionQualityProfiles,typedContractFacts,commentQualityFacts,dependencyUsageFacts")
+          (line-field "consumer" "asp-rust-structural-index")
+          (line-field "graphTurbo" "asp-graph-turbo")])
         (for-each
          (lambda (owner)
-           (displayln "|owner path=" (hash-get owner 'ownerPath)
-                      " kind=" (hash-get owner 'ownerKind)
-                      " authority=" (hash-get owner 'sourceAuthority)
-	                   " sourceClass="
-	                      (source-path-class (hash-get owner 'ownerPath))))
+           (emit-field-line
+            "|owner"
+            [(line-field "path" (hash-get owner 'ownerPath))
+             (line-field "kind" (hash-get owner 'ownerKind))
+             (line-field "authority" (hash-get owner 'sourceAuthority))
+             (line-field "sourceClass"
+                         (source-path-class (hash-get owner 'ownerPath)))]))
 	         (structural-interface-preview owners))
 	        (for-each
 	         (lambda (summary)
-	           (displayln "|ownerFactSummary path=" (hash-get summary 'ownerPath)
-	                      " facts=" (hash-get summary 'facts)
-	                      " command=\""
-	                      (hash-get summary 'ownerFactsCommand)
-	                      "\""))
+	           (emit-field-line
+              "|ownerFactSummary"
+              [(line-field "path" (hash-get summary 'ownerPath))
+               (line-field "facts" (hash-get summary 'facts))
+               (line-field "command"
+                           (string-append "\""
+                                          (hash-get summary 'ownerFactsCommand)
+                                          "\""))]))
 	         (structural-interface-preview summaries))
-	        (displayln "nextCommand=gerbil-scheme-harness search structural --owner <path> --json ."))))
+	        (emit-text-line
+           "nextCommand=gerbil-scheme-harness search structural --owner <path> --json ."))))
 	  0)
 
 ;;; Boundary:
 ;;; - Interface preview stays bounded while retaining the command owner that
 ;;;   explains structural fan-out to ASP clients.
-;; (List Json) <- (List Json)
+;; : (-> (List Json) (List Json) )
 (def (structural-interface-preview rows)
   (let ((head (take* rows +structural-interface-preview-limit+))
         (required (find-structural-interface-row rows)))
@@ -97,7 +112,7 @@
 ;;; Boundary:
 ;;; - Required owner lookup is path-based so preview stabilization does not
 ;;;   depend on current parser ordering or newly added command files.
-;; MaybeJson <- (List Json)
+;; : (-> (List Json) MaybeJson )
 (def (find-structural-interface-row rows)
   (cond
    ((null? rows) #f)
@@ -108,7 +123,7 @@
 ;;; - Presence checks compare the stable ownerPath key only.
 ;;; - The ormap predicate keeps preview membership expression-level and avoids
 ;;;   a manual loop that could drift from the same ownerPath invariant.
-;; Boolean <- (List Json) Json
+;; : (-> (List Json) Json Boolean )
 (def (structural-interface-row-present? rows required)
   (ormap (lambda (row)
            (equal? (hash-get row 'ownerPath)
@@ -118,7 +133,7 @@
 ;;; Owner mode projects one source file's parser facts for ASP-side fan-out.
 ;;; It may render native facts, but it never builds the workspace artifact or
 ;;; graph/index topology inside the Scheme provider.
-;; Integer <- ProjectIndex OwnerPath Json
+;; : (-> ProjectIndex OwnerPath Json Integer )
 (def (emit-structural-owner-facts index owner json?)
   (let (file (find-owner index owner))
     (unless file (error "owner not found" owner))
@@ -139,7 +154,7 @@
 ;;; Artifact mode is explicit validation/debug transport.
 ;;; The complete syntaxFacts packet remains available for schema tests, but it
 ;;; is not the agent-facing default and is not part of the hot performance path.
-;; Integer <- ProjectIndex Json
+;; : (-> ProjectIndex Json Integer )
 (def (emit-structural-artifact index json?)
   (let* ((packet (structural-index-artifact-packet-json index))
          (file-hashes (hash-get packet 'fileHashes))

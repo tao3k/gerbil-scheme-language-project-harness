@@ -12,14 +12,14 @@
 ;;; Boundary:
 ;;; - matching-capability-posture-facts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List Fact) <- ProjectIndex (List XX)
+;; : (-> ProjectIndex (List XX) (List Fact) )
 (def (matching-capability-posture-facts index terms)
   (filter (cut capability-posture-matches-terms? <> terms)
           (capability-posture-facts index)))
 ;;; Boundary:
 ;;; - capability-posture-facts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List Fact) <- ProjectIndex
+;; : (-> ProjectIndex (List Fact) )
 (def (capability-posture-facts index)
   (let* ((files (project-index-files index))
          (package (project-index-package index))
@@ -140,7 +140,7 @@
       ["policy-covered" "guide-covered" "snapshot-covered" "bench-covered" "check-covered" "self-apply-covered" "source-class-covered"]
       "agent-assesses-gerbil-project-quality-before-editing"
       "query-capability-posture-and-run-closure-commands-before-claiming-quality")]))
-;; Fact <- String Capability Status Summary Witness Next (List XX) Counts PolicyRules QualitySignals AgentScenario String
+;; : (-> String Capability Status Summary Witness Next (List XX) Counts PolicyRules QualitySignals AgentScenario String Fact )
 (def (capability-posture-fact id capability status summary witness next terms counts
                               policy-rules quality-signals agent-scenario intent)
   (evidence-fact
@@ -164,7 +164,7 @@
 ;;; Boundary:
 ;;; - capability-posture-matches-terms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- CapabilityPosture (List SearchTerm)
+;; : (-> CapabilityPosture (List SearchTerm) Boolean )
 (def (capability-posture-matches-terms? fact terms)
   (or (null? terms)
       (ormap (lambda (term)
@@ -176,16 +176,16 @@
 ;;; Boundary:
 ;;; - append-map composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- (YY <- XX) (List XX)
+;; : (-> (-> XX YY ) (List XX) Integer )
 (def (append-map proc xs)
   (apply append (map proc xs)))
 ;;; Boundary:
 ;;; - dependency-contains? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- (List DependencyName) DependencyNeedle
+;; : (-> (List DependencyName) DependencyNeedle Boolean )
 (def (dependency-contains? dependencies needle)
   (ormap (cut string-contains <> needle) dependencies))
-;; Status <- Package
+;; : (-> Package Status )
 (def (configurable-interface-status package)
   (cond
    ((not package) "builtin-defaults")
@@ -193,7 +193,7 @@
         (project-package-agent-policy package))
     "project-overridden")
    (else "builtin-defaults")))
-;; String <- Package
+;; : (-> Package String )
 (def (source-scope-status package)
   (let (policy (and package (project-package-source-scope-policy package)))
     (if policy
@@ -207,13 +207,15 @@
             (runtimeRoots [])
             (excludeDirectories [])
             (explanation "Builtin source-scope defaults apply unless gerbil.pkg policy overrides them.")))))
-;; Status <- Package
+;; : (-> Package Status )
 (def (agent-policy-status package)
   (let (policy (and package (project-package-agent-policy package)))
     (if policy
       (hash (status "project-overridden")
-            (enabledRules (agent-policy-enabled-rules policy))
-            (disabledRules (agent-policy-disabled-rules policy)))
+            (default "all-rules-enabled")
+            (disabledRules (agent-policy-disabled-rules policy))
+            (explanation (agent-policy-explanation policy)))
       (hash (status "builtin-defaults")
-            (enabledRules [])
-            (disabledRules [])))))
+            (default "all-rules-enabled")
+            (disabledRules [])
+            (explanation #f)))))

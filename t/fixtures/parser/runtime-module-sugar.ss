@@ -6,21 +6,21 @@ package: sample/runtime-module-sugar
 (import "runtime")
 (export #t)
 
-;; ImportExpander <- Syntax
+;; : (-> Syntax ImportExpander )
 (defsyntax-for-import (only-in stx)
   (syntax-case stx ()
     ((_ hd id ...)
      (identifier-list? #'(id ...))
      #'(begin))))
 
-;; ExportExpander <- Syntax
+;; : (-> Syntax ExportExpander )
 (defsyntax-for-export (except-out stx)
   (syntax-case stx ()
     ((_ hd id ...)
      (identifier-list? #'(id ...))
      #'(begin))))
 
-;; ImportExportExpander <- Syntax
+;; : (-> Syntax ImportExportExpander )
 (defsyntax-for-import-export (for-syntax stx)
   (syntax-case stx ()
     ((_ body ...)

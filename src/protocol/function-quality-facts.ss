@@ -7,7 +7,7 @@
 
 (export function-quality-profile-structural-fact-json)
 
-;; Json <- FunctionQualityProfile
+;; : (-> FunctionQualityProfile Json )
 (def (function-quality-profile-structural-fact-json profile)
   (hash (id (native-syntax-fact-id "function-quality-profile"
                                    (function-quality-profile-path profile)
@@ -28,7 +28,7 @@
 ;;; Query keys bridge agent vocabulary to protocol field names so natural
 ;;; "function quality" questions land on parser-owned evidence instead of
 ;;; broad policy or source scans.
-;; (List QueryKey) <- FunctionQualityProfile
+;; : (-> FunctionQualityProfile (List QueryKey) )
 (def (function-quality-profile-query-keys profile)
   (dedupe
    (filter identity
@@ -66,7 +66,7 @@
 ;;; Field projection keeps every profile signal under one JSON object.
 ;;; Policy/search consumers can rank repair class, confidence, and preservation
 ;;; reasons without rejoining parser facts.
-;; Json <- FunctionQualityProfile
+;; : (-> FunctionQualityProfile Json )
 (def (function-quality-profile-fields-json profile)
   (hash (role (function-quality-profile-role profile))
         (exported (function-quality-profile-exported profile))

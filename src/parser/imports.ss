@@ -11,12 +11,12 @@
 ;;; Boundary:
 ;;; - module-import-facts-from-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; ModuleImportFactsFromForm <- Relpath Form
+;; : (-> Relpath Form ModuleImportFactsFromForm )
 (def (module-import-facts-from-form relpath form)
   (filter-map (cut module-import-fact-from-stx relpath <>)
               (cdr (stx-list-items form))))
 
-;; ModuleImportFactFromStx <- Relpath Item
+;; : (-> Relpath Item ModuleImportFactFromStx )
 (def (module-import-fact-from-stx relpath item)
   (let* ((datum (syntax->datum item))
          (loc (stx-source item))
@@ -35,7 +35,7 @@
 ;;; Import wrappers can nest the module reference behind only-in/rename-in forms.
 ;;; The find combinator keeps that search declarative and returns only a module
 ;;; ref datum accepted by module-ref-datum?, never an arbitrary operand.
-;; ModuleRefFromImportDatum <- Datum
+;; : (-> Datum ModuleRefFromImportDatum )
 (def (module-ref-from-import-datum datum)
   (cond
    ((module-ref-datum? datum) => values)
@@ -44,24 +44,24 @@
       (and found (module-ref-datum? found))))
    (else #f)))
 
-;; (Maybe String) <- Datum
+;; : (-> Datum (Maybe String) )
 (def (module-ref-datum? datum)
   (cond
    ((string? datum) datum)
    ((and (symbol? datum) (module-ref-symbol? datum)) (symbol->string datum))
    (else #f)))
 
-;; Boolean <- Symbol
+;; : (-> Symbol Boolean )
 (def (module-ref-symbol? symbol)
   (string-prefix? ":" (symbol->string symbol)))
 
-;; ImportModifier <- Datum
+;; : (-> Datum ImportModifier )
 (def (import-modifier datum)
   (if (pair? datum)
     (datum->string (car datum))
     "direct"))
 
-;; String <- Datum
+;; : (-> Datum String )
 (def (import-phase datum)
   (cond
    ((and (pair? datum) (eq? (car datum) 'for-syntax)) "syntax")
@@ -76,7 +76,7 @@
 ;;; Boundary:
 ;;; - import-symbols composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (import-symbols datum)
   (if (pair? datum)
     (dedupe
@@ -89,7 +89,7 @@
       (flatten datum)))
     '()))
 
-;; Boolean <- Symbol
+;; : (-> Symbol Boolean )
 (def (import-control-symbol? symbol)
   (member (symbol->string symbol)
           '("for-syntax" "only-in" "except-in" "rename-in" "rename-out"
@@ -97,7 +97,7 @@
             "for-template" "group-in" "only-out" "prefix-out" "group-out"
             "+1" "-1" "0")))
 
-;; ImportAlias <- Datum
+;; : (-> Datum ImportAlias )
 (def (import-alias datum)
   (and (pair? datum)
        (member (car datum) '(rename-in rename-out prefix-in))

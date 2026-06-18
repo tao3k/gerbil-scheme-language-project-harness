@@ -5,20 +5,20 @@
 (import :gerbil/gambit)
 (export main)
 
-;; String <- Unit
+;; : (-> Unit String )
 (def +poo-dependency+ "git.cons.io/mighty-gerbils/gerbil-poo")
 
-;; Unit <- (List String)
+;; : (-> (List String) Unit )
 (def (emit . parts)
   (for-each display parts)
   (newline))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (option-with-value? arg)
   (or (equal? arg "--view")
       (equal? arg "--workspace")))
 
-;; (List String) <- (List String) (List String)
+;; : (-> (List String) (List String) (List String) )
 (def (collect-positional-args rest out)
   (cond
    ((null? rest) (reverse out))
@@ -28,12 +28,12 @@
     (collect-positional-args (cdr rest) out))
    (else (collect-positional-args (cdr rest) (cons (car rest) out)))))
 
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (positional-args args)
   (collect-positional-args args '()))
 
 ;;; Invariant: insert the separator only between retained positional terms.
-;; String <- (List String) String
+;; : (-> (List String) String String )
 (def (join strings sep)
   (if (null? strings)
     ""
@@ -43,23 +43,23 @@
                         (string-append sep string))
                       (cdr strings))))))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (identity-token? term)
   (or (equal? term "gerbil-poo")
       (equal? term +poo-dependency+)))
 
-;; Boolean <- (List String) String
+;; : (-> (List String) String Boolean )
 (def (has-term? terms target)
   (member target terms))
 
-;; Boolean <- MaybePathString
+;; : (-> MaybePathString Boolean )
 (def (source-script-path? value)
   (and (string? value)
        (let (length (string-length value))
          (and (fx>= length 3)
               (equal? (substring value (- length 3) length) ".ss")))))
 
-;; (List String) <- Unit
+;; : (-> Unit (List String) )
 (def (entry-args)
   (let (args (command-line))
     (if (and (pair? args)
@@ -69,12 +69,12 @@
       (cdr args))))
 
 ;;; Boundary: extension identity tokens are stripped before choosing pattern focus.
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (focus terms)
   (let (rest (filter (lambda (term) (not (identity-token? term))) terms))
     (if (null? rest) "usage" (join rest " "))))
 
-;; Unit <- Unit
+;; : (-> Unit Unit )
 (def (emit-common-source-lookup)
   (emit "|selectorResolver scheme=gerbil-poo-logical-symbol status=logical-selector"
         " querySelector=not-direct"
@@ -96,7 +96,7 @@
   (emit "|agentAction action=use-minimalForms-before-editing selectorUse=source-anchor missingLocalAction=install-package-before-repository-fallback fallback=repository-source-after-install-check quality=verified avoid=generic-scheme-or-racket-class-guess"))
 
 ;;; Boundary: object-system output owns the selector and minimal-form packet rows.
-;; Unit <- String String
+;; : (-> String String Unit )
 (def (emit-object-system-pattern query pattern-focus)
   (emit "[gerbil-search-pattern] query=" query
         " evidenceGrade=fact authority=executable-pattern quality=verified")
@@ -148,7 +148,7 @@
   (emit "next=search extension gerbil-poo " pattern-focus))
 
 ;;; Boundary: rationaldict output owns the adapter and precise-import packet rows.
-;; Unit <- String String
+;; : (-> String String Unit )
 (def (emit-rationaldict-pattern query pattern-focus)
   (emit "[gerbil-search-pattern] query=" query
         " evidenceGrade=fact authority=executable-pattern quality=verified")
@@ -193,7 +193,7 @@
   (emit "|quality verified missing=- selectorCount=9 formCount=7 failureCaseCount=4")
   (emit "next=search pattern poo rationaldict adapter"))
 
-;; Integer <- (List String)
+;; : (-> (List String) Integer )
 (def (main . args)
   (let* ((raw-pattern-args
           (if (and (pair? args)

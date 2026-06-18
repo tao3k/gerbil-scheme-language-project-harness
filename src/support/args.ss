@@ -25,23 +25,53 @@
     "--owner"
     "--iterations" "--max-total-ms" "--max-interface-ms" "--whitelist"
     "--topic" "--intent" "--role" "--level" "--rule" "--finding" "--limit"))
-;; Boolean <- Flag (List XX)
+;; flag?
+;;   : (-> String (List String) Boolean)
+;;   | doc m%
+;;       `flag? flag args` returns whether the command-line argument list
+;;       contains the boolean flag.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (flag? "--json" '("--json" "--workspace" "."))
+;;       ;; => #t
+;;       ```
+;;     %
 (def (flag? flag args)
   (member flag args))
-;;; Invariant:
-;;; - option owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Option <- Flag (List String)
+;; option
+;;   : (-> String (List String) (U #f String))
+;;   | doc m%
+;;       `option flag args` returns the value following `flag`, or `#f` when
+;;       the flag is absent.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (option "--workspace" '("--workspace" "src"))
+;;       ;; => "src"
+;;       ```
+;;     %
 (def (option flag args)
   (match args
     ([] #f)
     ([hd value . rest]
      (if (equal? hd flag) value (option flag (cons value rest))))
     ([_] #f)))
-;;; Invariant:
-;;; - options owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; (List String) <- Flag (List String)
+;; options
+;;   : (-> String (List String) (List String))
+;;   | doc m%
+;;       `options flag args` returns every value following repeated occurrences
+;;       of `flag`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (options "--term" '("--term" "macro" "--term" "policy"))
+;;       ;; => ("macro" "policy")
+;;       ```
+;;     %
 (def (options flag args)
   (match args
     ([] '())
@@ -50,10 +80,19 @@
        (cons value (options flag rest))
        (options flag (cons value rest))))
     ([_] '())))
-;;; Boundary:
-;;; - positional-args composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List String) <- (List String)
+;; positional-args
+;;   : (-> (List String) (List String))
+;;   | doc m%
+;;       `positional-args args` removes known flags and option values while
+;;       preserving positional command arguments.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (positional-args '("prime" "--workspace" "."))
+;;       ;; => ("prime")
+;;       ```
+;;     %
 (def (positional-args args)
   (let (state
         (foldl (lambda (arg state)
@@ -69,14 +108,14 @@
                (cons '() #f)
                args))
     (reverse (car state))))
-;; ProjectRoot <- (List String)
+;; : (-> (List String) ProjectRoot )
 (def (project-root args)
   (or (option "--workspace" args)
       (let (pos (positional-args args))
         (if (and (pair? pos) (file-directory? (last pos)))
           (last pos)
           "."))))
-;; DropProjectRoot <- (List String)
+;; : (-> (List String) DropProjectRoot )
 (def (drop-project-root args)
   (let* ((pos (positional-args args))
          (root? (and (pair? pos) (file-directory? (last pos))))
@@ -84,10 +123,19 @@
     (if root?
       (drop-positional-index args root-index)
       args)))
-;;; Boundary:
-;;; - drop-positional-index composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- (List XX) TargetIndex
+;; drop-positional-index
+;;   : (-> (List String) Integer (List String))
+;;   | doc m%
+;;       `drop-positional-index args target-index` removes the positional
+;;       argument at a one-based positional index without dropping option values.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (drop-positional-index '("search" "prime" "--workspace" ".") 2)
+;;       ;; => ("search" "--workspace" ".")
+;;       ```
+;;     %
 (def (drop-positional-index args target-index)
   (let (state
         (foldl (lambda (arg state)
@@ -110,10 +158,19 @@
                ['() 0 #f]
                args))
     (reverse (car state))))
-;;; Boundary:
-;;; - file-directory? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- String
+;; file-directory?
+;;   : (-> String Boolean)
+;;   | doc m%
+;;       `file-directory? path` returns `#t` when `path` exists and is a
+;;       directory, and `#f` for filesystem errors.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (file-directory? ".")
+;;       ;; => #t
+;;       ```
+;;     %
 (def (file-directory? path)
   (with-catch
    (lambda (_) #f)

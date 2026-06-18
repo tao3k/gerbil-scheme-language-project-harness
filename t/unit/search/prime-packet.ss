@@ -41,17 +41,17 @@
     (check (packet-has-edge-kind? packet "owns") => #t)
     (check (packet-has-edge-kind? packet "activates") => #t)
     (check (packet-has-note-kind? packet "parser") => #t)))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-node-kind? packet kind)
   (ormap (lambda (node)
            (equal? (hash-get node 'kind) kind))
          (hash-get packet 'nodes)))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-edge-kind? packet kind)
   (ormap (lambda (edge)
            (equal? (hash-get edge 'kind) kind))
          (hash-get packet 'edges)))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-note-kind? packet kind)
   (ormap (lambda (note)
            (equal? (hash-get note 'kind) kind))

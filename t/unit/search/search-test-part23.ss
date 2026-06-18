@@ -6,7 +6,7 @@
         :commands/search
         (only-in :std/srfi/13 string-contains))
 (export search-test-part-23)
-;; SearchOutput <- (List XX)
+;; : (-> (List XX) SearchOutput )
 (def (search-output args)
   (let* ((status #f)
          (output
@@ -16,22 +16,22 @@
                 (set! status (search-main args)))))))
     (check status => 0)
     output))
-;; Boolean <- OutputPort Fragment
+;; : (-> OutputPort Fragment Boolean )
 (def (contains? output fragment)
   (and (string-contains output fragment) #t))
-;; Unit <- String
+;; : (-> String Unit )
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-;; Unit <- String SourceLine
+;; : (-> String SourceLine Unit )
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)
    (lambda () (delete-file path)))
   (call-with-output-file path
     (lambda (port) (display text port))))
-;; Path <- Unit
+;; : (-> Unit Path )
 (def (write-explicit-owner-fixture)
   (let* ((root ".run/search-explicit-owner")
          (path (string-append root "/outside-owner.ss")))

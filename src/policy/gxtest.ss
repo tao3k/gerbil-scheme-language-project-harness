@@ -15,7 +15,7 @@
 ;;; Boundary:
 ;;; - make-project-policy-test is the minimal gxtest bridge for package policy.
 ;;; - Policy ownership stays in gerbil.pkg and optional external config files.
-;; TestSuite <- Root
+;; : (-> Root TestSuite )
 (def (make-project-policy-test root)
   (test-suite "gerbil scheme project policy"
     (test-case "package policy passes"
@@ -23,16 +23,16 @@
         (when (not (equal? (hash-get report 'status) "pass"))
           (display-project-policy-report report))
         (check (hash-get report 'status) => "pass")))))
-;; (List TypeFinding) <- Root
+;; : (-> Root (List TypeFinding) )
 (def (project-policy-findings root)
   (run-policy-checks (collect-project root)))
-;; String <- Root
+;; : (-> Root String )
 (def (project-policy-status root)
   (type-status (project-policy-findings root)))
 ;;; Boundary:
 ;;; - project-policy-report is the stable downstream gxtest data surface.
 ;;; - Findings stay as TypeFinding values so test code can inspect rich details.
-;; Json <- Root
+;; : (-> Root Json )
 (def (project-policy-report root)
   (let* ((index (collect-project root))
          (findings (run-policy-checks index)))
@@ -48,7 +48,7 @@
 ;;; Boundary:
 ;;; - display-project-policy-report mirrors check output for failing gxtest runs.
 ;;; - Keep the line protocol compact so downstream CI logs stay readable.
-;; Unit <- PolicyReport
+;; : (-> PolicyReport Unit )
 (def (display-project-policy-report report)
   (let (findings (hash-get report 'findings))
     (displayln "[gerbil-gxtest] status=" (hash-get report 'status)
@@ -57,14 +57,14 @@
                " findings=" (length findings))
     (display-project-policy-agent-repair-summary findings)
     (for-each display-project-policy-finding findings)))
-;; Unit <- (List TypeFinding)
+;; : (-> (List TypeFinding) Unit )
 (def (display-project-policy-agent-repair-summary findings)
   (display-project-policy-line "|agent-repair-info"
                                (agent-repair-summary-parts findings)))
 ;;; Boundary:
 ;;; - Finding lines expose the same selector/message/detail fields as check.
 ;;; - Agent repair stays adjacent to the finding that triggered it.
-;; Unit <- TypeFinding
+;; : (-> TypeFinding Unit )
 (def (display-project-policy-finding finding)
   (displayln "|finding rule=" (type-finding-rule-id finding)
              " severity=" (type-finding-severity finding)
@@ -79,7 +79,7 @@
            (finding-guide-detail-parts finding))))
 ;;; Render each part with a shared prefix so gxtest failure logs stay line-oriented.
 ;;; The one-argument lambda is safe because repair/detail parts are already display-ready strings.
-;; Unit <- Prefix (List String)
+;; : (-> Prefix (List String) Unit )
 (def (display-project-policy-line prefix parts)
   (when (and parts (pair? parts))
     (display prefix)
@@ -91,13 +91,17 @@
 ;; ConfigConstant
 (def +project-policy-finding-detail-keys+
   '(advice next keepNamedLetWhen styleGuide styleCommand
+    expectedCommentShape signatureShape typedCommentMigrationNeeded
+    typedCommentMigration
+    expectedDocShape typedDocRequiredWhen typedDocMissing
+    typedDocMissingCount typedDocMissingTargets
     repairAction guideCodeFlag searchExampleCommand repairCodeCommand
     codeShapeExemplar adapterRepairShape agentRepairStandard
     qualityFacets qualityFacetSteering requiredWitness rewriteScope
     evidence kind name selector))
 ;;; Preserve detail key order with map, then filter absent policy-specific fields.
 ;;; This keeps compact output stable without forcing every finding to carry every detail slot.
-;; (List String) <- TypeFinding
+;; : (-> TypeFinding (List String) )
 (def (project-policy-finding-detail-parts finding)
   (let (details (type-finding-details finding))
     (if details
@@ -106,7 +110,7 @@
                      (project-policy-finding-detail-part details key))
                    +project-policy-finding-detail-keys+))
       [])))
-;; MaybeString <- Details Key
+;; : (-> Details Key MaybeString )
 (def (project-policy-finding-detail-part details key)
   (let (value (project-policy-finding-detail-value details key))
     (and value
@@ -115,13 +119,13 @@
                         (project-policy-datum->display-string value)))))
 ;;; Finding details are optional and policy-specific, so missing keys should not hide the original failure.
 ;;; The protected lookup keeps custom downstream reports usable across mixed harness versions.
-;; MaybeDatum <- Details Key
+;; : (-> Details Key MaybeDatum )
 (def (project-policy-finding-detail-value details key)
   (with-catch
    (lambda (_) #f)
    (lambda () (hash-get details key))))
 ;;; Use a display port conversion so symbols, lists, and strings keep their Scheme-readable shape.
 ;;; A one-argument port lambda keeps the resource scope local to the conversion.
-;; String <- Datum
+;; : (-> Datum String )
 (def (project-policy-datum->display-string value)
   (call-with-output-string "" (lambda (port) (display value port))))

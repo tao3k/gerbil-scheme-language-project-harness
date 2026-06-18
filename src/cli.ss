@@ -31,7 +31,7 @@
 ;;; Risk:
 ;;; - Fixed-position trimming can drop "check" before check-main and turn valid
 ;;;   agent CLI calls into generic usage output, hiding real policy findings.
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (provider-command-line-args argv)
   (or (provider-command-line-command-tail argv)
       (strip-provider-launcher-frames argv)))
@@ -41,7 +41,7 @@
 ;;;   include host-specific absolute paths before the semantic argv starts.
 ;;; - Return #f instead of [] on miss so unknown commands remain visible to
 ;;;   main and keep the invalid-command exit status.
-;; (Maybe (List String)) <- (List String)
+;; : (-> (List String) (Maybe (List String)) )
 (def (provider-command-line-command-tail argv)
   (match argv
     ([] #f)
@@ -55,7 +55,7 @@
 ;;;   found. The first non-launcher token is a user command, even if unknown.
 ;;; - This keeps no-argument wrappers as [] while preserving usage errors such
 ;;;   as "gerbil-scheme-harness bogus".
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (strip-provider-launcher-frames argv)
   (match argv
     ([] [])
@@ -64,7 +64,7 @@
        (strip-provider-launcher-frames rest)
        argv))))
 
-;; Bool <- (String)
+;; : (-> (String) Bool )
 (def (provider-launcher-frame? arg)
   (or (member arg +provider-launcher-names+)
       (string-suffix? "/gxi" arg)
@@ -74,7 +74,7 @@
 ;;; Invariant:
 ;;; - main owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; Main <- (List XX)
+;; : (-> (List XX) Main )
 (def (main . args)
   (match args
     ([] (display +help+) 0)

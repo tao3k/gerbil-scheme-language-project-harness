@@ -38,34 +38,34 @@
 ;; TypeSpec
 (def (make-type-any)
   (make-type-spec 'any "any" '() #f))
-;; TypeModel <- TypeName
+;; : (-> TypeName TypeModel )
 (def (make-type-base name)
   (make-type-spec 'base (normalize-type-name name) '() #f))
-;; TypeSpec <- CarType CdrType
+;; : (-> CarType CdrType TypeSpec )
 (def (make-type-pair car-type cdr-type)
   (make-type-spec 'pair #f [car-type cdr-type] #f))
-;; TypeSpec <- ElemType
+;; : (-> ElemType TypeSpec )
 (def (make-type-list elem-type)
   (make-type-spec 'list #f [elem-type] #f))
-;; TypeSpec <- ElemType
+;; : (-> ElemType TypeSpec )
 (def (make-type-vector elem-type)
   (make-type-spec 'vector #f [elem-type] #f))
-;; TypeSpec <- Params Result
+;; : (-> Params Result TypeSpec )
 (def (make-type-function params result)
   (make-type-spec 'function #f params result))
-;; TypeSpec <- Param Result MaybeMinArity
+;; : (-> Param Result MaybeMinArity TypeSpec )
 (def (make-type-function-variadic param result . maybe-min-arity)
   (make-type-spec 'function-variadic
                   (if (null? maybe-min-arity) 0 (car maybe-min-arity))
                   [param]
                   result))
-;; TypeSpec <- Members
+;; : (-> Members TypeSpec )
 (def (make-type-union members)
   (make-type-spec 'union #f members #f))
 ;;; Boundary:
 ;;; - make-type-record composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; TypeSpec <- Fields MaybeRequired
+;; : (-> Fields MaybeRequired TypeSpec )
 (def (make-type-record fields . maybe-required)
   (make-type-spec 'record
                   #f
@@ -73,50 +73,50 @@
                   (if (null? maybe-required)
                     '()
                     (map normalize-field-name (car maybe-required)))))
-;; String <- Type
+;; : (-> Type String )
 (def (type-kind type)
   (type-spec-kind type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-name type)
   (type-spec-name type))
-;; Integer <- Type
+;; : (-> Type Integer )
 (def (type-params type)
   (type-spec-params type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-result type)
   (type-spec-result type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-pair-car type)
   (first-param-or-unknown type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-pair-cdr type)
   (second-param-or-unknown type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-list-elem type)
   (first-param-or-unknown type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-vector-elem type)
   (first-param-or-unknown type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-function-variadic-param type)
   (first-param-or-unknown type))
-;; Integer <- Type
+;; : (-> Type Integer )
 (def (type-function-variadic-min-arity type)
   (type-name type))
-;; Boolean <- Type
+;; : (-> Type Boolean )
 (def (type-union-members type)
   (type-params type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-record-fields type)
   (type-params type))
-;; TypeSpec <- Type
+;; : (-> Type TypeSpec )
 (def (type-record-required type)
   (or (type-result type) '()))
-;; TypeSpec <- Type FieldName
+;; : (-> Type FieldName TypeSpec )
 (def (record-field-type type field-name)
   (let (found (assoc (normalize-field-name field-name) (type-record-fields type)))
     (and found (cdr found))))
-;; Boolean <- Left Right
+;; : (-> Left Right Boolean )
 (def (type=? left right)
   (and (eq? (type-kind left) (type-kind right))
        (case (type-kind left)
@@ -132,7 +132,7 @@
 ;;; Boundary:
 ;;; - type->string composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- Type
+;; : (-> Type String )
 (def (type->string type)
   (case (type-kind type)
     ((unknown) "unknown")
@@ -180,7 +180,7 @@
 ;;; Boundary:
 ;;; - parse-type-sexpr composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; TypeSpec <- Sexpr
+;; : (-> Sexpr TypeSpec )
 (def (parse-type-sexpr sexpr)
   (cond
    ((eq? sexpr 'unknown) (make-type-unknown))
@@ -216,13 +216,13 @@
                           (parse-required-fields (safe-caddr sexpr))))
        (else (make-type-unknown)))))
    (else (make-type-unknown))))
-;; Boolean <- Left Right
+;; : (-> Left Right Boolean )
 (def (type-results=? left right)
   (cond
    ((and left right) (type=? left right))
    ((or left right) #f)
    (else #t)))
-;; Boolean <- Left Right
+;; : (-> Left Right Boolean )
 (def (types=? left right)
   (cond
    ((and (null? left) (null? right)) #t)
@@ -233,7 +233,7 @@
 ;;; Boundary:
 ;;; - record-fields=? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- Left Right
+;; : (-> Left Right Boolean )
 (def (record-fields=? left right)
   (and (= (length left) (length right))
        (all? (lambda (field)
@@ -243,23 +243,23 @@
 ;;; Boundary:
 ;;; - same-string-set? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- Left Right
+;; : (-> Left Right Boolean )
 (def (same-string-set? left right)
   (and (= (length left) (length right))
        (all? (lambda (item) (member item right)) left)))
-;; TypeName <- TypeName
+;; : (-> TypeName TypeName )
 (def (normalize-type-name name)
   (cond
    ((symbol? name) (symbol->string name))
    ((string? name) name)
    (else "unknown")))
-;; NormalizeFieldName <- String
+;; : (-> String NormalizeFieldName )
 (def (normalize-field-name name)
   (strip-trailing-colon (normalize-type-name name)))
-;; NormalizeRecordFields <- Fields
+;; : (-> Fields NormalizeRecordFields )
 (def (normalize-record-fields fields)
   (filter-map-record-fields fields))
-;; ParsedData <- Fields
+;; : (-> Fields ParsedData )
 (def (parse-record-fields fields)
   (if (list? fields)
     (filter-map-record-fields fields)
@@ -267,12 +267,12 @@
 ;;; Boundary:
 ;;; - parse-required-fields composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; ParsedData <- Required
+;; : (-> Required ParsedData )
 (def (parse-required-fields required)
   (if (list? required)
     (map normalize-field-name required)
     '()))
-;; ParsedData <- String
+;; : (-> String ParsedData )
 (def (parse-record-field field)
   (and (pair? field)
        (let ((name (normalize-field-name (car field)))
@@ -281,7 +281,7 @@
               (if (type-spec? tail)
                 (cons name tail)
                 (cons name (parse-type-sexpr (record-field-type-sexpr field))))))))
-;; TypeFieldSpec <- FieldName
+;; : (-> FieldName TypeFieldSpec )
 (def (record-field-type-sexpr field)
   (cond
    ((and (pair? field) (pair? (cdr field))) (cadr field))
@@ -290,48 +290,48 @@
 ;;; Invariant:
 ;;; - filter-map-record-fields owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; FilterMapRecordFields <- Fields
+;; : (-> Fields FilterMapRecordFields )
 (def (filter-map-record-fields fields)
   (filter-map parse-record-field fields))
-;; String <- String
+;; : (-> String String )
 (def (record-field->string field)
   (string-append "("
                  (car field)
                  " "
                  (type->string (cdr field))
                  ")"))
-;; Boolean <- Head (List XX)
+;; : (-> Head (List XX) Boolean )
 (def (type-head? head names)
   (member (normalize-type-name head) names))
-;; FirstParamOrUnknown <- Type
+;; : (-> Type FirstParamOrUnknown )
 (def (first-param-or-unknown type)
   (let (params (type-params type))
     (if (pair? params) (car params) (make-type-unknown))))
-;; SecondParamOrUnknown <- Type
+;; : (-> Type SecondParamOrUnknown )
 (def (second-param-or-unknown type)
   (let (params (type-params type))
     (if (and (pair? params) (pair? (cdr params)))
       (cadr params)
       (make-type-unknown))))
-;; Boolean <- (Boolean <- XX) (List XX)
+;; : (-> (-> XX Boolean ) (List XX) Boolean )
 (def (all? predicate items)
   (cond
    ((null? items) #t)
    ((predicate (car items)) (all? predicate (cdr items)))
    (else #f)))
-;; StripTrailingColon <- SourceLine
+;; : (-> SourceLine StripTrailingColon )
 (def (strip-trailing-colon text)
   (let (size (string-length text))
     (if (and (> size 0) (eq? (string-ref text (- size 1)) #\:))
       (substring text 0 (- size 1))
       text)))
-;; SafeCadr <- Obj
+;; : (-> Obj SafeCadr )
 (def (safe-cadr obj)
   (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
-;; SafeCaddr <- Obj
+;; : (-> Obj SafeCaddr )
 (def (safe-caddr obj)
   (and (pair? obj) (pair? (cdr obj)) (pair? (cddr obj)) (caddr obj)))
-;; SafeCadddr <- Obj
+;; : (-> Obj SafeCadddr )
 (def (safe-cadddr obj)
   (and (pair? obj)
        (pair? (cdr obj))

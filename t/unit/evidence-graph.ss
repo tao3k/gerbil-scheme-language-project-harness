@@ -108,36 +108,36 @@
     (check (guide-has-fragment? guide "evidence analyze --json") => #t)
     (check (guide-has-fragment? guide "search structural --json") => #t)
     (check (guide-has-fragment? guide "search structural --owner <path> --json") => #t)))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-node-kind? packet kind)
   (ormap (lambda (node)
            (equal? (hash-get node 'kind) kind))
          (hash-get packet 'nodes)))
-;; Boolean <- Methods Method
+;; : (-> Methods Method Boolean )
 (def (method-registered? methods method)
   (not (not (member method methods))))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-edge-kind? packet kind)
   (ormap (lambda (edge)
            (equal? (hash-get edge 'kind) kind))
          (hash-get packet 'edges)))
-;; Boolean <- Graph Relation
+;; : (-> Graph Relation Boolean )
 (def (analysis-graph-has-edge-relation? graph relation)
   (ormap (lambda (edge)
            (equal? (hash-get edge 'relation) relation))
          (hash-get graph 'edges)))
-;; Boolean <- Guide Fragment
+;; : (-> Guide Fragment Boolean )
 (def (guide-has-fragment? guide fragment)
   (ormap (lambda (line)
            (not (not (string-contains line fragment))))
          guide))
-;; Boolean <- Schemas SchemaId String
+;; : (-> Schemas SchemaId String Boolean )
 (def (schema-registered? schemas schema-id path)
   (ormap (lambda (schema)
            (and (equal? (hash-get schema 'schemaId) schema-id)
                 (equal? (hash-get schema 'path) path)))
          schemas))
-;; Boolean <- Descriptors Method SchemaId
+;; : (-> Descriptors Method SchemaId Boolean )
 (def (descriptor-output-schema? descriptors method schema-id)
   (ormap (lambda (descriptor)
            (and (equal? (hash-get descriptor 'method) method)

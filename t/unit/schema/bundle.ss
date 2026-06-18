@@ -43,11 +43,11 @@
   (sort (dedupe-strings
          (append-map schema-local-refs +schema-files+))
         string<?))
-;; SchemaLocalRefs <- SourceFile
+;; : (-> SourceFile SchemaLocalRefs )
 (def (schema-local-refs file)
   (collect-local-schema-refs
    (call-with-input-file (schema-path file) read-json)))
-;; CollectLocalSchemaRefs <- Value
+;; : (-> Value CollectLocalSchemaRefs )
 (def (collect-local-schema-refs value)
   (cond
    ((hash-table? value)
@@ -62,11 +62,11 @@
    ((list? value)
     (append-map collect-local-schema-refs value))
    (else '())))
-;; LocalSchemaRefList <- Ref
+;; : (-> Ref LocalSchemaRefList )
 (def (local-schema-ref-list ref)
   (let (path (local-schema-ref-path ref))
     (if path [path] '())))
-;; String <- Ref
+;; : (-> Ref String )
 (def (local-schema-ref-path ref)
   (if (or (string-prefix? "#" ref)
           (string-prefix? "http://" ref)
@@ -77,20 +77,20 @@
       (if hash-index
         (substring ref 0 hash-index)
         ref))))
-;; MissingSchemaFiles <- Files
+;; : (-> Files MissingSchemaFiles )
 (def (missing-schema-files files)
   (filter (lambda (file)
             (not (file-exists? (schema-path file))))
           files))
-;; String <- SourceFile
+;; : (-> SourceFile String )
 (def (schema-path file)
   (string-append "schemas/" file))
-;; Integer <- (YY <- XX) (List XX)
+;; : (-> (-> XX YY ) (List XX) Integer )
 (def (append-map proc xs)
   (if (null? xs)
     '()
     (append (proc (car xs)) (append-map proc (cdr xs)))))
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (dedupe-strings xs)
   (reverse
    (cdr

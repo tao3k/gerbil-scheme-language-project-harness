@@ -8,11 +8,16 @@
 
 (export predicate-family-facts-from-source
         field-access-pattern-facts-from-source
+        projection-burst-facts-from-source
         boolean-condition-facts-from-source
         loop-driver-facts-from-source)
 
 ;; (List String)
 (def +field-access-callees+ '("field-string" "field-list-string" "hash-get"))
+;; (List String)
+(def +projection-emitter-callees+ '("display" "displayln" "write" "fprintf" "printf"))
+;; Integer
+(def +projection-burst-native-min-access-count+ 3)
 ;; (List String)
 (def +condition-callees+ '("member" "equal?" "not" ">" "<" ">=" "<=" "string=?" "string-contains"))
 ;; (List String)
@@ -20,7 +25,7 @@
 
 ;;; Predicate family facts identify repeated one-argument predicate helpers over the same subject.
 ;;; They give policy enough native evidence to request a helper/combinator rewrite without reading raw source.
-;; (List PredicateFamilyFact) <- Relpath Definitions Calls
+;; : (-> Relpath Definitions Calls (List PredicateFamilyFact) )
 (def (predicate-family-facts-from-source relpath definitions calls)
   (filter-map (cut predicate-family-fact-from-group relpath calls <>)
               (predicate-definition-groups definitions)))
@@ -28,7 +33,7 @@
 ;;; Grouping uses filter+fold so predicate-family evidence is stable and does
 ;;; not depend on policy-side scans. The grouped value keeps original
 ;;; definitions intact for later selector and repair payloads.
-;; (List PredicateGroup) <- Definitions
+;; : (-> Definitions (List PredicateGroup) )
 (def (predicate-definition-groups definitions)
   (foldl add-predicate-definition-group '()
          (filter predicate-definition? definitions)))
@@ -36,7 +41,7 @@
 ;;; The accumulator is intentionally association-list shaped: it is small,
 ;;; deterministic under reverse-at-materialization, and easy for agent repair
 ;;; payloads to display without introducing another model struct.
-;; PredicateGroup <- Definition PredicateGroups
+;; : (-> Definition PredicateGroups PredicateGroup )
 (def (add-predicate-definition-group definition groups)
   (let* ((key (predicate-definition-subject definition))
          (prior (assoc key groups)))
@@ -47,24 +52,24 @@
 
 ;;; Removing before re-cons keeps the newest accumulated group unique while the
 ;;; outer fold stays expression-returning and avoids mutation.
-;; PredicateGroups <- Subject PredicateGroups
+;; : (-> Subject PredicateGroups PredicateGroups )
 (def (remove-predicate-definition-group key groups)
   (filter (lambda (group) (not (equal? (car group) key))) groups))
 
-;; Boolean <- Definition
+;; : (-> Definition Boolean )
 (def (predicate-definition? definition)
   (and (= (definition-arity definition) 1)
        (string-suffix? "?" (definition-name definition))
        (pair? (definition-formals definition))))
 
-;; String <- Definition
+;; : (-> Definition String )
 (def (predicate-definition-subject definition)
   (car (definition-formals definition)))
 
 ;;; This is the family materializer, not the threshold policy.
 ;;; It requires enough native field evidence before producing a repair fact.
 ;;; Names and spans are preserved so agent repair can stay selector-bounded.
-;; PredicateFamilyFact <- Relpath Calls PredicateGroup
+;; : (-> Relpath Calls PredicateGroup PredicateFamilyFact )
 (def (predicate-family-fact-from-group relpath calls group)
   (let* ((subject (car group))
          (definitions (reverse (cdr group)))
@@ -96,7 +101,7 @@
           "extract field/role predicate helpers or a table-driven predicate combinator; preserve exported predicate names unless policy evidence permits"))))
 
 ;;; Field access facts expose repeated hash/field selectors independently from policy thresholds.
-;; (List FieldAccessPatternFact) <- Relpath Calls
+;; : (-> Relpath Calls (List FieldAccessPatternFact) )
 (def (field-access-pattern-facts-from-source relpath calls)
   (filter-map (cut field-access-pattern-fact-from-group relpath <>)
               (field-access-groups calls)))
@@ -104,7 +109,7 @@
 ;;; Field accesses are grouped independently from predicate families so search,
 ;;; snapshot, and policy can each consume the same native fact without
 ;;; re-deriving thresholds.
-;; (List FieldAccessGroup) <- Calls
+;; : (-> Calls (List FieldAccessGroup) )
 (def (field-access-groups calls)
   (foldl add-field-access-group '()
          (filter field-access-call? calls)))
@@ -112,7 +117,7 @@
 ;;; Unknown keys are retained as an explicit bucket; this keeps malformed or
 ;;; unsupported call shapes visible to policy instead of silently dropping
 ;;; parser evidence.
-;; FieldAccessGroups <- CallFact FieldAccessGroups
+;; : (-> CallFact FieldAccessGroups FieldAccessGroups )
 (def (add-field-access-group call groups)
   (let* ((key (or (call-field-key call) "<unknown>"))
          (prior (assoc key groups)))
@@ -123,7 +128,7 @@
 
 ;;; The remove/re-cons pattern mirrors predicate grouping and preserves a
 ;;; compact, mutation-free accumulator shape.
-;; FieldAccessGroups <- FieldKey FieldAccessGroups
+;; : (-> FieldKey FieldAccessGroups FieldAccessGroups )
 (def (remove-field-access-group key groups)
   (filter (lambda (group) (not (equal? (car group) key))) groups))
 
@@ -131,7 +136,7 @@
 ;;; evidence.
 ;;; Callers and accessors stay in fields so policy can explain the helper
 ;;; candidate without source reads.
-;; FieldAccessPatternFact <- Relpath FieldAccessGroup
+;; : (-> Relpath FieldAccessGroup FieldAccessPatternFact )
 (def (field-access-pattern-fact-from-group relpath group)
   (let* ((field-key (car group))
          (calls (reverse (cdr group)))
@@ -151,10 +156,83 @@
           (unique-strings (map call-fact-callee calls))
           ["field-selector-helper-candidate"
            "predicate-family-combinator-drift"]
-          "centralize repeated field access behind a small selector helper before adding more predicate branches"))))
+         "centralize repeated field access behind a small selector helper before adding more predicate branches"))))
+
+;;; Projection burst facts keep single-caller emit/projection walls visible.
+;;; Policy later decides whether enough independent groups align for a warning.
+;; : (-> Relpath Calls (List ProjectionBurstFact) )
+(def (projection-burst-facts-from-source relpath calls)
+  (filter-map (cut projection-burst-fact-from-group relpath <>)
+              (projection-burst-groups calls)))
+
+;;; Group by caller, not by field key: the smell is a function boundary that
+;;; repeatedly projects fields while emitting lines, even when keys differ.
+;; : (-> Calls (List ProjectionBurstGroup) )
+(def (projection-burst-groups calls)
+  (foldl add-projection-burst-call '()
+         (filter projection-burst-call? calls)))
+
+;;; Projection grouping keeps access and output calls in the same bucket so the
+;;; later detector can require both, instead of treating hash access alone as bad.
+;; : (-> CallFact ProjectionBurstGroups ProjectionBurstGroups )
+(def (add-projection-burst-call call groups)
+  (let* ((caller (or (call-fact-caller call) ""))
+         (prior (assoc caller groups)))
+    (if prior
+      (cons (cons caller (cons call (cdr prior)))
+            (remove-projection-burst-group caller groups))
+      (cons (cons caller [call]) groups))))
+
+;;; Group replacement mirrors other quality-shape reducers and keeps parser
+;;; evidence mutation-free while preserving one bucket per caller.
+;; : (-> Caller ProjectionBurstGroups ProjectionBurstGroups )
+(def (remove-projection-burst-group caller groups)
+  (filter (lambda (group) (not (equal? (car group) caller))) groups))
+
+;; : (-> CallFact Boolean )
+(def (projection-burst-call? call)
+  (and (call-fact-caller call)
+       (or (field-access-call? call)
+           (projection-emitter-call? call))))
+
+;; : (-> CallFact Boolean )
+(def (projection-emitter-call? call)
+  (member (call-fact-callee call) +projection-emitter-callees+))
+
+;;; The fact is deliberately permissive: access, field spread, and emitter
+;;; thresholds stay as named detection groups in policy.
+;; : (-> Relpath ProjectionBurstGroup ProjectionBurstFact )
+(def (projection-burst-fact-from-group relpath group)
+  (let* ((caller (car group))
+         (calls (reverse (cdr group)))
+         (access-calls (filter field-access-call? calls))
+         (emitter-calls (filter projection-emitter-call? calls))
+         (field-keys (unique-strings
+                      (filter identity (map call-field-key access-calls)))))
+    (and (>= (length access-calls)
+             +projection-burst-native-min-access-count+)
+         (pair? emitter-calls)
+         (make-projection-burst-fact
+          (string-append "projection-burst:" caller)
+          "projection-burst"
+          relpath
+          (earliest-call-start calls)
+          (latest-call-end calls)
+          "emitter-projection-burst"
+          caller
+          field-keys
+          (length access-calls)
+          (length field-keys)
+          (length emitter-calls)
+          (unique-strings (map call-fact-callee access-calls))
+          (unique-strings (map call-fact-callee emitter-calls))
+          ["emitter-projection-burst"
+           "field-selector-helper-candidate"
+           "list-builder-output-shape"]
+          "separate field projection, line formatting, and output traversal before adding more hash-get/display scaffolding"))))
 
 ;;; Boolean condition facts keep individual predicate helpers queryable for repair payloads.
-;; (List BooleanConditionFact) <- Relpath Definitions Calls
+;; : (-> Relpath Definitions Calls (List BooleanConditionFact) )
 (def (boolean-condition-facts-from-source relpath definitions calls)
   (filter-map (cut boolean-condition-fact-from-definition relpath calls <>)
               (filter predicate-definition? definitions)))
@@ -163,7 +241,7 @@
 ;;; when a family warning owns the repair decision.
 ;;; The filter/map chain preserves callees and field keys as compact native
 ;;; context for the model.
-;; BooleanConditionFact <- Relpath Calls Definition
+;; : (-> Relpath Calls Definition BooleanConditionFact )
 (def (boolean-condition-fact-from-definition relpath calls definition)
   (let* ((name (definition-name definition))
          (owned-calls (filter (cut call-owned-by? <> [name]) calls))
@@ -187,12 +265,12 @@
           "keep this as a small expression-returning predicate or compose it through the predicate family helper"))))
 
 ;;; Loop driver facts classify named-let facts so policies can distinguish pure transforms from real drivers.
-;; (List LoopDriverFact) <- Relpath Calls HigherOrderFacts ControlFlowFacts
+;; : (-> Relpath Calls HigherOrderFacts ControlFlowFacts (List LoopDriverFact) )
 (def (loop-driver-facts-from-source relpath calls higher-order-forms control-flow-forms)
   (map (cut loop-driver-fact-from-control-flow relpath calls higher-order-forms <>)
        (filter manual-loop-control-flow? control-flow-forms)))
 
-;; LoopDriverFact <- Relpath Calls HigherOrderFacts ControlFlowFact
+;; : (-> Relpath Calls HigherOrderFacts ControlFlowFact LoopDriverFact )
 (def (loop-driver-fact-from-control-flow relpath calls higher-order-forms fact)
   (let* ((driver-kind (loop-driver-kind calls higher-order-forms fact))
          (quality-facets (loop-driver-quality-facets driver-kind)))
@@ -210,7 +288,7 @@
      quality-facets
      (loop-driver-advice driver-kind))))
 
-;; String <- Calls HigherOrderFacts ControlFlowFact
+;; : (-> Calls HigherOrderFacts ControlFlowFact String )
 (def (loop-driver-kind calls higher-order-forms fact)
   (let (caller (control-flow-fact-caller fact))
     (cond
@@ -222,7 +300,7 @@
       "state-driver-candidate")
      (else "pure-transform-candidate"))))
 
-;; (List QualityFacet) <- DriverKind
+;; : (-> DriverKind (List QualityFacet) )
 (def (loop-driver-quality-facets driver-kind)
   (cond
    ((equal? driver-kind "pure-transform-candidate")
@@ -233,7 +311,7 @@
     ["preserve-named-let-driver" "higher-order-boundary"])
    (else ["state-driver-candidate"])))
 
-;; String <- DriverKind
+;; : (-> DriverKind String )
 (def (loop-driver-advice driver-kind)
   (cond
    ((equal? driver-kind "pure-transform-candidate")
@@ -244,19 +322,19 @@
     "preserve explicit loop shape when it is already coupled to a higher-order boundary")
    (else "preserve state-driver shape unless parser facts show a smaller combinator rewrite")))
 
-;; Boolean <- CallFact (List String)
+;; : (-> CallFact (List String) Boolean )
 (def (call-owned-by? call names)
   (member (or (call-fact-caller call) "") names))
 
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (field-access-call? call)
   (member (call-fact-callee call) +field-access-callees+))
 
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (condition-call? call)
   (member (call-fact-callee call) +condition-callees+))
 
-;; FieldKey <- CallFact
+;; : (-> CallFact FieldKey )
 (def (call-field-key call)
   (let (args (call-fact-arguments call))
     (and (pair? args)
@@ -265,7 +343,7 @@
 
 ;;; Field keys come from reader-token text, so this normalizes quoted symbols
 ;;; without pretending to evaluate arbitrary Scheme values.
-;; FieldKey <- FieldArgumentToken
+;; : (-> FieldArgumentToken FieldKey )
 (def (clean-field-key value)
   (let (text (if (string? value) value ""))
     (cond
@@ -277,7 +355,7 @@
 ;;; summary.
 ;;; Full call facts stay separate so this helper cannot hide selector evidence
 ;;; from policy.
-;; (List CalleeName) <- Calls
+;; : (-> Calls (List CalleeName) )
 (def (repeated-call-callees calls)
   (map car
        (filter (lambda (entry) (>= (cdr entry) 2))
@@ -285,13 +363,13 @@
 
 ;;; Counting stays local to the parser fact producer so policy can stay about
 ;;; thresholds and repair strategy, not call aggregation mechanics.
-;; (List CountEntry) <- Calls
+;; : (-> Calls (List CountEntry) )
 (def (call-callee-counts calls)
   (foldl add-call-callee-count '() calls))
 
 ;;; Each fold step replaces the old bucket and returns a fresh count list,
 ;;; matching the gerbil-utils preference for small expression-level reducers.
-;; CountEntries <- CallFact CountEntries
+;; : (-> CallFact CountEntries CountEntries )
 (def (add-call-callee-count call counts)
   (let* ((callee (call-fact-callee call))
          (prior (assoc callee counts)))
@@ -303,18 +381,18 @@
 ;;; This helper is the reducer's uniqueness gate.
 ;;; The filter shape exposes the accumulator invariant and keeps count updates
 ;;; mutation-free.
-;; CountEntries <- CalleeName CountEntries
+;; : (-> CalleeName CountEntries CountEntries )
 (def (remove-call-callee-count callee counts)
   (filter (lambda (entry) (not (equal? (car entry) callee))) counts))
 
-;; Boolean <- ControlFlowFact
+;; : (-> ControlFlowFact Boolean )
 (def (manual-loop-control-flow? fact)
   (equal? (control-flow-fact-role fact) "manual-loop"))
 
 ;;; Driver classification checks call evidence through ormap so IO/runtime
 ;;; boundaries are preserved as witness-backed facts, not guessed from names in
 ;;; policy code.
-;; Boolean <- Calls Caller (List Callee)
+;; : (-> Calls Caller (List Callee) Boolean )
 (def (caller-has-callee? calls caller callees)
   (ormap (lambda (call)
            (and (equal? (or (call-fact-caller call) "") (or caller ""))
@@ -324,7 +402,7 @@
 ;;; Higher-order presence is used as a conservative boundary: if native facts
 ;;; already show combinator ownership, the loop classifier avoids suggesting a
 ;;; flattening rewrite.
-;; Boolean <- HigherOrderFacts Caller
+;; : (-> HigherOrderFacts Caller Boolean )
 (def (caller-has-higher-order? facts caller)
   (ormap (lambda (fact)
            (equal? (or (higher-order-fact-caller fact) "") (or caller "")))
@@ -332,7 +410,7 @@
 
 ;;; Min/max folds keep location spans deterministic across parser runs without
 ;;; sorting the original definitions.
-;; Integer <- Definitions
+;; : (-> Definitions Integer )
 (def (earliest-definition-start definitions)
   (foldl (lambda (definition start)
            (min start (definition-start definition)))
@@ -341,7 +419,7 @@
 
 ;;; The span end is paired with earliest-definition-start so a predicate family
 ;;; can be surfaced as one repair selector.
-;; Integer <- Definitions
+;; : (-> Definitions Integer )
 (def (latest-definition-end definitions)
   (foldl (lambda (definition end)
            (max end (definition-end definition)))
@@ -350,7 +428,7 @@
 
 ;;; Call spans use the same fold shape as definition spans, which keeps fact
 ;;; projection stable for field-access pattern evidence.
-;; Integer <- Calls
+;; : (-> Calls Integer )
 (def (earliest-call-start calls)
   (foldl (lambda (call start)
            (min start (call-fact-start call)))
@@ -359,7 +437,7 @@
 
 ;;; The latest call endpoint completes the selector boundary for grouped call
 ;;; facts without reaching back into source text.
-;; Integer <- Calls
+;; : (-> Calls Integer )
 (def (latest-call-end calls)
   (foldl (lambda (call end)
            (max end (call-fact-end call)))
@@ -368,7 +446,7 @@
 
 ;;; Order-preserving uniqueness keeps query keys predictable while allowing
 ;;; parser facts to append evidence from several native sources.
-;; (List String) <- (List String)
+;; : (-> (List String) (List String) )
 (def (unique-strings values)
   (reverse
    (foldl (lambda (value out)

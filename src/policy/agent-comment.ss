@@ -13,13 +13,13 @@
         comment-quality-finding)
 
 ;;; Entry boundary: scan parser-owned comment facts independently from typed-combinator style.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (comment-quality-findings index)
   (filter-map (cut comment-quality-finding index <>)
               (project-index-files index)))
 
 ;;; Finding gate: only required weak or absent comment facts become warnings.
-;; TypeFinding <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile TypeFinding )
 (def (comment-quality-finding index file)
   (and (source-file-path file)
        (comment-quality-source-file? index file)
@@ -35,7 +35,7 @@
 
 ;;; Repair payload separates typed contracts from engineering rationale.
 ;;; Labels are examples, so agents can choose concise prose or bullets when clearer.
-;; PolicyDetails <- (List CommentQualityFact)
+;; : (-> (List CommentQualityFact) PolicyDetails )
 (def (comment-quality-details weak-facts)
   (let ((examples (take-at-most weak-facts 6))
         (targets (take-at-most weak-facts 12)))
@@ -57,34 +57,34 @@
           (repairTargets (map comment-quality-fact-target-name targets))
           (scope "source-runtime-key-locations"))))
 
-;; String <- (List CommentQualityFact)
+;; : (-> (List CommentQualityFact) String )
 (def (comment-quality-message weak-facts)
   (string-append
    (number->string (length weak-facts))
    " key comment locations need engineering comments beyond typed contracts"))
 
 ;;; Scope filter keeps generated files and vendor caches outside style repair.
-;; Boolean <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile Boolean )
 (def (comment-quality-source-file? index file)
   (let (path (source-file-path file))
     (and path (index-source-runtime-file-path? index path))))
 
 ;;; Required weak facts are the hard gate for comment-quality warnings.
 ;;; Advisory parser evidence remains available without failing the check.
-;; (List CommentQualityFact) <- SourceFile
+;; : (-> SourceFile (List CommentQualityFact) )
 (def (file-weak-required-comment-quality-facts file)
   (filter weak-required-comment-quality-fact?
           (source-file-comment-quality-facts file)))
 
 ;;; Weakness boundary: contract-only comments are not engineering rationale for key owners.
-;; Boolean <- CommentQualityFact
+;; : (-> CommentQualityFact Boolean )
 (def (weak-required-comment-quality-fact? fact)
   (and (comment-quality-fact-required fact)
        (ormap (cut equal? (comment-quality-fact-quality fact) <>)
               '("absent" "weak"))))
 
 ;;; Summary packets give agents target, reason, and parser evidence in one bounded object.
-;; Json <- CommentQualityFact
+;; : (-> CommentQualityFact Json )
 (def (comment-quality-fact-summary fact)
   (hash (target (comment-quality-fact-target-name fact))
         (targetKind (comment-quality-fact-target-kind fact))

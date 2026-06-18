@@ -3,12 +3,15 @@
 
 (import :gerbil/gambit
         :parser/facade
+        :policy/agent-alist-access
+        :policy/agent-anonymous-pair
         :policy/agent-build
         :policy/agent-build-support
         :policy/agent-comment
         :policy/agent-dependency-adapter
         :policy/agent-import
         :policy/agent-poo
+        :policy/agent-source-scope
         :policy/agent-style
         :policy/agent-support
         :policy/gerbil-utils-source
@@ -41,6 +44,9 @@
         explicit-precise-import-finding
         package-build-responsibility-finding
         build-runtime-quality-finding
+        policy-source-scope-finding
+        alist-access-finding
+        anonymous-pair-access-finding
         facade-export-conflict-findings)
 ;; ConfigConstant
 (def +generic-owner-segments+
@@ -75,9 +81,21 @@
 (def +functional-preservation-control-roles+
   '("protected-control"
     "protected-handler"
+    "cleanup-boundary"
     "continuation-control"
     "resource-scope"
-    "builder-control"))
+    "parameter-state"
+    "builder-control"
+    "actor-control"
+    "coroutine-control"))
+;; String
+(def +redundant-manual-loop-required-signals+
+  '("named-let"
+    "manual-loop-role"
+    "multi-binding-loop-state"
+    "no-functional-idiom-witness"
+    "no-reader-boundary"
+    "no-control-preservation-context"))
 ;; String
 (def +functional-preservation-reader-callees+
   '("read" "read-char" "read-line" "read-syntax"))
@@ -85,7 +103,12 @@
 (def +macro-runtime-source-witness-explanation-min-length+ 32)
 ;; Integer
 (def +macro-runtime-source-witness-min-length+ 8)
-;; (List TypeFinding) <- ProjectIndex
+;;; Agent policy aggregation boundary:
+;;; - Specific semantic/style rules run before self-audit rules.
+;;; - Self-audit findings then catch policy implementation shortcuts such as
+;;;   path-scope hardcoding and repeated inline alist lookup.
+;;; - Export conflict checks remain last because they compare accumulated facade bindings.
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (run-agent-policy index)
   (append
    (facade-intent-findings index)
@@ -107,11 +130,14 @@
    (explicit-precise-import-findings index)
    (package-build-responsibility-findings index)
    (build-runtime-quality-findings index)
+   (policy-source-scope-findings index)
+   (alist-access-findings index)
+   (anonymous-pair-access-findings index)
    (facade-export-conflict-findings index)))
 ;;; Boundary:
 ;;; - facade-intent-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (facade-intent-findings index)
   (filter-map
    (lambda (file)
@@ -122,7 +148,7 @@
 ;;; Boundary:
 ;;; - generic-owner-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (generic-owner-findings index)
   (filter-map
    (lambda (file)
@@ -132,7 +158,7 @@
 ;;; Boundary:
 ;;; - facade-has-intent-doc? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile Boolean )
 (def (facade-has-intent-doc? index file)
   (with-catch
    (lambda (_) #f)
@@ -142,12 +168,12 @@
                     (path-expand (source-file-path file)
                                  (project-index-root index)))
                    8)))))
-;; Boolean <- SourceLine
+;; : (-> SourceLine Boolean )
 (def (intent-comment? line)
   (let (text (string-trim line))
     (and (string-prefix? ";;;" text)
          (not (string-contains text "-*-")))))
-;; TypeFinding <- SourceFile
+;; : (-> SourceFile TypeFinding )
 (def (facade-intent-finding file)
   (make-type-finding
    (policy-rule-id +agent-intent-rule+)
@@ -160,16 +186,16 @@
 ;;; Boundary:
 ;;; - generic-owner-segment composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; GenericOwnerSegment <- String
+;; : (-> String GenericOwnerSegment )
 (def (generic-owner-segment path)
   (find (lambda (segment) (path-has-owner-segment? path segment))
         +generic-owner-segments+))
-;; Boolean <- String Segment
+;; : (-> String Segment Boolean )
 (def (path-has-owner-segment? path segment)
   (or (equal? path (string-append "src/" segment ".ss"))
       (string-contains path (string-append "/" segment ".ss"))
       (string-contains path (string-append "/" segment "/"))))
-;; TypeFinding <- SourceFile Segment
+;; : (-> SourceFile Segment TypeFinding )
 (def (generic-owner-finding file segment)
   (make-type-finding
    (policy-rule-id +agent-generic-owner-rule+)
@@ -182,7 +208,7 @@
 ;;; Boundary:
 ;;; - vague-definition-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (vague-definition-findings index)
   (apply append
          (map (lambda (file)
@@ -192,10 +218,10 @@
                         (vague-definition-finding file definition)))
                  (source-file-definitions file)))
               (project-index-files index))))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (vague-definition-name? name)
   (member name +vague-definition-names+))
-;; TypeFinding <- SourceFile Definition
+;; : (-> SourceFile Definition TypeFinding )
 (def (vague-definition-finding file definition)
   (make-type-finding
    (policy-rule-id +agent-vague-definition-rule+)
@@ -209,7 +235,7 @@
 ;;; Boundary:
 ;;; - top-level-executable-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (top-level-executable-findings index)
   (apply append
          (map (lambda (file)
@@ -219,40 +245,59 @@
                         (top-level-executable-finding file call)))
                  (source-file-calls file)))
               (project-index-files index))))
-;; Boolean <- ProjectIndex SourceFile CallFact
+;; : (-> ProjectIndex SourceFile CallFact Boolean )
 (def (top-level-executable-call? index file call)
   (and (not (call-fact-caller call))
        (index-source-runtime-file-path? index (call-fact-path call))
        (not (explicit-runtime-entrypoint-path? (call-fact-path call)))
+       (not (explicit-main-entrypoint-call? file call))
        (not (declarative-top-level-call? file call))))
 
-;; Boolean <- SourceFile CallFact
+;; (List TopFormHead)
+(def +explicit-main-entrypoint-heads+
+  '("main" "apply" "exit"))
+
+;;; Boundary:
+;;; - Explicit entrypoints are language-level contracts, not path hacks.
+;;; - Exported main plus a top-level main/apply/exit form is treated as the
+;;;   script boundary.
+;;; - Arbitrary top-level calls still fail R005.
+;; : (-> SourceFile CallFact Boolean )
+(def (explicit-main-entrypoint-call? file call)
+  (and (member "main" (source-file-exports file))
+       (ormap (lambda (form)
+                (and (member (top-form-head form)
+                             +explicit-main-entrypoint-heads+)
+                     (call-within-top-form-range? call form)))
+              (source-file-forms file))))
+
+;; : (-> SourceFile CallFact Boolean )
 (def (declarative-top-level-call? file call)
   (or (poo-declarative-call? file call)
       (ffi-declarative-call? file call)))
 
 ;;; Boundary: FFI top forms run at expansion time, so nested call facts are declarations.
-;; Boolean <- SourceFile CallFact
+;; : (-> SourceFile CallFact Boolean )
 (def (ffi-declarative-call? file call)
   (ormap (lambda (form)
            (and (declarative-top-form? form)
                 (call-within-top-form-range? call form)))
          (source-file-forms file)))
-;; Boolean <- CallFact TopForm
+;; : (-> CallFact TopForm Boolean )
 (def (call-within-top-form-range? call form)
   (and (<= (top-form-start form) (call-fact-start call))
        (>= (top-form-end form) (call-fact-end call))))
 ;;; Boundary:
 ;;; - poo-declarative-call? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile CallFact
+;; : (-> SourceFile CallFact Boolean )
 (def (poo-declarative-call? file call)
   (and (poo-source-file? file)
        (ormap (lambda (form)
                 (and (member (top-form-head form) +poo-declarative-heads+)
                      (call-within-top-form-range? call form)))
               (source-file-forms file))))
-;; TypeFinding <- SourceFile CallFact
+;; : (-> SourceFile CallFact TypeFinding )
 (def (top-level-executable-finding file call)
   (make-type-finding
    (policy-rule-id +agent-top-level-executable-rule+)
@@ -267,14 +312,14 @@
 ;;; Boundary:
 ;;; - functional-idiom-advice-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (functional-idiom-advice-findings index)
   (filter-map (cut functional-idiom-advice-finding index <>)
               (project-index-files index)))
 ;;; Boundary:
 ;;; - functional-idiom-advice-finding coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; TypeFinding <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile TypeFinding )
 (def (functional-idiom-advice-finding index file)
   (and (source-file-path file)
        (index-source-runtime-file-path? index (source-file-path file))
@@ -284,12 +329,15 @@
                (policy-rule-id +agent-functional-idiom-advice-rule+)
                (policy-rule-severity +agent-functional-idiom-advice-rule+)
                (source-file-path file)
-               "manual named let detected; if this is pure accumulation, predicate search, or sequence transformation, prefer for/fold, map/filter/filter-map/append-map, fold, predicate helpers, cut/curry/compose, or with-list-builder; keep named let for IO, stateful control flow, C3-style fixpoint selection, or generator/continuation drivers"
+               "named-let loop looks like a redundant pure transform; prefer for/fold, map/filter/filter-map/append-map, fold, predicate helpers, cut/curry/compose, or with-list-builder only when parser facts show no IO, stateful control flow, C3-style fixpoint selection, or generator/continuation driver"
                (control-flow-fact-selector fact)
                (hash (name (control-flow-fact-name fact))
                      (kind (control-flow-fact-kind fact))
                      (selector (control-flow-fact-selector fact))
                      (caller (or (control-flow-fact-caller fact) ""))
+                     (namedLetPolicy "warn-on-redundant-pure-transform-only")
+                     (detectionSignals
+                      (manual-loop-detection-signals file fact))
                      (advice "prefer parser-owned functional idioms for pure transforms")
                      (sequenceIdioms +functional-sequence-idioms+)
                      (predicateIdioms +functional-predicate-idioms+)
@@ -299,24 +347,61 @@
                      (styleCommand "asp gerbil-scheme guide --code --topic typed-combinator-style --intent style")
                      (detectedControlContexts
                       (functional-preservation-control-contexts file))
+                     (callerControlContexts
+                      (caller-functional-preservation-control-contexts
+                       file
+                       (control-flow-fact-caller fact)))
                      (keepNamedLetWhen "IO/stateful control flow, C3-style fixpoint selection, or generator/continuation driver")
+                     (preserveNamedLetWhen
+                      '("local recursion without accumulator boilerplate"
+                        "reader or port EOF loops"
+                        "stateful control flow"
+                        "C3-style fixpoint selection"
+                        "generator, coroutine, actor, or continuation driver"))
                      (learnedFrom ".data/gerbil-utils/list.ss uses small typed-commented helpers with map/filter/fold/cut and keeps named let for C3 selection; generator.ss models coroutine control inversion; bytestring.ss uses for/fold for pure counts and named let for port IO")))))))
 ;;; Boundary:
-;;; Manual-loop advice is caller scoped.
-;;; A map/fold in one helper must not hide a separate low-quality loop.
-;; (List ControlFlowFact) <- SourceFile
+;;; Manual-loop advice is caller scoped and multi-signal.
+;;; Named let remains valid Gerbil.
+;;; Only redundant pure-transform shapes warn.
+;; : (-> SourceFile (List ControlFlowFact) )
 (def (manual-loop-control-flow file)
-  (find (lambda (fact)
-          (and (equal? (control-flow-fact-role fact) "manual-loop")
-               (not (caller-has-functional-idiom? file
-                                                  (control-flow-fact-caller fact)))
-               (not (caller-has-reader-boundary? file
-                                                 (control-flow-fact-caller fact)))))
+  (find (cut redundant-manual-loop-control-flow? file <>)
         (source-file-control-flow-forms file)))
+;;; Signal gate: R009 should only fire when every native-parser witness points
+;;; at redundant pure-transform boilerplate, not at named-let usage itself.
+;; : (-> SourceFile ControlFlowFact Boolean )
+(def (redundant-manual-loop-control-flow? file fact)
+  (let (signals (manual-loop-detection-signals file fact))
+    (not (find (lambda (signal)
+                 (not (member signal signals)))
+               +redundant-manual-loop-required-signals+))))
+;;; Evidence packet: keep positive and negative witnesses visible so repair
+;;; agents can explain why this loop is redundant before rewriting it.
+;; : (-> SourceFile ControlFlowFact (List String) )
+(def (manual-loop-detection-signals file fact)
+  (let (caller (control-flow-fact-caller fact))
+    (filter identity
+            [(and (equal? (control-flow-fact-kind fact) "named-let")
+                  "named-let")
+             (and (equal? (control-flow-fact-role fact) "manual-loop")
+                  "manual-loop-role")
+             (and (manual-loop-multi-binding-state? fact)
+                  "multi-binding-loop-state")
+             (and (not (caller-has-functional-idiom? file caller))
+                  "no-functional-idiom-witness")
+             (and (not (caller-has-reader-boundary? file caller))
+                  "no-reader-boundary")
+             (and (not (caller-has-preservation-control-context? file caller))
+                  "no-control-preservation-context")])))
+;;; Shape signal: two or more loop bindings usually means threaded rest/acc
+;;; state, so it is only advisory when the other absence witnesses also agree.
+;; : (-> ControlFlowFact Boolean )
+(def (manual-loop-multi-binding-state? fact)
+  (>= (control-flow-fact-binding-count fact) 2))
 ;;; Boundary:
 ;;; - caller-has-functional-idiom? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile Caller
+;; : (-> SourceFile Caller Boolean )
 (def (caller-has-functional-idiom? file caller)
   (ormap (lambda (fact)
            (and (equal? (or (higher-order-fact-caller fact) "") (or caller ""))
@@ -326,22 +411,39 @@
 ;;; Reader callees are native parser witnesses for port state and EOF handling.
 ;;; The ormap/lambda pair keeps preservation caller-scoped, so one reader loop
 ;;; does not suppress unrelated manual-loop repair in the same file.
-;; Boolean <- SourceFile Caller
+;; : (-> SourceFile Caller Boolean )
 (def (caller-has-reader-boundary? file caller)
   (ormap (lambda (fact)
            (and (equal? (or (call-fact-caller fact) "") (or caller ""))
                 (reader-boundary-callee? (call-fact-callee fact))))
          (source-file-calls file)))
 
-;; Boolean <- Callee
+;; : (-> Callee Boolean )
 (def (reader-boundary-callee? callee)
   (and callee
        (or (member callee +functional-preservation-reader-callees+)
            (string-prefix? "read-" callee))))
+;;; Suppression gate: preservation evidence must live in the same caller as the
+;;; named-let; an unrelated continuation in the file must not hide a bad loop.
+;; : (-> SourceFile Caller Boolean )
+(def (caller-has-preservation-control-context? file caller)
+  (pair? (caller-functional-preservation-control-contexts file caller)))
+;;; Boundary:
+;;; Preservation contexts are caller scoped for suppression.
+;;; File-level contexts still surface in finding details as repair evidence.
+;; : (-> SourceFile Caller FunctionalPreservationControlContexts )
+(def (caller-functional-preservation-control-contexts file caller)
+  (map control-flow-fact-role
+       (filter (lambda (fact)
+                 (and (equal? (or (control-flow-fact-caller fact) "")
+                              (or caller ""))
+                      (member (control-flow-fact-role fact)
+                              +functional-preservation-control-roles+)))
+               (source-file-control-flow-forms file))))
 ;;; Boundary:
 ;;; - functional-preservation-control-contexts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; FunctionalPreservationControlContexts <- SourceFile
+;; : (-> SourceFile FunctionalPreservationControlContexts )
 (def (functional-preservation-control-contexts file)
   (map control-flow-fact-role
        (filter (lambda (fact)
@@ -351,7 +453,7 @@
 ;;; Boundary:
 ;;; - macro-runtime-source-witness-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (macro-runtime-source-witness-findings index)
   (if (macro-runtime-source-policy-allows? index)
     '()
@@ -363,23 +465,23 @@
              file
              (car (source-file-macros file)))))
      (project-index-files index))))
-;; Boolean <- ProjectIndex
+;; : (-> ProjectIndex Boolean )
 (def (macro-runtime-source-policy-allows? index)
   (let (policy (project-macro-governance-policy index))
     (and policy
          (macro-runtime-source-explanation-clear? policy)
          (macro-runtime-source-witness-clear? policy))))
-;; ProjectMacroGovernancePolicy <- ProjectIndex
+;; : (-> ProjectIndex ProjectMacroGovernancePolicy )
 (def (project-macro-governance-policy index)
   (and (project-index-package index)
        (project-package-macro-governance-policy (project-index-package index))))
-;; Boolean <- Policy
+;; : (-> Policy Boolean )
 (def (macro-runtime-source-explanation-clear? policy)
   (and (macro-governance-policy-explanation policy)
        (fx>= (string-length
               (string-trim (macro-governance-policy-explanation policy)))
              +macro-runtime-source-witness-explanation-min-length+)))
-;; Boolean <- Policy
+;; : (-> Policy Boolean )
 (def (macro-runtime-source-witness-clear? policy)
   (and (macro-governance-policy-witness policy)
        (fx>= (string-length
@@ -388,7 +490,7 @@
 ;;; Finding boundary:
 ;;; - The macro fact supplies selector and syntax evidence.
 ;;; - Details tell agents to fetch runtime-source witnesses before editing macros.
-;; TypeFinding <- SourceFile MacroFact
+;; : (-> SourceFile MacroFact TypeFinding )
 (def (macro-runtime-source-witness-finding file fact)
   (make-type-finding
    (policy-rule-id +agent-macro-runtime-source-witness-rule+)
@@ -426,7 +528,7 @@
 ;;; Boundary:
 ;;; - protocol-evidence-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (protocol-evidence-findings index)
   (apply append
          (map (lambda (file)
@@ -448,16 +550,16 @@
 ;;; Boundary:
 ;;; - protocol-context-file? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (protocol-context-file? file)
   (or (ormap protocol-import? (source-file-imports file))
       (ormap (lambda (fact)
                (equal? (poo-form-fact-role fact) "protocol"))
              (source-file-poo-forms file))))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (protocol-import? import)
   (and import (string-contains import "protocol")))
-;; String <- SourceFile Fact
+;; : (-> SourceFile Fact String )
 (def (protocol-evidence-finding file fact)
   (make-type-finding
    (policy-rule-id +agent-protocol-evidence-rule+)
@@ -474,7 +576,7 @@
 ;;; Invariant:
 ;;; - facade-export-conflict-findings owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (facade-export-conflict-findings index)
   (let ((rest (facade-export-bindings index))
         (seen '())
@@ -494,7 +596,7 @@
 ;;; Boundary:
 ;;; - facade-export-bindings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List BindingFact) <- ProjectIndex
+;; : (-> ProjectIndex (List BindingFact) )
 (def (facade-export-bindings index)
   (apply append
          (map (lambda (file)
@@ -503,7 +605,7 @@
                        (source-file-exports file))
                   '()))
               (project-index-files index))))
-;; TypeFinding <- String SourceFile ControlFlowGroup
+;; : (-> String SourceFile ControlFlowGroup TypeFinding )
 (def (export-conflict-finding name file prior)
   (make-type-finding
    (policy-rule-id +agent-export-conflict-rule+)

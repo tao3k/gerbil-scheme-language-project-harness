@@ -13,23 +13,23 @@
         dependency-adapter-standard-profile
         dependency-adapter-profile-details)
 
-;; DependencyAdapterProfile <- ProfileName (List ProfileSlot)
+;; : (-> ProfileName (List ProfileSlot) DependencyAdapterProfile )
 (def (dependency-adapter-profile name slots)
   (slot-profile name (cons (cons 'profileName name) slots)))
 
-;; DependencyAdapterProfile <- DependencyAdapterProfile DependencyAdapterProfile ...
+;; : (-> DependencyAdapterProfile DependencyAdapterProfile ... DependencyAdapterProfile )
 (def (dependency-adapter-profile-extend base . overlays)
   (apply slot-profile-extend base overlays))
 
-;; DependencyAdapterProfile <- DependencyAdapterProfile DependencyAdapterProfile
+;; : (-> DependencyAdapterProfile DependencyAdapterProfile DependencyAdapterProfile )
 (def (dependency-adapter-profile-override base overlay)
   (slot-profile-override base overlay))
 
-;; Value <- DependencyAdapterProfile Symbol Value
+;; : (-> DependencyAdapterProfile Symbol Value Value )
 (def (dependency-adapter-profile-ref profile key fallback)
   (slot-profile-ref profile key fallback))
 
-;; (List String) <- DependencyAdapterProfile
+;; : (-> DependencyAdapterProfile (List String) )
 (def (dependency-adapter-profile-precedence profile)
   (slot-profile-precedence-names profile))
 
@@ -79,7 +79,7 @@
     (cons 'cliOptionPattern
           "keep src/cli.ss as a thin dispatcher; compose option objects when command option surfaces grow")]))
 
-;; DependencyAdapterProfile <- Command Command
+;; : (-> Command Command DependencyAdapterProfile )
 (def (dependency-adapter-repair-command-profile search-command repair-command)
   (dependency-adapter-profile
    "dependency-repair-commands"
@@ -105,7 +105,7 @@
 ;;; - This is the production POO use site for R017 repair guidance.
 ;;; - Each overlay contributes one adapter concern instead of one large hash.
 ;;; - The final composition overlay makes POO provenance visible in details.
-;; DependencyAdapterProfile <- Command Command
+;; : (-> Command Command DependencyAdapterProfile )
 (def (dependency-adapter-standard-profile search-command repair-command)
   (slot-profile-compose
    "dependency-adapter-standard"
@@ -127,7 +127,7 @@
 ;;; - Parser facts fill dynamic adapter evidence.
 ;;; - The composed profile owns stable repair vocabulary and POO lineage.
 ;;; - Additional profile slots can be added without editing finding assembly.
-;; Json <- DependencyAdapterProfile DependencyAdapterQualityFact MissingEvidence Boolean WitnessKind
+;; : (-> DependencyAdapterProfile DependencyAdapterQualityFact MissingEvidence Boolean WitnessKind Json )
 (def (dependency-adapter-profile-details profile fact missing
                                          contract-witness-present?
                                          contract-witness-kind)

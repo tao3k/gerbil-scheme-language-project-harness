@@ -30,7 +30,7 @@
 ;;; Boundary:
 ;;; - poo-source-file? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (poo-source-file? file)
   (ormap (lambda (import)
            (string-contains import "clan/poo"))
@@ -38,7 +38,7 @@
 ;;; Boundary:
 ;;; - poo-capability-active? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- ProjectIndex
+;; : (-> ProjectIndex Boolean )
 (def (poo-capability-active? index)
   (or (ormap poo-source-file? (project-index-files index))
       (ormap (lambda (fact)
@@ -52,23 +52,23 @@
 ;;; Boundary:
 ;;; - poo-capability-dependency? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (poo-capability-dependency? dependency)
   (ormap (lambda (needle)
            (string-contains dependency needle))
          +poo-capability-dependencies+))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (source-runtime-file-path? path)
   (and (string-prefix? "src/" path)
        (string-suffix? ".ss" path)))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (explicit-runtime-entrypoint-path? path)
   (and (string-prefix? "src/search-fast/" path)
        (string-suffix? ".ss" path)))
 ;;; Boundary:
 ;;; - index-source-runtime-file-path? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- ProjectIndex String
+;; : (-> ProjectIndex String Boolean )
 (def (index-source-runtime-file-path? index path)
   (and (string-suffix? ".ss" path)
        (let* ((package (project-index-package index))
@@ -78,7 +78,7 @@
          (ormap (lambda (root)
                   (source-path-under-root? path root))
                 roots))))
-;; (List String) <- Policy
+;; : (-> Policy (List String) )
 (def (configured-runtime-roots policy)
   (cond
    ((and policy (pair? (source-scope-policy-runtime-roots policy)))
@@ -86,7 +86,7 @@
    ((and policy (pair? (source-scope-policy-roots policy)))
     (source-scope-policy-roots policy))
    (else ["src"])))
-;; Boolean <- String String
+;; : (-> String String Boolean )
 (def (source-path-under-root? path root)
   (or (equal? root ".")
       (equal? path root)
@@ -94,13 +94,13 @@
 ;;; Boundary:
 ;;; - project-poo-forms composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex
+;; : (-> ProjectIndex Integer )
 (def (project-poo-forms index)
   (apply append (map source-file-poo-forms (project-index-files index))))
 ;;; Boundary:
 ;;; - poo-class-fact-exists? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- ProjectIndex ClassName
+;; : (-> ProjectIndex ClassName Boolean )
 (def (poo-class-fact-exists? index class-name)
   (ormap
    (lambda (fact)
@@ -110,19 +110,19 @@
 ;;; Boundary:
 ;;; - poo-protocol-fact-exists? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- ProjectIndex ProtocolName
+;; : (-> ProjectIndex ProtocolName Boolean )
 (def (poo-protocol-fact-exists? index protocol-name)
   (ormap
    (lambda (fact)
      (and (equal? (poo-form-fact-role fact) "protocol")
           (equal? (poo-form-fact-name fact) protocol-name)))
    (project-poo-forms index)))
-;; Boolean <- MaybeString
+;; : (-> MaybeString Boolean )
 (def (blank-string? value)
   (or (not value) (equal? value "")))
 ;;; Invariant:
 ;;; - join-missing owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; JoinMissing <- (List XX)
+;; : (-> (List XX) JoinMissing )
 (def (join-missing items)
   (join items ","))

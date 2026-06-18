@@ -5,14 +5,14 @@
 ;;; - Provider dispatch is generated as a native C executable by build.ss.
 ;;; - Fast routes are native-only; missing artifacts are build failures, not alternate runtime paths.
 
-;; Path <- Path String
+;; : (-> Path String Path )
 (def (write-file! path contents)
   (create-directory* (path-directory path))
   (call-with-output-file path
     (cut write-string contents <>))
   path)
 
-;; Path <- Path Datum
+;; : (-> Path Datum Path )
 (def (write-datum-file! path datum)
   (create-directory* (path-directory path))
   (call-with-output-file path
@@ -21,12 +21,12 @@
       (newline out)))
   path)
 
-;; Any <- Alist Symbol
+;; : (-> Alist Symbol Any )
 (def (config-ref config key)
   (let (entry (assoc key config))
     (and entry (cdr entry))))
 
-;; Config <- Path Path
+;; : (-> Path Path Config )
 (def (provider-cli-config binary harness-root)
   `((harness-root . ,harness-root)
     (fast-extension . ,(path-expand "gerbil-scheme-search-extension"
@@ -54,7 +54,7 @@
                          "bin/gerbil-scheme-harness.ss"
                          harness-root))))
 
-;; Path <- Config Path
+;; : (-> Config Path Path )
 (def (write-provider-static-guide-files! config harness-root)
   (let (output-dir (path-directory (config-ref config 'guide-static-file)))
     (create-directory* output-dir)
@@ -175,6 +175,100 @@
     "  fclose(file);"
     "  return 1;"
     "}"]
+   ["static const char *arg_value(int argc, char **argv, const char *name) {"
+    "  for (int i = 1; i + 1 < argc; i++) if (streq(argv[i], name)) return argv[i + 1];"
+    "  return NULL;"
+    "}"]
+   ["static int parse_positive_long(const char *text, long *out) {"
+    "  if (!text || !*text) return 0;"
+    "  char *end = NULL;"
+    "  errno = 0;"
+    "  long value = strtol(text, &end, 10);"
+    "  if (errno || !end || *end || value < 1) return 0;"
+    "  *out = value;"
+    "  return 1;"
+    "}"]
+   ["static int split_selector_range(const char *selector, char **path_out, long *start_out, long *end_out) {"
+    "  char *copy = strdup(selector);"
+    "  if (!copy) { perror(\"strdup\"); exit(127); }"
+    "  long start = 0, end = 0;"
+    "  char *last = strrchr(copy, ':');"
+    "  if (!last) { *path_out = copy; *start_out = 0; *end_out = 0; return 1; }"
+    "  char *range = last + 1;"
+    "  *last = '\\0';"
+    "  char *dash = strchr(range, '-');"
+    "  if (dash) {"
+    "    *dash = '\\0';"
+    "    if (!parse_positive_long(range, &start) || !parse_positive_long(dash + 1, &end) || end < start) { free(copy); return 0; }"
+    "    *path_out = copy; *start_out = start; *end_out = end; return 1;"
+    "  }"
+    "  char *prev = strrchr(copy, ':');"
+    "  if (prev) {"
+    "    char *start_text = prev + 1;"
+    "    *prev = '\\0';"
+    "    if (parse_positive_long(start_text, &start) && parse_positive_long(range, &end) && end >= start) {"
+    "      *path_out = copy; *start_out = start; *end_out = end; return 1;"
+    "    }"
+    "    *prev = ':';"
+    "  }"
+    "  if (!parse_positive_long(range, &end)) { free(copy); return 0; }"
+    "  *path_out = copy; *start_out = end; *end_out = end; return 1;"
+    "}"]
+   ["static void write_json_string_bytes(const char *text, size_t len) {"
+    "  fputc('\"', stdout);"
+    "  for (size_t i = 0; i < len; i++) {"
+    "    unsigned char c = (unsigned char)text[i];"
+    "    if (c == '\"' || c == '\\\\') { fputc('\\\\', stdout); fputc(c, stdout); }"
+    "    else if (c == '\\n') fputs(\"\\\\n\", stdout);"
+    "    else if (c == '\\r') fputs(\"\\\\r\", stdout);"
+    "    else if (c == '\\t') fputs(\"\\\\t\", stdout);"
+    "    else if (c < 0x20) fprintf(stdout, \"\\\\u%04x\", c);"
+    "    else fputc(c, stdout);"
+    "  }"
+    "  fputc('\"', stdout);"
+    "}"]
+   ["static void emit_selector_range_or_exit(const char *selector, int json) {"
+    "  char *path = NULL;"
+    "  long start = 0, end = 0;"
+    "  if (!split_selector_range(selector, &path, &start, &end)) {"
+    "    fprintf(stderr, \"invalid selector: %s\\n\", selector ? selector : \"<missing>\");"
+    "    exit(2);"
+    "  }"
+    "  FILE *file = fopen(path, \"rb\");"
+    "  if (!file) { perror(path); free(path); exit(2); }"
+    "  char *line = NULL;"
+    "  size_t cap = 0;"
+    "  ssize_t n = 0;"
+    "  long current = 1;"
+    "  if (json) { fputs(\"{\\\"selector\\\":\", stdout); write_json_string_bytes(selector, strlen(selector)); fputs(\",\\\"code\\\":\\\"\", stdout); }"
+    "  while ((n = getline(&line, &cap, file)) != -1) {"
+    "    if (!start || (current >= start && current <= end)) {"
+    "      if (json) {"
+    "        for (ssize_t i = 0; i < n; i++) {"
+    "          char c = line[i];"
+    "          if (c == '\"' || c == '\\\\') { fputc('\\\\', stdout); fputc(c, stdout); }"
+    "          else if (c == '\\n') fputs(\"\\\\n\", stdout);"
+    "          else if (c == '\\r') fputs(\"\\\\r\", stdout);"
+    "          else if (c == '\\t') fputs(\"\\\\t\", stdout);"
+    "          else if ((unsigned char)c < 0x20) fprintf(stdout, \"\\\\u%04x\", (unsigned char)c);"
+    "          else fputc(c, stdout);"
+    "        }"
+    "      } else fwrite(line, 1, (size_t)n, stdout);"
+    "    }"
+    "    if (end && current > end) break;"
+    "    current++;"
+    "  }"
+    "  if (json) fputs(\"\\\"}\\n\", stdout);"
+    "  free(line);"
+    "  fclose(file);"
+    "  free(path);"
+    "}"]
+   ["static void route_query_selector_or_continue(int argc, char **argv, int start) {"
+    "  const char *selector = arg_value(argc, argv, \"--selector\");"
+    "  if (!selector) return;"
+    "  emit_selector_range_or_exit(selector, has_arg(argc, argv, \"--json\"));"
+    "  exit(0);"
+    "}"]
    ["static const char *static_guide_file(int argc, char **argv, int start) {"
     "  const char *selected = guide_static_file;"
     "  int detail_seen = 0;"
@@ -207,6 +301,7 @@
     "  }"
     "  if (argc > 2 && streq(argv[1], \"search\") && streq(argv[2], \"guide\")) route_guide_or_fail(argc, argv, 3);"
     "  if (argc > 1 && streq(argv[1], \"guide\") && !has_arg(argc, argv, \"--code\")) route_guide_or_fail(argc, argv, 2);"
+    "  if (argc > 2 && streq(argv[1], \"query\")) route_query_selector_or_continue(argc, argv, 2);"
     "  if (argc > 1 && streq(argv[1], \"search\")) exec_gerbil_runtime(search_runtime, argc, argv, 2);"
     "  exec_gerbil_runtime(harness_runtime, argc, argv, 1);"
     "}"]])
@@ -242,11 +337,11 @@
      (write-dispatcher-config! out config)
      (write-dispatcher-helpers! out))))
 
-;; Path <- Path Config
+;; : (-> Path Config Path )
 (def (write-provider-native-dispatcher-source! path config)
   (write-file! path (native-dispatcher-source-text config)))
 
-;; Path <- Path Path
+;; : (-> Path Path Path )
 (def (write-provider-cli-config! binary harness-root)
   (let* ((config-path (string-append binary ".config"))
          (config (provider-cli-config binary harness-root)))

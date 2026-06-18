@@ -154,7 +154,7 @@
     ([] "")
     ([first . rest]
      (join (cons first (map compact-agent-rule-id rest)) ","))))
-;; String <- RuleId
+;; : (-> RuleId String )
 (def (compact-agent-rule-id rule-id)
   (if (string-prefix? +agent-rule-prefix+ rule-id)
     (substring rule-id
@@ -163,29 +163,29 @@
     rule-id))
 ;;; Rule lookup: all agent-facing renderers resolve through this list search,
 ;;; so missing IDs fail as absent catalog data instead of ad hoc fallback text.
-;; Rule <- RuleId
+;; : (-> RuleId Rule )
 (def (agent-rule-by-id rule-id)
   (and rule-id
        (find (lambda (rule)
                (equal? (hash-get rule 'id) rule-id))
              (agent-steering-rule-json))))
-;; String <- RuleId Field
+;; : (-> RuleId Field String )
 (def (agent-rule-field rule-id field)
   (let (rule (agent-rule-by-id rule-id))
     (and rule (hash-key? rule field) (hash-get rule field))))
-;; String <- RuleId
+;; : (-> RuleId String )
 (def (agent-rule-topic rule-id)
   (agent-rule-field rule-id 'topic))
-;; String <- RuleId
+;; : (-> RuleId String )
 (def (agent-rule-guide-topic rule-id)
   (agent-rule-field rule-id 'guideTopic))
-;; String <- RuleId
+;; : (-> RuleId String )
 (def (agent-rule-guide-intent rule-id)
   (agent-rule-field rule-id 'guideIntent))
-;; String <- RuleId
+;; : (-> RuleId String )
 (def (agent-rule-guide-next-command rule-id)
   (agent-rule-field rule-id 'nextCommand))
-;; GuideRoute <- RuleId
+;; : (-> RuleId GuideRoute )
 (def (agent-rule-guide-route rule-id)
   (let ((topic (agent-rule-guide-topic rule-id))
         (intent (agent-rule-guide-intent rule-id))
@@ -200,7 +200,7 @@
 ;;; Boundary:
 ;;; - agent-rule-policy-line coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; String <- Rule
+;; : (-> Rule String )
 (def (agent-rule-policy-line rule)
   (let ((id (hash-get rule 'id))
         (topic (hash-get rule 'topic)))

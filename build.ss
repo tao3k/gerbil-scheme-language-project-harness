@@ -375,6 +375,15 @@
 (def (static-provider-source-file? path)
   (equal? (path-extension path) ".ss"))
 
+(def (top-level-test-file? entry)
+  (and (string-suffix? "-test.ss" entry)
+       (not (member entry '("." "..")))))
+
+(def (top-level-test-files)
+  (map (lambda (entry) (path-expand entry "t"))
+       (filter top-level-test-file?
+               (sort (directory-files "t") string<?))))
+
 (def (static-provider-source-files)
   (def (walk dir acc)
     (for/fold (result acc) (entry (sort (directory-files dir) string<?))
@@ -441,12 +450,22 @@
   (for-each compile-static-provider-source!
             (static-provider-source-files)))
 
+(def (run-provider-tests!)
+  (setenv "GERBIL_LOADPATH"
+          (string-append (path-expand "src" (current-directory))
+                         ":"
+                         (path-expand "t" (current-directory))))
+  (let (tests (top-level-test-files))
+    (if (null? tests)
+      (error "no top-level Gerbil test files found")
+      (invoke "gxtest" tests))))
+
 (def (run-build! args)
   (cond
    ((null? args) (make-provider! '()))
    ((equal? (car args) "meta")
     (write ["spec" "compile" "full" "native" "native-link"
-            "native-full" "native-full-link" "native-diagnose" "clean"])
+            "native-full" "native-full-link" "native-diagnose" "clean" "test"])
     (newline))
    ((equal? (car args) "spec")
     (pretty-print (provider-build-spec)))
@@ -472,6 +491,8 @@
     (compile-full-native-cli!))
    ((equal? (car args) "native-diagnose")
     (run-native-diagnose!))
+   ((equal? (car args) "test")
+    (run-provider-tests!))
    (else (error "Unexpected " args))))
 
 (def (main . args)

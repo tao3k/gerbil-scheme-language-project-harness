@@ -10,16 +10,19 @@
 (export checker-test)
 ;; CheckerTest
 (def checker-test
-  (test-suite "gerbil scheme harness checker"
+    (test-suite "gerbil scheme harness checker"
     (test-case "arity checker reports signature mismatches from native calls"
-      (let* ((root (path-normalize "."))
+      (let* ((root ".run/checker-arity")
+             (_ (write-arity-project root))
              (index (collect-project root))
-             (signatures (load-type-signatures "t/fixtures/type-signatures.scm"))
+             (signatures
+              (load-type-signatures
+               ".run/checker-arity/type-signatures.scm"))
              (findings (run-arity-checks index signatures))
              (fixture-findings
               (filter (lambda (finding)
                         (equal? (type-finding-path finding)
-                                "t/fixtures/formals.ss"))
+                                "src/sample.ss"))
                       findings))
              (finding (car fixture-findings)))
         (check (length fixture-findings) => 1)
@@ -27,7 +30,7 @@
                => "GERBIL-SCHEME-CHECKER-A001")
         (check (type-finding-severity finding) => "error")
         (check (type-finding-selector finding)
-               => "t/fixtures/formals.ss:8-8")
+               => "src/sample.ss:5-5")
         (check (type-finding-message finding)
                => "arity mismatch for +: expected 3, got 2")))
     (test-case "native whitelist checker rejects unlisted external calls"
@@ -168,7 +171,7 @@
              (rule-ids (map type-finding-rule-id findings)))
         (check (not (not (member "GERBIL-SCHEME-CHECKER-T001" rule-ids)))
                => #t)))))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-whitelist-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -180,7 +183,19 @@
                 ";;; -*- Gerbil -*-\n(def (safe x) (allowed x))\n(def (unsafe x) (danger x))\n")
     (write-text whitelist-path
                 "; comment lines are ignored\nallowed\n\n")))
-;; Unit <- String
+;; : (-> String Unit )
+(def (write-arity-project root)
+  (let* ((src (string-append root "/src"))
+         (source-path (string-append src "/sample.ss"))
+         (signature-path (string-append root "/type-signatures.scm")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (write-text source-path
+                ";;; -*- Gerbil -*-\n(package: sample/checker)\n;; : (-> Number Number Number)\n(def (sum-two x y)\n  (+ x y))\n")
+    (write-text signature-path
+                "((+ . (function (number number number) number))\n (sum-two . (function (number number) number)))\n")))
+;; : (-> String Unit )
 (def (write-harness-macro-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss")))
@@ -189,7 +204,7 @@
     (ensure-dir src)
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax unsafe-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
-;; Unit <- String MaybePackageSource
+;; : (-> String MaybePackageSource Unit )
 (def (write-generated-macro-project root . maybe-package-source)
   (let* ((generated (string-append root "/generated"))
          (source-path (string-append generated "/sample.ss"))
@@ -202,7 +217,7 @@
       (delete-file-if-exists package-path))
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax generated-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -214,7 +229,7 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-number n) (needs-string n))\n(def (use-string s) (needs-string s))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string))\n (use-number . (function (number) number))\n (use-string . (function (string) string)))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-literal-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -226,7 +241,7 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def good (needs-string \"ok\"))\n(def bad (needs-string 10))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-local-binding-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -238,7 +253,7 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let)\n  (let ((value \"ok\") (bad 10))\n    (needs-string value)\n    (needs-string bad)))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-local-alias-type-mismatch-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
@@ -250,19 +265,19 @@
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let-star)\n  (let* ((value \"ok\")\n         (alias value)\n         (bad 10)\n         (bad-alias bad))\n    (needs-string alias)\n    (needs-string bad-alias)))\n")
     (write-text signature-path
                 "((needs-string . (function (string) string)))\n")))
-;; EnsureDir <- String
+;; : (-> String EnsureDir )
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-;; Unit <- String SourceLine
+;; : (-> String SourceLine Unit )
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)
    (lambda () (delete-file path)))
   (call-with-output-file path
     (lambda (port) (display text port))))
-;; DeleteFileIfExists <- String
+;; : (-> String DeleteFileIfExists )
 (def (delete-file-if-exists path)
   (with-catch
    (lambda (_) #f)

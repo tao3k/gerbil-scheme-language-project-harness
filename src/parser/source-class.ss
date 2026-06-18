@@ -10,7 +10,7 @@
 ;;;   instead of repeating path predicates in policy code.
 ;;; Invariant:
 ;;; - Specific build/runtime paths are classified before broad source fallbacks.
-;; SourceClass <- SourcePath
+;; : (-> SourcePath SourceClass )
 (def (source-path-class path)
   (cond
    ((equal? path "gerbil.pkg")
@@ -23,6 +23,9 @@
    ((or (string-prefix? "t/snapshots/" path)
         (string-contains path "/snapshots/"))
     "snapshot-output")
+   ((or (string-prefix? "t/scenarios/" path)
+        (string-contains path "/scenarios/"))
+    "policy-scenario")
    ((or (string-prefix? "t/fixtures/" path)
         (string-contains path "/fixtures/"))
     "fixture")

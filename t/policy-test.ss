@@ -6,8 +6,12 @@
 (import :std/test
         :policy/modularity-test
         :policy/agent-basic-test
+        :policy/agent-alist-access-test
+        :policy/agent-anonymous-pair-test
         :policy/agent-build-test
+        :policy/agent-source-scope-test
         :policy/agent-repair-test
+        :policy/agent-style-higher-order-test
         :policy/agent-style-test
         :policy/agent-dependency-adapter-test
         :policy/agent-poo-test
@@ -19,8 +23,12 @@
   (test-suite "gerbil scheme harness policy"
     modularity-policy-test
     agent-basic-policy-test
+    agent-alist-access-policy-test
+    agent-anonymous-pair-policy-test
     agent-build-policy-test
+    agent-source-scope-policy-test
     agent-repair-policy-test
+    agent-style-higher-order-policy-test
     agent-style-policy-test
      agent-dependency-adapter-policy-test
      agent-poo-policy-test

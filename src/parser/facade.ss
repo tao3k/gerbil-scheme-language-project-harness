@@ -17,6 +17,7 @@
         project-calls
         project-predicate-family-facts
         project-field-access-pattern-facts
+        project-projection-burst-facts
         project-boolean-condition-facts
         project-loop-driver-facts
         project-dependency-adapter-quality-facts
@@ -144,6 +145,22 @@
         field-access-pattern-fact-quality-facets
         field-access-pattern-fact-advice
         field-access-pattern-fact-selector
+        projection-burst-fact-name
+        projection-burst-fact-kind
+        projection-burst-fact-path
+        projection-burst-fact-start
+        projection-burst-fact-end
+        projection-burst-fact-role
+        projection-burst-fact-caller
+        projection-burst-fact-field-keys
+        projection-burst-fact-access-count
+        projection-burst-fact-accessor-count
+        projection-burst-fact-emitter-count
+        projection-burst-fact-accessors
+        projection-burst-fact-emitters
+        projection-burst-fact-quality-facets
+        projection-burst-fact-advice
+        projection-burst-fact-selector
         boolean-condition-fact-name
         boolean-condition-fact-kind
         boolean-condition-fact-path
@@ -236,6 +253,7 @@
         typed-contract-fact-reasons
         typed-contract-fact-quality-facets
         typed-contract-fact-repair-evidence
+        typed-contract-fact-typed-comment
         typed-contract-fact-selector
         comment-quality-fact-target-kind
         comment-quality-fact-target-name
@@ -279,6 +297,7 @@
         source-file-control-flow-forms
         source-file-predicate-family-facts
         source-file-field-access-pattern-facts
+        source-file-projection-burst-facts
         source-file-boolean-condition-facts
         source-file-loop-driver-facts
         source-file-dependency-adapter-quality-facts
@@ -315,8 +334,8 @@
         modularity-policy-max-test-definition-span
         modularity-policy-config-path
         modularity-policy-explanation
-        agent-policy-enabled-rules
         agent-policy-disabled-rules
+        agent-policy-explanation
         project-index-root
         project-index-files
         project-index-package

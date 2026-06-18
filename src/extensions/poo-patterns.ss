@@ -24,23 +24,23 @@
 ;;; Pattern specs are Gerbil POO objects: specialized pattern families are
 ;;; prototype extensions over the object-system packet shape, while renderers
 ;;; keep the same hash/list protocol for search consumers.
-;; SourceSelector <- Role Symbol Selector
+;; : (-> Role Symbol Selector SourceSelector )
 (def (poo-selector role symbol selector)
   (hash (role role)
         (symbol symbol)
         (selector selector)))
-;; FormTemplate <- Head Operands Keywords
+;; : (-> Head Operands Keywords FormTemplate )
 (def (poo-form-template head operands keywords)
   (hash (head head)
         (operands operands)
         (keywords keywords)))
-;; FormMapping <- Role Symbol Head Operands Keywords Selector
+;; : (-> Role Symbol Head Operands Keywords Selector FormMapping )
 (def (poo-form-mapping role symbol head operands keywords selector)
   (hash (role role)
         (symbol symbol)
         (template (poo-form-template head operands keywords))
         (selector selector)))
-;; FailureCase <- Id RiskKind BadPattern CorrectiveAction Selectors
+;; : (-> Id RiskKind BadPattern CorrectiveAction Selectors FailureCase )
 (def (poo-failure-case id risk-kind bad-pattern corrective-action selectors)
   (hash (id id)
         (riskKind risk-kind)
@@ -851,12 +851,12 @@
         (cons 'c3-mro +poo-c3-mro-pattern-spec+)
         (cons 'object-system +poo-object-system-pattern-spec+)))
 
-;; PatternSpec <- Kind
+;; : (-> Kind PatternSpec )
 (def (poo-pattern-spec kind)
   (let (entry (assq kind +poo-pattern-spec-registry+))
     (and entry (cdr entry))))
 
-;; Value <- Kind Slot
+;; : (-> Kind Slot Value )
 (def (poo-pattern-spec-slot kind slot)
   (let (spec (poo-pattern-spec kind))
     (and spec
@@ -876,27 +876,27 @@
            ((next) (.@ spec next))
            (else #f)))))
 
-;; PooPatternFocus <- String (List PooFormFact)
+;; : (-> String (List PooFormFact) PooPatternFocus )
 (def (poo-pattern-focus kind terms)
   (if (and (pair? terms) (pair? (cdr terms)))
     (join (cdr terms) " ")
     (poo-pattern-default-focus kind)))
-;; String <- String
+;; : (-> String String )
 (def (poo-pattern-id kind)
   (poo-pattern-spec-slot kind 'id))
-;; PooPatternDefaultFocus <- String
+;; : (-> String PooPatternDefaultFocus )
 (def (poo-pattern-default-focus kind)
   (poo-pattern-spec-slot kind 'defaultFocus))
-;; (List String) <- String
+;; : (-> String (List String) )
 (def (poo-pattern-source-owners kind)
   (poo-pattern-spec-slot kind 'sourceOwners))
-;; PooPatternAgentScenario <- String
+;; : (-> String PooPatternAgentScenario )
 (def (poo-pattern-agent-scenario kind)
   (poo-pattern-spec-slot kind 'agentScenario))
-;; AgentSteering <- String
+;; : (-> String AgentSteering )
 (def (poo-pattern-agent-steering kind)
   (poo-pattern-spec-slot kind 'agentSteering))
-;; PooPatternIntent <- String
+;; : (-> String PooPatternIntent )
 (def (poo-pattern-intent kind)
   (poo-pattern-spec-slot kind 'intent))
 ;; Selector
@@ -908,15 +908,15 @@
 ;; PooPatternFailureCases
 (def (poo-pattern-failure-cases (kind 'object-system))
   (poo-pattern-spec-slot kind 'failureCases))
-;; PooPatternQualitySignals <- String
+;; : (-> String PooPatternQualitySignals )
 (def (poo-pattern-quality-signals kind)
   (poo-pattern-spec-slot kind 'qualitySignals))
-;; PooPatternWitness <- String
+;; : (-> String PooPatternWitness )
 (def (poo-pattern-witness kind)
   (poo-pattern-spec-slot kind 'witness))
-;; PooPatternMissing <- String
+;; : (-> String PooPatternMissing )
 (def (poo-pattern-missing kind)
   (poo-pattern-spec-slot kind 'missing))
-;; String <- String
+;; : (-> String String )
 (def (poo-pattern-next kind)
   (poo-pattern-spec-slot kind 'next))

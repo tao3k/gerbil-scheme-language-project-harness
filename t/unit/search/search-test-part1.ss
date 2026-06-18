@@ -12,10 +12,10 @@
         :unit/poo/runtime-witness
         :unit/search/structural-index)
 (export search-test-part-1)
-;; Json <- Table Key
+;; : (-> Table Key Json )
 (def (json-get table key)
   (hash-get table key))
-;; SearchOutput <- (List XX)
+;; : (-> (List XX) SearchOutput )
 (def (search-output args)
   (let* ((status #f)
          (output
@@ -25,7 +25,7 @@
                 (set! status (search-main args)))))))
     (check status => 0)
     output))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-output args)
   (let* ((status #f)
          (output
@@ -35,7 +35,7 @@
                 (set! status (guide-main args)))))))
     (check status => 0)
     output))
-;; InfoOutput <- (List XX)
+;; : (-> (List XX) InfoOutput )
 (def (info-output args)
   (let* ((status #f)
          (output
@@ -45,10 +45,10 @@
                 (set! status (info-main args)))))))
     (check status => 0)
     output))
-;; Boolean <- OutputPort Fragment
+;; : (-> OutputPort Fragment Boolean )
 (def (contains? output fragment)
   (and (string-contains output fragment) #t))
-;; Boolean <- OutputPort
+;; : (-> OutputPort Boolean )
 (def (guide-code-render-metadata-free? output)
   (not (or (contains? output "[guide")
            (contains? output "|primaryExemplar")
@@ -57,7 +57,7 @@
            (contains? output "selector=")
            (contains? output "nextCommand=")
            (contains? output "\n|"))))
-;; Boolean <- OutputPort Fragments
+;; : (-> OutputPort Fragments Boolean )
 (def (check-output-contains output fragments)
   (for-each
    (lambda (fragment)

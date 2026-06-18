@@ -16,21 +16,44 @@
 ;; ArgumentTypeSlot
 (defstruct argument-type-slot (name expected type-name index))
 
-;;; Boundary:
-;;; - run-type-mismatch-checks composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex NativeSignatures
+;; run-type-mismatch-checks
+;;   : (-> ProjectIndex
+;;         NativeSignatures
+;;         (List TypeFinding))
+;;   | doc m%
+;;       `run-type-mismatch-checks index signatures` checks every parser-owned
+;;       call fact against native signature and parameter type evidence.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (run-type-mismatch-checks empty-index empty-signatures)
+;;       ;; => ()
+;;       ```
+;;     %
 (def (run-type-mismatch-checks index signatures)
   (let (param-env (build-param-type-env/signatures index signatures))
     (append-map (cut call-type-mismatch-findings <> signatures param-env)
                 (project-calls index))))
-;; (List TypeFinding) <- CallFact NativeSignatures ParamEnv
+;; call-type-mismatch-findings
+;;   : (-> CallFact NativeSignatures ParamEnv (List TypeFinding) )
+;;   | doc m%
+;;       `call-type-mismatch-findings call signatures param-env` checks one
+;;       parser-owned call fact against native function signatures and caller
+;;       parameter type bindings.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (call-type-mismatch-findings call [] [])
+;;       ;; => ()
+;;       ```
+;;     %
 (def (call-type-mismatch-findings call signatures param-env)
   (let (signature (signature-type-for (call-fact-callee call) signatures))
     (if (and signature (eq? (type-kind signature) 'function))
       (call-function-type-mismatch-findings call signature param-env)
       '())))
-;; (List TypeFinding) <- CallFact NativeSignatures ParamEnv
+;; : (-> CallFact NativeSignatures ParamEnv (List TypeFinding) )
 (def (call-function-type-mismatch-findings call signature param-env)
   (let ((expected-types (type-params signature))
         (arg-names (call-fact-arguments call))
@@ -39,12 +62,25 @@
       (argument-type-findings call expected-types arg-names arg-type-names param-env)
       '())))
 
-;;; Boundary:
-;;; - argument-type-findings composes first-class procedures over indexed slots.
-;;; - Slot construction owns list alignment.
-;;; - Finding construction owns type compatibility checks.
-;;; - Keep the call fact intact so selector and caller evidence stay parser-owned.
-;; (List TypeFinding) <- CallFact ExpectedTypes ArgNames ArgTypeNames ParamEnv
+;; argument-type-findings
+;;   : (-> CallFact
+;;         ExpectedTypes
+;;         ArgNames
+;;         ArgTypeNames
+;;         ParamEnv
+;;         (List TypeFinding))
+;;   | doc m%
+;;       `argument-type-findings call expected-types arg-names arg-type-names param-env`
+;;       aligns expected and actual argument slots, then returns mismatch
+;;       findings for incompatible slots.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (argument-type-findings call [] [] [] [])
+;;       ;; => ()
+;;       ```
+;;     %
 (def (argument-type-findings call expected-types arg-names arg-type-names param-env)
   (filter-map (cut argument-type-slot-finding call param-env <>)
               (argument-type-slots expected-types arg-names arg-type-names)))
@@ -52,7 +88,7 @@
 ;;; Alignment boundary:
 ;;; - Expected types drive the slot count.
 ;;; - Missing parser arg-type facts become empty slots, not shifted positions.
-;; (List ArgumentTypeSlot) <- ExpectedTypes ArgNames ArgTypeNames
+;; : (-> ExpectedTypes ArgNames ArgTypeNames (List ArgumentTypeSlot) )
 (def (argument-type-slots expected-types arg-names arg-type-names)
   (map (lambda (arg-name expected-type index)
          (make-argument-type-slot
@@ -64,12 +100,12 @@
        expected-types
        (iota (length expected-types))))
 
-;; MaybeArgTypeName <- ArgTypeNames Index
+;; : (-> ArgTypeNames Index MaybeArgTypeName )
 (def (argument-type-name-at arg-type-names index)
   (and (< index (length arg-type-names))
        (list-ref arg-type-names index)))
 
-;; MaybeTypeFinding <- CallFact ParamEnv ArgumentTypeSlot
+;; : (-> CallFact ParamEnv ArgumentTypeSlot MaybeTypeFinding )
 (def (argument-type-slot-finding call param-env slot)
   (let (actual-type
         (argument-type call
@@ -85,45 +121,57 @@
                                 (argument-type-slot-expected slot)
                                 actual-type))))
 
-;; TypeSpec <- CallFact ArgName ArgTypeName ParamEnv
+;; : (-> CallFact ArgName ArgTypeName ParamEnv TypeSpec )
 (def (argument-type call arg-name arg-type-name param-env)
   (or (argument-param-type call arg-name param-env)
       (literal-argument-type arg-type-name)))
-;; TypeSpec <- CallFact ArgName ParamEnv
+;; : (-> CallFact ArgName ParamEnv TypeSpec )
 (def (argument-param-type call arg-name param-env)
   (and (call-fact-caller call)
        (valid-argument-name? arg-name)
        (let (binding (find-param-binding (call-fact-caller call) arg-name param-env))
          (and binding (type-param-binding-type binding)))))
-;; TypeSpec <- ArgTypeName
+;; : (-> ArgTypeName TypeSpec )
 (def (literal-argument-type arg-type-name)
   (and arg-type-name (make-type-base arg-type-name)))
-;;; Boundary:
-;;; - find-param-binding composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; FindParamBinding <- FunctionName ArgName ParamEnv
+;; find-param-binding
+;;   : (-> FunctionName
+;;         ArgName
+;;         ParamEnv
+;;         MaybeTypeParamBinding)
+;;   | doc m%
+;;       `find-param-binding function-name arg-name param-env` returns the
+;;       parameter type binding for the caller argument when one is known.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (find-param-binding "order-total" "order" [])
+;;       ;; => #f
+;;       ```
+;;     %
 (def (find-param-binding function-name arg-name param-env)
   (find (lambda (binding)
           (and (equal? (type-param-binding-function-name binding) function-name)
                (equal? (type-param-binding-name binding) arg-name)))
         param-env))
-;; Boolean <- ArgName
+;; : (-> ArgName Boolean )
 (def (valid-argument-name? arg-name)
   (and arg-name (not (string-contains arg-name " "))))
-;; Boolean <- Actual Expected
+;; : (-> Actual Expected Boolean )
 (def (type-compatible? actual expected)
   (or (member (type-kind actual) '(unknown any))
       (member (type-kind expected) '(unknown any))
       (type=? actual expected)
       (and (eq? (type-kind expected) 'union)
            (any-type-compatible? actual (type-union-members expected)))))
-;; Boolean <- Actual ExpectedMembers
+;; : (-> Actual ExpectedMembers Boolean )
 (def (any-type-compatible? actual expected-members)
   (cond
    ((null? expected-members) #f)
    ((type-compatible? actual (car expected-members)) #t)
    (else (any-type-compatible? actual (cdr expected-members)))))
-;; TypeFinding <- CallFact ArgName ProjectIndex Expected Actual
+;; : (-> CallFact ArgName ProjectIndex Expected Actual TypeFinding )
 (def (type-mismatch-finding call arg-name index expected actual)
   (make-type-finding
    (checker-rule-id +type-mismatch-rule+)
@@ -140,9 +188,21 @@
          (argumentIndex index)
          (expectedType (type->string expected))
          (actualType (type->string actual)))))
-;;; Invariant:
-;;; - append-map owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Integer <- (YY <- XX) (List XX)
+;; append-map
+;;   : (forall (a b)
+;;       (-> (-> a (List b))
+;;           (List a)
+;;           (List b)))
+;;   | doc m%
+;;       `append-map fn items` maps `fn` over `items` and appends the returned
+;;       lists in input order.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (append-map (lambda (x) (list x x)) '(a b))
+;;       ;; => (a a b b)
+;;       ```
+;;     %
 (def (append-map fn items)
   (foldr (lambda (item out) (append (fn item) out)) '() items))

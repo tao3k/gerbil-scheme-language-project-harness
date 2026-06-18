@@ -249,13 +249,13 @@
     (check (> (hash-get packet 'dependencyUsageTotal) 0) => #t)
     (check (packet-file-hashes-are-64-hex? packet) => #t)))
 
-;; Unit <- Packet
+;; : (-> Packet Unit )
 (def (check-structural-index-poo-facts facts-packet)
   (for-each (lambda (spec)
               (check-poo-structural-spec facts-packet spec))
             +poo-structural-specs+))
 
-;; Unit <- Packet (List Kind Name Fields QueryKeys)
+;; : (-> Packet (List Kind Name Fields QueryKeys) Unit )
 (def (check-poo-structural-spec facts-packet spec)
   (match spec
     ([kind name fields query-keys]
@@ -269,7 +269,7 @@
                         => #t))
                query-keys))))
 
-;; Unit <- Packet Kind Name (List Field Expected)
+;; : (-> Packet Kind Name (List Field Expected) Unit )
 (def (check-poo-structural-field facts-packet kind name spec)
   (match spec
     ([field expected]
@@ -324,14 +324,14 @@
     (check (packet-has-syntax-fact-query-key? packet "custom" "RationalSet" "Set<-Table.") => #t)
     (check (packet-has-syntax-fact-query-key? packet "custom" "RationalSet" "rationaldict-keys") => #t)))
 
-;; Packet <- ProjectIndex (List OwnerPath)
+;; : (-> ProjectIndex (List OwnerPath) Packet )
 (def (owner-facts-packet index owners)
   (hash (facts
          (sort (owner-facts index owners)
                (lambda (a b)
                  (string<? (hash-get a 'id) (hash-get b 'id)))))))
 
-;; (List SyntaxFact) <- ProjectIndex (List OwnerPath)
+;; : (-> ProjectIndex (List OwnerPath) (List SyntaxFact) )
 (def (owner-facts index owners)
   (apply append
          (map (lambda (owner)
@@ -341,7 +341,7 @@
                             'facts)))
               owners)))
 
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-quality-shape-structural-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -353,7 +353,7 @@
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/structural-quality)\n;; Boolean <- EventSyntaxFact\n(def (created-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (equal? (field-string fields 'role) \"created\"))))\n;; Boolean <- EventSyntaxFact\n(def (paid-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (member (field-string fields 'role) '(\"paid\" \"settled\")))))\n;; Boolean <- EventSyntaxFact\n(def (cancelled-event? fact)\n  (let (fields (hash-get fact 'fields))\n    (and fields (equal? (field-string fields 'role) \"cancelled\"))))\n;; (List EventId) <- (List EventSyntaxFact)\n(def (collect-ids rows)\n  (let loop ((rest rows) (out []))\n    (if (null? rest)\n      (reverse out)\n      (loop (cdr rest) (cons (hash-get (car rest) 'id) out)))))\n")))
 
-;; Unit <- String
+;; : (-> String Unit )
 (def (write-dependency-adapter-structural-project root)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/orders")))
@@ -367,45 +367,45 @@
     (write-text (string-append owner "/rationaldict.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/rationaldict\n           rationaldict-keys rationaldict-min-key rationaldict-max-key\n           rationaldict-empty? empty-rationaldict\n           rationaldict-put rationaldict-ref rationaldict-has-key? rationaldict-remove\n           list->rationaldict rationaldict->list\n           rationaldict? rationaldict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./type Rational Unit)\n  (only-in ./table Set<-Table. methods.table))\n(define-type (RationalDict. @ [methods.table] Value)\n  Key: Rational\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (unless (rationaldict? x) (raise-type-error \"not rationaldict\" x)) (super x)))\n  .empty: empty-rationaldict\n  .empty?: rationaldict-empty?\n  .ref: rationaldict-ref\n  .key?: rationaldict-has-key?\n  .acons: (lambda (k v d) (rationaldict-put d k v))\n  .remove: rationaldict-remove\n  .foldl: (lambda (f seed d) (foldl (lambda (kv acc) (f (car kv) (cdr kv) acc)) seed (rationaldict->list d)))\n  .foldr: (lambda (f seed d) (foldr (lambda (kv acc) (f (car kv) (cdr kv) acc)) seed (rationaldict->list d)))\n  .<-list: list->rationaldict\n  .list<-: rationaldict->list\n  .sexp<-: (lambda (x) `(list->rationaldict ,(rationaldict->list x)))\n  .=?: (lambda (d1 d2) (rationaldict=? d1 d2)))\n(define-type (RationalSet @ [Set<-Table.])\n  Elt: Rational\n  Table: {(:: @T RationalDict.) Key: Elt Value: Unit}\n  .list<-: rationaldict-keys\n  .min-elt: rationaldict-min-key\n  .max-elt: rationaldict-max-key)\n")))
 
-;; Unit <- String
+;; : (-> String Unit )
 (def (reset-fixture-root root)
   (when (file-exists? root)
     (void
      (run-process ["rm" "-rf" root]
                   stderr-redirection: #t))))
 
-;; EnsureDir <- String
+;; : (-> String EnsureDir )
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
 
-;; Unit <- String SourceText
+;; : (-> String SourceText Unit )
 (def (write-text path text)
   (call-with-output-file path
     (lambda (port) (display text port))))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-owner? packet path)
   (ormap (lambda (owner)
            (equal? (hash-get owner 'ownerPath) path))
          (hash-get packet 'owners)))
-;; Boolean <- Packet String
+;; : (-> Packet String Boolean )
 (def (packet-has-symbol? packet name)
   (ormap (lambda (symbol)
            (equal? (hash-get symbol 'name) name))
          (hash-get packet 'symbols)))
-;; Boolean <- Packet Key
+;; : (-> Packet Key Boolean )
 (def (packet-has-symbol-query-key? packet key)
   (ormap (lambda (symbol)
            (and (member key (hash-get symbol 'queryKeys)) #t))
          (hash-get packet 'symbols)))
-;; Boolean <- Packet String String
+;; : (-> Packet String String Boolean )
 (def (packet-has-syntax-fact? packet kind name)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
                 (equal? (hash-get fact 'name) name)))
          (packet-syntax-facts packet)))
-;; Boolean <- Packet String String String Expected
+;; : (-> Packet String String String Expected Boolean )
 (def (packet-has-syntax-fact-field? packet kind name field expected)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
@@ -413,7 +413,7 @@
                 (let (fields (hash-get fact 'fields))
                   (and fields (equal? (hash-get fields field) expected)))))
          (packet-syntax-facts packet)))
-;; Boolean <- Packet String String Key
+;; : (-> Packet String String Key Boolean )
 (def (packet-has-syntax-fact-query-key? packet kind name key)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
@@ -421,28 +421,28 @@
                 (member key (hash-get fact 'queryKeys))
                 #t))
          (packet-syntax-facts packet)))
-;; Boolean <- Packet String String String
+;; : (-> Packet String String String Boolean )
 (def (packet-has-syntax-fact-id? packet kind name id)
   (ormap (lambda (fact)
            (and (equal? (hash-get fact 'kind) kind)
                 (equal? (hash-get fact 'name) name)
                 (equal? (hash-get fact 'id) id)))
          (packet-syntax-facts packet)))
-;; Boolean <- Packet
+;; : (-> Packet Boolean )
 (def (packet-syntax-fact-ids-are-sorted? packet)
   (let (ids (map (cut hash-get <> 'id) (packet-syntax-facts packet)))
     (equal? ids (sort ids string<?))))
-;; (List SyntaxFact) <- Packet
+;; : (-> Packet (List SyntaxFact) )
 (def (packet-syntax-facts packet)
   (if (hash-key? packet 'syntaxFacts)
     (hash-get packet 'syntaxFacts)
     (hash-get packet 'facts)))
-;; Boolean <- Packet ImportPath
+;; : (-> Packet ImportPath Boolean )
 (def (packet-has-dependency? packet import-path)
   (ormap (lambda (usage)
            (equal? (hash-get usage 'importPath) import-path))
          (hash-get packet 'dependencyUsages)))
-;; Boolean <- Packet
+;; : (-> Packet Boolean )
 (def (packet-file-hashes-are-64-hex? packet)
   (andmap (lambda (entry)
             (let (sha256 (hash-get entry 'sha256))

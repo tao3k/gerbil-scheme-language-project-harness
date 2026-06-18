@@ -28,7 +28,7 @@
 ;;; Interface packet is the hot path: stable handles, counts, and commands.
 ;;; It avoids workspace syntaxFacts materialization so ASP Rust can own the
 ;;; full index, graph topology, cache, and graph-turbo ranking layers.
-;; Json <- ProjectIndex
+;; : (-> ProjectIndex Json )
 (def (structural-index-packet-json index)
   (let* ((generation-id (structural-interface-generation-id index))
          (artifact-id (string-append "structural-index/" generation-id ".json"))
@@ -68,7 +68,7 @@
 ;;; Artifact packet is explicit validation/debug transport.
 ;;; It preserves the complete syntaxFacts shape while keeping that cost outside
 ;;; the default search and benchmark path.
-;; Json <- ProjectIndex
+;; : (-> ProjectIndex Json )
 (def (structural-index-artifact-packet-json index)
   (let* ((generation-id (structural-index-generation-id index))
          (artifact-id (string-append "structural-index/" generation-id ".json"))
@@ -99,7 +99,7 @@
 ;;; Owner fact packet is the ASP fan-out unit.
 ;;; One owner keeps projection cost bounded and lets the Rust side decide
 ;;; parallelism, cache invalidation, and topology construction.
-;; Json <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile Json )
 (def (native-syntax-owner-facts-packet-json index file)
   (let* ((package (project-index-package index))
          (facts (structural-syntax-fact-json file))
@@ -140,7 +140,7 @@
                      "dependency-protocol-adapter"])
          (fields (hash (consumer "asp-graph-turbo"))))])
 
-;; Json <- ProjectIndex GenerationId
+;; : (-> ProjectIndex GenerationId Json )
 (def (structural-fact-interface-json index generation-id)
   (hash
    (mode "lightweight-provider-interface")
@@ -162,7 +162,7 @@
 
 ;;; Total facts is a cheap fold over already parsed owner structures.
 ;;; It gives ASP a workspace-size signal without forcing full fact JSON.
-;; Integer <- (List SourceFile)
+;; : (-> (List SourceFile) Integer )
 (def (native-syntax-fact-total files)
   (foldl (lambda (file total)
            (+ total (source-file-native-syntax-fact-count file)))
@@ -171,7 +171,7 @@
 
 ;;; Symbol totals are cheap scheduling signals for ASP Rust.
 ;;; Default interface mode does not materialize workspace symbol rows.
-;; Integer <- (List SourceFile)
+;; : (-> (List SourceFile) Integer )
 (def (structural-symbol-total files)
   (foldl (lambda (file total)
            (+ total (length (source-file-definitions file))))
@@ -180,7 +180,7 @@
 
 ;;; Dependency totals keep graph size visible without exporting edge rows.
 ;;; Full dependency rows stay on the explicit artifact path.
-;; Integer <- (List SourceFile)
+;; : (-> (List SourceFile) Integer )
 (def (structural-dependency-total files)
   (foldl (lambda (file total)
            (+ total
@@ -192,7 +192,7 @@
 ;;; Owner summaries are the manifest rows consumed by ASP before fan-out.
 ;;; Family counts guide Rust-side scheduling and cache invalidation without
 ;;; moving heavy graph construction into Scheme.
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (native-syntax-fact-summary-json file)
   (hash
    (ownerPath (source-file-path file))
@@ -205,7 +205,7 @@
 
 ;;; Fact count mirrors the owner packet families exactly.
 ;;; Counting struct lists is intentionally cheaper than rendering fact payloads.
-;; Integer <- SourceFile
+;; : (-> SourceFile Integer )
 (def (source-file-native-syntax-fact-count file)
   (+ (length (source-file-module-imports file))
      (length (source-file-module-exports file))
@@ -226,7 +226,7 @@
 
 ;;; Family counts keep parser capabilities visible at owner granularity.
 ;;; ASP can decide which owners need graph-turbo analysis from these fields.
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (source-file-native-syntax-family-counts file)
   (hash
    (moduleImports (length (source-file-module-imports file)))
@@ -251,7 +251,7 @@
 
 ;;; Artifact rows are globally sorted only on the explicit artifact path.
 ;;; Interface mode avoids this cost and leaves workspace indexing to ASP Rust.
-;; (List JsonRow) <- (List JsonRow)
+;; : (-> (List JsonRow) (List JsonRow) )
 (def (json-rows-by-id rows)
   (sort rows
         (lambda (a b)
@@ -259,7 +259,7 @@
 
 ;;; Artifact generation uses full parser fingerprints for validation stability.
 ;;; This path is intentionally outside the hot search and bench interface.
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (structural-index-generation-id index)
   (string-append
    +language-id+
@@ -274,7 +274,7 @@
 ;;; Interface generation uses cheap owner summary fingerprints.
 ;;; It changes when owner counts or package shape change, but avoids full fact
 ;;; rendering and sorting.
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (structural-interface-generation-id index)
   (string-append
    +language-id+
@@ -288,7 +288,7 @@
 
 ;;; Interface file hashes are summary hashes, not source-content hashes.
 ;;; The source marker makes that contract explicit for ASP cache consumers.
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (structural-interface-file-hash-json file)
   (hash (path (source-file-path file))
         (sha256 (structural-interface-file-fingerprint file))
@@ -297,7 +297,7 @@
 ;;; The interface fingerprint is based on stable owner metadata and counts.
 ;;; It is cheap enough for the manifest path and precise enough to schedule
 ;;; owner-fact refreshes.
-;; String <- SourceFile
+;; : (-> SourceFile String )
 (def (structural-interface-file-fingerprint file)
   (stable-hex64
    (join [(source-file-path file)
@@ -312,7 +312,7 @@
 
 ;;; Artifact file hashes use the full parser fact fingerprint.
 ;;; They are reserved for explicit validation artifacts, not default search.
-;; Json <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile Json )
 (def (structural-file-hash-json index file)
   (hash (path (source-file-path file))
         (sha256 (structural-file-fingerprint index file))
@@ -321,7 +321,7 @@
 ;;; Full fingerprints prefer parser facts and fall back to source lines.
 ;;; The fallback exists only for artifact validation when fact-string assembly
 ;;; cannot cover a malformed owner.
-;; StructuralFileFingerprint <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile StructuralFileFingerprint )
 (def (structural-file-fingerprint index file)
   (with-catch
    (lambda (_)
@@ -336,7 +336,7 @@
 ;;; Fact strings collect stable parser-owned names, not raw source text.
 ;;; Artifact fingerprints therefore reflect semantic evidence shape without
 ;;; storing source payloads.
-;; String <- SourceFile
+;; : (-> SourceFile String )
 (def (structural-file-fact-string file)
   (join [(source-file-path file)
          (number->string (source-file-line-count file))
@@ -358,7 +358,7 @@
 ;;; Owner rows are the manifest's stable workspace handles.
 ;;; Query keys include path, package, imports, and definitions so ASP can rank
 ;;; owners without requesting full owner facts first.
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (structural-owner-json file)
   (hash (ownerPath (source-file-path file))
         (ownerKind "source")
@@ -379,7 +379,7 @@
 ;;; Symbol rows are lightweight definition handles for the manifest.
 ;;; Qualified names are derived from parser namespace/package evidence and stay
 ;;; cheaper than full syntax fact projection.
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (structural-symbol-json file)
   (map (lambda (defn)
          (hash (ownerPath (definition-path defn))
@@ -397,7 +397,7 @@
                                    (definition-path defn)]))))
        (source-file-definitions file)))
 
-;; StructuralQualifiedName <- SourceFile Definition
+;; : (-> SourceFile Definition StructuralQualifiedName )
 (def (structural-qualified-name file defn)
   (let (ns (or (source-file-namespace file)
                (source-file-package file)
@@ -407,7 +407,7 @@
 ;;; Dependency rows expose parser-owned imports and includes.
 ;;; ASP uses these as graph edges later.
 ;;; Scheme only reports the observed owner and module reference.
-;; Integer <- SourceFile
+;; : (-> SourceFile Integer )
 (def (structural-dependency-json file)
   (append
    (map (lambda (module-ref)
@@ -417,7 +417,7 @@
           (structural-dependency-row file include-ref "native-parser-include"))
         (source-file-includes file))))
 
-;; Integer <- SourceFile ModuleRef Source
+;; : (-> SourceFile ModuleRef Source Integer )
 (def (structural-dependency-row file module-ref source)
   (hash (ownerPath (source-file-path file))
         (packageName module-ref)
@@ -428,18 +428,18 @@
         (sourceLocator (string-append (source-file-path file) ":1:1"))
         (queryKeys (dedupe [module-ref (source-file-path file) source]))))
 
-;; Integer <- (YY <- XX) (List XX)
+;; : (-> (-> XX YY ) (List XX) Integer )
 (def (append-map* proc xs)
   (if (null? xs)
     '()
     (append (proc (car xs)) (append-map* proc (cdr xs)))))
 
-;; StableHex64 <- SourceLine
+;; : (-> SourceLine StableHex64 )
 (def (stable-hex64 text)
   (let (chunk (left-pad-hex (number->string (stable-hash text) 16) 16))
     (string-append chunk chunk chunk chunk)))
 
-;; StableHash <- SourceLine
+;; : (-> SourceLine StableHash )
 (def (stable-hash text)
   (foldl (lambda (ch hash)
            (modulo (+ (* hash 16777619) (char->integer ch))
@@ -447,7 +447,7 @@
          2166136261
          (string->list text)))
 
-;; LeftPadHex <- SourceLine Width
+;; : (-> SourceLine Width LeftPadHex )
 (def (left-pad-hex text width)
   (if (fx>= (string-length text) width)
     text

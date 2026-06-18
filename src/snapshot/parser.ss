@@ -6,14 +6,14 @@
 
 (export parser-source-file-snapshot)
 
-;; Selector <- Json
+;; : (-> Json Selector )
 (def (parser-json-selector packet)
   (hash-get packet 'selector))
 
 ;;; Boundary:
 ;;; - parser-source-file-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- SourceFile
+;; : (-> SourceFile Snapshot )
 (def (parser-source-file-snapshot file)
   (list 'parserSourceFile
         (list 'path (source-file-path file))
@@ -66,7 +66,7 @@
               (map parser-call-snapshot
                    (source-file-calls file)))))
 
-;; Snapshot <- Definition
+;; : (-> Definition Snapshot )
 (def (parser-definition-snapshot defn)
   (list 'definition
         (list 'name (definition-name defn))
@@ -75,7 +75,7 @@
         (list 'arity (definition-arity defn))
         (list 'selector (definition-selector defn))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-module-import-snapshot fact)
   (list 'moduleImport
         (list 'module (module-import-fact-module fact))
@@ -84,7 +84,7 @@
         (list 'symbols (snapshot-list (module-import-fact-symbols fact)))
         (list 'selector (module-import-fact-selector fact))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-module-export-snapshot fact)
   (list 'moduleExport
         (list 'name (module-export-fact-name fact))
@@ -94,7 +94,7 @@
         (list 'symbols (snapshot-list (module-export-fact-symbols fact)))
         (list 'selector (module-export-fact-selector fact))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-macro-snapshot fact)
   (list 'macro
         (list 'name (macro-fact-name fact))
@@ -106,7 +106,7 @@
         (list 'qualityFacets (snapshot-list (macro-fact-quality-facets fact)))
         (list 'selector (macro-fact-selector fact))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-binding-snapshot fact)
   (list 'binding
         (list 'name (binding-fact-name fact))
@@ -115,7 +115,7 @@
         (list 'valueType (or (binding-fact-value-type fact) "unknown"))
         (list 'selector (binding-fact-selector fact))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-poo-form-snapshot fact)
   (list 'pooForm
         (list 'name (poo-form-fact-name fact))
@@ -131,7 +131,7 @@
         (list 'specializerTypes (snapshot-list (poo-form-fact-specializer-types fact)))
         (list 'selector (poo-form-fact-selector fact))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-higher-order-form-snapshot fact)
   (list 'higherOrderForm
         (list 'name (higher-order-fact-name fact))
@@ -144,7 +144,7 @@
         (list 'qualityFacets (snapshot-list (higher-order-quality-facets fact)))
         (list 'selector (higher-order-fact-selector fact))))
 
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-control-flow-form-snapshot fact)
   (list 'controlFlowForm
         (list 'name (control-flow-fact-name fact))
@@ -156,7 +156,7 @@
         (list 'qualityFacets (snapshot-list (control-flow-quality-facets fact)))
         (list 'selector (control-flow-fact-selector fact))))
 
-;; Snapshot <- PredicateFamilyFact
+;; : (-> PredicateFamilyFact Snapshot )
 (def (parser-predicate-family-fact-snapshot fact)
   (list 'predicateFamilyFact
         (list 'name (predicate-family-fact-name fact))
@@ -175,7 +175,7 @@
         (list 'advice (predicate-family-fact-advice fact))
         (list 'selector (predicate-family-fact-selector fact))))
 
-;; Snapshot <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact Snapshot )
 (def (parser-field-access-pattern-fact-snapshot fact)
   (list 'fieldAccessPatternFact
         (list 'name (field-access-pattern-fact-name fact))
@@ -190,7 +190,7 @@
         (list 'advice (field-access-pattern-fact-advice fact))
         (list 'selector (field-access-pattern-fact-selector fact))))
 
-;; Snapshot <- BooleanConditionFact
+;; : (-> BooleanConditionFact Snapshot )
 (def (parser-boolean-condition-fact-snapshot fact)
   (list 'booleanConditionFact
         (list 'name (boolean-condition-fact-name fact))
@@ -207,7 +207,7 @@
         (list 'advice (boolean-condition-fact-advice fact))
         (list 'selector (boolean-condition-fact-selector fact))))
 
-;; Snapshot <- LoopDriverFact
+;; : (-> LoopDriverFact Snapshot )
 (def (parser-loop-driver-fact-snapshot fact)
   (list 'loopDriverFact
         (list 'name (loop-driver-fact-name fact))
@@ -225,7 +225,7 @@
 ;;; Snapshot projection fixes profile field order for reviewable fixtures.
 ;;; It preserves the same repair signals emitted to JSON so snapshot drift shows
 ;;; real parser-evidence changes, not hash-table ordering.
-;; Snapshot <- FunctionQualityProfile
+;; : (-> FunctionQualityProfile Snapshot )
 (def (parser-function-quality-profile-snapshot profile)
   (list 'functionQualityProfile
         (list 'name (function-quality-profile-name profile))
@@ -272,7 +272,7 @@
         (list 'advice (function-quality-profile-advice profile))
         (list 'selector (function-quality-profile-selector profile))))
 
-;; Snapshot <- TypedContractFact
+;; : (-> TypedContractFact Snapshot )
 (def (parser-typed-contract-fact-snapshot fact)
   (list 'typedContractFact
         (list 'definition (typed-contract-fact-definition-name fact))
@@ -297,7 +297,7 @@
 
 ;;; Repair evidence snapshots turn parser-owned hash packets into reader-safe data.
 ;;; Keep advice fields visible without leaking opaque table tokens into fixtures.
-;; Snapshot <- Json
+;; : (-> Json Snapshot )
 (def (parser-typed-contract-repair-evidence-snapshot evidence)
   (list 'repairEvidence
         (list 'factSource (hash-get evidence 'factSource))
@@ -331,7 +331,7 @@
               (snapshot-list (hash-get evidence 'witnessNeeded)))
         (list 'agentRepairMode (hash-get evidence 'agentRepairMode))))
 
-;; Snapshot <- Json
+;; : (-> Json Snapshot )
 (def (parser-repair-call-snapshot evidence)
   (list 'repairCall
         (list 'kind (hash-get evidence 'kind))
@@ -339,7 +339,7 @@
         (list 'arity (hash-get evidence 'arity))
         (list 'selector (parser-json-selector evidence))))
 
-;; Snapshot <- Json
+;; : (-> Json Snapshot )
 (def (parser-repair-higher-order-snapshot evidence)
   (list 'repairHigherOrder
         (list 'kind (hash-get evidence 'kind))
@@ -348,7 +348,7 @@
         (list 'operandCount (hash-get evidence 'operandCount))
         (list 'selector (parser-json-selector evidence))))
 
-;; Snapshot <- Json
+;; : (-> Json Snapshot )
 (def (parser-repair-control-flow-snapshot evidence)
   (list 'repairControlFlow
         (list 'kind (hash-get evidence 'kind))
@@ -358,7 +358,7 @@
         (list 'bodyFormCount (hash-get evidence 'bodyFormCount))
         (list 'selector (parser-json-selector evidence))))
 
-;; Snapshot <- CommentQualityFact
+;; : (-> CommentQualityFact Snapshot )
 (def (parser-comment-quality-fact-snapshot fact)
   (list 'commentQualityFact
         (list 'targetKind (comment-quality-fact-target-kind fact))
@@ -377,7 +377,7 @@
         (list 'selector (comment-quality-fact-selector fact))))
 
 ;;; Snapshot boundary: serialize comment evidence in fixed field order so parser fact changes are reviewable across runs.
-;; Snapshot <- Json
+;; : (-> Json Snapshot )
 (def (parser-comment-quality-evidence-snapshot evidence)
   (let (target-kind (hash-get evidence 'targetKind))
     (if (equal? target-kind "module")
@@ -415,7 +415,7 @@
             (list 'selector (parser-json-selector evidence))))))
 
 ;;; Matched fact snapshots mirror evidence variants while preserving type-specific witness fields and deterministic output order.
-;; Snapshot <- Json
+;; : (-> Json Snapshot )
 (def (parser-comment-quality-matched-fact-snapshot fact)
   (let (fact-kind (hash-get fact 'factKind))
     (cond
@@ -470,7 +470,7 @@
 ;;; Boundary:
 ;;; - parser-call-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (parser-call-snapshot fact)
   (list 'call
         (list 'callee (call-fact-callee fact))

@@ -53,7 +53,7 @@
 ;;; - Quality findings are composite gates over parser-owned definitions and
 ;;;   call arguments.
 ;;; - A single string marker is advisory evidence only.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (build-runtime-quality-findings index)
   (filter-map build-runtime-quality-finding
               (project-index-files index)))
@@ -61,7 +61,7 @@
 ;;; Finding contract:
 ;;; - The detection combinator owns the multi-evidence decision.
 ;;; - This rule owns the agent-facing repair message and build-support scope.
-;; MaybeTypeFinding <- SourceFile
+;; : (-> SourceFile MaybeTypeFinding )
 (def (build-runtime-quality-finding file)
   (let (result (build-runtime-quality-detection file))
     (and result
@@ -77,7 +77,7 @@
 ;;; - Details stay JSON-shaped for command output because TypeFinding receipts
 ;;;   cross the provider JSON boundary as key/value diagnostic evidence.
 ;;; - This is not runtime object construction or a dependency protocol adapter.
-;; PolicyDetails <- DetectionResult
+;; : (-> DetectionResult PolicyDetails )
 (def (runtime-quality-details result)
   (let (details (detection-result-details result))
     (hash (kind "build-runtime-quality")
@@ -103,7 +103,7 @@
 ;;; Dispatch boundary keeps build-support and package build checks separate:
 ;;; launcher files are allowed to write executables, while build.ss is only
 ;;; checked for shell pipeline orchestration.
-;; MaybeDetectionResult <- SourceFile
+;; : (-> SourceFile MaybeDetectionResult )
 (def (build-runtime-quality-detection file)
   (cond
    ((build-support-source-file? file)
@@ -118,7 +118,7 @@
 
 ;;; Launcher quality is declared as a prototype: the threshold base owns the
 ;;; combiner shape, while this overlay owns build-support evidence slots.
-;; DetectionPrototype <-
+;; : (-> DetectionPrototype )
 (def (build-support-shell-template-detection-prototype)
   (detection-prototype-extend
    +threshold-detection-prototype+
@@ -135,7 +135,7 @@
 
 ;;; Package build quality is a stricter prototype: the all-of base owns the
 ;;; required-group semantics, and the overlay names the build.ss evidence.
-;; DetectionPrototype <-
+;; : (-> DetectionPrototype )
 (def (package-build-shell-pipeline-detection-prototype)
   (detection-prototype-extend
    +all-of-detection-prototype+
@@ -162,7 +162,7 @@
 ;;; Hidden invariant:
 ;;; A manual loop could select a later helper.
 ;;; That would make finding selectors unstable across parser order changes.
-;; MaybeEvidenceGroup <- SourceFile
+;; : (-> SourceFile MaybeEvidenceGroup )
 (def (shell-helper-definition-evidence file)
   (let (definitions (filter shell-helper-definition?
                             (source-file-definitions file)))
@@ -188,7 +188,7 @@
 ;;;   evidence strength.
 ;;; Hidden invariant:
 ;;; - The evidence selector remains independent from the scoring pass.
-;; MaybeEvidenceGroup <- SourceFile
+;; : (-> SourceFile MaybeEvidenceGroup )
 (def (shell-control-literal-evidence file)
   (let* ((calls (filter call-has-shell-control-literal?
                         (source-file-calls file)))
@@ -216,7 +216,7 @@
 ;;; Hidden invariant:
 ;;; - Keeping the classifier separate prevents writer calls from bypassing the
 ;;;   shell-control payload check.
-;; MaybeEvidenceGroup <- SourceFile
+;; : (-> SourceFile MaybeEvidenceGroup )
 (def (shell-writer-call-evidence file)
   (let (calls (filter shell-writer-call? (source-file-calls file)))
     (and (pair? calls)
@@ -242,7 +242,7 @@
 ;;; Hidden invariant:
 ;;; - A loop that stops on the first process call would miss later sh -c
 ;;;   evidence and under-report build pipeline drift.
-;; MaybeEvidenceGroup <- SourceFile
+;; : (-> SourceFile MaybeEvidenceGroup )
 (def (shell-dispatch-call-evidence file)
   (let (calls (filter shell-dispatch-call? (source-file-calls file)))
     (and (pair? calls)
@@ -253,7 +253,7 @@
 
 ;;; Pipeline literals refine sh -c evidence so build.ss warnings focus on
 ;;; pipeline orchestration instead of every shell invocation.
-;; MaybeEvidenceGroup <- SourceFile
+;; : (-> SourceFile MaybeEvidenceGroup )
 (def (shell-pipeline-literal-evidence file)
   (let (calls (filter shell-pipeline-literal-call? (source-file-calls file)))
     (and (pair? calls)
@@ -264,21 +264,21 @@
 
 ;;; Scope guard: build-support files intentionally emit launcher/runtime
 ;;; wrappers, so they need a dedicated evidence profile.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (build-support-source-file? file)
   (equal? (source-path-class (source-file-path file))
           "build-support-runtime"))
 
 ;;; Scope guard: package build logic is checked for shell pipelines, not for
 ;;; launcher template text.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (package-build-file? file)
   (equal? (source-path-class (source-file-path file))
           "package-build"))
 
 ;;; Naming markers catch helper families before they become an unbounded shell
 ;;; wrapper subsystem.
-;; Boolean <- DefinitionFact
+;; : (-> DefinitionFact Boolean )
 (def (shell-helper-definition? definition)
   (let (name (definition-name definition))
     (and (string? name)
@@ -298,20 +298,20 @@
 ;;; Invariant:
 ;;; - Non-string parser arguments are ignored rather than coerced into shell
 ;;;   text.
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (call-has-shell-control-literal? call)
   (ormap string-has-shell-control-marker?
          (filter string? (call-fact-arguments call))))
 
 ;;; Writer calls become evidence only when their argument payload contains
 ;;; shell-control markers.
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (shell-writer-call? call)
   (and (member (call-fact-callee call) '("display" "write-string"))
        (call-has-shell-control-literal? call)))
 
 ;;; sh -c is the risk boundary because it collapses typed argv into shell text.
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (shell-dispatch-call? call)
   (and (member (call-fact-callee call) +shell-dispatch-callees+)
        (call-arguments-contain? call "sh")
@@ -319,7 +319,7 @@
 
 ;;; Pipeline literals separate incidental shell dispatch from build-pipeline
 ;;; orchestration.
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (shell-pipeline-literal-call? call)
   (and (shell-dispatch-call? call)
        (ormap (lambda (argument)
@@ -330,7 +330,7 @@
 
 ;;; Argument containment stays string-only so parser facts, not shell parsing,
 ;;; own the evidence boundary.
-;; Boolean <- CallFact String
+;; : (-> CallFact String Boolean )
 (def (call-arguments-contain? call needle)
   (ormap (lambda (argument)
            (and (string? argument)
@@ -352,21 +352,21 @@
 ;;; - Changing markers does not add branch logic.
 ;;; Hidden invariant:
 ;;; - Marker ordering affects only short-circuit cost, not evidence semantics.
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (string-has-shell-control-marker? text)
   (ormap (cut string-contains text <>)
          +shell-control-literal-markers+))
 
 ;;; The total marker count measures payload density across calls, not just the
 ;;; number of calls.
-;; Integer <- (List CallFact)
+;; : (-> (List CallFact) Integer )
 (def (shell-control-marker-total calls)
   (apply +
          (map call-shell-control-marker-count calls)))
 
 ;;; Per-call counts preserve density evidence when one generated launcher
 ;;; contains several shell-control markers.
-;; Integer <- CallFact
+;; : (-> CallFact Integer )
 (def (call-shell-control-marker-count call)
   (apply +
          (map string-shell-control-marker-count
@@ -387,7 +387,7 @@
 ;;; - It never interprets shell grammar.
 ;;; Hidden invariant:
 ;;; - Counting the matched subset keeps scoring independent from marker order.
-;; Integer <- String
+;; : (-> String Integer )
 (def (string-shell-control-marker-count text)
   (length
    (filter (cut string-contains text <>)

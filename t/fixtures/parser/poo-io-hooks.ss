@@ -18,28 +18,28 @@
 ;; Generic
 (defgeneric :write-json)
 
-;; Void <- Object Port Options
+;; : (-> Object Port Options Void )
 (defmethod (@method :pr object)
   (lambda (self port options) (void)))
 
-;; Void <- Object WriteEnv
+;; : (-> Object WriteEnv Void )
 (defmethod (@method :wr object)
   (lambda (self writeenv) (void)))
 
-;; Json <- Object
+;; : (-> Object Json )
 (defmethod (@method :json object)
   (lambda (self) (hash)))
 
-;; Void <- Object Port
+;; : (-> Object Port Void )
 (defmethod (@method :write-json object)
   (lambda (self port) (void)))
 
-;; StringAdapter <- JsonHooks
+;; : (-> JsonHooks StringAdapter )
 (define-type (methods.string<-json @ [] .json<- .<-json)
   .string<-: (compose string<-json .json<-)
   .<-string: (compose .<-json json<-string))
 
-;; BytesAdapter <- MarshalHooks
+;; : (-> MarshalHooks BytesAdapter )
 (define-type (methods.bytes<-marshal @ [] .marshal .unmarshal)
   .bytes<-: bytes<-marshal
   .<-bytes: marshal<-bytes)

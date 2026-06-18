@@ -119,6 +119,22 @@
         field-access-pattern-fact-accessors
         field-access-pattern-fact-quality-facets
         field-access-pattern-fact-advice
+        make-projection-burst-fact
+        projection-burst-fact-name
+        projection-burst-fact-kind
+        projection-burst-fact-path
+        projection-burst-fact-start
+        projection-burst-fact-end
+        projection-burst-fact-role
+        projection-burst-fact-caller
+        projection-burst-fact-field-keys
+        projection-burst-fact-access-count
+        projection-burst-fact-accessor-count
+        projection-burst-fact-emitter-count
+        projection-burst-fact-accessors
+        projection-burst-fact-emitters
+        projection-burst-fact-quality-facets
+        projection-burst-fact-advice
         make-boolean-condition-fact
         boolean-condition-fact-name
         boolean-condition-fact-kind
@@ -212,6 +228,7 @@
         typed-contract-fact-reasons
         typed-contract-fact-quality-facets
         typed-contract-fact-repair-evidence
+        typed-contract-fact-typed-comment
         make-comment-quality-fact
         comment-quality-fact-target-kind
         comment-quality-fact-target-name
@@ -254,6 +271,7 @@
         source-file-control-flow-forms
         source-file-predicate-family-facts
         source-file-field-access-pattern-facts
+        source-file-projection-burst-facts
         source-file-boolean-condition-facts
         source-file-loop-driver-facts
         source-file-dependency-adapter-quality-facts
@@ -287,6 +305,8 @@
 (defstruct predicate-family-fact (name kind path start end role subject predicate-names predicate-count field-keys repeated-callees condition-count quality-facets advice))
 ;; FieldAccessPatternFactStruct
 (defstruct field-access-pattern-fact (name kind path start end role field-key callers access-count accessors quality-facets advice))
+;; ProjectionBurstFactStruct
+(defstruct projection-burst-fact (name kind path start end role caller field-keys access-count accessor-count emitter-count accessors emitters quality-facets advice))
 ;; BooleanConditionFactStruct
 (defstruct boolean-condition-fact (name kind path start end role caller formals condition-callees field-keys condition-count quality-facets advice))
 ;; LoopDriverFactStruct
@@ -296,12 +316,12 @@
 ;; FunctionQualityProfileStruct
 (defstruct function-quality-profile (name kind path start end formals arity role exported typed-contract-quality comment-quality control-flow-roles higher-order-roles predicate-family-refs field-access-pattern-refs loop-driver-refs macro-refs poo-protocol-refs quality-facets preservation-reasons suggested-repair-class parser-confidence advice))
 ;; TypedContractFactStruct
-(defstruct typed-contract-fact (definition-name definition-kind definition-formals definition-arity path definition-start definition-end comment-start comment-end contract contract-output contract-inputs contract-input-count arity-alignment tokens arrow-count group-count quality reasons quality-facets repair-evidence))
+(defstruct typed-contract-fact (definition-name definition-kind definition-formals definition-arity path definition-start definition-end comment-start comment-end contract contract-output contract-inputs contract-input-count arity-alignment tokens arrow-count group-count quality reasons quality-facets repair-evidence typed-comment))
 ;; CommentQualityFactStruct
 (defstruct comment-quality-fact (target-kind target-name path target-start target-end comment-start comment-end comment-lines comment-kind quality reasons required context evidence))
 ;; TopFormStruct
 (defstruct top-form (kind head path start end))
 ;; SourceFileStruct
-(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports module-exports macros bindings poo-forms higher-order-forms control-flow-forms predicate-family-facts field-access-pattern-facts boolean-condition-facts loop-driver-facts dependency-adapter-quality-facts function-quality-profiles typed-contract-facts comment-quality-facts parse-error))
+(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports module-exports macros bindings poo-forms higher-order-forms control-flow-forms predicate-family-facts field-access-pattern-facts projection-burst-facts boolean-condition-facts loop-driver-facts dependency-adapter-quality-facts function-quality-profiles typed-contract-facts comment-quality-facts parse-error))
 ;; ProjectIndexStruct
 (defstruct project-index (root files package))

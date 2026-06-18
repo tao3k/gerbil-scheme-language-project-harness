@@ -24,10 +24,20 @@
 (def +macro-governance-policy-explanation-min-length+ 32)
 ;; Integer
 (def +macro-governance-policy-witness-min-length+ 8)
-;;; Boundary:
-;;; - run-macro-governance-checks composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; run-macro-governance-checks
+;;   : (-> ProjectIndex (List TypeFinding))
+;;   | doc m%
+;;       `run-macro-governance-checks index` reports constrained-source macro
+;;       forms when package policy has not supplied the required governance
+;;       explanation.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (run-macro-governance-checks index)
+;;       ;; => macro governance findings
+;;       ```
+;;     %
 (def (run-macro-governance-checks index)
   (filter-map
    (lambda (form)
@@ -36,48 +46,48 @@
           (not (macro-governance-policy-allows? index))
           (macro-governance-finding index form)))
    (apply append (map source-file-forms (project-index-files index)))))
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (run-forbidden-form-checks index)
   (run-macro-governance-checks index))
-;; Boolean <- Form
+;; : (-> Form Boolean )
 (def (macro-governance-form? form)
   (member (top-form-head form) +macro-governance-form-heads+))
-;; Boolean <- Form
+;; : (-> Form Boolean )
 (def (macro-governance-constrained-source? form)
   (or (generated-source-path? (top-form-path form))
       (agent-generated-source-path? (top-form-path form))))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (generated-source-path? path)
   (or (string-prefix? "generated/" path)
       (string-contains path "/generated/")))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (agent-generated-source-path? path)
   (or (string-prefix? "agent-generated/" path)
       (string-contains path "/agent-generated/")))
-;; Boolean <- ProjectIndex
+;; : (-> ProjectIndex Boolean )
 (def (macro-governance-policy-allows? index)
   (let (policy (project-macro-governance-policy index))
     (and policy
          (macro-governance-policy-allow-generated policy)
          (macro-governance-policy-explanation-clear? policy)
          (macro-governance-policy-witness-clear? policy))))
-;; Boolean <- Policy
+;; : (-> Policy Boolean )
 (def (macro-governance-policy-explanation-clear? policy)
   (and (macro-governance-policy-explanation policy)
        (fx>= (string-length
               (string-trim (macro-governance-policy-explanation policy)))
              +macro-governance-policy-explanation-min-length+)))
-;; Boolean <- Policy
+;; : (-> Policy Boolean )
 (def (macro-governance-policy-witness-clear? policy)
   (and (macro-governance-policy-witness policy)
        (fx>= (string-length
               (string-trim (macro-governance-policy-witness policy)))
              +macro-governance-policy-witness-min-length+)))
-;; ProjectMacroGovernancePolicy <- ProjectIndex
+;; : (-> ProjectIndex ProjectMacroGovernancePolicy )
 (def (project-macro-governance-policy index)
   (and (project-index-package index)
        (project-package-macro-governance-policy (project-index-package index))))
-;; String <- Form
+;; : (-> Form String )
 (def (macro-governance-source-kind form)
   (cond
    ((generated-source-path? (top-form-path form)) "generated-code")
@@ -86,7 +96,7 @@
 ;;; Boundary:
 ;;; - macro-governance-finding coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; TypeFinding <- ProjectIndex Form
+;; : (-> ProjectIndex Form TypeFinding )
 (def (macro-governance-finding index form)
   (let ((head (top-form-head form))
         (selector (top-form-selector form))
@@ -113,6 +123,6 @@
             +macro-governance-policy-explanation-min-length+)
            (policyWitnessMinimumChars
             +macro-governance-policy-witness-min-length+)))))
-;; String <- Form
+;; : (-> Form String )
 (def (forbidden-form-finding form)
   (macro-governance-finding #f form))

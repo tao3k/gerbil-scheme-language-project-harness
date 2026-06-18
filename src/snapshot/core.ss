@@ -27,17 +27,17 @@
         finding-snapshot
         check-report-snapshot)
 
-;; String <- Json
+;; : (-> Json String )
 (def (snapshot-packet-id packet)
   (hash-get packet 'id))
 
 ;;; Invariant:
 ;;; - snapshot-load owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; Snapshot <- String
+;; : (-> String Snapshot )
 (def (snapshot-load path)
   (call-with-input-file path read))
-;; Snapshot <- Package
+;; : (-> Package Snapshot )
 (def (project-package-snapshot package)
   (list 'projectPackage
         (list 'path (project-package-path package))
@@ -51,7 +51,7 @@
                (project-package-modularity-policy package))
               (agent-policy-snapshot
                (project-package-agent-policy package)))))
-;; String <- Policy
+;; : (-> Policy String )
 (def (source-scope-policy-snapshot policy)
   (list 'sourceScopePolicy
         (if policy
@@ -60,14 +60,15 @@
                 (list 'excludeDirectories (snapshot-list (source-scope-policy-exclude-directories policy)))
                 (list 'explanation (source-scope-policy-explanation policy)))
           '())))
-;; Snapshot <- Policy
+;; : (-> Policy Snapshot )
 (def (agent-policy-snapshot policy)
   (list 'agentPolicy
         (if policy
-          (list (list 'enabledRules (snapshot-list (agent-policy-enabled-rules policy)))
-                (list 'disabledRules (snapshot-list (agent-policy-disabled-rules policy))))
+          (list (list 'default "all-rules-enabled")
+                (list 'disabledRules (snapshot-list (agent-policy-disabled-rules policy)))
+                (list 'explanation (agent-policy-explanation policy)))
           '())))
-;; Snapshot <- Policy
+;; : (-> Policy Snapshot )
 (def (modularity-policy-snapshot policy)
   (list 'modularityPolicy
         (if policy
@@ -81,7 +82,7 @@
                 (list 'configPath (modularity-policy-config-path policy))
                 (list 'explanation (modularity-policy-explanation policy)))
           '())))
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (extension-fact-snapshot fact)
   (list 'providerExtension
         (list 'name (extension-fact-name fact))
@@ -94,7 +95,7 @@
 ;;; Boundary:
 ;;; - extension-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Query Matches Next
+;; : (-> Query Matches Next Snapshot )
 (def (extension-search-snapshot query matches next)
   (list 'extensionSearch
         (list 'namespace "extension")
@@ -106,7 +107,7 @@
 ;;; Boundary:
 ;;; - pattern-evidence-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- Pattern
+;; : (-> Pattern String )
 (def (pattern-evidence-snapshot pattern)
   (list 'pattern
         (list 'id (snapshot-packet-id pattern))
@@ -128,7 +129,7 @@
         (list 'qualitySignals
               (snapshot-list (hash-get pattern 'qualitySignals)))
         (list 'witness (hash-get pattern 'witness))))
-;; Snapshot <- SourceRef
+;; : (-> SourceRef Snapshot )
 (def (source-ref-snapshot source-ref)
   (append
    (list 'sourceRef
@@ -148,7 +149,7 @@
      [])
    [(list 'pathPolicy (hash-get source-ref 'pathPolicy))
     (list 'selectorScheme (hash-get source-ref 'selectorScheme))]))
-;; Snapshot <- LocalSource
+;; : (-> LocalSource Snapshot )
 (def (local-source-snapshot local-source)
   (list 'localSource
         (list 'kind (hash-get local-source 'kind))
@@ -157,7 +158,7 @@
         (list 'package (hash-get local-source 'package))
         (list 'status (hash-get local-source 'status))
         (list 'owner (hash-get local-source 'owner))))
-;; Snapshot <- RepositorySource
+;; : (-> RepositorySource Snapshot )
 (def (repository-source-snapshot repository-source)
   (list 'repositorySource
         (list 'kind (hash-get repository-source 'kind))
@@ -166,32 +167,32 @@
         (list 'url (hash-get repository-source 'url))
         (list 'status (hash-get repository-source 'status))
         (list 'owner (hash-get repository-source 'owner))))
-;; Snapshot <- IndexHint
+;; : (-> IndexHint Snapshot )
 (def (index-hint-snapshot index-hint)
   (list 'indexHint
         (list 'owner (hash-get index-hint 'owner))
         (list 'backend (hash-get index-hint 'backend))
         (list 'mode (hash-get index-hint 'mode))))
-;; Selector <- String
+;; : (-> String Selector )
 (def (pattern-selector-snapshot selector)
   (list 'selector
         (list 'role (hash-get selector 'role))
         (list 'symbol (hash-get selector 'symbol))
         (list 'selector (hash-get selector 'selector))))
-;; Snapshot <- Form
+;; : (-> Form Snapshot )
 (def (pattern-form-snapshot form)
   (list 'form
         (list 'role (hash-get form 'role))
         (list 'symbol (hash-get form 'symbol))
         (pattern-form-template-snapshot (hash-get form 'template))
         (list 'selector (hash-get form 'selector))))
-;; Snapshot <- Template
+;; : (-> Template Snapshot )
 (def (pattern-form-template-snapshot template)
   (list 'template
         (list 'head (hash-get template 'head))
         (list 'operands (snapshot-list (hash-get template 'operands)))
         (list 'keywords (snapshot-list (hash-get template 'keywords)))))
-;; Snapshot <- Failure
+;; : (-> Failure Snapshot )
 (def (pattern-failure-case-snapshot failure)
   (list 'failureCase
         (list 'id (snapshot-packet-id failure))
@@ -207,7 +208,7 @@
         (if (hash-key? failure 'selectors)
           (list 'selectors (snapshot-list (hash-get failure 'selectors)))
           (list 'selectors '()))))
-;; Snapshot <- Query Pattern Missing Next
+;; : (-> Query Pattern Missing Next Snapshot )
 (def (pattern-search-snapshot query pattern missing next)
   (let (missing-items (snapshot-list missing))
     (list 'patternSearch
@@ -226,7 +227,7 @@
 ;;; Boundary:
 ;;; - runtime-source-fact-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (runtime-source-fact-snapshot fact)
   (let* ((details (hash-get fact 'details))
          (source-ref (hash-get details 'sourceRef))
@@ -255,7 +256,7 @@
                      (hash-get fact 'failureCases)))
           (list 'qualitySignals
                 (snapshot-list (hash-get fact 'qualitySignals))))))
-;; Snapshot <- SourceRef
+;; : (-> SourceRef Snapshot )
 (def (runtime-source-ref-snapshot source-ref)
   (list 'sourceRef
         (list 'kind (hash-get source-ref 'kind))
@@ -264,32 +265,32 @@
         (list 'checkoutPolicy (hash-get source-ref 'checkoutPolicy))
         (list 'statePathPolicy (hash-get source-ref 'statePathPolicy))
         (list 'selectorScheme (hash-get source-ref 'selectorScheme))))
-;; Snapshot <- Acquisition
+;; : (-> Acquisition Snapshot )
 (def (runtime-source-acquisition-snapshot acquisition)
   (list 'acquisition
         (list 'owner (hash-get acquisition 'owner))
         (list 'operation (hash-get acquisition 'operation))
         (list 'stateNamespace (hash-get acquisition 'stateNamespace))
         (list 'indexOwner (hash-get acquisition 'indexOwner))))
-;; Selector <- String
+;; : (-> String Selector )
 (def (evidence-selector-snapshot selector)
   (list 'selector
         (list 'role (hash-get selector 'role))
         (list 'symbol (hash-get selector 'symbol))
         (list 'selector (hash-get selector 'selector))))
-;; String <- Failure
+;; : (-> Failure String )
 (def (evidence-failure-case-snapshot failure)
   (list 'failureCase
         (list 'id (snapshot-packet-id failure))
         (list 'risk (failure-risk-snapshot failure))
         (list 'correction (failure-correction-snapshot failure))))
-;; String <- Failure
+;; : (-> Failure String )
 (def (failure-risk-snapshot failure)
   (cond
    ((hash-key? failure 'risk) (hash-get failure 'risk))
    ((hash-key? failure 'riskKind) (hash-get failure 'riskKind))
    (else "unknown")))
-;; String <- Failure
+;; : (-> Failure String )
 (def (failure-correction-snapshot failure)
   (cond
    ((hash-key? failure 'correction) (hash-get failure 'correction))
@@ -298,7 +299,7 @@
 ;;; Boundary:
 ;;; - runtime-source-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Query (List XX) Next
+;; : (-> Query (List XX) Next Snapshot )
 (def (runtime-source-search-snapshot query facts next)
   (list 'runtimeSourceSearch
         (list 'namespace "runtime-source")
@@ -319,7 +320,7 @@
 ;;; Boundary:
 ;;; - language-evidence-fact-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- LanguageEvidenceFact
+;; : (-> LanguageEvidenceFact Snapshot )
 (def (language-evidence-fact-snapshot fact)
   (list 'languageEvidenceFact
         (list 'id (snapshot-packet-id fact))
@@ -338,7 +339,7 @@
                    (hash-get fact 'failureCases)))
         (list 'qualitySignals
               (snapshot-list (hash-get fact 'qualitySignals)))))
-;; String <- Details
+;; : (-> Details String )
 (def (language-evidence-details-snapshot details)
   (cons 'details
         (append
@@ -361,22 +362,22 @@
          (snapshot-detail-string details 'testDirectory)
          (snapshot-detail-list details 'policyRules)
          (snapshot-detail-string details 'styleDoc))))
-;; String <- Details Key
+;; : (-> Details Key String )
 (def (snapshot-detail-string details key)
   (if (hash-key? details key)
     [(list key (hash-get details key))]
     '()))
-;; Snapshot <- Details Key
+;; : (-> Details Key Snapshot )
 (def (snapshot-detail-list details key)
   (if (hash-key? details key)
     [(list key (snapshot-list (hash-get details key)))]
     '()))
-;; Snapshot <- Details Key
+;; : (-> Details Key Snapshot )
 (def (snapshot-detail-list-value details key)
   (if (hash-key? details key)
     (hash-get details key)
     []))
-;; Snapshot <- Details Key SnapshotProc
+;; : (-> Details Key SnapshotProc Snapshot )
 (def (snapshot-detail-object details key snapshot-proc)
   (if (hash-key? details key)
     [(snapshot-proc (hash-get details key))]
@@ -384,17 +385,17 @@
 ;;; Boundary:
 ;;; - snapshot-detail-objects composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Details Key SnapshotProc
+;; : (-> Details Key SnapshotProc Snapshot )
 (def (snapshot-detail-objects details key snapshot-proc)
   (if (hash-key? details key)
     [(list key (map snapshot-proc (hash-get details key)))]
     '()))
-;; Snapshot <- Label Details SnapshotProc
+;; : (-> Label Details SnapshotProc Snapshot )
 (def (optional-snapshot label details snapshot-proc)
   (if (hash-key? details label)
     (snapshot-proc (hash-get details label))
     (list label #f)))
-;; Selector <- Resolver
+;; : (-> Resolver Selector )
 (def (selector-resolver-snapshot resolver)
   (list 'selectorResolver
         (list 'scheme (hash-get resolver 'scheme))
@@ -403,7 +404,7 @@
         (list 'selectorFormat (hash-get resolver 'selectorFormat))
         (list 'output (hash-get resolver 'output))
         (list 'indexOwner (hash-get resolver 'indexOwner))))
-;; Snapshot <- Example
+;; : (-> Example Snapshot )
 (def (source-example-snapshot example)
   (list 'sourceExample
         (list 'id (snapshot-packet-id example))
@@ -412,13 +413,13 @@
         (list 'selector (hash-get example 'selector))
         (source-example-form-snapshot (hash-get example 'form))
         (list 'commentMode (hash-get example 'commentMode))))
-;; Snapshot <- Form
+;; : (-> Form Snapshot )
 (def (source-example-form-snapshot form)
   (list 'form
         (list 'head (hash-get form 'head))
         (list 'operands (snapshot-list (hash-get form 'operands)))
         (list 'keywords (snapshot-list (hash-get form 'keywords)))))
-;; Snapshot <- Comment
+;; : (-> Comment Snapshot )
 (def (source-comment-snapshot comment)
   (list 'sourceComment
         (list 'id (snapshot-packet-id comment))
@@ -429,7 +430,7 @@
 ;;; Boundary:
 ;;; - language-evidence-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- Namespace Authority Query (List String) Next
+;; : (-> Namespace Authority Query (List String) Next String )
 (def (language-evidence-search-snapshot namespace authority query facts next)
   (list 'languageEvidenceSearch
         (list 'namespace namespace)
@@ -438,14 +439,14 @@
         (list 'query query)
         (list 'facts (map language-evidence-fact-snapshot facts))
         (list 'next next)))
-;; String <- (List String)
+;; : (-> (List String) String )
 (def (guide-snapshot lines)
   (list 'guide
         (list 'lines (snapshot-list lines))))
 ;;; Boundary:
 ;;; - registry-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Registry
+;; : (-> Registry Snapshot )
 (def (registry-snapshot registry)
   (let* ((language (car (hash-get registry 'languages)))
          (schemas (hash-get language 'schemas))
@@ -459,13 +460,13 @@
           (list 'schemas (map schema-registry-entry-snapshot schemas))
           (list 'methodDescriptors
                 (map method-descriptor-snapshot descriptors)))))
-;; Snapshot <- Schema
+;; : (-> Schema Snapshot )
 (def (schema-registry-entry-snapshot schema)
   (list 'schema
         (list 'schemaId (hash-get schema 'schemaId))
         (list 'schemaVersion (hash-get schema 'schemaVersion))
         (list 'path (hash-get schema 'path))))
-;; Snapshot <- Descriptor
+;; : (-> Descriptor Snapshot )
 (def (method-descriptor-snapshot descriptor)
   (list 'methodDescriptor
         (list 'method (hash-get descriptor 'method))
@@ -475,7 +476,7 @@
 ;;; Boundary:
 ;;; - compare-fact-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Fact
+;; : (-> Fact Snapshot )
 (def (compare-fact-snapshot fact)
   (list 'comparison
         (list 'id (snapshot-packet-id fact))
@@ -493,7 +494,7 @@
                    (hash-get fact 'failureCases)))
         (list 'qualitySignals
               (snapshot-list (hash-get fact 'qualitySignals)))))
-;; String <- Label Side
+;; : (-> Label Side String )
 (def (compare-side-snapshot label side)
   (cons label
         (append
@@ -512,7 +513,7 @@
 ;;; Boundary:
 ;;; - compare-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Query (List XX) Next
+;; : (-> Query (List XX) Next Snapshot )
 (def (compare-search-snapshot query facts next)
   (list 'compareSearch
         (list 'namespace "compare")
@@ -528,7 +529,7 @@
                          "pending"
                          (hash-get (car facts) 'witness)))
         (list 'next next)))
-;; Snapshot <- TypeFinding
+;; : (-> TypeFinding Snapshot )
 (def (finding-snapshot finding)
   [(type-finding-rule-id finding)
    (type-finding-path finding)
@@ -537,7 +538,7 @@
 ;;; Boundary:
 ;;; - self-apply-findings-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- (List TypeFinding)
+;; : (-> (List TypeFinding) Snapshot )
 (def (self-apply-findings-snapshot findings)
   (list 'selfApplyFindings
         (list 'languageId +language-id+)
@@ -548,7 +549,7 @@
 ;;; Boundary:
 ;;; - check-report-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- ProjectIndex (List TypeFinding)
+;; : (-> ProjectIndex (List TypeFinding) Snapshot )
 (def (check-report-snapshot index findings)
   (list 'checkReport
         (list 'languageId +language-id+)

@@ -37,6 +37,9 @@
         +agent-explicit-precise-import-rule+
         +agent-package-build-responsibility-rule+
         +agent-build-runtime-quality-rule+
+        +agent-policy-source-scope-rule+
+        +agent-alist-access-rule+
+        +agent-anonymous-pair-access-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -77,4 +80,7 @@
         explicit-precise-import-finding
         package-build-responsibility-finding
         build-runtime-quality-finding
+        policy-source-scope-finding
+        alist-access-finding
+        anonymous-pair-access-finding
         facade-export-conflict-findings)

@@ -51,7 +51,7 @@
 ;;; Form pass: record define-type adapter candidates with source ranges.
 ;;; Import matching happens after the file pass so only-in dependency evidence
 ;;; can be joined without re-reading source.
-;; (List DependencyAdapterCandidate) <- Relpath Form Datum
+;; : (-> Relpath Form Datum (List DependencyAdapterCandidate) )
 (def (dependency-adapter-candidates-from-form relpath form datum)
   (let (head (and (pair? datum) (car datum)))
     (if (eq? head 'define-type)
@@ -70,7 +70,7 @@
           '()))
       '())))
 
-;; String <- Datum
+;; : (-> Datum String )
 (def (define-type-name spec)
   (cond
    ((symbol? spec) (datum->string spec))
@@ -80,7 +80,7 @@
 ;;; Boundary:
 ;;; - Protocol refs are shape tokens from define-type metadata.
 ;;; - Nested specs are flattened once, then filtered to durable protocol names.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (define-type-protocol-refs spec)
   (if (pair? spec)
     (dedupe
@@ -89,7 +89,7 @@
                      (map datum->string (flatten (cdr spec))))))
     '()))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (protocol-ref-token? token)
   (and (not (member token '("@" "[]")))
        (not (string-suffix? ":" token))))
@@ -97,12 +97,12 @@
 ;;; Slot extraction intentionally keeps field and method slots in one list.
 ;;; Policy can distinguish Key/Value fields from method slots through names,
 ;;; while search can still explain the whole adapter surface.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (define-type-slots datum)
   (dedupe
    (filter-map slot-token (safe-cddr datum))))
 
-;; SlotName <- Datum
+;; : (-> Datum SlotName )
 (def (slot-token item)
   (cond
    ((keyword? item) (normalize-slot-token (datum->string item)))
@@ -113,7 +113,7 @@
            (normalize-slot-token text))))
    (else #f)))
 
-;; SlotName <- String
+;; : (-> String SlotName )
 (def (normalize-slot-token text)
   (if (and (> (string-length text) 0)
            (string-suffix? ":" text))
@@ -123,7 +123,7 @@
 ;;; Boundary:
 ;;; - Body symbol extraction feeds import-use joins.
 ;;; - Keep this as a pure token projection so adapter evidence stays parser-owned.
-;; (List String) <- Datum
+;; : (-> Datum (List String) )
 (def (define-type-body-symbols datum)
   (dedupe
    (filter string?
@@ -132,7 +132,7 @@
 ;;; Materialization pass: only emit facts when a define-type body uses imported
 ;;; dependency primitives. This prevents std/local helper imports from becoming
 ;;; noisy adapter facts.
-;; (List DependencyAdapterQualityFact) <- Relpath Candidates Imports
+;; : (-> Relpath Candidates Imports (List DependencyAdapterQualityFact) )
 (def (dependency-adapter-quality-facts-from-candidates relpath candidates imports)
   (filter-map
    (lambda (candidate)
@@ -144,7 +144,7 @@
 ;;; - Emit one fact only when dependency usage is proven by imported symbols.
 ;;; - Quality remains evidence data.
 ;;; - Policy decides whether repair is required.
-;; DependencyAdapterQualityFact <- Relpath Imports DependencyAdapterCandidate
+;; : (-> Relpath Imports DependencyAdapterCandidate DependencyAdapterQualityFact )
 (def (dependency-adapter-quality-fact-from-candidate relpath imports candidate)
   (let (materialization
         (dependency-adapter-materialization-from-candidate imports candidate))
@@ -154,7 +154,7 @@
           candidate
           materialization))))
 
-;; DependencyAdapterMaterialization <- Imports DependencyAdapterCandidate
+;; : (-> Imports DependencyAdapterCandidate DependencyAdapterMaterialization )
 (def (dependency-adapter-materialization-from-candidate imports candidate)
   (let* ((matched-imports
           (dependency-adapter-matched-imports
@@ -172,7 +172,7 @@
 ;;; - Materialization freezes all evidence derived from matched dependency imports.
 ;;; - Quality, missing evidence, and capability facets must be computed together.
 ;;; - Later packet projection must not recompute these fields differently.
-;; DependencyAdapterMaterialization <- DependencyAdapterCandidate Imports ModuleImportFact
+;; : (-> DependencyAdapterCandidate Imports ModuleImportFact DependencyAdapterMaterialization )
 (def (dependency-adapter-materialization-from-matches candidate matched-imports primary)
   (let* ((used-symbols
           (dependency-adapter-used-symbols
@@ -211,7 +211,7 @@
 ;;; - Fact construction is a pure projection from materialized parser evidence.
 ;;; - Derived capabilities stay adjacent to dependency and protocol fields.
 ;;; - This keeps policy, guide, and structural JSON aligned on one fact shape.
-;; DependencyAdapterQualityFact <- Relpath DependencyAdapterCandidate DependencyAdapterMaterialization
+;; : (-> Relpath DependencyAdapterCandidate DependencyAdapterMaterialization DependencyAdapterQualityFact )
 (def (dependency-adapter-quality-fact-from-materialization relpath candidate materialization)
   (let ((matched-imports
          (dependency-adapter-materialization-matched-imports materialization))
@@ -249,7 +249,7 @@
 ;;; Boundary:
 ;;; - Imported symbols are dependency API evidence, not local owner symbols.
 ;;; - Dedupe preserves a compact query key set for ASP graph consumers.
-;; (List SymbolName) <- Imports
+;; : (-> Imports (List SymbolName) )
 (def (dependency-adapter-imported-symbols imports)
   (if (null? imports)
     '()
@@ -258,7 +258,7 @@
 ;;; Boundary:
 ;;; - Matched imports are the only dependency authority for adapter facts.
 ;;; - The filter prevents std/local helper imports from becoming dependency edges.
-;; (List ModuleImportFact) <- Imports BodySymbols
+;; : (-> Imports BodySymbols (List ModuleImportFact) )
 (def (dependency-adapter-matched-imports imports body-symbols)
   (filter
    (lambda (import)
@@ -266,7 +266,7 @@
           (pair? (dependency-adapter-import-used-symbols import body-symbols))))
    imports))
 
-;; Boolean <- ModuleImportFact
+;; : (-> ModuleImportFact Boolean )
 (def (dependency-module-import? import)
   (let (module (module-import-fact-module import))
     (and module
@@ -276,7 +276,7 @@
 ;;; Boundary:
 ;;; - Internal module filtering keeps project and std helpers out of adapter facts.
 ;;; - Prefix membership is intentionally data-only so policy can audit the list.
-;; Boolean <- ModuleRef
+;; : (-> ModuleRef Boolean )
 (def (internal-module-ref? module)
   (ormap (lambda (prefix) (string-prefix? prefix module))
          +internal-module-prefixes+))
@@ -284,7 +284,7 @@
 ;;; Boundary:
 ;;; - Primary dependency selection ranks imports by proven symbol use.
 ;;; - Stable ordering keeps the chosen dependency deterministic for snapshots.
-;; ModuleImportFact <- Imports BodySymbols
+;; : (-> Imports BodySymbols ModuleImportFact )
 (def (primary-dependency-import imports body-symbols)
   (and (pair? imports)
        (car
@@ -293,14 +293,14 @@
                 (> (dependency-adapter-import-score left body-symbols)
                    (dependency-adapter-import-score right body-symbols)))))))
 
-;; Integer <- ModuleImportFact BodySymbols
+;; : (-> ModuleImportFact BodySymbols Integer )
 (def (dependency-adapter-import-score import body-symbols)
   (length (dependency-adapter-import-used-symbols import body-symbols)))
 
 ;;; Boundary:
 ;;; - Used symbols are the thin-wrapper witness.
 ;;; - Dedupe after fan-in so repeated import clauses do not inflate quality.
-;; (List String) <- Imports BodySymbols
+;; : (-> Imports BodySymbols (List String) )
 (def (dependency-adapter-used-symbols imports body-symbols)
   (dedupe
    (apply append
@@ -310,7 +310,7 @@
 ;;; Boundary:
 ;;; - Per-import symbol use is a set intersection over parser facts.
 ;;; - No source text matching is allowed on this path.
-;; (List String) <- ModuleImportFact BodySymbols
+;; : (-> ModuleImportFact BodySymbols (List String) )
 (def (dependency-adapter-import-used-symbols import body-symbols)
   (filter (lambda (symbol) (member symbol body-symbols))
           (module-import-fact-symbols import)))
@@ -318,7 +318,7 @@
 ;;; Boundary:
 ;;; - Facets describe why the adapter looks like a durable protocol boundary.
 ;;; - The list is additive evidence, not a policy verdict.
-;; (List QualityFacet) <- Candidate Imports UsedSymbols Capabilities ManualRisk
+;; : (-> Candidate Imports UsedSymbols Capabilities ManualRisk (List QualityFacet) )
 (def (dependency-adapter-quality-facets candidate imports used-symbols derived-capabilities manual-object-risk)
   (let (slots (dependency-adapter-candidate-slots candidate))
     (dedupe
@@ -361,7 +361,7 @@
 ;;; - Derived capabilities describe what the protocol surface exposes above the
 ;;;   imported primitive dependency.
 ;;; - Capabilities are additive facts, not requirements for every adapter.
-;; (List Capability) <- Candidate UsedSymbols
+;; : (-> Candidate UsedSymbols (List Capability) )
 (def (dependency-adapter-derived-capabilities candidate used-symbols)
   (let* ((slots (dependency-adapter-candidate-slots candidate))
          (tokens (append slots
@@ -392,7 +392,7 @@
 ;;; - Capability inference treats dependency/API names as evidence tokens.
 ;;; - The predicate stays case-insensitive and expression-level so capability
 ;;;   additions extend the token table, not the adapter scanner.
-;; Boolean <- (List String) (List String)
+;; : (-> (List String) (List String) Boolean )
 (def (tokens-contain-any? tokens needles)
   (ormap (lambda (token) (token-contains-any? token needles))
          tokens))
@@ -401,7 +401,7 @@
 ;;; - A single token can carry a qualified dependency primitive or slot name.
 ;;; - Substring matching is intentional here because imported APIs encode
 ;;;   capability families with suffixes such as ->list or unmarshal.
-;; Boolean <- String (List String)
+;; : (-> String (List String) Boolean )
 (def (token-contains-any? token needles)
   (and token
        (ormap (lambda (needle) (string-contains token needle))
@@ -412,7 +412,7 @@
 ;;;   structure dependency but still construct loose hash/alist state.
 ;;; - Imported symbols are excluded so a dependency primitive named hash would
 ;;;   not be misclassified as hand-written encoding.
-;; Risk <- Candidate UsedSymbols
+;; : (-> Candidate UsedSymbols Risk )
 (def (dependency-adapter-manual-object-encoding-risk candidate used-symbols)
   (let (local-symbols
         (filter (lambda (symbol) (not (member symbol used-symbols)))
@@ -423,7 +423,7 @@
       "manual-object-encoding-risk"
       "none")))
 
-;; WitnessKind <- (List Capability)
+;; : (-> (List Capability) WitnessKind )
 (def (dependency-adapter-generic-contract-witness-kind derived-capabilities)
   (cond
    ((member "table" derived-capabilities) "table-protocol-contract-witness")
@@ -432,21 +432,21 @@
    ((member "list" derived-capabilities) "list-protocol-contract-witness")
    (else "dependency-adapter-contract-witness")))
 
-;; Boolean <- ModuleImportFact
+;; : (-> ModuleImportFact Boolean )
 (def (precise-only-in-import? import)
   (equal? (module-import-fact-modifier import) "only-in"))
 
 ;;; Boundary:
 ;;; - Slot membership keeps protocol-surface checks declarative.
 ;;; - Policy can extend slot families without changing traversal code.
-;; Boolean <- Slots ExpectedSlots
+;; : (-> Slots ExpectedSlots Boolean )
 (def (adapter-slot-any? slots expected)
   (ormap (lambda (slot) (member slot slots)) expected))
 
 ;;; Boundary:
 ;;; - Missing evidence is the repair frontier for dependency adapters.
 ;;; - Each item maps to a concrete parser fact or project witness the agent can add.
-;; (List MissingEvidence) <- Candidate Imports UsedSymbols Capabilities ManualRisk
+;; : (-> Candidate Imports UsedSymbols Capabilities ManualRisk (List MissingEvidence) )
 (def (dependency-adapter-missing-evidence candidate imports used-symbols derived-capabilities manual-object-risk)
   (let (slots (dependency-adapter-candidate-slots candidate))
     (filter identity
@@ -468,7 +468,7 @@
              (and (equal? manual-object-risk "manual-object-encoding-risk")
                   "manual-object-encoding-risk")])))
 
-;; Quality <- MissingEvidence QualityFacets
+;; : (-> MissingEvidence QualityFacets Quality )
 (def (dependency-adapter-quality missing facets)
   (cond
    ((null? missing) "complete")
@@ -477,7 +477,7 @@
     "partial")
    (else "weak")))
 
-;; Advice <- Quality MissingEvidence
+;; : (-> Quality MissingEvidence Advice )
 (def (dependency-adapter-advice quality missing)
   (cond
    ((equal? quality "complete")

@@ -17,7 +17,7 @@
 
 ;;; Entry boundary: policy consumes parser-owned module import facts.
 ;;; It does not infer imported names from raw source text.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (explicit-precise-import-findings index)
   (apply append
          (map (lambda (file)
@@ -26,7 +26,7 @@
                  (source-file-module-imports file)))
               (project-index-files index))))
 
-;; TypeFinding <- ProjectIndex SourceFile ModuleImportFact
+;; : (-> ProjectIndex SourceFile ModuleImportFact TypeFinding )
 (def (explicit-precise-import-finding index file fact)
   (and (index-source-runtime-file-path? index (source-file-path file))
        (imprecise-runtime-import? fact)
@@ -38,7 +38,7 @@
         (module-import-fact-selector fact)
         (explicit-precise-import-details fact))))
 
-;; Boolean <- ModuleImportFact
+;; : (-> ModuleImportFact Boolean )
 (def (imprecise-runtime-import? fact)
   (and (equal? (module-import-fact-phase fact) "runtime")
        (governed-import-module? (module-import-fact-module fact))
@@ -46,14 +46,14 @@
            (and (equal? (module-import-fact-modifier fact) "only-in")
                 (null? (module-import-fact-symbols fact))))))
 
-;; Boolean <- ModuleName
+;; : (-> ModuleName Boolean )
 (def (governed-import-module? module)
   (or (string-prefix? ":std/" module)
       (string-prefix? ":clan/" module)
       (string-prefix? "./" module)
       (string-prefix? "../" module)))
 
-;; Selector <- ModuleImportFact
+;; : (-> ModuleImportFact Selector )
 (def (module-import-fact-selector fact)
   (string-append (module-import-fact-path fact)
                  ":"
@@ -61,7 +61,7 @@
                  "-"
                  (number->string (module-import-fact-end fact))))
 
-;; String <- ModuleImportFact
+;; : (-> ModuleImportFact String )
 (def (explicit-precise-import-message fact)
   (string-append
    "runtime import " (module-import-fact-module fact)
@@ -70,7 +70,7 @@
    " <symbols...>) after checking owner usage"))
 
 ;;; Boundary: repair details carry exact parser evidence so agents do not guess symbols.
-;; Json <- ModuleImportFact
+;; : (-> ModuleImportFact Json )
 (def (explicit-precise-import-details fact)
   (hash (styleGuide "explicit-precise-import")
         (styleCommand +explicit-precise-import-guide-command+)
@@ -99,7 +99,7 @@
                         " <symbols...>))"))
         (next +explicit-precise-import-guide-command+)))
 
-;; (List MissingEvidence) <- ModuleImportFact
+;; : (-> ModuleImportFact (List MissingEvidence) )
 (def (explicit-precise-import-missing-evidence fact)
   (cond
    ((equal? (module-import-fact-modifier fact) "direct")

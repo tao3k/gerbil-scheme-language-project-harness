@@ -20,11 +20,11 @@
 ;; Protocol
 (defprotocol <Ctx>)
 
-;; Number <- Point Point
+;; : (-> Point Point Number )
 (defmethod (@method distance Point Point)
   (lambda (left right)
     (point-distance left right)))
 
-;; RenderedIntersection <- Line Circle Context
+;; : (-> Line Circle Context RenderedIntersection )
 (defmethod (:intersect (line <Line>) (circle <Circle>) (ctx <Ctx>))
   (render-intersection line circle ctx))

@@ -10,11 +10,11 @@
         (phi: +1 :std/misc/repr)
         (for-template :std/misc/path))
 (export make-widget with-widget <Widget> <Renderable> :render)
-;; String <- Value SourceLine
+;; : (-> Value SourceLine String )
 (defrule (with-widget value body ...)
   (let ((tmp value))
     body ...))
-;; CaptureSafe <- Stx
+;; : (-> Stx CaptureSafe )
 (defsyntax (capture-safe stx)
   (syntax-case stx ()
     ((_ id expr)
@@ -34,17 +34,17 @@
     (displayln again)
     (read-json (open-input-string "{}"))
     (:render widget)))
-;; String <- String (List String)
+;; : (-> String (List String) String )
 (def (make-widget name . rest)
   (let ((count 0))
     (with-widget name
       (make-<Widget> name count))))
-;; Dispatch <- Value
+;; : (-> Value Dispatch )
 (def (dispatch value)
   (match value
     ([? string? s] (make-widget s))
     (else (make-widget "fallback"))))
-;; Widget <- Value
+;; : (-> Value Widget )
 (def select
   (case-lambda
     (() (make-widget "empty"))

@@ -4,14 +4,14 @@
 (export fact-location-json
         native-syntax-fact-id)
 
-;; Json <- String Integer Integer
+;; : (-> String Integer Integer Json )
 (def (fact-location-json path start end)
   (hash (path path)
         (lineRange (string-append (number->string start)
                                   ":"
                                   (number->string end)))))
 
-;; String <- String String String Integer
+;; : (-> String String String Integer String )
 (def (native-syntax-fact-id kind path name start)
   (string-append kind ":"
                  path ":"

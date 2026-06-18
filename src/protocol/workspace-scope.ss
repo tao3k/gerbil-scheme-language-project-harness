@@ -22,7 +22,7 @@
 ;;; - The language provider owns package/workspace scope discovery.
 ;;; - ASP Rust consumes this packet to build the SQL source index.
 ;;; - No raw source text, tokenization, SQL rows, or graph topology are produced here.
-;; Json <- Root MaybePackage (List AbsolutePath)
+;; : (-> Root MaybePackage (List AbsolutePath) Json )
 (def (workspace-scope-packet-json root package files)
   (let* ((root (path-normalize root))
          (policy (and package
@@ -59,7 +59,7 @@
                    (workspace-scope-file-json root path))
                  files)))))
 
-;; Json <- MaybePackage
+;; : (-> MaybePackage Json )
 (def (workspace-anchor-json package)
   (if package
     (hash (path (project-package-path package))
@@ -69,7 +69,7 @@
           (packageManager "gxpkg")
           (packageName #f))))
 
-;; Json <- Root AbsolutePath
+;; : (-> Root AbsolutePath Json )
 (def (workspace-scope-file-json root path)
   (let* ((owner-path (relative-path root path))
          (source-class (source-path-class owner-path)))
@@ -81,17 +81,17 @@
           (languageId +language-id+)
           (providerId +provider-id+))))
 
-;; (List String) <- MaybeSourceScopePolicy
+;; : (-> MaybeSourceScopePolicy (List String) )
 (def (workspace-source-roots policy)
   (let (roots (and policy (source-scope-policy-roots policy)))
     (if (and roots (pair? roots)) roots ["."])))
 
-;; (List String) <- MaybeSourceScopePolicy
+;; : (-> MaybeSourceScopePolicy (List String) )
 (def (workspace-runtime-roots policy)
   (let (roots (and policy (source-scope-policy-runtime-roots policy)))
     (if roots roots '())))
 
-;; (List String) <- MaybeSourceScopePolicy
+;; : (-> MaybeSourceScopePolicy (List String) )
 (def (workspace-exclude-directories policy)
   (let (dirs (and policy (source-scope-policy-exclude-directories policy)))
     (if dirs dirs '())))

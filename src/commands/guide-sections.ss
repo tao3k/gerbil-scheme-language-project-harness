@@ -76,8 +76,8 @@
    (agent-rule-policy-lines)
    ["|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
     "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads"
-    "|policy typed-combinator-style-criteria=three criteria are required: adjacent Haskell-like transform signature block, compact expression-level composition, and optimization-boundary comments for specialized branches"
-    "|policy typed-combinator-style-signature=write an adjacent contract block; it may be one line or multiple lines when that preserves precision, and must not append the function name inline"
+    "|policy typed-combinator-style-criteria=three criteria are required: adjacent Scheme-native typed block, compact expression-level composition, and optimization-boundary comments for specialized branches"
+    "|policy typed-combinator-style-signature=ordinary helpers use ;; : (forall (a) (-> Input Output)); exported helpers/macros/policy helpers use full form with matching leading name, | type/contract/requires/warning/rationale metadata when needed, | doc m% with # Examples fenced scheme input/result comments, and parser-owned typedComment.signatureType/docs.hasResultExamples diagnostics"
     "|policy typed-combinator-style-composition=prefer small helper functions and expression-level map/filter/fold/cut/curry/compose chains when behavior fits"
     "|policy typed-combinator-style-optimization-boundary=for case-lambda or common-case specializations, comment why the branch exists; do not restate the code mechanics"
     "|policy m3-policy-repair-loop=when check --full emits findings, follow agentRepair.nextCommand and grouped repair phases; when findings=0, continue from POO-adjacent owner evidence and source-backed guide exemplars instead of adding isolated rules"
@@ -129,19 +129,19 @@
    "|guideExemplar id=gerbil.explicit-precise-import.policy-shape topic=explicit-precise-import intent=repair rule=GERBIL-SCHEME-AGENT-R018 level=normal locator=parser-definition owner=src/policy/agent-import.ss symbols=explicit-precise-import-finding,imprecise-runtime-import?,explicit-precise-import-details comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair\""])
 
 ;;; Boundary: section flags are local to guide rendering, not global CLI parsing.
-;; Boolean <- (List String) Flag
+;; : (-> (List String) Flag Boolean )
 (def (guide-section-flag? args flag)
   (and (member flag args) #t))
 
 ;;; Boundary: GuideSection rows stay object-backed; callers receive plain strings.
-;; (List String) <- GuideSection
+;; : (-> GuideSection (List String) )
 (def (guide-section-rows section)
   (.@ section rows))
 
 ;;; Boundary:
 ;;; - Select only the guide section objects requested by explicit flags.
 ;;; - Keep the basic section first so default guide remains a stable primer.
-;; (List GuideSection) <- (List String)
+;; : (-> (List String) (List GuideSection) )
 (def (selected-guide-sections args)
   (let ((all? (guide-section-flag? args "--all"))
         (policy? (guide-section-flag? args "--policy"))
@@ -163,7 +163,18 @@
 ;;; - Collapse selected guide section objects into the line protocol.
 ;;; - Dedupe keeps --all stable when sections share cross-cutting policy rows.
 ;;; Boundary: flatten selected sections only after selection, then dedupe rows.
-;; (List String) <- (List String)
+;; guide-section-lines-for
+;;   : (-> (List String) (List String) )
+;;   | doc m%
+;;       `guide-section-lines-for args` returns the deduped line protocol for
+;;       the requested guide sections while keeping the basic section first.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (pair? (guide-section-lines-for ["--policy"]))
+;;       ;; => #t
+;;       ```
+;;     %
 (def (guide-section-lines-for args)
   (dedupe
    (apply append (map guide-section-rows (selected-guide-sections args)))))

@@ -58,7 +58,7 @@
 ;;; Boundary:
 ;;; - definitions-from-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; DefinitionsFromForm <- Relpath Form Datum
+;; : (-> Relpath Form Datum DefinitionsFromForm )
 (def (definitions-from-form relpath form datum)
   (let ((head (car datum))
         (name-datums (definition-name-datums datum)))
@@ -71,24 +71,24 @@
                               (definition-formal-names datum name)
                               (definition-formal-arity datum name))))
          name-datums)))
-;; CallsFromForm <- Relpath Form Datum
+;; : (-> Relpath Form Datum CallsFromForm )
 (def (calls-from-form relpath form datum)
   (if (declarative-top-level-datum? datum)
     '()
     (calls-from-stx relpath form (form-caller-name datum) '())))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (declarative-top-level-datum? datum)
   (declarative-top-level-head? (top-form-datum-head datum)))
 ;;; Boundary:
 ;;; - calls-from-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; CallsFromStxes <- Relpath Exprs String LocalTypes
+;; : (-> Relpath Exprs String LocalTypes CallsFromStxes )
 (def (calls-from-stxes relpath exprs caller local-types)
   (apply append (map (cut calls-from-stx relpath <> caller local-types) exprs)))
 ;;; Boundary:
 ;;; - calls-from-stx composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; CallsFromStx <- Relpath ExprStx String LocalTypes
+;; : (-> Relpath ExprStx String LocalTypes CallsFromStx )
 (def (calls-from-stx relpath expr-stx caller local-types)
   (if (not (stx-pair? expr-stx))
     '()
@@ -159,10 +159,20 @@
                                      arg-datums)
                                 caller)
                 (calls-from-stxes relpath args caller local-types))))))))
-;;; Boundary:
-;;; - calls-from-let-binding-stxes composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; CallsFromLetBindingStxes <- Relpath Head (List Definition) String LocalTypes
+;; calls-from-let-binding-stxes
+;;   : (-> Relpath Head (List BindingStx) String LocalTypes (List CallFact))
+;;   | doc m%
+;;       `calls-from-let-binding-stxes relpath head bindings caller local-types`
+;;       collects call facts from let binding initializer expressions, threading
+;;       local type bindings through sequential let forms.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (calls-from-let-binding-stxes "src/core.ss" 'let* bindings "handler" local-types)
+;;       ;; => call facts
+;;       ```
+;;     %
 (def (calls-from-let-binding-stxes relpath head bindings caller local-types)
   (cond
    ((null? bindings) '())
@@ -182,16 +192,26 @@
     (apply append
            (map (cut calls-from-let-binding-stx relpath <> caller local-types)
                 bindings)))))
-;; CallsFromLetBindingStx <- Relpath Binding String LocalTypes
+;; : (-> Relpath Binding String LocalTypes CallsFromLetBindingStx )
 (def (calls-from-let-binding-stx relpath binding caller local-types)
   (let (items (stx-list-items binding))
     (if (and (pair? items) (pair? (cdr items)))
       (calls-from-stx relpath (cadr items) caller local-types)
       '())))
-;;; Boundary:
-;;; - macro-facts-from-form composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; MacroFactsFromForm <- Relpath Form Datum
+;; macro-facts-from-form
+;;   : (-> Relpath Form Datum (List MacroFact))
+;;   | doc m%
+;;       `macro-facts-from-form relpath form datum` extracts macro definition
+;;       facts from macro forms and annotates them with source and quality
+;;       evidence.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (macro-facts-from-form "src/core.ss" form datum)
+;;       ;; => macro facts
+;;       ```
+;;     %
 (def (macro-facts-from-form relpath form datum)
   (let ((head (and (pair? datum) (car datum))))
     (if (member head +macro-definition-heads+)
@@ -209,17 +229,26 @@
                                 (macro-quality-facets head datum))))
            (definition-name-datums datum))
       '())))
-;; BindingFactsFromForm <- Relpath Form Datum
+;; : (-> Relpath Form Datum BindingFactsFromForm )
 (def (binding-facts-from-form relpath form datum)
   (let (head (and (pair? datum) (car datum)))
     (if (member head +macro-definition-heads+)
       (formal-binding-facts-from-form relpath form datum "macro-formal")
       (append (formal-binding-facts-from-form relpath form datum "formal")
               (binding-facts-from-stx relpath form (form-caller-name datum) '())))))
-;;; Boundary:
-;;; - formal-binding-facts-from-form composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; FormalBindingFactsFromForm <- Relpath Form Datum String
+;; formal-binding-facts-from-form
+;;   : (-> Relpath Form Datum String (List BindingFact))
+;;   | doc m%
+;;       `formal-binding-facts-from-form relpath form datum kind` extracts
+;;       binding facts for function or macro formals.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (formal-binding-facts-from-form "src/core.ss" form datum "formal")
+;;       ;; => binding facts
+;;       ```
+;;     %
 (def (formal-binding-facts-from-form relpath form datum kind)
   (let (names (definition-name-datums datum))
     (if (pair? names)
@@ -238,7 +267,7 @@
 ;;; Boundary:
 ;;; - binding-facts-from-stx coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; BindingFactsFromStx <- Relpath ExprStx String LocalTypes
+;; : (-> Relpath ExprStx String LocalTypes BindingFactsFromStx )
 (def (binding-facts-from-stx relpath expr-stx caller local-types)
   (if (not (stx-pair? expr-stx))
     '()
@@ -284,18 +313,37 @@
         '())
        (else
         (binding-facts-from-stxes relpath (cdr items) caller local-types))))))
-;;; Boundary:
-;;; - binding-facts-from-stxes composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; BindingFactsFromStxes <- Relpath Exprs String LocalTypes
+;; binding-facts-from-stxes
+;;   : (-> Relpath (List ExprStx) String LocalTypes (List BindingFact))
+;;   | doc m%
+;;       `binding-facts-from-stxes relpath exprs caller local-types` appends
+;;       binding facts collected from each expression syntax object.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (binding-facts-from-stxes "src/core.ss" exprs "handler" local-types)
+;;       ;; => binding facts
+;;       ```
+;;     %
 (def (binding-facts-from-stxes relpath exprs caller local-types)
   (apply append
          (map (cut binding-facts-from-stx relpath <> caller local-types)
               exprs)))
-;;; Invariant:
-;;; - let-binding-facts owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; (List Fact) <- Relpath Head BindingStxes String LocalTypes
+;; let-binding-facts
+;;   : (-> Relpath Head (List BindingStx) String LocalTypes (List BindingFact))
+;;   | doc m%
+;;       `let-binding-facts relpath head binding-stxes caller local-types`
+;;       walks let bindings in source order and threads sequential type
+;;       bindings for `let*` forms.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (let-binding-facts "src/core.ss" 'let* binding-stxes "handler" local-types)
+;;       ;; => binding facts
+;;       ```
+;;     %
 (def (let-binding-facts relpath head binding-stxes caller local-types)
   (let ((rest binding-stxes)
         (env local-types)
@@ -313,10 +361,19 @@
         (set! env next-env)
         (set! rest (cdr rest))))
     out))
-;;; Boundary:
-;;; - binding-facts-from-binding composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; BindingFactsFromBinding <- Relpath Head Binding String LocalTypes
+;; binding-facts-from-binding
+;;   : (-> Relpath Head BindingStx String LocalTypes (List BindingFact))
+;;   | doc m%
+;;       `binding-facts-from-binding relpath head binding caller local-types`
+;;       extracts binding facts for each name introduced by one binding form.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (binding-facts-from-binding "src/core.ss" 'let binding "handler" local-types)
+;;       ;; => binding facts
+;;       ```
+;;     %
 (def (binding-facts-from-binding relpath head binding caller local-types)
   (let* ((datum (syntax->datum binding))
          (names (binding-name-datums datum))
@@ -331,13 +388,13 @@
                               (or caller "-")
                               (argument-type-name value local-types)))
          names)))
-;; TypeSpec <- Datum LocalTypes
+;; : (-> Datum LocalTypes TypeSpec )
 (def (argument-type-name datum local-types)
   (or (literal-type-name datum)
       (and (symbol? datum)
            (let (found (assoc (datum->string datum) local-types))
              (and found (cdr found))))))
-;; TypeSpec <- Datum
+;; : (-> Datum TypeSpec )
 (def (literal-type-name datum)
   (cond
    ((number? datum) "number")
@@ -345,23 +402,23 @@
    ((boolean? datum) "bool")
    ((char? datum) "char")
    (else #f)))
-;; FormCallerName <- Datum
+;; : (-> Datum FormCallerName )
 (def (form-caller-name datum)
   (and (pair? datum)
        (let (names (definition-name-datums datum))
          (and (pair? names)
               (null? (cdr names))
               (datum->string (car names))))))
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (form-body-datums datum)
   (let ((head (and (pair? datum) (car datum))))
     (cond
      ((member head +definition-heads+) (safe-cddr datum))
      (else [datum]))))
-;; Boolean <- Head
+;; : (-> Head Boolean )
 (def (let-head? head)
   (member head '(let let* letrec let-values let*-values)))
-;; Integer <- Expr
+;; : (-> Expr Integer )
 (def (let-body-datums expr)
   (let ((head (car expr))
         (second (safe-cadr expr)))
@@ -369,7 +426,7 @@
      ((and (eq? head 'let) (symbol? second))
       (safe-cdddr expr))
      (else (safe-cddr expr)))))
-;; Integer <- Expr
+;; : (-> Expr Integer )
 (def (let-binding-datums expr)
   (let ((head (car expr))
         (second (safe-cadr expr)))
@@ -379,7 +436,7 @@
      ((and (eq? head 'let) (single-let-binding-datum? second))
       [second])
      (else second))))
-;; LetBindingStxes <- ExprStx Head
+;; : (-> ExprStx Head LetBindingStxes )
 (def (let-binding-stxes expr-stx head)
   (let (items (stx-list-items expr-stx))
     (cond
@@ -393,12 +450,12 @@
       [(cadr items)])
      (else
       (stx-list-items (list-safe-cadr items))))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (single-let-binding-datum? datum)
   (and (pair? datum)
        (symbol? (car datum))
        (pair? (cdr datum))))
-;; LetBodyStxes <- ExprStx Head
+;; : (-> ExprStx Head LetBodyStxes )
 (def (let-body-stxes expr-stx head)
   (let (items (stx-list-items expr-stx))
     (cond
@@ -407,19 +464,19 @@
            (symbol? (syntax->datum (cadr items))))
       (drop* items 3))
      (else (drop* items 2)))))
-;; Integer <- Form Datum
+;; : (-> Form Datum Integer )
 (def (stx-form-body-items form datum)
   (let (items (stx-list-items form))
     (if (and (pair? datum) (member (car datum) +definition-heads+))
       (drop* items 2)
       [form])))
-;; LambdaBodyStxes <- ExprStx
+;; : (-> ExprStx LambdaBodyStxes )
 (def (lambda-body-stxes expr-stx)
   (drop* (stx-list-items expr-stx) 2))
 ;;; Boundary:
 ;;; - case-lambda-body-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; CaseLambdaBodyStxes <- ExprStx
+;; : (-> ExprStx CaseLambdaBodyStxes )
 (def (case-lambda-body-stxes expr-stx)
   (apply append
          (map clause-body-stxes
@@ -427,16 +484,28 @@
 ;;; Boundary:
 ;;; - match-body-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; MatchBodyStxes <- ExprStx
+;; : (-> ExprStx MatchBodyStxes )
 (def (match-body-stxes expr-stx)
   (let (items (stx-list-items expr-stx))
     (append (if (pair? (cdr items)) [(cadr items)] '())
             (apply append
                    (map clause-body-stxes (drop* items 2))))))
-;; ClauseBodyStxes <- ClauseStx
+;; : (-> ClauseStx ClauseBodyStxes )
 (def (clause-body-stxes clause-stx)
   (drop* (stx-list-items clause-stx) 1))
-;; TypeSpec <- Head (List XX) LocalTypes
+;; let-body-local-types
+;;   : (-> Head (List Binding) LocalTypes LocalTypes)
+;;   | doc m%
+;;       `let-body-local-types head bindings local-types` extends the local type
+;;       environment for let bodies, preserving sequential semantics for `let*`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (let-body-local-types 'let* bindings local-types)
+;;       ;; => local type environment
+;;       ```
+;;     %
 (def (let-body-local-types head bindings local-types)
   (cond
    ((not (pair? bindings)) local-types)
@@ -444,44 +513,71 @@
     (sequential-binding-type-env bindings local-types))
    (else
     (append (binding-types bindings local-types) local-types))))
-;;; Boundary:
-;;; - binding-types composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; TypeSpec <- (List Definition) LocalTypes
+;; binding-types
+;;   : (-> (List Binding) LocalTypes (List TypeBinding))
+;;   | doc m%
+;;       `binding-types bindings local-types` extracts type bindings from let
+;;       binding datums without applying sequential environment updates.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (binding-types bindings local-types)
+;;       ;; => type bindings
+;;       ```
+;;     %
 (def (binding-types bindings local-types)
   (filter-map (cut binding-type <> local-types)
               (datum-list-items bindings)))
-;;; Invariant:
-;;; - sequential-binding-type-env owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; TypeSpec <- (List Definition) LocalTypes
+;; sequential-binding-type-env
+;;   : (-> (List Binding) LocalTypes LocalTypes)
+;;   | doc m%
+;;       `sequential-binding-type-env bindings local-types` extends the local
+;;       type environment one binding at a time for `let*`-style semantics.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (sequential-binding-type-env bindings local-types)
+;;       ;; => local type environment
+;;       ```
+;;     %
 (def (sequential-binding-type-env bindings local-types)
   (foldl (lambda (binding env)
            (let (type-binding (binding-type binding env))
              (if type-binding (cons type-binding env) env)))
          local-types
          (datum-list-items bindings)))
-;; TypeSpec <- Binding LocalTypes
+;; : (-> Binding LocalTypes TypeSpec )
 (def (binding-type binding local-types)
   (and (pair? binding)
        (symbol? (car binding))
        (pair? (cdr binding))
        (let (type-name (argument-type-name (cadr binding) local-types))
          (and type-name (cons (datum->string (car binding)) type-name)))))
-;;; Boundary:
-;;; - binding-name-datums composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- Binding
+;; binding-name-datums
+;;   : (-> Binding (List Symbol))
+;;   | doc m%
+;;       `binding-name-datums binding` returns every symbol introduced by a
+;;       binding pattern.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (binding-name-datums '(x 1))
+;;       ;; => (x)
+;;       ```
+;;     %
 (def (binding-name-datums binding)
   (cond
    ((and (pair? binding) (symbol? (car binding))) [(car binding)])
    ((and (pair? binding) (pair? (car binding)))
     (filter symbol? (flatten (car binding))))
    (else '())))
-;; BindingValueDatum <- Binding
+;; : (-> Binding BindingValueDatum )
 (def (binding-value-datum binding)
   (and (pair? binding) (pair? (cdr binding)) (cadr binding)))
-;; String <- Datum
+;; : (-> Datum String )
 (def (macro-transformer-kind datum)
   (cond
    ((tree-contains-symbol? datum 'syntax-rules) "syntax-rules")
@@ -490,7 +586,7 @@
    ((tree-contains-symbol? datum 'datum->syntax) "datum->syntax")
    ((tree-contains-symbol? datum 'lambda) "lambda-transformer")
    (else "macro-transformer")))
-;; String <- Head
+;; : (-> Head String )
 (def (macro-phase head)
   (cond
    ((eq? head 'defsyntax-for-match) "match")
@@ -498,7 +594,7 @@
    ((eq? head 'defsyntax-for-export) "export")
    ((eq? head 'defsyntax-for-import-export) "import-export")
    (else "syntax")))
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (macro-pattern-count datum)
   (let (head (and (pair? datum) (car datum)))
     (cond
@@ -507,16 +603,25 @@
      ((tree-contains-symbol? datum 'syntax-rules)
       (max 0 (length (safe-cdddr (syntax-rules-datum datum)))))
      (else 0))))
-;;; Invariant:
-;;; - syntax-rules-datum owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; SyntaxRulesDatum <- Datum
+;; syntax-rules-datum
+;;   : (-> Datum Datum)
+;;   | doc m%
+;;       `syntax-rules-datum datum` finds the first nested `syntax-rules` form,
+;;       or returns the empty list when none is present.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (syntax-rules-datum '(defrules f () ((_ x) x)))
+;;       ;; => ()
+;;       ```
+;;     %
 (def (syntax-rules-datum datum)
   (or (find (lambda (item)
               (and (pair? item) (eq? (car item) 'syntax-rules)))
             (flatten-with-pairs datum))
       '()))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (macro-hygienic? datum)
   (let (head (and (pair? datum) (car datum)))
     (if (or (member head '(defrule defrules))
@@ -530,7 +635,7 @@
       #f)))
 
 ;;; Macro quality facets expose Gerbil-specific macro engineering evidence to policy/search without relying on prose heuristics.
-;; (List QualityFacet) <- Head Datum
+;; : (-> Head Datum (List QualityFacet) )
 (def (macro-quality-facets head datum)
   (dedupe
    (filter identity
@@ -550,22 +655,22 @@
             (and (tree-contains-symbol? datum 'lambda)
                  "lambda-transformer")])))
 
-;; TopFormFrom <- Relpath Form Datum
+;; : (-> Relpath Form Datum TopFormFrom )
 (def (top-form-from relpath form datum)
   (let* ((head (top-form-datum-head datum))
          (loc (stx-source form)))
     (make-top-form (form-kind head) (datum->string head) relpath
                    (source-start-line loc) (source-end-line loc))))
-;; Boolean <- TopForm
+;; : (-> TopForm Boolean )
 (def (declarative-top-form? form)
   (equal? (top-form-kind form) "declarative"))
-;; Head <- Datum
+;; : (-> Datum Head )
 (def (top-form-datum-head datum)
   (cond
    ((pair? datum) (car datum))
    ((symbol? datum) datum)
    (else #f)))
-;; String <- Head
+;; : (-> Head String )
 (def (form-kind head)
   (cond
    ((eq? head 'package:) "package")
@@ -577,13 +682,22 @@
    ((declarative-top-level-head? head) "declarative")
    ((member head +definition-heads+) "definition")
    (else "form")))
-;; Boolean <- Head
+;; : (-> Head Boolean )
 (def (declarative-top-level-head? head)
   (and head (member (datum->string head) +declarative-top-level-heads+)))
-;;; Boundary:
-;;; - module-refs composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; ModuleRefs <- Datum
+;; module-refs
+;;   : (-> Datum (List String))
+;;   | doc m%
+;;       `module-refs datum` returns string and colon-prefixed symbol module
+;;       references found in a datum tree.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (module-refs '(import :std/sugar "support.ss"))
+;;       ;; => (":std/sugar" "support.ss")
+;;       ```
+;;     %
 (def (module-refs datum)
   (dedupe
    (filter-map
@@ -594,10 +708,19 @@
         (symbol->string item))
        (else #f)))
     (flatten datum))))
-;;; Boundary:
-;;; - export-symbols composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List String) <- Datum
+;; export-symbols
+;;   : (-> Datum (List String))
+;;   | doc m%
+;;       `export-symbols datum` returns exported symbol names while skipping
+;;       import/export adapter markers and module refs.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (export-symbols '(export foo (rename: bar baz)))
+;;       ;; => ("foo" "bar" "baz")
+;;       ```
+;;     %
 (def (export-symbols datum)
   (dedupe
    (filter-map
@@ -608,9 +731,18 @@
                   (not (string-prefix? ":" s))
                   s))))
     (flatten datum))))
-;;; Boundary:
-;;; - string-datums composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- Datum
+;; string-datums
+;;   : (-> Datum (List String))
+;;   | doc m%
+;;       `string-datums datum` returns every string datum found in a flattened
+;;       datum tree.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (string-datums '(include "a.ss" "b.ss"))
+;;       ;; => ("a.ss" "b.ss")
+;;       ```
+;;     %
 (def (string-datums datum)
   (filter string? (flatten datum)))

@@ -6,7 +6,7 @@
         :protocol/quality-shape-facts
         :protocol/support
         (only-in :std/sort sort)
-        (only-in :std/sugar filter hash)
+        (only-in :std/sugar filter hash hash-get)
         :support/list)
 
 (export structural-syntax-fact-json)
@@ -26,7 +26,7 @@
 ;;; Boundary:
 ;;; - structural-syntax-fact-json composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Json <- SourceFile
+;; : (-> SourceFile Json )
 (def (structural-syntax-fact-json file)
   (stable-structural-facts
    (append
@@ -64,12 +64,12 @@
 ;;; Policy receives parser-ordered evidence and should not re-sort before repair.
 ;;; Comparator shape:
 ;;; The anonymous predicate compares only fact ids and preserves fact payloads.
-;; (List StructuralFactJson) <- (List StructuralFactJson)
+;; : (-> (List StructuralFactJson) (List StructuralFactJson) )
 (def (stable-structural-facts facts)
   (sort facts
         (lambda (a b)
           (string<? (hash-get a 'id) (hash-get b 'id)))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (module-import-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "import" (module-import-fact-path fact)
                                    (module-import-fact-module fact)
@@ -90,7 +90,7 @@
                       (modifier (module-import-fact-modifier fact))
                       (symbols (module-import-fact-symbols fact))
                       (alias (or (module-import-fact-alias fact) ""))))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (module-export-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "export" (module-export-fact-path fact)
                                    (module-export-fact-name fact)
@@ -111,7 +111,7 @@
 ;;; Boundary:
 ;;; - Export query keys expose direct symbols, wrapper modifiers, aliases, and module re-export refs.
 ;;; - This lets search distinguish public API declarations from generic top-level symbol mentions.
-;; (List QueryKey) <- Fact
+;; : (-> Fact (List QueryKey) )
 (def (module-export-query-keys fact)
   (dedupe
    (filter identity
@@ -123,7 +123,7 @@
                     "export"
                     "module-export"]
                    (module-export-fact-symbols fact)))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (macro-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "macro" (macro-fact-path fact)
                                    (macro-fact-name fact)
@@ -146,7 +146,7 @@
                       (patternCount (macro-fact-pattern-count fact))
                       (hygienicSyntax (macro-fact-hygienic fact))
                       (qualityFacets (macro-fact-quality-facets fact))))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (binding-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "binding" (binding-fact-path fact)
                                    (binding-fact-name fact)
@@ -165,7 +165,7 @@
                             (binding-fact-path fact)]))
         (fields (hash (scope (binding-fact-scope fact))
                       (valueType (or (binding-fact-value-type fact) ""))))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (poo-form-structural-fact-json fact)
   (hash (id (native-syntax-fact-id (poo-form-fact-role fact)
                                    (poo-form-fact-path fact)
@@ -181,7 +181,7 @@
                                       (poo-form-fact-end fact)))
         (queryKeys (poo-form-query-keys fact))
         (fields (poo-form-fields-json fact))))
-;; StructuralKind <- PooFormFact
+;; : (-> PooFormFact StructuralKind )
 (def (poo-form-structural-kind fact)
   (cond
 	   ((equal? (poo-form-fact-role fact) "class") "class")
@@ -192,7 +192,7 @@
 ;;; Boundary:
 ;;; - poo-form-query-keys composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PooFormQueryKeys <- Fact
+;; : (-> Fact PooFormQueryKeys )
 (def (poo-form-query-keys fact)
   (dedupe
    (filter identity
@@ -210,7 +210,7 @@
                    (poo-form-fact-options fact)
                    (poo-form-fact-specializers fact)
                    (poo-form-fact-specializer-types fact)))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (poo-form-fields-json fact)
   (hash (role (poo-form-fact-role fact))
         (syntaxHead (poo-form-fact-kind fact))
@@ -223,7 +223,7 @@
         (specializers (poo-form-fact-specializers fact))
         (specializerTypes (poo-form-fact-specializer-types fact))
         (dispatchArity (length (poo-form-fact-specializer-types fact)))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (higher-order-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "higher-order"
                                    (higher-order-fact-path fact)
@@ -239,7 +239,7 @@
                                       (higher-order-fact-end fact)))
         (queryKeys (higher-order-query-keys fact))
         (fields (higher-order-fields-json fact))))
-;; StructuralKind <- HigherOrderFact
+;; : (-> HigherOrderFact StructuralKind )
 (def (higher-order-structural-kind fact)
   (if (member (higher-order-fact-role fact)
               '("anonymous-function" "multi-arity-function"))
@@ -248,7 +248,7 @@
 ;;; Boundary:
 ;;; - higher-order-query-keys composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List HigherOrderFact) <- Fact
+;; : (-> Fact (List HigherOrderFact) )
 (def (higher-order-query-keys fact)
   (dedupe
    (filter identity
@@ -259,7 +259,7 @@
                     (higher-order-fact-path fact)]
                    (higher-order-quality-facets fact)
                    (higher-order-fact-formals fact)))))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (higher-order-fields-json fact)
   (hash (role (higher-order-fact-role fact))
         (operandCount (higher-order-fact-operand-count fact))
@@ -268,7 +268,7 @@
         (caller (or (higher-order-fact-caller fact) ""))
         (qualityFacets (higher-order-quality-facets fact))))
 
-;; Json <- ControlFlowFact
+;; : (-> ControlFlowFact Json )
 (def (control-flow-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "control-flow"
                                    (control-flow-fact-path fact)
@@ -287,7 +287,7 @@
 ;;; Boundary:
 ;;; - control-flow-query-keys composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List ControlFlowFact) <- ControlFlowFact
+;; : (-> ControlFlowFact (List ControlFlowFact) )
 (def (control-flow-query-keys fact)
   (dedupe
    (filter identity
@@ -298,7 +298,7 @@
                     (control-flow-fact-path fact)
                     "control-flow"]
                    (control-flow-quality-facets fact)))))
-;; Json <- ControlFlowFact
+;; : (-> ControlFlowFact Json )
 (def (control-flow-fields-json fact)
   (hash (role (control-flow-fact-role fact))
         (caller (or (control-flow-fact-caller fact) ""))
@@ -306,7 +306,7 @@
         (bodyFormCount (control-flow-fact-body-form-count fact))
         (qualityFacets (control-flow-quality-facets fact))))
 
-;; Json <- DependencyAdapterQualityFact
+;; : (-> DependencyAdapterQualityFact Json )
 (def (dependency-adapter-quality-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "dependency-adapter-quality"
                                    (dependency-adapter-quality-fact-path fact)
@@ -326,7 +326,7 @@
 
 ;;; Query keys expose the whole adapter boundary: dependency package,
 ;;; imported primitives, protocol slots, quality facets, and missing evidence.
-;; (List QueryKey) <- DependencyAdapterQualityFact
+;; : (-> DependencyAdapterQualityFact (List QueryKey) )
 (def (dependency-adapter-quality-query-keys fact)
   (dedupe
    (filter identity
@@ -352,7 +352,7 @@
                    [(dependency-adapter-quality-fact-manual-object-encoding-risk fact)
                     (dependency-adapter-quality-fact-generic-contract-witness-kind fact)]))))
 
-;; Json <- DependencyAdapterQualityFact
+;; : (-> DependencyAdapterQualityFact Json )
 (def (dependency-adapter-quality-fields-json fact)
   (hash (role (dependency-adapter-quality-fact-role fact))
         (dependency (dependency-adapter-quality-fact-dependency fact))
@@ -376,7 +376,7 @@
          (dependency-adapter-quality-fact-missing-evidence fact))
         (advice (dependency-adapter-quality-fact-advice fact))))
 
-;; Json <- TypedContractFact
+;; : (-> TypedContractFact Json )
 (def (typed-contract-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "typed-contract"
                                    (typed-contract-fact-path fact)
@@ -395,17 +395,19 @@
 ;;; Boundary:
 ;;; - typed-contract-query-keys composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; TypedContractQueryKeys <- TypedContractFact
+;; : (-> TypedContractFact TypedContractQueryKeys )
 (def (typed-contract-query-keys fact)
   (dedupe
    (filter identity
            (append [(typed-contract-fact-definition-name fact)
                     (typed-contract-fact-definition-kind fact)
                     (typed-contract-fact-contract fact)
-                    (typed-contract-fact-contract-output fact)
+                   (typed-contract-fact-contract-output fact)
                     (typed-contract-fact-quality fact)
                     (typed-contract-fact-arity-alignment fact)
                     (typed-contract-fact-path fact)
+                    (hash-get (typed-contract-fact-typed-comment fact)
+                              'leadingName)
                     "typed-combinator-style"
                     "typed-contract"]
                    (typed-contract-fact-definition-formals fact)
@@ -413,7 +415,7 @@
                    (typed-contract-fact-tokens fact)
                    (typed-contract-fact-reasons fact)
                    (typed-contract-fact-quality-facets fact)))))
-;; Json <- TypedContractFact
+;; : (-> TypedContractFact Json )
 (def (typed-contract-fields-json fact)
   (hash (role "typed-combinator-style")
         (definitionKind (typed-contract-fact-definition-kind fact))
@@ -429,12 +431,13 @@
         (reasons (typed-contract-fact-reasons fact))
         (qualityFacets (typed-contract-fact-quality-facets fact))
         (repairEvidence (typed-contract-fact-repair-evidence fact))
+        (typedComment (typed-contract-fact-typed-comment fact))
         (arrowCount (typed-contract-fact-arrow-count fact))
         (groupCount (typed-contract-fact-group-count fact))
         (definitionStart (typed-contract-fact-definition-start fact))
         (definitionEnd (typed-contract-fact-definition-end fact))))
 
-;; Json <- CommentQualityFact
+;; : (-> CommentQualityFact Json )
 (def (comment-quality-structural-fact-json fact)
   (hash (id (native-syntax-fact-id "comment-quality"
                                    (comment-quality-fact-path fact)
@@ -454,7 +457,7 @@
 ;;; Boundary:
 ;;; - comment-quality-query-keys composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List QueryKey) <- CommentQualityFact
+;; : (-> CommentQualityFact (List QueryKey) )
 (def (comment-quality-query-keys fact)
   (dedupe
    (filter identity
@@ -471,7 +474,7 @@
                     (comment-quality-fact-evidence fact))))))
 
 ;;; Search boundary: index comment focus, repair mode, questions, and matched witness terms so R015 repairs can be found without source dumps.
-;; (List QueryKey) <- Json
+;; : (-> Json (List QueryKey) )
 (def (comment-quality-evidence-query-keys evidence)
   (append [(hash-get evidence 'commentFocus)
            (hash-get evidence 'agentRepairMode)]
@@ -481,7 +484,7 @@
                       (hash-get evidence 'matchedFacts)))))
 
 ;;; Structural query keys mirror matched fact variants and emit only stable parser-owned fields for compact search projection.
-;; (List QueryKey) <- Json
+;; : (-> Json (List QueryKey) )
 (def (comment-quality-matched-fact-query-keys fact)
   (let (fact-kind (hash-get fact 'factKind))
     (cond
@@ -521,7 +524,7 @@
        (hash-get fact 'caller)
        (hash-get fact 'selector)]))))
 
-;; Json <- CommentQualityFact
+;; : (-> CommentQualityFact Json )
 (def (comment-quality-fields-json fact)
   (hash (role "engineering-comment-quality")
         (targetKind (comment-quality-fact-target-kind fact))
@@ -537,7 +540,7 @@
 ;;; Boundary:
 ;;; - call-structural-fact-json composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (call-structural-fact-json fact)
   (let (boundary (poo-slot-cache-call-boundary fact))
   (hash (id (native-syntax-fact-id "call" (call-fact-path fact)
@@ -556,10 +559,10 @@
 ;;; Boundary:
 ;;; - Slot-cache call boundaries make .ref/.ref-cached/apply-slot-spec searchable.
 ;;; - They annotate existing call facts without changing parser call-fact shape.
-;; MaybePair <- CallFact
+;; : (-> CallFact MaybePair )
 (def (poo-slot-cache-call-boundary fact)
   (assoc (call-fact-callee fact) +poo-slot-cache-call-boundaries+))
-;; (List String) <- CallFact MaybePair
+;; : (-> CallFact MaybePair (List String) )
 (def (call-structural-query-keys fact boundary)
   (let (callee (call-fact-callee fact))
     (dedupe
@@ -581,7 +584,7 @@
 ;;; Boundary: keep ordinary call fields stable while adding POO slot-cache metadata.
 ;;; ParserEvidence: derive metadata from native callee symbols in call facts.
 ;;; Policy: this is structural search evidence, not a policy whitelist.
-;; Hash <- CallFact MaybePair
+;; : (-> CallFact MaybePair Hash )
 (def (call-structural-fields fact boundary)
   (let (fields (hash (arity (call-fact-arity fact))
                      (caller (or (call-fact-caller fact) ""))
@@ -599,6 +602,6 @@
       (hash-put! fields 'pooOperator #t))
     fields))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (poo-operator-call-head? callee)
   (member callee +poo-operator-call-heads+))

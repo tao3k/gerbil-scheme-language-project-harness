@@ -10,7 +10,7 @@
 ;;; Script-path boundary:
 ;;; - gxi may leave the source script path in argv.
 ;;; - Only .ss path-looking values are stripped as launcher metadata.
-;; Boolean <- ArgValue
+;; : (-> ArgValue Boolean )
 (def (source-script-path? value)
   (and (string? value)
        (let (length (string-length value))
@@ -20,7 +20,7 @@
 ;;; Arg normalization:
 ;;; - Fast-path binaries accept both full `search owner` and owner-local forms.
 ;;; - The command owner receives normalized args without launcher noise.
-;; Args <- CommandLine
+;; : (-> CommandLine Args )
 (def (search-owner-items-args)
   (let* ((raw (command-line))
          (args (if (and (pair? raw)
@@ -36,7 +36,7 @@
 ;;; Dispatch boundary:
 ;;; - This wrapper only accepts owner-items shape.
 ;;; - All parser and rendering behavior stays in :commands/search-owner-items.
-;; ExitCode <- Args
+;; : (-> Args ExitCode )
 (def (owner-items-main args)
   (match args
     (["owner" . rest]
@@ -47,7 +47,7 @@
 ;;; Process entry:
 ;;; - main keeps the exported entrypoint testable.
 ;;; - Script execution below uses the normalized argv path.
-;; ExitCode <- Args
+;; : (-> Args ExitCode )
 (def (main . args)
   (owner-items-main args))
 

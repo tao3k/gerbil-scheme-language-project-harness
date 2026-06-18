@@ -17,7 +17,7 @@
 ;;; Boundary:
 ;;; - Definition name extraction normalizes Gerbil's value, list, method, and macro definition heads.
 ;;; - Keep this owner purely datum-shaped so syntax traversal can compose it without source-state coupling.
-;; (List Symbol) <- Datum
+;; : (-> Datum (List Symbol) )
 (def (definition-name-datums datum)
   (if (not (pair? datum))
     '()
@@ -46,7 +46,7 @@
 ;;; Boundary:
 ;;; - Gerbil POO method heads may wrap the generic name in @method syntax.
 ;;; - Keep overload/name recovery here so duplicate-type and POO policy see the same generic owner.
-;; (List Symbol) <- Datum
+;; : (-> Datum (List Symbol) )
 (def (definition-method-name-datums datum)
   (cond
    ((symbol? datum) [datum])
@@ -60,7 +60,7 @@
 ;;; Boundary:
 ;;; - Formal names are value evidence for typed-contract alignment, not a source rendering surface.
 ;;; - Preserve only symbol formals so rest arguments and case-lambda clauses stay parser-owned facts.
-;; (List String) <- Datum Symbol
+;; : (-> Datum Symbol (List String) )
 (def (definition-formal-names datum name)
   (filter-map
    (lambda (formal)
@@ -70,7 +70,7 @@
 ;;; Boundary:
 ;;; - Arity is derived from parser-owned formal evidence so contract policy and call facts share one shape source.
 ;;; - Unknown or non-callable value definitions intentionally stay false instead of inventing a zero-arity contract.
-;; Integer <- Datum Symbol
+;; : (-> Datum Symbol Integer )
 (def (definition-formal-arity datum name)
   (let (formals (definition-formal-datums datum name))
     (and formals (length formals))))
@@ -78,7 +78,7 @@
 ;;; Boundary:
 ;;; - Callable shape must cover both list-style definitions and value-style lambda/case-lambda definitions.
 ;;; - Case-lambda clauses are unioned as evidence because downstream policy checks alignment, not overload dispatch.
-;; (List Symbol) <- Datum Symbol
+;; : (-> Datum Symbol (List Symbol) )
 (def (definition-formal-datums datum name)
   (if (not (pair? datum))
     '()
@@ -107,7 +107,7 @@
 ;;; - Lambda and case-lambda expose declared formals directly.
 ;;; - Cut and cute expose placeholder-driven callable arity without inventing source names.
 ;;; - Other value definitions intentionally return no callable shape.
-;; (List Symbol) <- Datum
+;; : (-> Datum (List Symbol) )
 (def (definition-value-formal-datums datum)
   (cond
    ((and (pair? datum) (eq? (car datum) 'lambda))
@@ -125,7 +125,7 @@
 ;;; Boundary:
 ;;; - Cut placeholder arity belongs to the outer partial-application form.
 ;;; - Nested cut and cute forms own their placeholders, so outer arity ignores those subtrees.
-;; (List Symbol) <- Obj
+;; : (-> Obj (List Symbol) )
 (def (cut-placeholder-datums obj)
   (cond
    ((null? obj) '())
@@ -139,7 +139,7 @@
 ;;; Boundary:
 ;;; - Formal tail extraction preserves dotted/rest and ordinary list formals as algebraic symbols.
 ;;; - Ellipsis is syntax shape, not a callable argument name, so it is skipped before policy alignment.
-;; (List Symbol) <- Obj
+;; : (-> Obj (List Symbol) )
 (def (formal-tail-datums tail)
   (cond
    ((null? tail) '())

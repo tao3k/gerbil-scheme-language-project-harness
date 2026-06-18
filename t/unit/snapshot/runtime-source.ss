@@ -8,7 +8,7 @@
 
 (export check-runtime-source-snapshot-fields
         check-runtime-source-snapshot-fixtures)
-;; String <- String
+;; : (-> String String )
 (def (runtime-source-fact-by-id id)
   (or (find (lambda (fact)
               (equal? (hash-get fact 'id) id))

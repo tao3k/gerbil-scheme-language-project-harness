@@ -26,10 +26,19 @@
         language-evidence-index-free-view?
         language-evidence-authority
         language-evidence-next)
-;;; Invariant:
-;;; - search-main owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; SearchMain <- (List XX)
+;; search-main
+;;   : (-> (List String) Integer)
+;;   | doc m%
+;;       `search-main args` dispatches a search view and returns a process-style
+;;       status code for the harness CLI.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (search-main '("prime" "--workspace" "."))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (search-main args)
   (match args
     ([] (error "search requires a view"))
@@ -76,13 +85,13 @@
                (emit-fzf-search index args json?))
               ((equal? view "ingest") (emit-ingest index json?))
               (else (error "unsupported search view" view)))))))))))
-;; ProjectIndex <- String (List String)
+;; : (-> String (List String) ProjectIndex )
 (def (owner-search-index root args)
   (if (explicit-owner-search-path? root args)
     (collect-project-package-only root)
     (collect-project root)))
 
-;; Boolean <- String (List String)
+;; : (-> String (List String) Boolean )
 (def (explicit-owner-search-path? root args)
   (let* ((positionals (positional-args args))
          (owner (and (pair? positionals) (car positionals)))
@@ -91,14 +100,23 @@
          (gerbil-source-path? path)
          (file-exists? path))))
 
-;; Boolean <- SearchView Args
+;; : (-> SearchView Args Boolean )
 (def (poo-pattern-package-only-search? view args)
   (and (equal? view "pattern")
        (poo-pattern-query? (positional-args args))))
-;;; Boundary:
-;;; - emit-workspace composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex Json
+;; emit-workspace
+;;   : (-> ProjectIndex Boolean Integer)
+;;   | doc m%
+;;       `emit-workspace index json?` emits workspace owners and package
+;;       metadata as JSON or compact human-readable lines.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-workspace index #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-workspace index json?)
   (if json?
     (write-json-line
@@ -121,10 +139,19 @@
                      " defs=" (length (source-file-definitions file))))
         (take* (project-index-files index) 20))))
   0)
-;;; Boundary:
-;;; - emit-prime composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex Json
+;; emit-prime
+;;   : (-> ProjectIndex Boolean Integer)
+;;   | doc m%
+;;       `emit-prime index json?` emits the prime search packet or the compact
+;;       seed view for the current project.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-prime index #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-prime index json?)
   (if json?
     (write-json-line
@@ -148,7 +175,7 @@
       (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")
       (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))
   0)
-;; String <- ProjectIndex
+;; : (-> ProjectIndex String )
 (def (emit-package-line index)
   (let (package (project-index-package index))
     (when package
@@ -156,27 +183,36 @@
                  " path=" (project-package-path package)
                  " packageManager=" (project-package-manager package)
                  " dependencies=" (join (project-package-dependencies package) ",")))))
-;; (List String) <- ProjectIndex
+;; : (-> ProjectIndex (List String) )
 (def (emit-extension-lines index)
   (for-each displayln (project-extension-search-lines index)))
 ;;; Boundary:
 ;;; - resolve-owner-file owns owner path fallback semantics.
 ;;; - Keep indexed owners first; parse explicit files only when they are Gerbil sources.
-;; SourceFile <- ProjectIndex String
+;; : (-> ProjectIndex String SourceFile )
 (def (resolve-owner-file index owner)
   (or (find-owner index owner)
       (resolve-explicit-owner-file index owner)))
-;; MaybeSourceFile <- ProjectIndex String
+;; : (-> ProjectIndex String MaybeSourceFile )
 (def (resolve-explicit-owner-file index owner)
   (let* ((root (project-index-root index))
          (path (path-expand owner root)))
     (and (gerbil-source-path? path)
          (file-exists? path)
          (parse-source-file root path))))
-;;; Boundary:
-;;; - emit-owner-search composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex (List String) Json
+;; emit-owner-search
+;;   : (-> ProjectIndex (List String) Boolean Integer)
+;;   | doc m%
+;;       `emit-owner-search index args json?` resolves an owner path and emits
+;;       either owner details, owner item matches, or owner JSON.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-owner-search index '("src/support/list.ss") #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-owner-search index args json?)
   (let* ((positionals (positional-args args))
          (owner (and (pair? positionals) (car positionals))))
@@ -207,7 +243,7 @@
           (emit-owner file))))
     0))
 
-;; Integer <- Args
+;; : (-> Args Integer )
 (def (owner-items-limit args)
   (let* ((value (option "--limit" args))
          (parsed (and value (string->number value))))
@@ -215,10 +251,19 @@
      ((not value) 80)
      ((and (integer? parsed) (>= parsed 0)) parsed)
      (else (error "invalid owner-items --limit" value)))))
-;;; Boundary:
-;;; - emit-owner composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- SourceFile
+;; emit-owner
+;;   : (-> SourceFile Unit)
+;;   | doc m%
+;;       `emit-owner file` prints compact owner metadata, imports, definitions,
+;;       and the next command hint for a source file.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-owner file)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (emit-owner file)
   (displayln "[gerbil-owner] path=" (source-file-path file)
              " package=" (or (source-file-package file) "-")
@@ -240,10 +285,19 @@
    (take* (source-file-definitions file) 30))
   (displayln "nextCommand=gerbil-scheme-harness query " (source-file-path file)
              " --term '<symbol>' --workspace . --names-only"))
-;;; Boundary:
-;;; - emit-symbol-search composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex (List String) Json
+;; emit-symbol-search
+;;   : (-> ProjectIndex (List String) Boolean Integer)
+;;   | doc m%
+;;       `emit-symbol-search index args json?` searches indexed definitions by
+;;       symbol query and emits JSON or compact match rows.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-symbol-search index '("dedupe") #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-symbol-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))
@@ -261,10 +315,19 @@
                         " selector=" (definition-selector defn)))
            (take* matches 40)))))
     0))
-;;; Boundary:
-;;; - emit-import-search composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex (List XX) Json
+;; emit-import-search
+;;   : (-> ProjectIndex (List String) Boolean Integer)
+;;   | doc m%
+;;       `emit-import-search index args json?` searches source imports and
+;;       includes for the query term and emits matching owners.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-import-search index '(":support/list") #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-import-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))
@@ -284,10 +347,19 @@
              (displayln "|owner path=" (source-file-path file)))
            (take* matches 40)))))
     0))
-;;; Boundary:
-;;; - emit-fzf-search composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Unit <- ProjectIndex (List XX) Json
+;; emit-fzf-search
+;;   : (-> ProjectIndex (List String) Boolean Integer)
+;;   | doc m%
+;;       `emit-fzf-search index args json?` ranks owners for a fuzzy query and
+;;       emits JSON or compact owner rows with a follow-up command.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-fzf-search index '("typed doc") #f)
+;;       ;; => 0
+;;       ```
+;;     %
 (def (emit-fzf-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))

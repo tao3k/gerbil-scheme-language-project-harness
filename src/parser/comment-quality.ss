@@ -13,7 +13,20 @@
 ;;; Boundary:
 ;;; - comment-quality-facts-from-source composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List CommentQualityFact) <- FullPath Relpath (List Definition) (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact)
+;; comment-quality-facts-from-source
+;;   : (-> FullPath Relpath (List Definition) (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List CommentQualityFact) )
+;;   | doc m%
+;;       `comment-quality-facts-from-source fullpath relpath definitions macros poo-forms higher-order-forms control-flow-forms`
+;;       emits one module-level comment fact plus definition-level facts keyed by
+;;       parser-owned macro, POO, higher-order, and control-flow evidence.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (map comment-quality-fact-target-kind
+;;            (comment-quality-facts-from-source fullpath relpath [] [] [] [] []))
+;;       ;; => ("module")
+;;       ```
+;;     %
 (def (comment-quality-facts-from-source fullpath relpath definitions macros poo-forms higher-order-forms control-flow-forms)
   (let* ((lines (read-file-lines fullpath))
          (module-fact (module-comment-quality-fact relpath lines)))
@@ -23,7 +36,7 @@
                     higher-order-forms control-flow-forms)
                definitions))))
 
-;; CommentQualityFact <- Relpath (List SourceLine)
+;; : (-> Relpath (List SourceLine) CommentQualityFact )
 (def (module-comment-quality-fact relpath lines)
   (let* ((comments (module-leading-comments lines))
          (summary (comment-quality-summary comments #t "module")))
@@ -41,7 +54,7 @@
 ;;; Boundary:
 ;;; - definition-comment-quality-fact coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; CommentQualityFact <- Relpath (List SourceLine) Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact)
+;; : (-> Relpath (List SourceLine) Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) CommentQualityFact )
 (def (definition-comment-quality-fact relpath lines definition macros poo-forms higher-order-forms control-flow-forms)
   (let* ((comments (leading-comment-lines lines (definition-start definition)))
          (context (definition-comment-context definition macros poo-forms higher-order-forms control-flow-forms))
@@ -72,7 +85,7 @@
      context
      evidence)))
 
-;; Json <- Relpath (List SourceLine) (List CommentLine)
+;; : (-> Relpath (List SourceLine) (List CommentLine) Json )
 (def (module-comment-quality-evidence relpath lines comments)
   (hash (factSource "native-parser")
         (targetKind "module")
@@ -85,7 +98,7 @@
         (commentQuestions (comment-quality-context-questions "module"))
         (agentRepairMode "generate as many adjacent engineering comment lines as needed from parser evidence; completeness and confidence matter more than line count")))
 
-;; Json <- Definition String (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List CommentLine)
+;; : (-> Definition String (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List CommentLine) Json )
 (def (definition-comment-quality-evidence definition context macros poo-forms higher-order-forms control-flow-forms comments)
   (let (matched-facts
         (definition-comment-matched-facts
@@ -108,7 +121,7 @@
           (agentRepairMode "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale"))))
 
 ;;; Parser witness join: preserve owner/caller keyed joins so R015 can expose concrete macro, POO, higher-order, and control-flow evidence without source scanning.
-;; (List Json) <- Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact)
+;; : (-> Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List Json) )
 (def (definition-comment-matched-facts definition macros poo-forms higher-order-forms control-flow-forms)
   (let (name (definition-name definition))
      (append
@@ -123,30 +136,30 @@
 
 ;;; Parser-owned macro evidence is joined by definition name.
 ;;; Do not widen this into comment text or selector substring matching.
-;; (List MacroFact) <- String (List MacroFact)
+;; : (-> String (List MacroFact) (List MacroFact) )
 (def (matching-macro-facts name facts)
   (filter (lambda (fact) (equal? (macro-fact-name fact) name))
           facts))
 
 ;;; POO evidence is joined by object/generic/protocol form name so comment repair can cite the declared language feature boundary.
-;; (List PooFormFact) <- String (List PooFormFact)
+;; : (-> String (List PooFormFact) (List PooFormFact) )
 (def (matching-poo-facts name facts)
   (filter (lambda (fact) (equal? (poo-form-fact-name fact) name))
           facts))
 
 ;;; Higher-order evidence is joined by caller, which preserves the expression-level combinator witness for comment generation.
-;; (List HigherOrderFact) <- String (List HigherOrderFact)
+;; : (-> String (List HigherOrderFact) (List HigherOrderFact) )
 (def (matching-higher-order-facts name facts)
   (filter (lambda (fact) (equal? (higher-order-fact-caller fact) name))
           facts))
 
 ;;; Control-flow evidence is joined by caller so loop, match, continuation, and resource-driver comments stay tied to parsed facts.
-;; (List ControlFlowFact) <- String (List ControlFlowFact)
+;; : (-> String (List ControlFlowFact) (List ControlFlowFact) )
 (def (matching-control-flow-facts name facts)
   (filter (lambda (fact) (equal? (control-flow-fact-caller fact) name))
           facts))
 
-;; Json <- MacroFact
+;; : (-> MacroFact Json )
 (def (macro-comment-evidence fact)
   (hash (factKind "macro")
         (name (macro-fact-name fact))
@@ -160,7 +173,7 @@
                                         (macro-fact-start fact)
                                         (macro-fact-end fact)))))
 
-;; Json <- PooFormFact
+;; : (-> PooFormFact Json )
 (def (poo-comment-evidence fact)
   (hash (factKind "poo")
         (name (poo-form-fact-name fact))
@@ -177,7 +190,7 @@
                                         (poo-form-fact-start fact)
                                         (poo-form-fact-end fact)))))
 
-;; Json <- HigherOrderFact
+;; : (-> HigherOrderFact Json )
 (def (higher-order-comment-evidence fact)
   (hash (factKind "higher-order")
         (name (higher-order-fact-name fact))
@@ -191,7 +204,7 @@
                                         (higher-order-fact-start fact)
                                         (higher-order-fact-end fact)))))
 
-;; Json <- ControlFlowFact
+;; : (-> ControlFlowFact Json )
 (def (control-flow-comment-evidence fact)
   (hash (factKind "control-flow")
         (name (control-flow-fact-name fact))
@@ -204,7 +217,7 @@
                                         (control-flow-fact-start fact)
                                         (control-flow-fact-end fact)))))
 
-;; String <- String
+;; : (-> String String )
 (def (comment-quality-context-focus context)
   (cond
    ((equal? context "module")
@@ -222,11 +235,20 @@
    (else
     "definition purpose, stable invariant, and non-obvious edit boundary")))
 
-;;; Boundary:
-;;; - comment-quality-context-questions coordinates multiple evidence fields.
-;;; - Keep packet shape and invariants stable.
-;;; Agent repair contract: each context question names the parser evidence a model must cover before writing rationale.
-;; (List String) <- String
+;; comment-quality-context-questions
+;;   : (-> String (List String))
+;;   | doc m%
+;;       `comment-quality-context-questions context` returns the parser-evidence
+;;       questions an agent must cover before writing comment rationale for a
+;;       context.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (comment-quality-context-questions "macro")
+;;       ;; => macro evidence questions
+;;       ```
+;;     %
 (def (comment-quality-context-questions context)
   (cond
    ((equal? context "module")
@@ -258,20 +280,29 @@
      "Which invariant or boundary is not obvious from the code mechanics?"
      "What parser fact should an agent use before rewriting this owner?"])))
 
-;; Selector <- Definition
+;; : (-> Definition Selector )
 (def (definition-source-selector definition)
   (fact-source-selector (definition-path definition)
                         (definition-start definition)
                         (definition-end definition)))
 
-;; Selector <- Path SourceLine SourceLine
+;; : (-> Path SourceLine SourceLine Selector )
 (def (fact-source-selector path start end)
   (string-append path ":" (number->string start) "-" (number->string end)))
 
-;;; Invariant:
-;;; - module-leading-comments owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; (List CommentLine) <- (List SourceLine)
+;; module-leading-comments
+;;   : (-> (List SourceLine) (List CommentLine))
+;;   | doc m%
+;;       `module-leading-comments lines` returns the leading engineering
+;;       comments for a module, skipping shebang and mode-comment headers.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (module-leading-comments '(";;; -*- Gerbil -*-" ";;; Purpose." ""))
+;;       ;; => ("Purpose.")
+;;       ```
+;;     %
 (def (module-leading-comments lines)
   (let ((rest lines)
         (line-number 1)
@@ -281,7 +312,7 @@
       (let ((line (car rest))
             (more (cdr rest)))
         (cond
-         ((and (= line-number 1) (mode-comment-line? line))
+         ((script-header-line? line line-number)
           (set! rest more)
           (set! line-number (fx1+ line-number)))
          ((engineering-comment-line? line)
@@ -298,10 +329,29 @@
           (set! done? #t)))))
     (reverse out)))
 
-;;; Invariant:
-;;; - leading-comment-lines owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; (List CommentLine) <- (List SourceLine) SourceLineNumber
+;;; Boundary:
+;;; - Script shebangs and Gerbil mode comments are transport headers.
+;;; - They must not hide the module-level engineering comment immediately below.
+;; : (-> SourceLine SourceLineNumber Boolean)
+(def (script-header-line? line line-number)
+  (or (mode-comment-line? line)
+      (and (= line-number 1)
+           (string? line)
+           (string-prefix? "#!" line))))
+
+;; leading-comment-lines
+;;   : (-> (List SourceLine) SourceLineNumber (List CommentLine))
+;;   | doc m%
+;;       `leading-comment-lines lines start-line` walks upward from a definition
+;;       start line and returns adjacent leading comment lines in source order.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (leading-comment-lines '(";; helper" "(def helper 1)") 2)
+;;       ;; => ("helper")
+;;       ```
+;;     %
 (def (leading-comment-lines lines start-line)
   (let ((line-number (fx1- start-line))
         (out '())
@@ -315,7 +365,7 @@
           (set! done? #t))))
     out))
 
-;; String <- Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact)
+;; : (-> Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) String )
 (def (definition-comment-context definition macros poo-forms higher-order-forms control-flow-forms)
   (let ((name (definition-name definition))
         (kind (definition-kind definition)))
@@ -331,14 +381,14 @@
      ((>= (definition-line-span definition) 24) "long-definition")
      (else "definition"))))
 
-;; Boolean <- Definition String
+;; : (-> Definition String Boolean )
 (def (definition-comment-required? definition context)
   (or (list-member? (definition-kind definition)
                     '("defrule" "defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
       (list-member? context
                     '("macro" "poo" "higher-order" "control-flow" "long-definition"))))
 
-;; CommentSummary <- (List CommentLine) Boolean String
+;; : (-> (List CommentLine) Boolean String CommentSummary )
 (def (comment-quality-summary comments required context)
   (let* ((kind (comment-kind comments))
          (quality (comment-quality kind required))
@@ -348,7 +398,7 @@
 ;;; Boundary:
 ;;; - comment-kind composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- (List CommentLine)
+;; : (-> (List CommentLine) String )
 (def (comment-kind comments)
   (cond
    ((null? comments) "missing")
@@ -361,7 +411,7 @@
    ((ormap typed-contract-comment? comments) "contract-only")
    (else "weak")))
 
-;; String <- String Boolean
+;; : (-> String Boolean String )
 (def (comment-quality kind required)
   (cond
    ((equal? kind "missing") "absent")
@@ -373,7 +423,7 @@
    ((equal? kind "intent") "useful")
    (else "useful")))
 
-;; (List Reason) <- String String Boolean String
+;; : (-> String String Boolean String (List Reason) )
 (def (comment-quality-reasons kind quality required context)
   (cond
    ((equal? quality "absent")
@@ -393,49 +443,81 @@
 ;;; - Engineering-rationale classification stays separate from type signatures.
 ;;; Invariant:
 ;;; - A contract comment cannot satisfy key-owner rationale by itself.
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (typed-contract-comment? comment)
   (or (string-contains comment "<-")
-      (string-prefix? ":" (trim-ascii-space comment))))
+      (string-prefix? ":" (trim-ascii-space comment))
+      (typed-doc-result-comment? comment)))
+
+;;; Boundary:
+;;; - Full-form typed docs may embed Scheme comments inside fenced examples.
+;;; - Result markers such as `;; => value` are typed-doc evidence, not rationale.
+;; : (-> CommentLine Boolean)
+(def (typed-doc-result-comment? comment)
+  (let (trimmed (trim-ascii-space comment))
+    (or (string-prefix? ";; =>" trimmed)
+        (string-prefix? "=>" trimmed))))
 
 ;;; Boundary:
 ;;; - Compressed engineering comments hide separate rationale clauses in one line.
 ;;; - Keep separate rationale clauses on adjacent lines when splitting improves evidence confidence.
-;; Boolean <- (List CommentLine)
+;; : (-> (List CommentLine) Boolean )
 (def (compressed-engineering-comments? comments)
   (ormap compressed-engineering-comment? comments))
 
 ;;; Boundary:
 ;;; - A semicolon inside the comment body usually means two rationale clauses were squeezed together.
 ;;; - Agents should split those clauses rather than forcing every rationale into one line.
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (compressed-engineering-comment? comment)
   (and (engineering-comment-body? comment)
-       (string-contains comment ";")))
+       (comment-rationale-semicolon? comment)))
 
-;; Boolean <- CommentLine
+;;; Boundary:
+;;; - A rationale semicolon is a prose separator inside one engineering line.
+;;; - Scheme comment markers such as `;; :` are code evidence, not compression.
+;; : (-> CommentLine Boolean)
+(def (comment-rationale-semicolon? comment)
+  (let (length (string-length comment))
+    (ormap (lambda (entry)
+             (let (index (fx1- (cdr entry)))
+               (and (char=? (car entry) #\;)
+                    (not (comment-semicolon-neighbor?
+                          comment
+                          length
+                          index)))))
+           (map-indexed cons (string->list comment)))))
+
+;; : (-> CommentLine Integer Integer Boolean)
+(def (comment-semicolon-neighbor? comment length index)
+  (or (and (> index 0)
+           (char=? (string-ref comment (fx1- index)) #\;))
+      (and (< (fx1+ index) length)
+           (char=? (string-ref comment (fx1+ index)) #\;))))
+
+;; : (-> CommentLine Boolean )
 (def (engineering-intent-comment? comment)
   (and (engineering-comment-body? comment)
        (or (comment-contains-any? comment '("intent" "purpose" "why" "because" "agent" "parser" "semantic" "source"))
            (>= (string-length (trim-ascii-space comment)) 36))))
 
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (engineering-boundary-comment? comment)
   (comment-contains-any? comment '("boundary" "facade" "runtime" "provider" "parser-owned" "source-class" "scope" "contract-visible")))
 
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (engineering-invariant-comment? comment)
   (comment-contains-any? comment '("invariant" "preserve" "must" "never" "stable" "deterministic")))
 
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (engineering-optimization-comment? comment)
   (comment-contains-any? comment '("optimization" "fast path" "common case" "specialized" "avoid allocation" "performance")))
 
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (engineering-risk-comment? comment)
   (comment-contains-any? comment '("risk" "unsafe" "fallback" "avoid" "denied" "drift" "ambiguous")))
 
-;; Boolean <- CommentLine
+;; : (-> CommentLine Boolean )
 (def (engineering-comment-body? comment)
   (and (string? comment)
        (not (blank-string? comment))
@@ -444,7 +526,7 @@
 ;;; Boundary:
 ;;; - comment-contains-any? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- String (List String)
+;; : (-> String (List String) Boolean )
 (def (comment-contains-any? comment needles)
   (and (string? comment)
        (let (downcased (string-downcase comment))
@@ -455,7 +537,7 @@
 ;;; Boundary:
 ;;; - definition-name-in-macros? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- String (List MacroFact)
+;; : (-> String (List MacroFact) Boolean )
 (def (definition-name-in-macros? name macros)
   (ormap (lambda (fact)
            (equal? (macro-fact-name fact) name))
@@ -464,7 +546,7 @@
 ;;; Boundary:
 ;;; - definition-name-in-poo-forms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- String (List PooFormFact)
+;; : (-> String (List PooFormFact) Boolean )
 (def (definition-name-in-poo-forms? name poo-forms)
   (ormap (lambda (fact)
            (equal? (poo-form-fact-name fact) name))
@@ -473,7 +555,7 @@
 ;;; Boundary:
 ;;; - definition-name-in-higher-order-forms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- String (List HigherOrderFact)
+;; : (-> String (List HigherOrderFact) Boolean )
 (def (definition-name-in-higher-order-forms? name higher-order-forms)
   (ormap (lambda (fact)
            (equal? (higher-order-fact-caller fact) name))
@@ -482,38 +564,38 @@
 ;;; Boundary:
 ;;; - definition-name-in-control-flow-forms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- String (List ControlFlowFact)
+;; : (-> String (List ControlFlowFact) Boolean )
 (def (definition-name-in-control-flow-forms? name control-flow-forms)
   (ormap (lambda (fact)
            (equal? (control-flow-fact-caller fact) name))
          control-flow-forms))
 
-;; Boolean <- SourceLine
+;; : (-> SourceLine Boolean )
 (def (comment-line? line)
   (and (string? line)
        (let (trimmed (trim-ascii-space line))
          (and (string-prefix? ";;" trimmed)
               (not (mode-comment-line? trimmed))))))
 
-;; Boolean <- SourceLine
+;; : (-> SourceLine Boolean )
 (def (engineering-comment-line? line)
   (and (string? line)
        (let (trimmed (trim-ascii-space line))
          (and (string-prefix? ";;;" trimmed)
               (not (mode-comment-line? trimmed))))))
 
-;; Boolean <- SourceLine
+;; : (-> SourceLine Boolean )
 (def (mode-comment-line? line)
   (and (string? line)
        (string-prefix? ";;; -*-" (trim-ascii-space line))))
 
-;; CommentLine <- SourceLine
+;; : (-> SourceLine CommentLine )
 (def (comment-body line)
   (trim-ascii-space (drop-leading-semicolons (trim-ascii-space line))))
 
 ;;; Gerbil-utils contains high-codepoint prose in comments; SRFI-13 trim can throw on those bytes in this runtime path.
 ;;; Keep parser-owned comment facts robust by trimming only ASCII whitespace around the line.
-;; String <- String
+;; : (-> String String )
 (def (trim-ascii-space text)
   (if (string? text)
     (let* ((length (string-length text))
@@ -525,7 +607,7 @@
 ;;; Boundary:
 ;;; - first-non-ascii-space keeps SRFI-13 character-set conversion out of the trim path.
 ;;; - Indexed character pairs expose the first non-ASCII-space character index without a loop.
-;; Integer <- SourceLine SourceLength
+;; : (-> SourceLine SourceLength Integer )
 (def (first-non-ascii-space text length)
   (let (hit (find (lambda (entry)
                     (not (ascii-space? (car entry))))
@@ -535,7 +617,7 @@
 ;;; Boundary:
 ;;; - last-non-ascii-space owns the right trim scan with the caller-provided lower bound.
 ;;; - Preserve high-codepoint comment bodies and never scan before the left trim boundary.
-;; Integer <- SourceLine TrimStart SourceLength
+;; : (-> SourceLine TrimStart SourceLength Integer )
 (def (last-non-ascii-space text start length)
   (let (hit (find (lambda (entry)
                     (let (index (fx1- (cdr entry)))
@@ -544,7 +626,7 @@
                   (reverse (map-indexed cons (string->list text)))))
     (if hit (cdr hit) start)))
 
-;; Boolean <- Character
+;; : (-> Character Boolean )
 (def (ascii-space? ch)
   (or (char=? ch #\space)
       (char=? ch #\tab)
@@ -554,7 +636,7 @@
 ;;; Boundary:
 ;;; - Comment markers are stripped by finding the first non-semicolon character index.
 ;;; - Keep the body substring unchanged after that index for parser evidence.
-;; SourceLine <- SourceLine
+;; : (-> SourceLine SourceLine )
 (def (drop-leading-semicolons text)
   (let (hit (find (lambda (entry)
                     (not (char=? (car entry) #\;)))
@@ -563,7 +645,7 @@
                (if hit (fx1- (cdr hit)) (string-length text))
                (string-length text))))
 
-;; Integer <- Definition
+;; : (-> Definition Integer )
 (def (definition-line-span definition)
   (fx1+ (- (definition-end definition)
            (definition-start definition))))
@@ -571,17 +653,17 @@
 ;;; Boundary:
 ;;; - line-at* is zero-based and total over malformed indices.
 ;;; - Guard before list-ref so parser facts never raise on drifted line spans.
-;; SourceLine <- (List SourceLine) Integer
+;; : (-> (List SourceLine) Integer SourceLine )
 (def (line-at* lines index)
   (and (>= index 0)
        (< index (length lines))
        (list-ref lines index)))
 
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (blank-string? value)
   (or (not (string? value))
       (= (string-length (trim-ascii-space value)) 0)))
 
-;; Boolean <- Item (List Item)
+;; : (-> Item (List Item) Boolean )
 (def (list-member? item values)
   (if (member item values) #t #f))

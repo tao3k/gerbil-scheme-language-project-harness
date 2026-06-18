@@ -15,7 +15,7 @@
 ;;; - :policy/detection owns detector prototype slots and result details.
 ;;; - This bridge keeps policy rules source-backed without making every rule
 ;;;   know the pattern registry shape.
-;; DetectionPrototype <- PatternKind
+;; : (-> PatternKind DetectionPrototype )
 (def (poo-source-pattern-detection-overlay kind)
   (detection-prototype-source-overlay
    (poo-pattern-id kind)

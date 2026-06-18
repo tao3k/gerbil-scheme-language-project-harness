@@ -3,9 +3,9 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (package sample/formals)
-;; SumTwo <- XX YY
+;; : (-> Number Number Number)
 (def (sum-two x y)
   (+ x y))
-;; Collect <- (List XX)
+;; : (-> (List Number) (List Number))
 (def (collect . xs)
   xs)

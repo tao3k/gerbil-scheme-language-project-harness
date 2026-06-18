@@ -14,10 +14,19 @@
         :support/list)
 
 (export query-main)
-;;; Boundary:
-;;; - query-main composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; QueryMain <- (List XX)
+;; query-main
+;;   : (-> (List String) Integer)
+;;   | doc m%
+;;       `query-main args` dispatches selector reads and query requests for the
+;;       agent-facing source query command.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (query-main '("--selector" "src/core.ss:1-1" "--workspace" "."))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (query-main args)
   (let* ((workspace (or (option "--workspace" args) (project-root args)))
          (json? (flag? "--json" args))
@@ -72,13 +81,22 @@
                    (else
                     (emit-owner-items file matches))))
                 0))))))))))
-;; Boolean <- ProjectIndex String
+;; : (-> ProjectIndex String Boolean )
 (def (owner-path-exists? workspace owner)
   (file-exists? (path-expand owner workspace)))
-;;; Boundary:
-;;; - emit-owner-items composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Integer <- SourceFile Matches
+;; emit-owner-items
+;;   : (-> SourceFile (List Definition) Unit)
+;;   | doc m%
+;;       `emit-owner-items file matches` prints compact owner item rows for the
+;;       matched definitions in a source file.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (emit-owner-items file matches)
+;;       ;; => (void)
+;;       ```
+;;     %
 (def (emit-owner-items file matches)
   (displayln "[gerbil-owner-items] path=" (source-file-path file)
              " matches=" (length matches))
@@ -91,7 +109,7 @@
 ;;; Boundary:
 ;;; - emit-registered-poo-query-route keeps ownerless query semantically precise.
 ;;; - gerbil-poo:// is registered knowledge, not a workspace activation fallback.
-;; Unit <- Terms Boolean
+;; : (-> Terms Boolean Unit )
 (def (emit-registered-poo-query-route terms json?)
   (let* ((query (join terms " "))
          (pattern-next (string-append "search pattern gerbil-poo "
@@ -131,13 +149,13 @@
 ;;; Boundary:
 ;;; - registered-poo-query-focus preserves user intent after the extension token.
 ;;; - Default to usage so bare gerbil-poo queries still route to executable patterns.
-;; String <- Terms
+;; : (-> Terms String )
 (def (registered-poo-query-focus terms)
   (poo-registered-extension-focus terms))
 ;;; Boundary:
 ;;; - query-source-lookup-json is the machine packet mirror of the text line.
 ;;; - Keep the lookup order and index owner explicit for non-interactive agents.
-;; Json <- SourceRef
+;; : (-> SourceRef Json )
 (def (query-source-lookup-json source-ref)
   (let* ((local-source (hash-get source-ref 'localSource))
          (repository-source (hash-get source-ref 'repositorySource))
@@ -158,7 +176,7 @@
 ;;; Boundary:
 ;;; - emit-query-source-lookup-line mirrors search output for query routes.
 ;;; - Keep local-source-before-git order explicit so agents do not treat this as fallback.
-;; Unit <- SourceRef
+;; : (-> SourceRef Unit )
 (def (emit-query-source-lookup-line source-ref)
   (let* ((local-source (hash-get source-ref 'localSource))
          (repository-source (hash-get source-ref 'repositorySource))

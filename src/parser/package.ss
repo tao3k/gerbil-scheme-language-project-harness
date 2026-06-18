@@ -34,8 +34,8 @@
         modularity-policy-max-test-definition-span
         modularity-policy-config-path
         modularity-policy-explanation
-        agent-policy-enabled-rules
-        agent-policy-disabled-rules)
+        agent-policy-disabled-rules
+        agent-policy-explanation)
 ;; TestDirectoryPolicyStruct
 (defstruct test-directory-policy (allowed-directories explanation))
 ;; MacroGovernancePolicyStruct
@@ -46,13 +46,13 @@
 (defstruct modularity-policy
   (disabled enabled-rules disabled-rules max-source-line-count max-test-line-count min-source-definition-count min-test-definition-count max-test-case-count max-test-definition-span config-path explanation))
 ;; AgentPolicyStruct
-(defstruct agent-policy (enabled-rules disabled-rules))
+(defstruct agent-policy (disabled-rules explanation))
 ;; ProjectPackageStruct
 (defstruct project-package (path name dependencies manager test-directory-policy macro-governance-policy source-scope-policy modularity-policy agent-policy))
 ;;; Boundary:
 ;;; - read-project-package coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; ParsedData <- String
+;; : (-> String ParsedData )
 (def (read-project-package root)
   (let* ((package-form (read-package-form root))
          (build-scope (read-build-source-scope-policy root)))
@@ -82,7 +82,7 @@
 ;;; Boundary:
 ;;; - read-package-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; ParsedData <- String
+;; : (-> String ParsedData )
 (def (read-package-form root)
   (with-catch
    (lambda (_) #f)
@@ -93,7 +93,7 @@
 ;;; Boundary:
 ;;; - read-build-source-scope-policy composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- String
+;; : (-> String String )
 (def (read-build-source-scope-policy root)
   (with-catch
    (lambda (_) #f)
@@ -111,7 +111,7 @@
 ;;; Boundary:
 ;;; - read-package-forms composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- String
+;; : (-> String Integer )
 (def (read-package-forms path)
   (call-with-input-file path
     (lambda (port)
@@ -120,19 +120,19 @@
           (if (eof-object? next)
             (reverse out)
             (lp (cons next out))))))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (package-form? datum)
   (and (pair? datum) (eq? (car datum) 'package:)))
 ;;; Boundary:
 ;;; - package-dependencies is a field lookup plus dependency string projection.
 ;;; - Reuse package-field-value so package metadata traversal has one owner.
-;; Integer <- Datum
+;; : (-> Datum Integer )
 (def (package-dependencies datum)
   (let (deps (package-field-value datum 'depend:))
     (if deps
       (dedupe (filter-map datum->string (datum-list-items deps)))
       '())))
-;; PackageTestDirectoryPolicy <- Datum
+;; : (-> Datum PackageTestDirectoryPolicy )
 (def (package-test-directory-policy datum)
   (let (policy (package-field-value datum 'policy:))
     (and policy
@@ -144,16 +144,16 @@
 ;;; Boundary:
 ;;; - policy-test-directory-entry composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PolicyTestDirectoryEntry <- Policy
+;; : (-> Policy PolicyTestDirectoryEntry )
 (def (policy-test-directory-entry policy)
   (if (test-directory-policy-form? policy)
     policy
     (find test-directory-policy-form? (datum-list-items policy))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (test-directory-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(test-directory-layout test-directory-policy))))
-;; PackageMacroGovernancePolicy <- Datum
+;; : (-> Datum PackageMacroGovernancePolicy )
 (def (package-macro-governance-policy datum)
   (let (policy (package-field-value datum 'policy:))
     (and policy
@@ -166,16 +166,16 @@
 ;;; Boundary:
 ;;; - policy-macro-governance-entry composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PolicyMacroGovernanceEntry <- Policy
+;; : (-> Policy PolicyMacroGovernanceEntry )
 (def (policy-macro-governance-entry policy)
   (if (macro-governance-policy-form? policy)
     policy
     (find macro-governance-policy-form? (datum-list-items policy))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (macro-governance-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(macro-governance macro-policy))))
-;; String <- Datum
+;; : (-> Datum String )
 (def (package-source-scope-policy datum)
   (let (policy (package-field-value datum 'policy:))
     (and policy
@@ -197,16 +197,16 @@
 ;;; Boundary:
 ;;; - policy-source-scope-entry composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- Policy
+;; : (-> Policy String )
 (def (policy-source-scope-entry policy)
   (if (source-scope-policy-form? policy)
     policy
     (find source-scope-policy-form? (datum-list-items policy))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (source-scope-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(source-scope source-policy project-scope))))
-;; PackageModularityPolicy <- Root Datum
+;; : (-> Root Datum PackageModularityPolicy )
 (def (package-modularity-policy root datum)
   (let* ((policy (package-field-value datum 'policy:))
          (entry (and policy (policy-modularity-entry policy)))
@@ -221,19 +221,19 @@
 ;;; Boundary:
 ;;; - policy-modularity-entry composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PolicyModularityEntry <- Policy
+;; : (-> Policy PolicyModularityEntry )
 (def (policy-modularity-entry policy)
   (if (modularity-policy-form? policy)
     policy
     (find modularity-policy-form? (datum-list-items policy))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (modularity-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(modularity modularity-policy modularity-rules))))
 ;;; Boundary:
 ;;; - modularity-policy-entry->policy owns package field normalization.
 ;;; - Keep threshold aliases and config-file semantics visible here.
-;; PackageModularityPolicy <- Datum MaybePath
+;; : (-> Datum MaybePath PackageModularityPolicy )
 (def (modularity-policy-entry->policy entry config-path)
   (make-modularity-policy
    (or (policy-boolean-field entry 'disabled:)
@@ -270,7 +270,7 @@
 ;;; Boundary:
 ;;; - read-modularity-policy-config reads the package-selected external file.
 ;;; - Missing or malformed config stays a package-policy absence, not a fallback.
-;; PackageModularityPolicy <- Root ConfigPath
+;; : (-> Root ConfigPath PackageModularityPolicy )
 (def (read-modularity-policy-config root config-path)
   (with-catch
    (lambda (_) #f)
@@ -283,7 +283,7 @@
 ;;; Boundary:
 ;;; - merge-modularity-policies lets gerbil.pkg override shared config values.
 ;;; - Keep list overrides explicit so agent-facing rule filters stay readable.
-;; PackageModularityPolicy <- MaybePolicy MaybePolicy
+;; : (-> MaybePolicy MaybePolicy PackageModularityPolicy )
 (def (merge-modularity-policies inline-policy config-policy)
   (cond
    ((and inline-policy config-policy)
@@ -317,7 +317,7 @@
 ;;; Boundary:
 ;;; - policy-list-override keeps rule-list precedence separate from scalars.
 ;;; - Empty primary lists intentionally fall through to the config file list.
-;; (List String) <- (List String) (List String)
+;; : (-> (List String) (List String) (List String) )
 (def (policy-list-override primary fallback)
   (if (and primary (pair? primary))
     primary
@@ -326,36 +326,36 @@
 ;;; Package forms have at most one build script declaration for harness scope.
 ;;; The find combinator makes that single-owner lookup explicit and leaves the
 ;;; target value decoder responsible for quoted/list/string normalization.
-;; BuildScriptTargets <- (List String)
+;; : (-> (List String) BuildScriptTargets )
 (def (build-script-targets forms)
   (let (form (find build-script-form? forms))
     (if form
       (build-script-target-value (safe-cadr form))
       '())))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (build-script-form? datum)
   (and (pair? datum) (eq? (car datum) 'defbuild-script)))
 ;;; Boundary:
 ;;; - build-script-target-value composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; BuildScriptTargetValue <- Datum
+;; : (-> Datum BuildScriptTargetValue )
 (def (build-script-target-value datum)
   (cond
    ((not datum) '())
    ((quoted-datum? datum) (build-script-target-value (safe-cadr datum)))
    ((or (string? datum) (symbol? datum)) [(datum->string datum)])
    (else (filter-map datum->string (datum-list-items datum)))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (quoted-datum? datum)
   (and (pair? datum) (eq? (car datum) 'quote)))
 ;;; Boundary:
 ;;; - build-target-source-roots composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List String) <- Targets
+;; : (-> Targets (List String) )
 (def (build-target-source-roots targets)
   (dedupe-strings
    (filter-map build-target-source-root targets)))
-;; BuildTargetSourceRoot <- Target
+;; : (-> Target BuildTargetSourceRoot )
 (def (build-target-source-root target)
   (let (slash (and target (string-index target #\/)))
     (cond
@@ -363,32 +363,30 @@
      ((not slash) ".")
      ((fx= slash 0) ".")
      (else (substring target 0 slash)))))
-;; PackageAgentPolicy <- Datum
+;; : (-> Datum PackageAgentPolicy )
 (def (package-agent-policy datum)
   (let (policy (package-field-value datum 'policy:))
     (and policy
          (let (entry (policy-agent-entry policy))
            (and entry
                 (make-agent-policy
-                 (or (policy-string-list-field entry 'enabled-rules:)
-                     (policy-string-list-field entry 'enable:)
-                     '())
                  (or (policy-string-list-field entry 'disabled-rules:)
                      (policy-string-list-field entry 'disable:)
-                     '())))))))
+                     '())
+                 (policy-string-field entry 'explanation:)))))))
 ;;; Boundary:
 ;;; - policy-agent-entry composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PolicyAgentEntry <- Policy
+;; : (-> Policy PolicyAgentEntry )
 (def (policy-agent-entry policy)
   (if (agent-policy-form? policy)
     policy
     (find agent-policy-form? (datum-list-items policy))))
-;; Boolean <- Datum
+;; : (-> Datum Boolean )
 (def (agent-policy-form? datum)
   (and (pair? datum)
        (member (car datum) '(agent-policy policy-rules))))
-;; PolicyDirectoryList <- Datum
+;; : (-> Datum PolicyDirectoryList )
 (def (policy-directory-list datum)
   (or (policy-string-list-field datum 'allowed-directories:)
       (policy-string-list-field datum 'allow-directories:)
@@ -397,31 +395,31 @@
 ;;; Boundary:
 ;;; - policy-string-list-field composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; String <- Datum String
+;; : (-> Datum String String )
 (def (policy-string-list-field datum field)
   (let (value (package-field-value datum field))
     (cond
      ((not value) #f)
      ((or (string? value) (symbol? value)) [(datum->string value)])
      (else (dedupe (filter-map datum->string (datum-list-items value)))))))
-;; String <- Datum String
+;; : (-> Datum String String )
 (def (policy-string-field datum field)
   (let (value (package-field-value datum field))
     (and value (datum->string value))))
-;; PolicyBooleanField <- Datum String
+;; : (-> Datum String PolicyBooleanField )
 (def (policy-boolean-field datum field)
   (let (value (package-field-value datum field))
     (truthy-policy-value? value)))
 ;;; Boundary:
 ;;; - policy-integer-field* checks aliases in declared precedence order.
 ;;; - Use parser-owned package fields instead of string scanning.
-;; Integer <- Datum (List Symbol)
+;; : (-> Datum (List Symbol) Integer )
 (def (policy-integer-field* datum fields)
   (ormap (cut policy-integer-field datum <>) fields))
 ;;; Boundary:
 ;;; - policy-integer-field normalizes numeric package policy values.
 ;;; - Keep invalid or absent values false so callers can use defaults.
-;; Integer <- Datum Symbol
+;; : (-> Datum Symbol Integer )
 (def (policy-integer-field datum field)
   (let (value (package-field-value datum field))
     (cond
@@ -430,25 +428,43 @@
      (else
       (let (parsed (string->number (datum->string value)))
         (and (integer? parsed) parsed))))))
-;; Boolean <- PolicyValue
+;; : (-> PolicyValue Boolean )
 (def (truthy-policy-value? value)
   (if (or (eq? value #t)
           (member (datum->string value) '("true" "yes" "allow" "allowed")))
     #t
     #f))
-;;; Invariant:
-;;; - package-field-value owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; PackageFieldValue <- Datum String
+;; package-field-value
+;;   : (-> Datum Symbol (U #f Datum))
+;;   | doc m%
+;;       `package-field-value datum field` returns the datum immediately after a
+;;       package field marker, or `#f` when the field is absent.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (package-field-value '(package: name "demo") 'name)
+;;       ;; => "demo"
+;;       ```
+;;     %
 (def (package-field-value datum field)
   (let (tail (member field (datum-list-items datum)))
     (and tail
          (pair? (cdr tail))
          (cadr tail))))
-;;; Invariant:
-;;; - datum-list-items owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Integer <- Obj
+;; datum-list-items
+;;   : (-> Obj (List Obj))
+;;   | doc m%
+;;       `datum-list-items obj` returns the proper-list prefix of a package
+;;       datum while preserving item order.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (datum-list-items '(package: name "demo" . tail))
+;;       ;; => (package: name "demo")
+;;       ```
+;;     %
 (def (datum-list-items obj)
   (let ((rest obj)
         (out '()))
@@ -456,23 +472,41 @@
       (set! out (cons (car rest) out))
       (set! rest (cdr rest)))
     (reverse out)))
-;; SafeCadr <- Obj
+;; : (-> Obj SafeCadr )
 (def (safe-cadr obj)
   (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
-;;; Boundary:
-;;; - datum->string composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; String <- Obj
+;; datum->string
+;;   : (-> Obj (U #f String))
+;;   | doc m%
+;;       `datum->string obj` converts package datums into comparable string
+;;       values, preserving `#f` for absent data.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (datum->string 'allow)
+;;       ;; => "allow"
+;;       ```
+;;     %
 (def (datum->string obj)
   (cond
    ((not obj) #f)
    ((string? obj) obj)
    ((symbol? obj) (symbol->string obj))
    (else (call-with-output-string "" (cut display obj <>)))))
-;;; Invariant:
-;;; - dedupe owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; Dedupe <- (List XX)
+;; dedupe
+;;   : (forall (a) (-> (List a) (List a)))
+;;   | doc m%
+;;       `dedupe items` removes duplicate items while preserving the first
+;;       occurrence order.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (dedupe '(a b a c))
+;;       ;; => (a b c)
+;;       ```
+;;     %
 (def (dedupe items)
   (let (state
         (foldl (lambda (item state)
@@ -484,10 +518,19 @@
                (cons '() '())
                items))
     (reverse (cdr state))))
-;;; Invariant:
-;;; - dedupe-strings owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; (List String) <- (List String)
+;; dedupe-strings
+;;   : (-> (List String) (List String))
+;;   | doc m%
+;;       `dedupe-strings items` removes duplicate strings while preserving the
+;;       first occurrence order.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (dedupe-strings '("src" "t" "src"))
+;;       ;; => ("src" "t")
+;;       ```
+;;     %
 (def (dedupe-strings items)
   (let (state
         (foldl (lambda (item state)
@@ -499,9 +542,18 @@
                (cons '() '())
                items))
     (reverse (cdr state))))
-;;; Boundary:
-;;; - string-list-member? composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; Boolean <- Item (List XX)
+;; string-list-member?
+;;   : (-> String (List String) Boolean)
+;;   | doc m%
+;;       `string-list-member? item items` returns `#t` when an equal string is
+;;       present in `items`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (string-list-member? "src" '("src" "t"))
+;;       ;; => #t
+;;       ```
+;;     %
 (def (string-list-member? item items)
   (find (lambda (candidate) (string=? item candidate)) items))

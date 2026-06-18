@@ -450,6 +450,26 @@ Status: landed.  Guide output points agents to this quality bar:
 This belongs in the existing guide policy surface, not in a new policy
 rule until real-project findings justify enforcement.
 
+* Projection Builder Multi-Signal Transfer
+The projection-builder transfer follows the same rule: parser facts are broad, policy warnings are composite.
+
+The native parser now exposes =projectionBurstFacts= for caller-scoped emitter/projection shape. The fact is intentionally permissive: it records a caller that mixes field projections such as =hash-get= with output calls such as =displayln=. It carries field keys, access count, distinct field count, emitter count, emitters, selectors, and quality facets. The parser does not decide that the code is bad; it only gives the agent a stable native fact.
+
+R016 consumes that fact through a POO/C3 detection prototype named =emitter-projection-burst-all-of=. The warning requires three independent evidence groups:
+- =high-projection-access-count=
+- =multi-field-projection=
+- =emitter-output-boundary=
+
+This prevents the previous hard-coded shape mistake. A single high =hash-get= count is only evidence. A single output call is only evidence. A warning appears only when access density, key spread, and output boundary all align.
+
+The source witness is =gerbil-utils-projection-builder=, backed by =gerbil-utils/base.ss= composition helpers plus Gerbil list-builder/fold examples. These source witnesses now use the same =slot-profile= C3 machinery as dependency adapter profiles, so detection details can expose both =detectionProfilePrecedence= and =detectionSourceProfilePrecedence=. The repair instruction therefore stays open: the agent may extract selectors, line builders, folds, or local helpers, but it must keep traversal and formatting as separately testable behavior.
+
+Regression evidence:
+- =native reader captures projection-burst parser facts=
+- =agent policy reports emitter projection burst through multiple signals=
+- =source detection overlays expose POO profile precedence=
+
+This is the desired pattern for future quality rules: native parser facts first, source-backed POO profile overlays second, multi-signal combinator gates third, and model-guided repair last.
 * Non-Goals
 - Do not copy all of =io.ss= into fixtures.
 - Do not make brace syntax a parser fact without expansion-level evidence.

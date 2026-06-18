@@ -6,18 +6,18 @@
 
 (export bench-report-snapshot)
 
-;; Boolean <- Packet Key
+;; : (-> Packet Key Boolean )
 (def (bench-packet-has-key? packet key)
   (or (hash-key? packet key)
       (hash-key? packet (symbol->string key))))
 
-;; JsonPacket <- Packet Key
+;; : (-> Packet Key JsonPacket )
 (def (bench-packet-get packet key)
   (if (hash-key? packet key)
     (hash-get packet key)
     (hash-get packet (symbol->string key))))
 
-;; Snapshot <- Benchmark
+;; : (-> Benchmark Snapshot )
 (def (bench-step-snapshot benchmark)
   (list 'bench
         (list 'name (bench-packet-get benchmark 'name))
@@ -29,7 +29,7 @@
         (list 'averageMs
               (duration-state (bench-packet-get benchmark 'averageMs)))))
 
-;; Snapshot <- Benchmark
+;; : (-> Benchmark Snapshot )
 (def (bench-slowest-snapshot benchmark)
   (list 'bench
         (list 'name "measured")
@@ -41,7 +41,7 @@
         (list 'averageMs
               (duration-state (bench-packet-get benchmark 'averageMs)))))
 
-;; Snapshot <- TypeFinding
+;; : (-> TypeFinding Snapshot )
 (def (bench-performance-finding-snapshot finding)
   (list 'finding
         (list 'kind (bench-packet-get finding 'kind))
@@ -61,7 +61,7 @@
 ;;; Boundary:
 ;;; - bench-report-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Snapshot <- Packet
+;; : (-> Packet Snapshot )
 (def (bench-report-snapshot packet)
   (list 'benchReport
         (list 'languageId +language-id+)

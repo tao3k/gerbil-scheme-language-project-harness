@@ -40,7 +40,7 @@
    "pattern-inheritance"])
 ;;; Query boundary: these terms activate inherited utility guidance, not generic
 ;;; text search over every gerbil-utils symbol.
-;; Boolean <- (List PatternTerm)
+;; : (-> (List PatternTerm) Boolean )
 (def (poo-inherited-utils-pattern-query? terms)
   (and (pair? terms)
        (ormap (lambda (term)
@@ -49,7 +49,7 @@
 ;;; Boundary:
 ;;; - Emit inherited facts only after gerbil-poo has already been activated.
 ;;; - Keep package closure evidence separate from ambient load-path visibility.
-;; Pattern <- DependencyName (List PatternTerm)
+;; : (-> DependencyName (List PatternTerm) Pattern )
 (def (poo-inherited-utils-pattern-evidence activation-dependency terms)
   (hash (id "gerbil-utils-higher-order-control")
         (extension "poo")
@@ -68,15 +68,15 @@
         (witness "inherited-gerbil-utils-package-closure-and-style-audit")
         (missing [])
         (next "guide --code --topic typed-combinator-style --intent style")))
-;; PooPatternFocus <- (List PatternTerm)
+;; : (-> (List PatternTerm) PooPatternFocus )
 (def (poo-inherited-utils-pattern-focus terms)
   (if (and (pair? terms) (pair? (cdr terms)))
     (join terms " ")
     "higher-order-control typed-combinator-style"))
-;; (List DependencyName) <- DependencyName
+;; : (-> DependencyName (List DependencyName) )
 (def (poo-inherited-utils-dependency-chain activation-dependency)
   [activation-dependency +gerbil-utils-dependency+])
-;; ImportWitness <- DependencyName
+;; : (-> DependencyName ImportWitness )
 (def (poo-inherited-utils-import-witness activation-dependency)
   (hash (status "verified")
         (module ":clan/base")

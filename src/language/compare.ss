@@ -84,7 +84,7 @@
 ;;; Boundary:
 ;;; - matching-compare-facts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List CompareFact) <- (List CompareFact)
+;; : (-> (List CompareFact) (List CompareFact) )
 (def (matching-compare-facts terms)
   (let (facts (compare-facts))
     (if (null? terms)
@@ -96,7 +96,7 @@
 ;;; Boundary:
 ;;; - compare-compile-query? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- (List SearchTerm)
+;; : (-> (List SearchTerm) Boolean )
 (def (compare-compile-query? terms)
   (ormap (lambda (term)
            (or (string-contains "compile compiler gsc target requested source checkout nightly" term)
@@ -106,20 +106,20 @@
 ;;; Boundary:
 ;;; - focus-compare-fact composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; CompareFact <- CompareAxis (List CompareFact)
+;; : (-> CompareAxis (List CompareFact) CompareFact )
 (def (focus-compare-fact id facts)
   (let (focused (filter (lambda (fact) (equal? (hash-get fact 'id) id)) facts))
     (if (null? focused) facts focused)))
 ;;; Boundary:
 ;;; - compare-fact-matches-terms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- CompareFact (List SearchTerm)
+;; : (-> CompareFact (List SearchTerm) Boolean )
 (def (compare-fact-matches-terms? fact terms)
   (ormap (lambda (term)
            (ormap (cut string-contains <> term)
                   (hash-get fact 'terms)))
          terms))
-;; Json <- Fact
+;; : (-> Fact Json )
 (def (compare-fact-json fact)
   (hash (id (hash-get fact 'id))
         (summary (hash-get fact 'summary))

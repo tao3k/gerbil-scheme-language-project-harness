@@ -6,86 +6,86 @@
         :std/srfi/13)
 (export parser-test-part-1)
 
-;; Boolean <- Selector Relpath
+;; : (-> Selector Relpath Boolean )
 (def (selector-owner? selector path)
   (and (string? selector)
        (string-prefix? (string-append path ":") selector)))
 
-;; FindCallWithArgument <- (List CallFact) Argument
+;; : (-> (List CallFact) Argument FindCallWithArgument )
 (def (find-call-with-argument calls argument)
   (find (lambda (call)
           (equal? (call-fact-arguments call) [argument]))
         calls))
-;; Boolean <- (List QualityFacet) QualityFacet
+;; : (-> (List QualityFacet) QualityFacet Boolean )
 (def (quality-facet-member? facets facet)
   (not (not (member facet facets))))
-;; MacroFact <- (List MacroFact) String
+;; : (-> (List MacroFact) String MacroFact )
 (def (find-macro facts name)
   (find (lambda (fact)
           (equal? (macro-fact-name fact) name))
         facts))
-;; (List HigherOrderFact) <- (List HigherOrderFact) String String String
+;; : (-> (List HigherOrderFact) String String String (List HigherOrderFact) )
 (def (find-higher-order facts name role caller)
   (find (lambda (fact)
           (and (equal? (higher-order-fact-name fact) name)
                (equal? (higher-order-fact-role fact) role)
                (equal? (or (higher-order-fact-caller fact) "") caller)))
         facts))
-;; (List ControlFlowFact) <- (List ControlFlowFact) String String String
+;; : (-> (List ControlFlowFact) String String String (List ControlFlowFact) )
 (def (find-control-flow facts name role caller)
   (find (lambda (fact)
           (and (equal? (control-flow-fact-name fact) name)
                (equal? (control-flow-fact-role fact) role)
                (equal? (or (control-flow-fact-caller fact) "") caller)))
         facts))
-;; (List TypedContractFact) <- (List TypedContractFact) String
+;; : (-> (List TypedContractFact) String (List TypedContractFact) )
 (def (find-typed-contract facts name)
   (find (lambda (fact)
           (equal? (typed-contract-fact-definition-name fact) name))
         facts))
-;; PredicateFamilyFact <- (List PredicateFamilyFact) String
+;; : (-> (List PredicateFamilyFact) String PredicateFamilyFact )
 (def (find-predicate-family facts subject)
   (find (lambda (fact)
           (equal? (predicate-family-fact-subject fact) subject))
         facts))
-;; FieldAccessPatternFact <- (List FieldAccessPatternFact) String
+;; : (-> (List FieldAccessPatternFact) String FieldAccessPatternFact )
 (def (find-field-access-pattern facts field-key)
   (find (lambda (fact)
           (equal? (field-access-pattern-fact-field-key fact) field-key))
         facts))
-;; BooleanConditionFact <- (List BooleanConditionFact) String
+;; : (-> (List BooleanConditionFact) String BooleanConditionFact )
 (def (find-boolean-condition facts caller)
   (find (lambda (fact)
           (equal? (boolean-condition-fact-caller fact) caller))
         facts))
-;; LoopDriverFact <- (List LoopDriverFact) String
+;; : (-> (List LoopDriverFact) String LoopDriverFact )
 (def (find-loop-driver facts caller)
   (find (lambda (fact)
           (equal? (loop-driver-fact-caller fact) caller))
         facts))
-;; FunctionQualityProfile <- (List FunctionQualityProfile) String
+;; : (-> (List FunctionQualityProfile) String FunctionQualityProfile )
 (def (find-function-quality-profile profiles name)
   (find (lambda (profile)
           (equal? (function-quality-profile-name profile) name))
         profiles))
-;; PooFormFact <- (List PooFormFact) String
+;; : (-> (List PooFormFact) String PooFormFact )
 (def (find-poo-form facts name)
   (find (lambda (fact)
           (equal? (poo-form-fact-name fact) name))
         facts))
-;; PooFormFact <- (List PooFormFact) String String
+;; : (-> (List PooFormFact) String String PooFormFact )
 (def (find-poo-form-role facts name role)
   (find (lambda (fact)
           (and (equal? (poo-form-fact-name fact) name)
                (equal? (poo-form-fact-role fact) role)))
         facts))
 ;; ParsedData
-;; EnsureDir <- String
+;; : (-> String EnsureDir )
 (def (ensure-dir path)
   (with-catch
    (lambda (_) #f)
    (lambda () (create-directory path))))
-;; Unit <- String SourceLine
+;; : (-> String SourceLine Unit )
 (def (write-text path text)
   (with-catch
    (lambda (_) #f)

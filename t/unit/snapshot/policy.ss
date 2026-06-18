@@ -16,6 +16,8 @@
         controlled-branch-shape-policy-snapshot
         typed-combinator-style-policy-snapshot
         comment-quality-policy-snapshot
+        harness-dependency-policy-application-policy-snapshot
+        harness-dependency-policy-disable-requires-explanation-policy-snapshot
         predicate-family-combinator-policy-snapshot
         build-support-shell-template-policy-snapshot
         package-build-shell-pipeline-policy-snapshot
@@ -60,7 +62,7 @@
                 (list 'r009Findings
                       (map finding-snapshot after-findings))))))
 
-;; PolicyGuidance <- PolicyDetails
+;; : (-> PolicyDetails PolicyGuidance )
 (def (functional-idiom-guidance-snapshot details)
   (list (list 'kind (hash-get details 'kind))
         (list 'caller (hash-get details 'caller))
@@ -105,7 +107,7 @@
                 (list 'r014Findings
                       (map finding-snapshot after-findings))))))
 
-;; PolicyGuidance <- PolicyDetails
+;; : (-> PolicyDetails PolicyGuidance )
 (def (controlled-branch-shape-guidance-snapshot details)
   (list (list 'caller (hash-get details 'caller))
         (list 'shape (hash-get details 'shape))
@@ -150,7 +152,7 @@
                 (list 'r013Findings
                       (map finding-snapshot after-findings))))))
 
-;; PolicyGuidance <- PolicyDetails
+;; : (-> PolicyDetails PolicyGuidance )
 (def (typed-combinator-style-guidance-snapshot details)
   (list (list 'styleGuide (hash-get details 'styleGuide))
         (list 'expectedCommentShape
@@ -171,11 +173,11 @@
         (list 'qualityFacetSteering
               (hash-get details 'qualityFacetSteering))))
 
-;; String <- String
+;; : (-> String String )
 (def (snapshot-string-copy value)
   (and value (string-append "" value)))
 
-;; SnapshotFinding <- TypeFinding
+;; : (-> TypeFinding SnapshotFinding )
 (def (finding-snapshot-copy finding)
   [(type-finding-rule-id finding)
    (snapshot-string-copy (type-finding-path finding))
@@ -210,7 +212,7 @@
                 (list 'r015Findings
                       (map finding-snapshot-copy after-findings))))))
 
-;; PolicyGuidance <- PolicyDetails
+;; : (-> PolicyDetails PolicyGuidance )
 (def (comment-quality-guidance-snapshot details)
   (let* ((examples (hash-get details 'weakCommentExamples))
          (example (and (pair? examples) (car examples))))
@@ -236,6 +238,99 @@
           (list 'exampleCommentKind (hash-get example 'commentKind))
           (list 'exampleQuality (hash-get example 'quality))
           (list 'exampleReasons (hash-get example 'reasons)))))
+
+;; Snapshot
+(def (harness-dependency-policy-application-policy-snapshot)
+  (let* ((scenario
+         (make-policy-scenario
+           "harness-dependency-policy-application"
+           "t/scenarios/policy/harness-dependency-policy-application"))
+         (result (policy-scenario-run/checks scenario))
+         (before-package
+          (project-index-package (policy-scenario-index result 'before)))
+         (after-package
+          (project-index-package (policy-scenario-index result 'after)))
+         (before-finding
+          (policy-scenario-required-finding
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R013"))
+         (after-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R013")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'package
+                      (package-agent-policy-snapshot before-package))
+                (list 'finding
+                      (finding-snapshot-copy before-finding)))
+          (list 'after
+                (list 'package
+                      (package-agent-policy-snapshot after-package))
+                (list 'r013Findings
+                      (map finding-snapshot-copy after-findings))))))
+
+;; Snapshot
+(def (harness-dependency-policy-disable-requires-explanation-policy-snapshot)
+  (let* ((scenario
+          (make-policy-scenario
+           "harness-dependency-policy-disable-requires-explanation"
+           "t/scenarios/policy/harness-dependency-policy-disable-requires-explanation"))
+         (result (policy-scenario-run/checks scenario))
+         (before-package
+          (project-index-package (policy-scenario-index result 'before)))
+         (after-package
+          (project-index-package (policy-scenario-index result 'after)))
+         (before-policy-finding
+          (policy-scenario-required-finding
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R024"))
+         (before-style-finding
+          (policy-scenario-required-finding
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R013"))
+         (after-policy-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R024"))
+         (after-style-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R013")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'package
+                      (package-agent-policy-snapshot before-package))
+                (list 'policyFinding
+                      (finding-snapshot-copy before-policy-finding))
+                (list 'styleFinding
+                      (finding-snapshot-copy before-style-finding)))
+          (list 'after
+                (list 'package
+                      (package-agent-policy-snapshot after-package))
+                (list 'r024Findings
+                      (map finding-snapshot-copy after-policy-findings))
+                (list 'r013Findings
+                      (map finding-snapshot-copy after-style-findings))))))
+
+;; : (-> ProjectPackage PackagePolicySnapshot )
+(def (package-agent-policy-snapshot package)
+  (let (policy (and package (project-package-agent-policy package)))
+    (list (list 'dependencies
+                (and package (project-package-dependencies package)))
+          (list 'default "all-rules-enabled")
+          (list 'disabledRules
+                (if policy (agent-policy-disabled-rules policy) '()))
+          (list 'explanation
+                (and policy (agent-policy-explanation policy))))))
 
 ;; Snapshot
 (def (macro-controlled-helper-policy-snapshot)
@@ -270,7 +365,7 @@
                   (list 'macroFact
                         (macro-fact-snapshot after-macro)))))))
 
-;; PolicyGuidance <- PolicyDetails
+;; : (-> PolicyDetails PolicyGuidance )
 (def (macro-controlled-helper-guidance-snapshot details)
   (let ((runtime (hash-get details 'runtimeSourceRequirement))
         (source (hash-get details 'gerbilUtilsSource)))
@@ -315,7 +410,7 @@
                 (list 'r016Findings
                       (map finding-snapshot after-findings))))))
 
-;; ProfileSnapshot <- PolicyDetails
+;; : (-> PolicyDetails ProfileSnapshot )
 (def (predicate-combinator-profile-snapshot details)
   (let ((source (hash-get details 'gerbilUtilsSource)))
     (list (list 'styleGuide (hash-get details 'styleGuide))
@@ -341,7 +436,7 @@
    "package-build-shell-pipeline"
    "t/scenarios/policy/package-build-shell-pipeline"))
 
-;; Snapshot <- ScenarioId ScenarioRoot
+;; : (-> ScenarioId ScenarioRoot Snapshot )
 (def (build-runtime-quality-policy-snapshot id root)
   (let* ((scenario
           (make-policy-scenario
@@ -369,7 +464,7 @@
                 (list 'r020Findings
                       (map finding-snapshot after-findings))))))
 
-;; RuntimeQualitySnapshot <- PolicyDetails
+;; : (-> PolicyDetails RuntimeQualitySnapshot )
 (def (build-runtime-quality-snapshot details)
   (list (list 'kind (hash-get details 'kind))
         (list 'detectionCombiner (hash-get details 'detectionCombiner))
@@ -396,7 +491,7 @@
    "dependency-protocol-adapter"
    "t/scenarios/policy/dependency-protocol-adapter"))
 
-;; Snapshot <- ScenarioId ScenarioRoot
+;; : (-> ScenarioId ScenarioRoot Snapshot )
 (def (dependency-adapter-policy-snapshot id root)
   (let* ((scenario
           (make-policy-scenario
@@ -424,7 +519,7 @@
                 (list 'r017Findings
                       (map finding-snapshot after-findings))))))
 
-;; AdapterProfileSnapshot <- PolicyDetails
+;; : (-> PolicyDetails AdapterProfileSnapshot )
 (def (dependency-adapter-profile-snapshot details)
   (list (list 'styleGuide (hash-get details 'styleGuide))
         (list 'dependency (hash-get details 'dependency))
@@ -446,7 +541,7 @@
         (list 'agentRepairStandard
               (hash-get details 'agentRepairStandard))))
 
-;; MacroFactSnapshot <- MacroFact
+;; : (-> MacroFact MacroFactSnapshot )
 (def (macro-fact-snapshot fact)
   (list (list 'macro (macro-fact-name fact))
         (list 'transformer (macro-fact-transformer fact))
@@ -468,6 +563,12 @@
              "t/snapshots/policy-typed-combinator-style.ss"))
   (check (comment-quality-policy-snapshot)
          => (snapshot-load "t/snapshots/policy-comment-quality.ss"))
+  (check (harness-dependency-policy-application-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-harness-dependency-policy-application.ss"))
+  (check (harness-dependency-policy-disable-requires-explanation-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-harness-dependency-policy-disable-requires-explanation.ss"))
   (check (macro-controlled-helper-policy-snapshot)
          => (snapshot-load "t/snapshots/policy-macro-controlled-helper.ss"))
   (check (predicate-family-combinator-policy-snapshot)

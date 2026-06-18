@@ -22,7 +22,7 @@
 ;;; Boundary:
 ;;; - poo-direct-writeenv-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (poo-direct-writeenv-findings index)
   (apply append
          (map (lambda (file)
@@ -32,10 +32,10 @@
                         (poo-direct-writeenv-finding file call)))
                  (source-file-calls file)))
               (project-index-files index))))
-;; Boolean <- CallFact
+;; : (-> CallFact Boolean )
 (def (direct-writeenv-call? call)
   (equal? (call-fact-callee call) "writeenv"))
-;; TypeFinding <- SourceFile CallFact
+;; : (-> SourceFile CallFact TypeFinding )
 (def (poo-direct-writeenv-finding file call)
   (make-type-finding
    (policy-rule-id +agent-poo-direct-writeenv-rule+)
@@ -48,7 +48,7 @@
 ;;; Boundary:
 ;;; - poo-io-runtime-witness-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (poo-io-runtime-witness-findings index)
   (filter-map
    (lambda (file)
@@ -60,10 +60,10 @@
 ;;; Boundary:
 ;;; - poo-io-source-file? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (poo-io-source-file? file)
   (ormap poo-io-import? (source-file-imports file)))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (poo-io-import? import)
   (or (equal? import ":clan/poo/io")
       (equal? import "clan/poo/io")
@@ -71,7 +71,7 @@
 ;;; Boundary:
 ;;; - poo-io-method-override-file? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- SourceFile
+;; : (-> SourceFile Boolean )
 (def (poo-io-method-override-file? file)
   (or (ormap (lambda (form)
                (member (top-form-head form)
@@ -81,7 +81,7 @@
                (member (call-fact-callee call)
                        ["defmethod" ".defmethod"]))
              (source-file-calls file))))
-;; TypeFinding <- SourceFile
+;; : (-> SourceFile TypeFinding )
 (def (poo-io-runtime-witness-finding file)
   (make-type-finding
    (policy-rule-id +agent-poo-io-runtime-witness-rule+)
@@ -94,7 +94,7 @@
 ;;; Boundary:
 ;;; - poo-object-model-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (poo-object-model-findings index)
   (if (poo-capability-active? index)
     (apply append
@@ -106,7 +106,7 @@
                    (source-file-calls file)))
                 (project-index-files index)))
     '()))
-;; Boolean <- ProjectIndex SourceFile CallFact
+;; : (-> ProjectIndex SourceFile CallFact Boolean )
 (def (manual-object-model-call? index file call)
   (and (index-source-runtime-file-path? index (source-file-path file))
        (null? (source-file-poo-forms file))
@@ -115,7 +115,7 @@
        (or (string-prefix? "make-" (call-fact-caller call))
            (string-prefix? "new-" (call-fact-caller call))
            (string-prefix? "build-" (call-fact-caller call)))))
-;; TypeFinding <- SourceFile CallFact
+;; : (-> SourceFile CallFact TypeFinding )
 (def (poo-object-model-finding file call)
   (make-type-finding
    (policy-rule-id +agent-poo-object-model-rule+)
@@ -132,7 +132,7 @@
 ;;; Boundary:
 ;;; - poo-method-shape-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (poo-method-shape-findings index)
   (apply append
          (map (lambda (file)
@@ -147,7 +147,7 @@
 ;;; Boundary:
 ;;; - poo-method-shape-missing composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; PooMethodShapeMissing <- ProjectIndex Fact
+;; : (-> ProjectIndex Fact PooMethodShapeMissing )
 (def (poo-method-shape-missing index fact)
   (filter identity
           [(and (blank-string? (poo-form-fact-generic fact)) "generic")
@@ -163,18 +163,18 @@
 ;;; Boundary:
 ;;; - poo-generic-fact-exists? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- ProjectIndex Generic
+;; : (-> ProjectIndex Generic Boolean )
 (def (poo-generic-fact-exists? index generic)
   (ormap
    (lambda (fact)
      (and (equal? (poo-form-fact-role fact) "generic")
           (equal? (poo-form-fact-generic fact) generic)))
    (project-poo-forms index)))
-;; Boolean <- ProjectIndex String
+;; : (-> ProjectIndex String Boolean )
 (def (poo-receiver-evidence-exists? index name)
   (or (poo-class-fact-exists? index name)
       (poo-protocol-fact-exists? index name)))
-;; TypeFinding <- SourceFile Fact Missing
+;; : (-> SourceFile Fact Missing TypeFinding )
 (def (poo-method-shape-finding file fact missing)
   (make-type-finding
    (policy-rule-id +agent-poo-method-shape-rule+)

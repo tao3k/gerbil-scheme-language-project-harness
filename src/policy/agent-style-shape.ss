@@ -18,11 +18,17 @@
 (def +field-access-helper-evidence-min-access-count+ 8)
 ;; Integer
 (def +field-access-helper-evidence-min-caller-count+ 3)
+;; Integer
+(def +projection-burst-min-access-count+ 12)
+;; Integer
+(def +projection-burst-min-field-count+ 4)
+;; Integer
+(def +projection-burst-min-emitter-count+ 2)
 
 ;;; Branch-shape entrypoint:
 ;;; - Emit findings only after parser-owned control-flow facts group repeated shapes.
 ;;; - Keep style repair bounded to one source owner at a time.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (controlled-branch-shape-findings index)
   (apply append
          (map (cut file-controlled-branch-shape-findings index <>)
@@ -31,24 +37,26 @@
 ;;; Predicate-family entrypoint:
 ;;; - Require native predicateFamilyFacts before suggesting helper extraction.
 ;;; - Preserve public predicate names unless the owning policy later changes.
-;; (List TypeFinding) <- ProjectIndex
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (predicate-family-combinator-findings index)
   (apply append
          (map (cut file-predicate-family-combinator-findings index <>)
               (project-index-files index))))
 
 ;;; Policy gate: repeated predicates must be parser-owned before agent style repair can touch them.
-;; (List TypeFinding) <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile (List TypeFinding) )
 (def (file-predicate-family-combinator-findings index file)
   (if (index-source-runtime-file-path? index (source-file-path file))
     (append
      (filter-map (cut predicate-family-combinator-finding file <>)
                  (source-file-predicate-family-facts file))
      (filter-map (cut field-access-helper-finding file <>)
-                 (source-file-field-access-pattern-facts file)))
+                 (source-file-field-access-pattern-facts file))
+     (filter-map (cut emitter-projection-burst-finding file <>)
+                 (source-file-projection-burst-facts file)))
     '()))
 
-;; TypeFinding <- SourceFile PredicateFamilyFact
+;; : (-> SourceFile PredicateFamilyFact TypeFinding )
 (def (predicate-family-combinator-finding file fact)
   (and (>= (predicate-family-fact-predicate-count fact) 3)
        (make-type-finding
@@ -59,7 +67,7 @@
         (predicate-family-fact-selector fact)
         (predicate-family-combinator-details file fact))))
 
-;; Message <- PredicateFamilyFact
+;; : (-> PredicateFamilyFact Message )
 (def (predicate-family-combinator-message fact)
   (string-append
    "predicate family over "
@@ -69,7 +77,7 @@
 ;;; Details deliberately preserve both the family fact and the field-access
 ;;; facts: the model sees why a helper/combinator rewrite is allowed, while the
 ;;; policy remains agnostic about exact helper names.
-;; PolicyDetails <- SourceFile PredicateFamilyFact
+;; : (-> SourceFile PredicateFamilyFact PolicyDetails )
 (def (predicate-family-combinator-details file fact)
   (hash (styleGuide "predicate-family-combinator")
         (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
@@ -98,7 +106,7 @@
                              "do not rewrite IO/runtime/macro boundaries without witness"])))
         (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
 
-;; TypeFinding <- SourceFile FieldAccessPatternFact
+;; : (-> SourceFile FieldAccessPatternFact TypeFinding )
 (def (field-access-helper-finding file fact)
   (let (detection (field-access-helper-detection fact))
     (and detection
@@ -111,14 +119,14 @@
                                      (field-access-pattern-fact-selector fact))
           (field-access-helper-details fact detection)))))
 
-;; Boolean <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact Boolean )
 (def (field-access-helper-evidence-complete? fact)
   (not (not (field-access-helper-detection fact))))
 
 ;;; Detector boundary:
 ;;; - R016 field-access warnings require two independent parser-owned groups.
 ;;; - The all-of prototype exposes that decision as data for agent repair.
-;; MaybeDetectionResult <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact MaybeDetectionResult )
 (def (field-access-helper-detection fact)
   (run-detection-prototype fact (field-access-helper-detection-prototype)))
 
@@ -143,7 +151,7 @@
 ;;; Evidence boundary:
 ;;; - Access-count evidence is one independent group in the all-of detector.
 ;;; - Selector ownership remains on the parser fact that exposed the field key.
-;; MaybeEvidenceGroup <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact MaybeEvidenceGroup )
 (def (field-access-count-evidence fact)
   (and (>= (field-access-pattern-fact-access-count fact)
            +field-access-helper-evidence-min-access-count+)
@@ -156,7 +164,7 @@
 ;;; - Caller-spread evidence is separate from raw access frequency.
 ;;; - Keeping it as another EvidenceGroup prevents single-caller hot code from
 ;;;   becoming a style warning.
-;; MaybeEvidenceGroup <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact MaybeEvidenceGroup )
 (def (field-access-caller-spread-evidence fact)
   (let (caller-count (length (field-access-pattern-fact-callers fact)))
     (and (>= caller-count +field-access-helper-evidence-min-caller-count+)
@@ -165,7 +173,7 @@
           caller-count
           (field-access-pattern-fact-selector fact)))))
 
-;; Message <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact Message )
 (def (field-access-helper-message fact)
   (string-append
    "field access "
@@ -179,7 +187,7 @@
 ;;; Details boundary:
 ;;; - Detection metadata is copied through so agents see the all-of gate.
 ;;; - Field-specific repair evidence stays attached to the original parser fact.
-;; PolicyDetails <- FieldAccessPatternFact DetectionResult
+;; : (-> FieldAccessPatternFact DetectionResult PolicyDetails )
 (def (field-access-helper-details fact detection)
   (let (details (detection-result-details detection))
     (hash (styleGuide "predicate-family-combinator")
@@ -208,12 +216,12 @@
            "extract a local selector helper only after native parser evidence shows both high access count and cross-caller spread; keep packet keys stable and preserve caller behavior")
           (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style"))))
 
-;; (List PolicySignal) <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact (List PolicySignal) )
 (def (field-access-helper-policy-signals fact)
   ["high-field-access-count"
    "cross-caller-field-access"])
 
-;; RepairEvidence <- FieldAccessPatternFact
+;; : (-> FieldAccessPatternFact RepairEvidence )
 (def (field-access-pattern-repair-evidence fact)
   (hash (fieldKey (field-access-pattern-fact-field-key fact))
         (accessCount (field-access-pattern-fact-access-count fact))
@@ -222,10 +230,127 @@
         (selector (field-access-pattern-fact-selector fact))
         (advice (field-access-pattern-fact-advice fact))))
 
+;; : (-> SourceFile ProjectionBurstFact TypeFinding )
+(def (emitter-projection-burst-finding file fact)
+  (let (detection (emitter-projection-burst-detection fact))
+    (and detection
+         (make-type-finding
+          (policy-rule-id +agent-predicate-family-combinator-rule+)
+          (policy-rule-severity +agent-predicate-family-combinator-rule+)
+          (source-file-path file)
+          (emitter-projection-burst-message fact)
+          (detection-result-selector detection
+                                     (projection-burst-fact-selector fact))
+          (emitter-projection-burst-details fact detection)))))
+
+;;; Detector boundary:
+;;; - Projection bursts require access density, key spread, and emitter evidence.
+;;; - The C3 profile keeps thresholds/data extensible without editing assembly.
+;; : (-> ProjectionBurstFact MaybeDetectionResult )
+(def (emitter-projection-burst-detection fact)
+  (run-detection-prototype fact (emitter-projection-burst-detection-prototype)))
+
+;; DetectionPrototype
+(def (emitter-projection-burst-detection-prototype)
+  (detection-prototype-extend
+   +all-of-detection-prototype+
+   (gerbil-utils-source-detection-overlay 'projection-builder)
+   (detection-prototype
+    "emitter-projection-burst-all-of"
+    'all-of
+    [projection-access-count-evidence
+     projection-field-spread-evidence
+     projection-emitter-count-evidence]
+    0
+    ["high-projection-access-count"
+     "multi-field-projection"
+     "emitter-output-boundary"]
+    "emitter projection repair requires access density, field spread, and output boundary evidence")))
+
+;; : (-> ProjectionBurstFact MaybeEvidenceGroup )
+(def (projection-access-count-evidence fact)
+  (and (>= (projection-burst-fact-access-count fact)
+           +projection-burst-min-access-count+)
+       (evidence-group
+        "high-projection-access-count"
+        (projection-burst-fact-access-count fact)
+        (projection-burst-fact-selector fact))))
+
+;; : (-> ProjectionBurstFact MaybeEvidenceGroup )
+(def (projection-field-spread-evidence fact)
+  (and (>= (projection-burst-fact-accessor-count fact)
+           +projection-burst-min-field-count+)
+       (evidence-group
+        "multi-field-projection"
+        (projection-burst-fact-accessor-count fact)
+        (projection-burst-fact-selector fact))))
+
+;; : (-> ProjectionBurstFact MaybeEvidenceGroup )
+(def (projection-emitter-count-evidence fact)
+  (and (>= (projection-burst-fact-emitter-count fact)
+           +projection-burst-min-emitter-count+)
+       (evidence-group
+        "emitter-output-boundary"
+        (projection-burst-fact-emitter-count fact)
+        (projection-burst-fact-selector fact))))
+
+;; : (-> ProjectionBurstFact Message )
+(def (emitter-projection-burst-message fact)
+  (string-append
+   "emitter "
+   (projection-burst-fact-caller fact)
+   " mixes "
+   (number->string (projection-burst-fact-access-count fact))
+   " field projections with "
+   (number->string (projection-burst-fact-emitter-count fact))
+   " output calls; split selectors, line builders, and traversal before adding more hash-get/display scaffolding"))
+
+;; : (-> ProjectionBurstFact DetectionResult PolicyDetails )
+(def (emitter-projection-burst-details fact detection)
+  (let (details (detection-result-details detection))
+    (hash (styleGuide "predicate-family-combinator")
+          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+          (qualityReference "gerbil-utils")
+          (evidenceSource "parser-owned projectionBurstFacts")
+          (policySignals (hash-get details 'evidenceGroups))
+          (detectionCombiner (hash-get details 'detectionCombiner))
+          (detectionPrototype (hash-get details 'detectionPrototype))
+          (detectionCombinerKind (hash-get details 'detectionCombinerKind))
+          (detectionThreshold (hash-get details 'detectionThreshold))
+          (detectionDescription (hash-get details 'detectionDescription))
+          (detectionSourcePattern (hash-get details 'detectionSourcePattern))
+          (detectionSourceOwners (hash-get details 'detectionSourceOwners))
+          (detectionQualitySignals (hash-get details 'detectionQualitySignals))
+          (detectionWitness (hash-get details 'detectionWitness))
+          (detectionProfilePrecedence
+           (hash-get details 'detectionProfilePrecedence))
+          (requiredGroups (hash-get details 'requiredGroups))
+          (missingGroups (hash-get details 'missingGroups))
+          (evidenceGroups (hash-get details 'evidenceGroups))
+          (evidenceCounts (hash-get details 'evidenceCounts))
+          (evidenceSelectors (hash-get details 'evidenceSelectors))
+          (projectionBurst (projection-burst-repair-evidence fact))
+          (agentRepairStandard
+           "extract selector helpers and line builders before changing output behavior; keep traversal and formatting separately testable")
+          (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style"))))
+
+;; : (-> ProjectionBurstFact RepairEvidence )
+(def (projection-burst-repair-evidence fact)
+  (hash (caller (projection-burst-fact-caller fact))
+        (fieldKeys (projection-burst-fact-field-keys fact))
+        (accessCount (projection-burst-fact-access-count fact))
+        (accessorCount (projection-burst-fact-accessor-count fact))
+        (emitterCount (projection-burst-fact-emitter-count fact))
+        (accessors (projection-burst-fact-accessors fact))
+        (emitters (projection-burst-fact-emitters fact))
+        (qualityFacets (projection-burst-fact-quality-facets fact))
+        (selector (projection-burst-fact-selector fact))
+        (advice (projection-burst-fact-advice fact))))
+
 ;;; Runtime-source gate:
 ;;; - Only source-runtime owners participate in branch-shape repair.
 ;;; - Test and generated owners can still expose facts without style findings.
-;; (List TypeFinding) <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile (List TypeFinding) )
 (def (file-controlled-branch-shape-findings index file)
   (if (index-source-runtime-file-path? index (source-file-path file))
     (filter-map (cut controlled-branch-shape-finding file <>)
@@ -234,18 +359,18 @@
                          (source-file-control-flow-forms file))))
     '()))
 
-;; Boolean <- ControlFlowFact
+;; : (-> ControlFlowFact Boolean )
 (def (pattern-branch-control-flow? fact)
   (equal? (control-flow-fact-role fact) "pattern-branch"))
 
-;; Boolean <- ControlFlowFact
+;; : (-> ControlFlowFact Boolean )
 (def (manual-loop-control-flow? fact)
   (equal? (control-flow-fact-role fact) "manual-loop"))
 
 ;;; Shape classifier:
 ;;; - Keep the branch/loop predicate list explicit so policies can add roles safely.
 ;;; - Avoid broad style findings when parser facts have not classified control flow.
-;; Boolean <- ControlFlowFact
+;; : (-> ControlFlowFact Boolean )
 (def (controlled-branch-shape-control-flow? fact)
   (ormap (lambda (predicate) (predicate fact))
          [pattern-branch-control-flow?
@@ -254,14 +379,14 @@
 ;;; Grouping reducer:
 ;;; - Fold by caller so repeated branch shapes are repaired within one behavior boundary.
 ;;; - Preserve all facts for the later message and details packet.
-;; (List ControlFlowGroup) <- (List ControlFlowFact)
+;; : (-> (List ControlFlowFact) (List ControlFlowGroup) )
 (def (controlled-branch-shape-groups facts)
   (foldl (lambda (fact groups)
            (add-control-flow-shape-group groups fact))
          '()
          facts))
 
-;; (List ControlFlowGroup) <- (List ControlFlowGroup) ControlFlowFact
+;; : (-> (List ControlFlowGroup) ControlFlowFact (List ControlFlowGroup) )
 (def (add-control-flow-shape-group groups fact)
   (let* ((key (control-flow-shape-group-key fact))
          (prior (assoc key groups)))
@@ -273,18 +398,18 @@
 ;;; Group replacement helper:
 ;;; - Remove the prior caller group before consing the updated group.
 ;;; - This keeps foldl output deterministic without mutating the accumulator.
-;; (List ControlFlowGroup) <- ControlFlowCaller (List ControlFlowGroup)
+;; : (-> ControlFlowCaller (List ControlFlowGroup) (List ControlFlowGroup) )
 (def (remove-control-flow-shape-group key groups)
   (filter (lambda (group) (not (equal? (car group) key))) groups))
 
-;; (List ControlFlowFact) <- ControlFlowFact
+;; : (-> ControlFlowFact (List ControlFlowFact) )
 (def (control-flow-shape-group-key fact)
   (or (control-flow-fact-caller fact) "<top-level>"))
 
 ;;; Shape decision:
 ;;; - Repeated pattern branches and stateful selector loops are distinct repairs.
 ;;; - Return #f for single-branch or low-evidence groups so advice stays quiet.
-;; String <- ControlFlowGroup
+;; : (-> ControlFlowGroup String )
 (def (controlled-branch-shape-kind group)
   (let* ((facts (cdr group))
          (pattern-facts (filter pattern-branch-control-flow? facts))
@@ -295,13 +420,13 @@
       "pattern-branch-with-manual-loop")
      (else #f))))
 
-;; Boolean <- ControlFlowFact
+;; : (-> ControlFlowFact Boolean )
 (def (state-selector-manual-loop? fact)
   (and (manual-loop-control-flow? fact)
        (>= (control-flow-fact-binding-count fact) 4)
        (<= (control-flow-fact-line-span fact) 24)))
 
-;; Integer <- ControlFlowFact
+;; : (-> ControlFlowFact Integer )
 (def (control-flow-fact-line-span fact)
   (fx1+ (- (control-flow-fact-end fact)
            (control-flow-fact-start fact))))
@@ -309,7 +434,7 @@
 ;;; Finding assembly:
 ;;; - Use the earliest control-flow fact as selector anchor for stable repair.
 ;;; - Preserve all grouped facts in details instead of choosing rewrite shape here.
-;; TypeFinding <- SourceFile ControlFlowGroup
+;; : (-> SourceFile ControlFlowGroup TypeFinding )
 (def (controlled-branch-shape-finding file group)
   (let (shape-kind (controlled-branch-shape-kind group))
     (and shape-kind
@@ -331,7 +456,7 @@
              manual-loop-facts
              first-fact))))))
 
-;; PolicyDetails <- String String ControlFlowFacts ControlFlowFacts ControlFlowFact
+;; : (-> String String ControlFlowFacts ControlFlowFacts ControlFlowFact PolicyDetails )
 (def (controlled-branch-shape-details caller shape-kind pattern-facts manual-loop-facts first-fact)
   (hash (caller caller)
         (shape shape-kind)
@@ -349,7 +474,7 @@
         (expressionLevelRewrite "turn repeated match plus accumulator shape into a named predicate/mapper/reducer pipeline before changing behavior")
         (next "guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")))
 
-;; Message <- String String
+;; : (-> String String Message )
 (def (controlled-branch-shape-message caller shape-kind)
   (cond
    ((equal? shape-kind "pattern-branch-with-manual-loop")
@@ -362,7 +487,7 @@
 ;;; Earliest selector reducer:
 ;;; - The first source span is the least surprising repair anchor for an agent.
 ;;; - The fold preserves the full grouped evidence for details.
-;; ControlFlowFact <- (NonEmptyList ControlFlowFact)
+;; : (-> (NonEmptyList ControlFlowFact) ControlFlowFact )
 (def (earliest-control-flow-fact facts)
   (foldl (lambda (fact earliest)
            (if (< (control-flow-fact-start fact)

@@ -7,19 +7,19 @@
         :std/misc/ports
         (only-in :std/text/json read-json))
 (export bench-test)
-;; Json <- Table Key
+;; : (-> Table Key Json )
 (def (json-get table key)
   (hash-get table key))
-;; Json <- (List Json) String
+;; : (-> (List Json) String Json )
 (def (find-performance-finding findings kind)
   (cond
    ((null? findings) #f)
    ((equal? (json-get (car findings) "kind") kind) (car findings))
    (else (find-performance-finding (cdr findings) kind))))
-;; BenchOutput <- (List XX)
+;; : (-> (List XX) BenchOutput )
 (def (bench-output args)
   (bench-output/status args 0))
-;; Status <- (List XX) ExpectedStatus
+;; : (-> (List XX) ExpectedStatus Status )
 (def (bench-output/status args expected-status)
   (let* ((status #f)
          (output
@@ -29,7 +29,7 @@
                 (set! status (bench-main args)))))))
     (check status => expected-status)
     output))
-;; Boolean <- OutputPort Fragment
+;; : (-> OutputPort Fragment Boolean )
 (def (contains? output fragment)
   (and (string-contains output fragment) #t))
 ;; BenchTest

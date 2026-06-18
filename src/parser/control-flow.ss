@@ -40,13 +40,22 @@
 (def +coroutine-control-heads+
   '(yield cothread continue in-coroutine in-cothread in-cothread/peekable
     generating<-for-each generating<-cothread))
-;; (List ControlFlowFact) <- Relpath Form Datum
+;; : (-> Relpath Form Datum (List ControlFlowFact) )
 (def (control-flow-facts-from-form relpath form datum)
   (control-flow-facts-from-stx relpath form (form-caller-name datum)))
-;;; Boundary:
-;;; - control-flow-facts-from-stxes composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List ControlFlowFact) <- Relpath Exprs String
+;; control-flow-facts-from-stxes
+;;   : (-> Relpath (List ExprStx) String (List ControlFlowFact))
+;;   | doc m%
+;;       `control-flow-facts-from-stxes relpath exprs caller` appends
+;;       control-flow facts collected from each expression syntax object.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (control-flow-facts-from-stxes "src/core.ss" exprs "handler")
+;;       ;; => control-flow facts
+;;       ```
+;;     %
 (def (control-flow-facts-from-stxes relpath exprs caller)
   (apply append
          (map (cut control-flow-facts-from-stx relpath <> caller)
@@ -54,7 +63,7 @@
 ;;; Boundary:
 ;;; - control-flow-facts-from-stx coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; (List ControlFlowFact) <- Relpath ExprStx String
+;; : (-> Relpath ExprStx String (List ControlFlowFact) )
 (def (control-flow-facts-from-stx relpath expr-stx caller)
   (if (not (stx-pair? expr-stx))
     '()
@@ -98,27 +107,37 @@
         '())
        (else
         (control-flow-facts-from-stxes relpath (cdr items) caller))))))
-;;; Boundary:
-;;; - control-flow-facts-from-let-binding-stxes composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; (List ControlFlowFact) <- Relpath (List Definition) String
+;; control-flow-facts-from-let-binding-stxes
+;;   : (-> Relpath (List Binding) String (List ControlFlowFact))
+;;   | doc m%
+;;       `control-flow-facts-from-let-binding-stxes relpath bindings caller`
+;;       collects control-flow facts from the initializer expression of each let
+;;       binding.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (control-flow-facts-from-let-binding-stxes "src/core.ss" bindings "handler")
+;;       ;; => control-flow facts
+;;       ```
+;;     %
 (def (control-flow-facts-from-let-binding-stxes relpath bindings caller)
   (apply append
          (map (cut control-flow-facts-from-let-binding-stx relpath <> caller)
               bindings)))
-;; (List ControlFlowFact) <- Relpath Binding String
+;; : (-> Relpath Binding String (List ControlFlowFact) )
 (def (control-flow-facts-from-let-binding-stx relpath binding caller)
   (let (items (stx-list-items binding))
     (if (and (pair? items) (pair? (cdr items)))
       (control-flow-facts-from-stx relpath (cadr items) caller)
       '())))
-;; Boolean <- ExprStx Head
+;; : (-> ExprStx Head Boolean )
 (def (named-let-stx? expr-stx head)
   (and (eq? head 'let)
        (let (items (stx-list-items expr-stx))
          (and (pair? (cdr items))
               (symbol? (syntax->datum (cadr items)))))))
-;; Fact <- Relpath ExprStx String
+;; : (-> Relpath ExprStx String Fact )
 (def (named-let-control-flow-fact relpath expr-stx caller)
   (let* ((items (stx-list-items expr-stx))
          (name (datum->string (syntax->datum (cadr items))))
@@ -134,7 +153,7 @@
                             caller
                             (length bindings)
                             (length body))))
-;; Boolean <- Head
+;; : (-> Head Boolean )
 (def (control-flow-head? head)
   (or (member head +protected-control-heads+)
       (member head +protected-handler-heads+)
@@ -148,7 +167,7 @@
 ;;; Role taxonomy:
 ;;; - Existing roles stay stable for policy compatibility; new roles expose finer runtime boundaries.
 ;;; - Control-flow facets below carry the cross-cutting guidance terms used by search and comments.
-;; String <- Head
+;; : (-> Head String )
 (def (control-flow-role head)
   (cond
    ((member head +protected-control-heads+) "protected-control")
@@ -165,7 +184,7 @@
 ;;; Facet projection:
 ;;; - Convert precise parser roles into search/comment vocabulary without widening the fact struct.
 ;;; - Keep this expression-level filter so every facet remains visibly tied to one control-flow role.
-;; (List QualityFacet) <- ControlFlowFact
+;; : (-> ControlFlowFact (List QualityFacet) )
 (def (control-flow-quality-facets fact)
   (dedupe
    (filter identity
@@ -193,7 +212,7 @@
                 "extensible-match-dsl")
             (and (equal? (control-flow-fact-role fact) "manual-loop")
                 "manual-loop-driver")])))
-;; Fact <- Relpath ExprStx Head String
+;; : (-> Relpath ExprStx Head String Fact )
 (def (generic-control-flow-fact relpath expr-stx head caller)
   (let* ((items (stx-list-items expr-stx))
          (loc (stx-source expr-stx)))
@@ -206,7 +225,7 @@
                             caller
                             0
                             (length (cdr items)))))
-;; Fact <- Relpath ExprStx String
+;; : (-> Relpath ExprStx String Fact )
 (def (match-control-flow-fact relpath expr-stx caller)
   (let* ((items (stx-list-items expr-stx))
          (loc (stx-source expr-stx)))

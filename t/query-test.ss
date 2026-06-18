@@ -4,8 +4,17 @@
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :gerbil/gambit
         :std/test
-        :commands/query)
+        (only-in :std/misc/process run-process)
+        :commands/query
+        :support/time)
 (export query-test)
+
+;;; Boundary:
+;;; - This budget measures Gerbil test-process spawning and capture overhead.
+;;; - It still rejects the old timeout-scale path while tolerating host jitter.
+;; : Milliseconds
+(def +native-query-fast-path-budget-ms+ 5000)
+
 ;; QueryTest
 (def query-test
   (test-suite "gerbil scheme harness query"
@@ -15,11 +24,11 @@
                                   "--workspace"
                                   "."
                                   "--code"]))
-        (check (car result) => 0)
+        (check (query-result-exit-code result) => 0)
         (check (not
                 (not
                  (string-contains
-                  (cdr result)
+                  (query-result-output result)
                   "(def (guide-lines)")))
                => #t)))
     (test-case "selector query accepts graph frontier colon ranges"
@@ -28,12 +37,46 @@
                                   "--workspace"
                                   "."
                                   "--code"]))
-        (check (car result) => 0)
+        (check (query-result-exit-code result) => 0)
         (check (not
                 (not
                  (string-contains
-                  (cdr result)
+                  (query-result-output result)
                   "(def (guide-lines)")))
+               => #t)))
+    (test-case "native provider selector content returns without Gerbil runtime cold path"
+      (let (result (native-query-output ["--selector"
+                                         "src/support/io.ss:145-165"
+                                         "--content"]))
+        (check (query-result-exit-code result) => 0)
+        (check (< (query-result-duration-ms result)
+                  +native-query-fast-path-budget-ms+)
+               => #t)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "(def (read-line-range path start end)")))
+               => #t)))
+    (test-case "native provider selector json returns without Gerbil runtime cold path"
+      (let (result (native-query-output ["--selector"
+                                         "src/support/io.ss:145-165"
+                                         "--json"]))
+        (check (query-result-exit-code result) => 0)
+        (check (< (query-result-duration-ms result)
+                  +native-query-fast-path-budget-ms+)
+               => #t)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "\"selector\":\"src/support/io.ss:145-165\"")))
+               => #t)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "\"code\"")))
                => #t)))
     (test-case "ownerless gerbil-poo query routes to registered knowledge"
       (let (result (query-output ["--term"
@@ -43,8 +86,8 @@
                                   "--workspace"
                                   "."
                                   "--names-only"]))
-        (check (car result) => 0)
-        (let (message (cdr result))
+        (check (query-result-exit-code result) => 0)
+        (let (message (query-result-output result))
           (check (string-contains message
                                   "[gerbil-query-route] query=gerbil-poo usage")
                  => 0)
@@ -94,8 +137,8 @@
                                   "--workspace"
                                   "."
                                   "--names-only"]))
-        (check (car result) => 0)
-        (let (message (cdr result))
+        (check (query-result-exit-code result) => 0)
+        (let (message (query-result-output result))
           (check (not
                   (not
                    (string-contains
@@ -117,8 +160,8 @@
                                   "."
                                   "--names-only"
                                   "--json"]))
-        (check (car result) => 0)
-        (let (message (cdr result))
+        (check (query-result-exit-code result) => 0)
+        (let (message (query-result-output result))
           (check (not
                   (not
                    (string-contains message "\"sourceLookup\"")))
@@ -151,8 +194,8 @@
                                   "--workspace"
                                   "."
                                   "--names-only"]))
-        (check (car result) => 2)
-        (let (message (cdr result))
+        (check (query-result-exit-code result) => 2)
+        (let (message (query-result-output result))
         (check (string-contains message
                                 "query --names-only requires an owner selector")
                => 0)
@@ -167,20 +210,45 @@
                                   "--workspace"
                                   ".."
                                   "--names-only"]))
-        (check (car result) => 2)
+        (check (query-result-exit-code result) => 2)
         (check (not
                 (not
                  (string-contains
-                  (cdr result)
+                  (query-result-output result)
                   "query owner path does not exist under --workspace")))
                => #t)
         (check (not
                 (not
                  (string-contains
-                  (cdr result)
+                  (query-result-output result)
                   "workspace=..")))
                => #t)))))
-;; QueryOutput <- (List XX)
+
+;;; Query result accessor:
+;;; - query-output returns one compatibility pair at the process boundary.
+;;; - Tests use named accessors so result shape changes stay local.
+;; : (-> QueryOutput ExitCode )
+(def (query-result-exit-code result)
+  (car result))
+
+;;; Query result accessor:
+;;; - Captured output is a named field, not an anonymous cdr at call sites.
+;;; - This mirrors gerbil-utils style: one bridge helper, composed at use sites.
+;; : (-> QueryOutput String )
+(def (query-result-output result)
+  (let (rest (cdr result))
+    (if (pair? rest)
+      (car rest)
+      rest)))
+
+;; : (-> NativeQueryOutput Milliseconds )
+(def (query-result-duration-ms result)
+  (let (rest (cdr result))
+    (if (pair? rest)
+      (cadr rest)
+      0)))
+
+;; : (-> (List XX) QueryOutput )
 (def (query-output args)
   (let (exit-code #f)
     (let (output
@@ -189,3 +257,32 @@
              (parameterize ((current-output-port port))
                (set! exit-code (query-main args))))))
       (cons exit-code output))))
+
+;; : (-> (List XX) NativeQueryOutput )
+(def (native-query-output args)
+  (let* ((command (cons "../../.bin/gerbil-scheme-harness"
+                       (cons "query" args)))
+         (start (monotonic-ms))
+         (result
+          (run-process command
+                       stdin-redirection: #f
+                       stdout-redirection: #t
+                       stderr-redirection: #t
+                       check-status: #f
+                       coprocess:
+                       (lambda (process)
+                         (let (output (read-port-as-string process))
+                           [(process-status process) output])))))
+    [(car result)
+     (cadr result)
+     (duration-ms start (monotonic-ms))]))
+
+;; : (-> Port String )
+(def (read-port-as-string port)
+  (call-with-output-string ""
+    (lambda (out)
+      (let loop ()
+        (let (char (read-char port))
+          (unless (eof-object? char)
+            (write-char char out)
+            (loop)))))))

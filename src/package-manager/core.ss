@@ -15,14 +15,14 @@
 (def +gerbil-package-manager-id+ "gxpkg")
 ;; String
 (def +gerbil-local-package-root-hint+ "~/.gerbil")
-;; Boolean <- Package
+;; : (-> Package Boolean )
 (def (project-package-managed-by-gerbil? package)
   (and package
        (equal? (project-package-manager package) +gerbil-package-manager-id+)))
 ;;; Boundary:
 ;;; - project-package-activates? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- Package TokenMatches
+;; : (-> Package TokenMatches Boolean )
 (def (project-package-activates? package token-matches?)
   (and (project-package-managed-by-gerbil? package)
        (not
@@ -32,13 +32,13 @@
 ;;; Boundary:
 ;;; - project-package-depends-on? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- Package TokenMatches
+;; : (-> Package TokenMatches Boolean )
 (def (project-package-depends-on? package token-matches?)
   (and (project-package-managed-by-gerbil? package)
        (not
         (not
          (ormap token-matches? (project-package-dependencies package))))))
-;; Json <- PackageName
+;; : (-> PackageName Json )
 (def (gerbil-local-source-candidate package-name)
   (hash (kind "gerbil-package-source")
         (manager +gerbil-package-manager-id+)
@@ -55,7 +55,7 @@
         (gxtestImportHint "(import :policy/gxtest)")
         (testEntrypointHint "(make-project-policy-test \".\")")
         (owner "asp-client")))
-;; Json <- Repository
+;; : (-> Repository Json )
 (def (git-repository-candidate repository)
   (hash (kind "git-repository")
         (vcs "git")

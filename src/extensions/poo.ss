@@ -42,11 +42,11 @@
 (def +poo-registered-dependency+ "git.cons.io/mighty-gerbils/gerbil-poo")
 ;; ConfigConstant
 (def +poo-registered-package+ "gerbil-poo://registry")
-;; Boolean <- ProjectIndex
+;; : (-> ProjectIndex Boolean )
 (def (poo-extension-active? index)
   (project-package-depends-on? (project-index-package index)
                                poo-package-token?))
-;; Boolean <- String
+;; : (-> String Boolean )
 (def (poo-package-token? token)
   (and token
        (or (member token +poo-package-tokens+)
@@ -60,7 +60,7 @@
             "macro-governance"
             "user-override-witness")
           (poo-inherited-utils-capability-names)))
-;; Fact <- ProjectIndex
+;; : (-> ProjectIndex Fact )
 (def (poo-extension-fact index)
   (and index
        (poo-extension-active? index)
@@ -72,7 +72,7 @@
                               (project-package-name package)
                               (project-package-dependencies package)
                               (poo-extension-capability-names)))))
-;; (List ExtensionFact) <- (List SearchTerm)
+;; : (-> (List SearchTerm) (List ExtensionFact) )
 (def (poo-registered-extension-facts terms)
   (if (poo-extension-lookup-query? terms)
     [(poo-registered-extension-fact)]
@@ -82,7 +82,7 @@
 ;;;   ecosystem knowledge, not a project activation claim.
 ;;; - Pattern/query registration stays stricter so bare `poo` still requires an
 ;;;   active gerbil.pkg dependency before executable pattern facts are emitted.
-;; Boolean <- (List SearchTerm)
+;; : (-> (List SearchTerm) Boolean )
 (def (poo-extension-lookup-query? terms)
   (and (pair? terms)
        (or (ormap (lambda (term)
@@ -92,12 +92,12 @@
 ;;; Query guard:
 ;;; - ormap keeps registered dependency recall as a term-level predicate.
 ;;; - Empty queries never synthesize ambient registry facts.
-;; Boolean <- (List SearchTerm)
+;; : (-> (List SearchTerm) Boolean )
 (def (poo-registered-extension-query? terms)
   (and (pair? terms)
        (or (ormap poo-registered-extension-token? terms)
            (poo-split-registered-extension-query? terms))))
-;; Boolean <- SearchTerm
+;; : (-> SearchTerm Boolean )
 (def (poo-registered-extension-token? term)
   (and term
        (or (equal? term "gerbil-poo")
@@ -105,14 +105,14 @@
 ;;; Boundary:
 ;;; - poo-split-registered-extension-query? covers natural agent wording.
 ;;; - "gerbil poo" must resolve to the same registered gerbil-poo:// knowledge.
-;; Boolean <- (List SearchTerm)
+;; : (-> (List SearchTerm) Boolean )
 (def (poo-split-registered-extension-query? terms)
   (and (member "gerbil" terms)
        (member +poo-extension-name+ terms)))
 ;;; Boundary:
 ;;; - poo-registered-extension-focus strips only extension identity terms.
 ;;; - Preserve the user's requested API or usage focus for follow-up commands.
-;; String <- (List SearchTerm)
+;; : (-> (List SearchTerm) String )
 (def (poo-registered-extension-focus terms)
   (let (focus (filter (lambda (term)
                         (not (poo-registered-extension-focus-token? term)))
@@ -121,14 +121,14 @@
 ;;; Boundary:
 ;;; - poo-registered-extension-pattern-terms canonicalizes split aliases.
 ;;; - Pattern renderers expect the first term to be the extension identity.
-;; (List SearchTerm) <- (List SearchTerm)
+;; : (-> (List SearchTerm) (List SearchTerm) )
 (def (poo-registered-extension-pattern-terms terms)
   (cons "gerbil-poo"
         (let (focus (filter (lambda (term)
                               (not (poo-registered-extension-focus-token? term)))
                             terms))
           (if (pair? focus) focus ["usage"]))))
-;; Boolean <- SearchTerm
+;; : (-> SearchTerm Boolean )
 (def (poo-registered-extension-focus-token? term)
   (or (poo-registered-extension-token? term)
       (equal? term "gerbil")
@@ -142,17 +142,17 @@
                        +poo-registered-package+
                        [+poo-registered-dependency+]
                        (poo-extension-capability-names)))
-;; (List String) <- ProjectIndex
+;; : (-> ProjectIndex (List String) )
 (def (poo-extension-search-lines index)
   (let (fact (poo-extension-fact index))
     (if fact
       [(extension-fact-search-line fact)]
       '())))
-;; Json <- ProjectIndex
+;; : (-> ProjectIndex Json )
 (def (poo-extension-json index)
   (let (fact (poo-extension-fact index))
     (and fact (extension-fact-json fact))))
-;; PooSourceRef <- ProjectIndex
+;; : (-> ProjectIndex PooSourceRef )
 (def (poo-source-ref index)
   (hash (kind "package-manager-source")
         (manager "gxpkg")
@@ -169,7 +169,7 @@
 ;;; Boundary:
 ;;; - poo-extension-dependency composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Integer <- ProjectIndex
+;; : (-> ProjectIndex Integer )
 (def (poo-extension-dependency index)
   (let* ((package (and index (project-index-package index)))
          (matches (if package
@@ -182,7 +182,7 @@
 ;;; Dispatch boundary:
 ;;; - Direct POO patterns and inherited utility patterns share one packet schema.
 ;;; - Keep activation proof here so inherited facts cannot appear ambiently.
-;; String <- ProjectIndex (List PooFormFact)
+;; : (-> ProjectIndex (List PooFormFact) String )
 (def (poo-pattern-evidence index terms)
   (let* ((poo-query? (poo-pattern-query? terms))
          (inherited-query? (poo-inherited-utils-pattern-query? terms))
@@ -220,7 +220,7 @@
                           kind
                           pattern-terms
                           extension-fact))))))))
-;; Boolean <- (List PooFormFact)
+;; : (-> (List PooFormFact) Boolean )
 (def (poo-pattern-query? terms)
   (and (pair? terms)
        (or (equal? (car terms) +poo-extension-name+)
@@ -229,7 +229,7 @@
 ;;; Classification boundary:
 ;;; - Terms map agent language onto provider-owned POO pattern families.
 ;;; - Keep aliases broad enough for search but route output through fixed ids.
-;; String <- (List PooFormFact)
+;; : (-> (List PooFormFact) String )
 (def (poo-pattern-kind terms)
   (cond
    ((poo-pattern-term-any? terms ["rationaldict" "dependency-adapter"
@@ -273,7 +273,7 @@
 ;;; Boundary:
 ;;; - poo-pattern-term-any? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; Boolean <- (List PooFormFact) Needles
+;; : (-> (List PooFormFact) Needles Boolean )
 (def (poo-pattern-term-any? terms needles)
   (and (pair? terms)
        (ormap (lambda (needle) (member needle terms)) needles)))
@@ -281,7 +281,7 @@
 ;;; - Active extension packets keep all source-backed quality signals.
 ;;; - Registered-only packets replace activation proof with logical selector evidence.
 ;;; - filter preserves the remaining signal order so snapshots stay stable.
-;; (List String) <- Kind MaybeExtensionFact
+;; : (-> Kind MaybeExtensionFact (List String) )
 (def (poo-pattern-quality-signals-for-origin kind extension-fact)
   (let (signals (poo-pattern-quality-signals kind))
     (if extension-fact
@@ -290,14 +290,14 @@
             (filter (lambda (signal)
                       (not (equal? signal "active-extension-fact")))
                     signals)))))
-;; String <- Kind PatternTerms MaybeExtensionFact
+;; : (-> Kind PatternTerms MaybeExtensionFact String )
 (def (poo-pattern-next-for-origin kind terms extension-fact)
   (if extension-fact
     (poo-pattern-next kind)
     (string-append "search extension gerbil-poo "
                    (poo-pattern-focus kind terms))))
 
-;; Boolean <- Suffix SourceLine
+;; : (-> Suffix SourceLine Boolean )
 (def (string-suffix? suffix text)
   (let ((suffix-length (string-length suffix))
         (text-length (string-length text)))
