@@ -5,9 +5,9 @@
         :protocol/function-quality-facts
         :protocol/quality-shape-facts
         :protocol/support
+        (only-in :std/misc/list unique)
         (only-in :std/sort sort)
-        (only-in :std/sugar filter hash hash-get)
-        :support/list)
+        (only-in :std/sugar filter hash hash-get))
 
 (export structural-syntax-fact-json)
 
@@ -82,7 +82,7 @@
         (location (fact-location-json (module-import-fact-path fact)
                                       (module-import-fact-start fact)
                                       (module-import-fact-end fact)))
-        (queryKeys (dedupe [(module-import-fact-module fact)
+        (queryKeys (unique [(module-import-fact-module fact)
                             (module-import-fact-modifier fact)
                             (module-import-fact-phase fact)
                             (module-import-fact-path fact)]))
@@ -113,7 +113,7 @@
 ;;; - This lets search distinguish public API declarations from generic top-level symbol mentions.
 ;; : (-> Fact (List QueryKey) )
 (def (module-export-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(module-export-fact-name fact)
                     (module-export-fact-modifier fact)
@@ -136,7 +136,7 @@
         (location (fact-location-json (macro-fact-path fact)
                                       (macro-fact-start fact)
                                       (macro-fact-end fact)))
-        (queryKeys (dedupe (append [(macro-fact-name fact)
+        (queryKeys (unique (append [(macro-fact-name fact)
                                     (macro-fact-kind fact)
                                     (macro-fact-transformer fact)
                                     (macro-fact-path fact)]
@@ -159,7 +159,7 @@
         (location (fact-location-json (binding-fact-path fact)
                                       (binding-fact-start fact)
                                       (binding-fact-end fact)))
-        (queryKeys (dedupe [(binding-fact-name fact)
+        (queryKeys (unique [(binding-fact-name fact)
                             (binding-fact-kind fact)
                             (binding-fact-scope fact)
                             (binding-fact-path fact)]))
@@ -194,7 +194,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> Fact PooFormQueryKeys )
 (def (poo-form-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(poo-form-fact-name fact)
                     (poo-form-fact-kind fact)
@@ -250,7 +250,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> Fact (List HigherOrderFact) )
 (def (higher-order-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(higher-order-fact-name fact)
                     (higher-order-fact-kind fact)
@@ -289,7 +289,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> ControlFlowFact (List ControlFlowFact) )
 (def (control-flow-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(control-flow-fact-name fact)
                     (control-flow-fact-kind fact)
@@ -328,7 +328,7 @@
 ;;; imported primitives, protocol slots, quality facets, and missing evidence.
 ;; : (-> DependencyAdapterQualityFact (List QueryKey) )
 (def (dependency-adapter-quality-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(dependency-adapter-quality-fact-name fact)
                     (dependency-adapter-quality-fact-kind fact)
@@ -397,7 +397,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> TypedContractFact TypedContractQueryKeys )
 (def (typed-contract-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(typed-contract-fact-definition-name fact)
                     (typed-contract-fact-definition-kind fact)
@@ -459,7 +459,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> CommentQualityFact (List QueryKey) )
 (def (comment-quality-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(comment-quality-fact-target-name fact)
                     (comment-quality-fact-target-kind fact)
@@ -565,7 +565,7 @@
 ;; : (-> CallFact MaybePair (List String) )
 (def (call-structural-query-keys fact boundary)
   (let (callee (call-fact-callee fact))
-    (dedupe
+    (unique
      (append [callee
               (or (call-fact-caller fact) "")
               (call-fact-path fact)]

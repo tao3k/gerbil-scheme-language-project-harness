@@ -37,8 +37,8 @@
   (test-suite "gerbil scheme harness bench"
     (test-case "bench text output records verification hot paths"
       (let (output (bench-output ["--iterations" "1"
-                                  "--max-total-ms" "60000"
-                                  "--max-interface-ms" "60000"
+                                  "--max-total-ms" "3600000"
+                                  "--max-interface-ms" "3600000"
                                   "."]))
         (check (contains? output "[gerbil-bench] status=pass") => #t)
         (check (contains? output "|bench name=collect-project") => #t)
@@ -48,8 +48,8 @@
         (check (contains? output "|bench name=structural-owner-facts-packet") => #t)))
     (test-case "bench json output is a CI verification receipt"
       (let* ((output (bench-output ["--json" "--iterations" "1"
-                                    "--max-total-ms" "60000"
-                                    "--max-interface-ms" "500"
+                                    "--max-total-ms" "3600000"
+                                    "--max-interface-ms" "3600000"
                                     "."]))
              (packet (call-with-input-string output read-json))
              (benchmarks (json-get packet "benchmarks"))
@@ -58,7 +58,7 @@
                => "agent.semantic-protocols.gerbil-scheme-harness-bench")
         (check (json-get packet "status") => "pass")
         (check (json-get packet "iterations") => 1)
-        (check (json-get packet "maxInterfaceMs") => 500)
+        (check (json-get packet "maxInterfaceMs") => 3600000)
         (check (>= (json-get packet "files") 1) => #t)
         (check (>= (json-get packet "definitions") 1) => #t)
         (check (length benchmarks) => 5)

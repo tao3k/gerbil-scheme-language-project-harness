@@ -11,8 +11,10 @@
         :policy/catalog
         :support/args
         :support/io
-        :support/list
+        (only-in :std/misc/list length<=n? unique)
+        (only-in :std/srfi/1 drop take)
         (only-in :std/srfi/13
+                 string-join
                  string-contains
                  string-downcase
                  string-index
@@ -33,9 +35,6 @@
 ;; : (-> (List String) Flag Boolean )
 (def (arg-present? args flag)
   (and (member flag args) #t))
-;; : (-> Value Fragment Boolean )
-(def (string-has? value fragment)
-  (and value (string-contains value fragment) #t))
 ;;; Catalog route lookup: accept a full finding/rule fragment, then keep the
 ;;; first catalog-backed guide topic so guide and repair do not drift.
 ;; : (-> Rule RuleTopic )
@@ -43,7 +42,7 @@
   (and rule
        (let (matches
              (filter-map (lambda (rule-id)
-                           (and (string-has? rule rule-id)
+                           (and (string-contains rule rule-id)
                                 (agent-rule-guide-topic rule-id)))
                          (agent-steering-rule-ids)))
          (and (pair? matches) (car matches)))))
@@ -73,7 +72,7 @@
         (if (and (pair? positionals)
                  (runtime-source-topic-token? (car positionals)))
           (let (terms (cdr positionals))
-            (if (null? terms) "macro" (join terms " ")))
+            (if (null? terms) "macro" (string-join terms " ")))
           "macro"))))
 ;;; Canonicalization is the public guide compatibility layer: policy rules,
 ;;; user-facing topic aliases, and progressive exemplars can evolve without
@@ -118,6 +117,12 @@
         (equal? topic "only-in")
         (equal? topic "import-precision"))
     "explicit-precise-import")
+   ((or (equal? topic "package-build-canonical-shape")
+        (equal? topic "build-canonical-shape")
+        (equal? topic "build.ss")
+        (equal? topic "defbuild-script")
+        (equal? topic "std/make"))
+    "package-build-canonical-shape")
    (else "higher-order-control")))
 ;; : (-> (List String) String )
 (def (guide-topic args)
@@ -143,7 +148,7 @@
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (emit-exemplar-source "." "src/support/list.ss" '(dedupe) #t)
+;;       (emit-exemplar-source "." "src/parser/support.ss" '(datum-list-items) #t)
 ;;       ;; => (void)
 ;;       ```
 ;;     %
@@ -176,9 +181,9 @@
 ;;     %
 (def (emit-definition-exemplar-sources root definitions)
   (display
-   (join (map (cut read-definition-with-leading-comments root <>)
-              definitions)
-         "\n")))
+   (string-join (map (cut read-definition-with-leading-comments root <>)
+                     definitions)
+                "\n")))
 ;; guide-source-file
 ;;   : (-> ProjectIndex String SourceFile)
 ;;   | doc m%
@@ -249,17 +254,17 @@
 ;; : (-> RuntimeSourceQuery StartIndex Limit Unit )
 (def (emit-runtime-source-exemplar-source query start limit)
   (let* ((examples (runtime-source-examples query))
-         (sources (take* (filter-map runtime-source-example-source
-                                      (drop* examples start))
-                         limit)))
+         (candidate-sources
+          (filter-map runtime-source-example-source
+                      (if (>= (length examples) start)
+                        (drop examples start)
+                        '())))
+         (sources (if (length<=n? candidate-sources limit)
+                    candidate-sources
+                    (take candidate-sources limit))))
     (if (pair? sources)
-      (display (join sources "\n"))
+      (display (string-join sources "\n"))
       (error "runtime-source exemplar selector did not resolve" query))))
-;; : (-> (List RuntimeSourceExample) StartIndex (List RuntimeSourceExample) )
-(def (drop* xs n)
-  (cond
-   ((or (fx<= n 0) (null? xs)) xs)
-   (else (drop* (cdr xs) (fx1- n)))))
 ;;; Intent:
 ;;; - Prefer runtime examples that carry source comment extraction evidence.
 ;;; - Preserve the acquisition packet order for examples without comments.
@@ -292,7 +297,7 @@
     (append commented rest)))
 ;; : (-> Fact Query Boolean )
 (def (evidence-fact-matches-query? fact query)
-  (let ((haystack (join (hash-get fact 'terms) " "))
+  (let ((haystack (string-join (hash-get fact 'terms) " "))
         (q (string-downcase query)))
     (or (string=? query "")
         (string-contains (string-downcase haystack) q))))
@@ -329,7 +334,7 @@
         (runtime-source-root-candidates)))
 ;; (List RuntimeSourceRoot)
 (def (runtime-source-root-candidates)
-  (dedupe
+  (unique
    (filter-map
     (lambda (path)
       (and path (path-normalize path)))
@@ -361,7 +366,7 @@
          (d6 (runtime-source-parent-directory d5))
          (d7 (runtime-source-parent-directory d6))
          (d8 (runtime-source-parent-directory d7)))
-    (dedupe [d0 d1 d2 d3 d4 d5 d6 d7 d8])))
+    (unique [d0 d1 d2 d3 d4 d5 d6 d7 d8])))
 
 ;; : (-> Directory Directory )
 (def (runtime-source-parent-directory dir)
@@ -456,7 +461,7 @@
   (find (lambda (candidate)
           (file-exists?
            (path-expand +poo-rationaldict-exemplar-relpath+ candidate)))
-        (dedupe
+        (unique
          (append [root (current-directory)]
                  (runtime-source-ancestor-directories)))))
 
@@ -476,6 +481,14 @@
                          ["explicit-precise-import-finding"
                           "imprecise-runtime-import?"
                           "explicit-precise-import-details"]
+                         #t))
+;; : (-> String Unit )
+(def (emit-package-build-canonical-shape-exemplar-source root)
+  (emit-exemplar-source root
+                         "src/policy/agent-build.ss"
+                         ["package-build-canonical-shape-finding"
+                          "package-build-spec-call?"
+                          "package-build-manual-compiler-dispatch-call?"]
                          #t))
 ;;; Dispatch boundary: normalized topics route only to source-backed exemplar owners.
 ;; : (-> String String String Unit )
@@ -500,6 +513,8 @@
     (emit-poo-rationaldict-exemplar-source root))
    ((equal? topic "explicit-precise-import")
     (emit-explicit-precise-import-exemplar-source root))
+   ((equal? topic "package-build-canonical-shape")
+    (emit-package-build-canonical-shape-exemplar-source root))
    (else
     (emit-higher-order-exemplar-source root))))
 ;;; Boundary:
@@ -557,6 +572,12 @@
     (when advanced?
       (newline)
       (emit-typed-combinator-style-exemplar-source root)))
+   ((equal? topic "package-build-canonical-shape")
+    (newline)
+    (emit-explicit-precise-import-exemplar-source root)
+    (when advanced?
+      (newline)
+      (emit-higher-order-exemplar-source root)))
    (else
     (newline)
     (emit-poo-policy-exemplar-source root))))

@@ -20,7 +20,7 @@
         calls))
 ;; : (-> (List QualityFacet) QualityFacet Boolean )
 (def (quality-facet-member? facets facet)
-  (not (not (member facet facets))))
+  (if (member facet facets) #t #f))
 ;; : (-> (List MacroFact) String MacroFact )
 (def (find-macro facts name)
   (find (lambda (fact)
@@ -127,7 +127,24 @@
                  (unbound-expr
                   (scheme-type-expression-text-json "(Array a)"))
                  (unbound-shape (hash-get unbound-expr 'shape))
-                 (unbound-param (car (hash-get unbound-shape 'parameters))))
+                 (unbound-param (car (hash-get unbound-shape 'parameters)))
+                 (hash-expr
+                  (scheme-type-expression-text-json "(Hash String Number)"))
+                 (hash-type-spec (hash-get hash-expr 'typeSpec))
+                 (hash-key-type (car (hash-get hash-type-spec 'params)))
+                 (hash-value-type (cadr (hash-get hash-type-spec 'params)))
+                 (refine-expr
+                  (scheme-type-expression-text-json
+                   "(Refine Number natural?)"))
+                 (refine-type-spec (hash-get refine-expr 'typeSpec))
+                 (application-signature
+                  (scheme-type-signature-json
+                   "(forall (a) (-> (NonEmptyList a) a))"))
+                 (application-param
+                  (car
+                   (hash-get
+                    (hash-get application-signature 'typeSpec)
+                    'params))))
             (check (hash-get list-expr 'valid) => #t)
             (check (hash-get list-shape 'kind) => "container")
             (check (hash-get list-shape 'name) => "List")
@@ -144,7 +161,21 @@
             (check (hash-get unbound-param 'role) => "type-variable")
             (check (hash-get unbound-param 'bound) => #f)
             (check (hash-get unbound-expr 'diagnostics)
-                   => ["unbound-type-variable:a"])))
+                   => ["unbound-type-variable:a"])
+            (check (hash-get hash-expr 'valid) => #t)
+            (check (hash-get hash-type-spec 'kind) => "hash")
+            (check (hash-get hash-type-spec 'valid) => #t)
+            (check (hash-get hash-type-spec 'diagnostics) => [])
+            (check (hash-get hash-key-type 'display) => "String")
+            (check (hash-get hash-value-type 'display) => "Number")
+            (check (hash-get refine-expr 'valid) => #t)
+            (check (hash-get refine-type-spec 'kind) => "refine")
+            (check (hash-get refine-type-spec 'valid) => #t)
+            (check (hash-get refine-type-spec 'name) => "natural?")
+            (check (hash-get application-signature 'valid) => #t)
+            (check (hash-get application-param 'kind) => "application")
+            (check (hash-get application-param 'display)
+                   => "(NonEmptyList a)")))
     (test-case "comment quality preserves module comment after script shebang"
           (let* ((root (path-normalize ".run/parser-shebang-module-comment"))
                  (source-dir (string-append root "/src"))
@@ -249,6 +280,103 @@
                               (function-quality-profile-advice wrapper-profile)
                               "curry/rcurry")))
                    => #t)))
+    (test-case "parser exposes boolean normalization scaffold facts"
+          (let* ((root (path-normalize ".run/parser-boolean-normalization"))
+                 (source-dir (string-append root "/src"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (source-path (string-append source-dir "/core.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text package-path "(package: sample/boolean-normalization)\n")
+            (write-text
+             source-path
+             ";;; -*- Gerbil -*-\n\
+(package: sample/boolean-normalization)\n\
+;; : (-> (List Symbol) Boolean)\n\
+(def (selected? choices)\n\
+  (not (not (member 'ready choices))))\n")
+            (let* ((file (parse-source-file root "src/core.ss"))
+                   (fact
+                    (find (lambda (item)
+                            (equal? (boolean-condition-fact-role item)
+                                    "boolean-normalization-scaffold"))
+                          (source-file-boolean-condition-facts file))))
+              (check (not fact) => #f)
+              (check (boolean-condition-fact-caller fact) => "selected?")
+              (check (quality-facet-member?
+                      (boolean-condition-fact-quality-facets fact)
+                      "boolean-normalization-drift")
+                     => #t)
+              (check (quality-facet-member?
+                      (boolean-condition-fact-quality-facets fact)
+                      "generated-scaffold-shape")
+                     => #t))))
+    (test-case "parser keeps boolean normalization AST-owned"
+          (let* ((root (path-normalize ".run/parser-boolean-normalization-ast"))
+                 (source-dir (string-append root "/src"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (source-path (string-append source-dir "/core.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text package-path "(package: sample/boolean-normalization-ast)\n")
+            (write-text
+             source-path
+             ";;; -*- Gerbil -*-\n\
+(package: sample/boolean-normalization-ast)\n\
+;; : (-> Boolean Boolean Boolean)\n\
+(def (mixed? left right)\n\
+  (not (or left (not right))))\n\
+;; : (-> Symbol Symbol)\n\
+(def (quoted-shape value)\n\
+  '(not (not value)))\n")
+            (let* ((file (parse-source-file root "src/core.ss"))
+                   (facts
+                    (filter (lambda (item)
+                              (equal? (boolean-condition-fact-role item)
+                                      "boolean-normalization-scaffold"))
+                            (source-file-boolean-condition-facts file))))
+              (check facts => []))))
+    (test-case "parser exposes inline alist lookup as AST-owned field access"
+          (let* ((root (path-normalize ".run/parser-inline-alist-access"))
+                 (source-dir (string-append root "/src"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (source-path (string-append source-dir "/core.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text package-path "(package: sample/inline-alist)\n")
+            (write-text
+             source-path
+             ";;; -*- Gerbil -*-\n\
+(package: sample/inline-alist)\n\
+;; : (-> Profile Value)\n\
+(def (profile-name profile)\n\
+  (cdr (assq 'name profile)))\n\
+;; : (-> Profile Value)\n\
+(def (profile-owner profile)\n\
+  (cdr (assq 'owner profile)))\n\
+;; : (-> Value Value)\n\
+(def (quoted-shape value)\n\
+  '(cdr (assq 'name profile)))\n")
+            (let* ((file (parse-source-file root "src/core.ss"))
+                   (facts (source-file-field-access-pattern-facts file))
+                   (name-fact (find-field-access-pattern facts "alist:name"))
+                   (owner-fact (find-field-access-pattern facts "alist:owner")))
+              (check (not name-fact) => #f)
+              (check (field-access-pattern-fact-role name-fact)
+                     => "inline-alist-lookup")
+              (check (field-access-pattern-fact-callers name-fact)
+                     => ["profile-name"])
+              (check (field-access-pattern-fact-access-count name-fact) => 1)
+              (check (quality-facet-member?
+                      (field-access-pattern-fact-quality-facets name-fact)
+                      "inline-alist-lookup-drift")
+                     => #t)
+              (check (not owner-fact) => #f)
+              (check (field-access-pattern-fact-callers owner-fact)
+                     => ["profile-owner"]))))
     (test-case "parser exposes poo method bodies and gerbil-utils fun helpers"
           (let* ((root (path-normalize ".run/parser-poo-method-fun"))
                  (source-dir (string-append root "/src"))
@@ -266,7 +394,9 @@
 (define-type (Box @ [Wrapper.] T .wrap .unwrap)\n\
   .map: (lambda (f x) (.wrap (f (.unwrap x))))\n\
   .unwrap*: (cut .unwrap <>)\n\
-  .wrap*: .wrap)\n\
+  .wrap*: .wrap\n\
+  .empty: []\n\
+  .validate: (lambda (super) (lambda (value) (super value))))\n\
 ;; : (-> (List String) (List String) )\n\
 (def (label-items items)\n\
   (map (fun (label-item item)\n\
@@ -274,6 +404,10 @@
        items))\n")
             (let* ((file (parse-source-file root "src/core.ss"))
                  (box (find-poo-form (source-file-poo-forms file) "Box"))
+                 (box-profile
+                  (find-function-quality-profile
+                   (source-file-function-quality-profiles file)
+                   "Box"))
                  (fun-fact
                   (find-higher-order
                    (source-file-higher-order-forms file)
@@ -301,12 +435,52 @@
             (check (not (not (member "methodBody:.map:lambda"
                                      (poo-form-fact-options box))))
                    => #t)
+            (check (not (not (member "methodBodyQuality:.map:lambda-drift"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not (member "methodTableBody:lambda-drift"
+                                     (poo-form-fact-options box))))
+                   => #t)
             (check (not (not (member "methodBody:.unwrap*:partial-application"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not (member "methodBodyQuality:.unwrap*:combinator"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not (member "methodTableBody:combinator"
                                      (poo-form-fact-options box))))
                    => #t)
             (check (not (not (member "methodBody:.wrap*:identifier"
                                      (poo-form-fact-options box))))
                    => #t)
+            (check (not (not (member "methodBody:.empty:call:@list"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (member "methodBodyQuality:.empty:low-level"
+                           (poo-form-fact-options box))
+                   => #f)
+            (check (not (not (member "methodBodyQuality:.validate:validation-boundary"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (member "methodBodyQuality:.validate:lambda-drift"
+                           (poo-form-fact-options box))
+                   => #f)
+            (check (not box-profile) => #f)
+            (check (quality-facet-member?
+                    (function-quality-profile-quality-facets box-profile)
+                    "method-table-lambda-drift")
+                   => #t)
+            (check (quality-facet-member?
+                    (function-quality-profile-quality-facets box-profile)
+                    "method-table-validation-boundary")
+                   => #t)
+            (check (quality-facet-member?
+                    (function-quality-profile-quality-facets box-profile)
+                    "method-table-combinator-body")
+                   => #t)
+            (check (function-quality-profile-suggested-repair-class
+                    box-profile)
+                   => "poo-policy")
             (check (not (not fun-fact)) => #t)
             (check (higher-order-fact-operand-count fun-fact) => 2)
             (check (not (not (member "named-lambda-helper"
@@ -472,6 +646,8 @@
                      (result-expression
                       (hash-get result-type 'expressionType))
                      (result-shape (hash-get result-expression 'shape))
+                     (signature-type-spec (hash-get signature-type 'typeSpec))
+                     (signature-output-spec (hash-get signature-type-spec 'result))
                      (result-union
                       (cadr (hash-get result-shape 'values)))
                      (runtime-contract
@@ -488,6 +664,13 @@
                 (check (hash-get signature-arrow 'inputCount) => 2)
                 (check (hash-get signature-output 'kind) => "container")
                 (check (hash-get signature-output 'name) => "Vector")
+                (check (hash-get signature-type-spec 'display)
+                       => "(function ((function (Number) a) Number) (vector a))")
+                (check (hash-get signature-output-spec 'display)
+                       => "(vector a)")
+                (check (hash-get signature-output-spec 'kind) => "vector")
+                (check (hash-get (hash-get signature-arrow 'typeSpec) 'display)
+                       => "(function ((function (Number) a) Number) (vector a))")
                 (check (hash-get local-type 'name) => "Nat")
                 (check (hash-get local-type 'expression)
                        => "(Refine Number natural?)")
@@ -548,10 +731,28 @@
                          => #t)
                   (check (hash-get (hash-get json-typed-comment 'signatureType)
                                    'valid)
-                         => #t))
-                (check (hash-get (scheme-type-expression-text-json "(Hash String)")
-                                 'diagnostics)
-                       => ["Hash-requires-key-and-value"])
+                         => #t)
+                  (check (hash-get
+                          (hash-get (hash-get json-typed-comment 'signatureType)
+                                    'typeSpec)
+                          'display)
+                         => "(function ((function (Number) a) Number) (vector a))"))
+                (let* ((bad-hash
+                        (scheme-type-expression-text-json "(Hash String)"))
+                       (bad-hash-type (hash-get bad-hash 'typeSpec))
+                       (bad-hash-diagnostic
+                        (car (hash-get bad-hash-type 'diagnosticFacts))))
+                  (check (hash-get bad-hash 'diagnostics)
+                         => ["Hash-requires-key-and-value"])
+                  (check (hash-get bad-hash-type 'valid) => #f)
+                  (check (hash-get bad-hash-type 'diagnostics)
+                         => ["hash-value:unknown-type"])
+                  (check (hash-get bad-hash-diagnostic 'code)
+                         => "unknown-type")
+                  (check (hash-get bad-hash-diagnostic 'path)
+                         => ["hash-value"])
+                  (check (hash-get bad-hash-diagnostic 'category)
+                         => "shape"))
                 (check (hash-get (scheme-type-signature-json "(-> Output)")
                                  'diagnostics)
                        => ["signature-arrow-too-short"

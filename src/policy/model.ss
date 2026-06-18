@@ -36,7 +36,8 @@
         +agent-build-runtime-quality-rule+
         +agent-policy-source-scope-rule+
         +agent-alist-access-rule+
-        +agent-anonymous-pair-access-rule+)
+        +agent-anonymous-pair-access-rule+
+        +agent-package-build-canonical-shape-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -129,3 +130,6 @@
 ;; ConfigConstant
 (def +agent-anonymous-pair-access-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R023" "warning"))
+;; ConfigConstant
+(def +agent-package-build-canonical-shape-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R025" "warning"))

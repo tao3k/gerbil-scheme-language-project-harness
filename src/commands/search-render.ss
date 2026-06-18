@@ -2,7 +2,7 @@
 ;;; Compact search renderer helpers for agent-facing source evidence.
 
 (import :parser/source-class
-        :support/list)
+        (only-in :std/srfi/13 string-empty? string-join))
 
 (export emit-selector-resolver-line
         emit-source-example-line
@@ -220,7 +220,7 @@
 
 ;; : (-> SyntaxFact Boolean )
 (def (poo-syntax-fact? fact)
-  (syntax-fact-field-member? fact 'role '("class" "generic" "protocol" "method")))
+  (syntax-fact-field-member? fact 'role '("class" "generic" "protocol" "method" "type")))
 ;; : (-> SyntaxFact Boolean )
 (def (dependency-adapter-quality-syntax-fact? fact)
   (syntax-fact-field=? fact 'role "dependency-protocol-adapter"))
@@ -281,7 +281,7 @@
 (def (dash-empty value)
   (cond
    ((not value) "-")
-   ((and (string? value) (fx= (string-length value) 0)) "-")
+   ((and (string? value) (string-empty? value)) "-")
    (else value)))
 ;; : (-> FieldValue String )
 (def (value->field-string value)
@@ -298,4 +298,4 @@
 (def (join-or-dash values)
   (if (null? values)
     "-"
-    (join values ",")))
+    (string-join values ",")))

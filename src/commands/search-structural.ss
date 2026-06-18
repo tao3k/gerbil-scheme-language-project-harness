@@ -7,7 +7,7 @@
         :protocol/json
         :support/args
         :support/io
-        :support/list)
+        (only-in :std/srfi/1 take))
 
 (export emit-structural-index)
 ;; String
@@ -101,13 +101,16 @@
 ;;;   explains structural fan-out to ASP clients.
 ;; : (-> (List Json) (List Json) )
 (def (structural-interface-preview rows)
-  (let ((head (take* rows +structural-interface-preview-limit+))
+  (let ((head (take rows (min +structural-interface-preview-limit+
+                              (length rows))))
         (required (find-structural-interface-row rows)))
     (cond
      ((not required) head)
      ((structural-interface-row-present? head required) head)
      (else
-      (append (take* head (- +structural-interface-preview-limit+ 1))
+      (append (take head
+                    (min (- +structural-interface-preview-limit+ 1)
+                         (length head)))
               [required])))))
 ;;; Boundary:
 ;;; - Required owner lookup is path-based so preview stabilization does not

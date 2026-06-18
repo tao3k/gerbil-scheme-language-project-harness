@@ -2,8 +2,11 @@
 ;; -*- Gerbil -*-
 (import :std/make
         (only-in :std/iter for/fold)
+        (only-in :std/misc/path directory-files)
         :std/misc/ports
         :std/misc/process
+        (only-in :std/os/pid getpid)
+        (only-in :std/os/signal kill)
         (only-in :std/sort sort)
         :std/srfi/13
         :clan/base
@@ -33,12 +36,73 @@
       (setenv "GERBIL_WRAPPER_RUNTIME_ARG"
               (string-append "-:~~=" (path-normalize (gerbil-home))))
       (setenv "GERBIL_GSC"
-              (compile-build-support-executable!
-               "gsc-gerbil-build"
-               "build-support/gsc-wrapper-runtime.ss")))))
+             (compile-build-support-executable!
+              "gsc-gerbil-build"
+               "build-support/gsc-wrapper-runtime.ss"
+               ["build-support/gsc-wrapper-runtime.ss"
+                "build-support/provider-cli.ss"])))))
 
+;;; Boundary:
+;;; - gerbil.pkg owns source/runtime roots; build.ss only materializes them for subprocesses.
+;;; - The harness keeps src/ layout imports, so package roots must become local module roots.
+;; : (-> Path MaybeDatum )
+(def (read-package-form path)
+  (and (file-exists? path)
+       (call-with-input-file path read)))
+
+;; : (-> Datum Symbol MaybeDatum )
+(def (package-field-value datum field)
+  (let loop ((items datum))
+    (cond
+     ((not (pair? items)) #f)
+     ((and (eq? (car items) field)
+           (pair? (cdr items)))
+      (cadr items))
+     (else (loop (cdr items))))))
+
+;; : (-> Datum Boolean )
+(def (source-scope-form? datum)
+  (and (pair? datum)
+       (member (car datum) '(source-scope source-policy project-scope))))
+
+;; : (-> Datum MaybeDatum )
+(def (package-source-scope-form package)
+  (let (policy (package-field-value package 'policy:))
+    (cond
+     ((source-scope-form? policy) policy)
+     ((list? policy) (find source-scope-form? policy))
+     (else #f))))
+
+;; : (-> Datum Symbol (List String) )
+(def (policy-string-list-field datum field)
+  (let (value (package-field-value datum field))
+    (cond
+     ((string? value) [value])
+     ((list? value) (filter string? value))
+     (else '()))))
+
+;; : (-> (List Symbol) (List String) )
+(def (package-source-scope-roots fields)
+  (let* ((package (read-package-form "gerbil.pkg"))
+         (scope (and package (package-source-scope-form package))))
+    (or (and scope
+             (let loop ((fields fields))
+               (and (pair? fields)
+                    (let (roots (policy-string-list-field scope (car fields)))
+                      (if (pair? roots)
+                        roots
+                        (loop (cdr fields)))))))
+        '("src"))))
+
+;; : (-> (List String) (List Path) )
+(def (absolute-package-roots roots)
+  (map (cut path-expand <> (current-directory)) roots))
+
+;; : (-> Void )
 (def (ensure-source-load-path!)
-  (add-load-path! (path-expand "src" (current-directory))))
+  (for-each add-load-path!
+            (absolute-package-roots
+             (package-source-scope-roots '(roots: source-roots: source-root:)))))
 
 (def (compile-command? args)
   (or (member "compile" args)
@@ -68,29 +132,123 @@
 (def (provider-build-lock-dir)
   (path-expand "provider-build.lock" (build-prefix)))
 
+(def (provider-build-lock-owner-path lock-dir)
+  (path-expand "owner" lock-dir))
+
+(def (write-provider-build-lock-owner! lock-dir)
+  (call-with-output-file (provider-build-lock-owner-path lock-dir)
+    (lambda (port)
+      (write `(provider-build-lock
+               pid: ,(getpid)
+               cwd: ,(current-directory))
+             port)
+      (newline port))))
+
+(def (read-provider-build-lock-owner lock-dir)
+  (let (owner-path (provider-build-lock-owner-path lock-dir))
+    (and (file-exists? owner-path)
+         (with-catch
+          (lambda (_) #f)
+          (lambda ()
+            (call-with-input-file owner-path read))))))
+
+(def (provider-build-lock-owner-pid lock-dir)
+  (let (pid (package-field-value
+             (read-provider-build-lock-owner lock-dir)
+             'pid:))
+    (and (integer? pid) pid)))
+
+(def (provider-build-lock-pid-alive? pid)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (kill pid 0)
+     #t)))
+
 (def (try-acquire-provider-build-lock! lock-dir)
-  (zero?
-   (run-process ["mkdir" lock-dir]
-                stdin-redirection: #f
-                stdout-redirection: #f
-                stderr-redirection: #t
-                coprocess: process-status
-                check-status: #f)))
+  (if (zero?
+       (run-process ["mkdir" lock-dir]
+                    stdin-redirection: #f
+                    stdout-redirection: #f
+                    stderr-redirection: #t
+                    coprocess: process-status
+                    check-status: #f))
+    (begin
+      (write-provider-build-lock-owner! lock-dir)
+      #t)
+    #f))
+
+(def (empty-provider-build-lock? lock-dir)
+  (and (file-exists? lock-dir)
+       (null? (directory-files lock-dir))))
+
+(def (remove-empty-provider-build-lock! lock-dir)
+  (if (empty-provider-build-lock? lock-dir)
+    (begin
+      (display "... remove stale empty provider build lock ")
+      (display lock-dir)
+      (newline)
+      (zero?
+       (run-process ["rmdir" lock-dir]
+                    stdin-redirection: #f
+                    stdout-redirection: #f
+                    stderr-redirection: #t
+                    coprocess: process-status
+                    check-status: #f)))
+    #f))
+
+(def (remove-dead-provider-build-lock! lock-dir)
+  (let (pid (provider-build-lock-owner-pid lock-dir))
+    (if (and pid (not (provider-build-lock-pid-alive? pid)))
+      (begin
+        (display "... remove stale provider build lock for dead pid ")
+        (display pid)
+        (display " ")
+        (display lock-dir)
+        (newline)
+        (let (owner-path (provider-build-lock-owner-path lock-dir))
+          (when (file-exists? owner-path)
+            (delete-file owner-path)))
+        (zero?
+         (run-process ["rmdir" lock-dir]
+                      stdin-redirection: #f
+                      stdout-redirection: #f
+                      stderr-redirection: #t
+                      coprocess: process-status
+                      check-status: #f)))
+      #f)))
+
+(def (display-provider-build-lock-wait lock-dir remaining)
+  (when (zero? (modulo remaining 10))
+    (display "... waiting for provider build lock ")
+    (display lock-dir)
+    (display " remaining=")
+    (display remaining)
+    (newline)))
 
 (def (acquire-provider-build-lock! lock-dir)
   (create-directory* (path-directory lock-dir))
-  (let loop ((remaining 180))
+  (let loop ((remaining 180) (empty-lock-seen? #f))
     (cond
      ((try-acquire-provider-build-lock! lock-dir)
       lock-dir)
+     ((and empty-lock-seen?
+           (remove-empty-provider-build-lock! lock-dir))
+      (loop remaining #f))
+     ((remove-dead-provider-build-lock! lock-dir)
+      (loop remaining #f))
      ((zero? remaining)
-      (error "provider build lock is busy" lock-dir))
+      (error "provider build lock is busy; stop the active build or remove the stale lock" lock-dir))
      (else
+      (display-provider-build-lock-wait lock-dir remaining)
       (thread-sleep! 1)
-      (loop (- remaining 1))))))
+      (loop (- remaining 1) (empty-provider-build-lock? lock-dir))))))
 
 (def (release-provider-build-lock! lock-dir)
   (when (file-exists? lock-dir)
+    (let (owner-path (provider-build-lock-owner-path lock-dir))
+      (when (file-exists? owner-path)
+        (delete-file owner-path)))
     (run-process ["rmdir" lock-dir]
                  stdin-redirection: #f
                  stdout-redirection: #f
@@ -101,10 +259,14 @@
 (def (with-provider-build-lock! thunk)
   (let (lock-dir (provider-build-lock-dir))
     (acquire-provider-build-lock! lock-dir)
-    (try
-     (thunk)
-     (finally
-      (release-provider-build-lock! lock-dir)))))
+    (with-catch
+     (lambda (exn)
+       (release-provider-build-lock! lock-dir)
+       (raise exn))
+     (lambda ()
+       (let (result (thunk))
+         (release-provider-build-lock! lock-dir)
+         result)))))
 
 (def (gerbil-poo-installed-at? root)
   (and root
@@ -140,7 +302,7 @@
       (invoke "find"
               [static-root
                "-name"
-               "gerbil-scheme-language-project-harness__*.scm"
+               "gerbil-scheme-language-project-harness__*"
                "-delete"]))))
 
 (def (static-provider-artifacts-present?)
@@ -159,11 +321,14 @@
       (path-expand ".bin" monorepo-root))
      (else (path-expand ".bin" (current-directory))))))
 
-(def (compile-build-support-executable! name source)
+(def (compile-build-support-executable! name source . maybe-dependencies)
   (let* ((binary (path-expand name (path-expand "bin" (build-prefix))))
          (tmp-binary (string-append binary ".native-tmp"))
-         (tmp-exe-stub (string-append tmp-binary "__exe.scm")))
-    (if (native-binary-current? binary source)
+         (tmp-exe-stub (string-append tmp-binary "__exe.scm"))
+         (dependencies (if (pair? maybe-dependencies)
+                         (car maybe-dependencies)
+                         [source])))
+    (if (native-binary-current? binary dependencies)
       (begin
         (display "... build-support executable current ")
         (display binary)
@@ -202,11 +367,14 @@
     (invoke "chmod" ["+x" binary])
     binary))
 
-(def (compile-native-fast-binary! name source)
+(def (compile-native-fast-binary! name source . maybe-dependencies)
   (let* ((binary (path-expand name (provider-bin-dir)))
          (tmp-binary (string-append binary ".native-tmp"))
-         (tmp-exe-stub (string-append tmp-binary "__exe.scm")))
-    (if (native-binary-current? binary source)
+         (tmp-exe-stub (string-append tmp-binary "__exe.scm"))
+         (dependencies (if (pair? maybe-dependencies)
+                         (car maybe-dependencies)
+                         [source])))
+    (if (native-binary-current? binary dependencies)
       (begin
         (display "... native fast current ")
         (display binary)
@@ -247,8 +415,7 @@
     binary))
 
 (def +native-fast-static-sources+
-  ["src/support/list.ss"
-   "src/parser/model.ss"
+  ["src/parser/model.ss"
    "src/parser/support.ss"
    "src/parser/formals.ss"
    "src/parser/imports.ss"
@@ -260,11 +427,103 @@
    "src/commands/search-owner-items.ss"
    "src/commands/guide-sections.ss"])
 
+(def +native-check-static-sources+
+  ["src/check-fast/gerbil-scheme-check.ss"
+   "src/commands/check.ss"
+   "src/constants.ss"
+   "src/checker/arity.ss"
+   "src/checker/core.ss"
+   "src/checker/facade.ss"
+   "src/checker/forms.ss"
+   "src/checker/model.ss"
+   "src/checker/types.ss"
+   "src/checker/whitelist.ss"
+   "src/parser/comment-quality.ss"
+   "src/parser/control-flow.ss"
+   "src/parser/core.ss"
+   "src/parser/dependency-adapter-quality.ss"
+   "src/parser/exports.ss"
+   "src/parser/facade.ss"
+   "src/parser/formals.ss"
+   "src/parser/function-quality.ss"
+   "src/parser/higher-order.ss"
+   "src/parser/imports.ss"
+   "src/parser/model.ss"
+   "src/parser/owner-items.ss"
+   "src/parser/package.ss"
+   "src/parser/poo.ss"
+   "src/parser/quality-shape.ss"
+   "src/parser/query.ss"
+   "src/parser/selectors.ss"
+   "src/parser/source-class.ss"
+   "src/parser/support.ss"
+   "src/parser/syntax.ss"
+   "src/parser/typed-contract-scheme.ss"
+   "src/parser/runtime-contract.ss"
+   "src/parser/typed-comment-metadata.ss"
+   "src/parser/typed-contract.ss"
+   "src/package-manager/core.ss"
+   "src/package-manager/facade.ss"
+   "src/extensions/model.ss"
+   "src/extensions/poo-patterns.ss"
+   "src/extensions/poo-inheritance.ss"
+   "src/extensions/poo.ss"
+   "src/extensions/core.ss"
+   "src/extensions/facade.ss"
+   "src/policy/model.ss"
+   "src/policy/catalog.ss"
+   "src/policy/prototype.ss"
+   "src/policy/dependency-adapter-profile.ss"
+   "src/policy/agent-support.ss"
+   "src/policy/agent-style-shape.ss"
+   "src/policy/agent-style-gerbil-signals.ss"
+   "src/policy/agent-style.ss"
+   "src/policy/agent-import.ss"
+   "src/policy/agent-comment.ss"
+   "src/policy/agent-source-scope.ss"
+   "src/policy/agent-poo.ss"
+   "src/policy/agent-dependency-adapter.ss"
+   "src/policy/agent-build-support.ss"
+   "src/policy/agent-build.ss"
+   "src/policy/agent-alist-access.ss"
+   "src/policy/agent-anonymous-pair.ss"
+   "src/policy/gerbil-utils-source.ss"
+   "src/policy/poo-source.ss"
+   "src/policy/detection.ss"
+   "src/policy/modularity.ss"
+   "src/policy/agent.ss"
+   "src/policy/repair.ss"
+   "src/policy/core.ss"
+   "src/policy/facade.ss"
+   "src/protocol/support.ss"
+   "src/protocol/function-quality-facts.ss"
+   "src/protocol/quality-shape-facts.ss"
+   "src/protocol/structural-facts.ss"
+   "src/protocol/structural-index.ss"
+   "src/protocol/json.ss"
+   "src/support/args.ss"
+   "src/support/io.ss"
+   "src/types/core.ss"
+   "src/types/env.ss"
+   "src/types/facade.ss"
+   "src/types/findings.ss"
+   "src/types/model.ss"
+   "src/types/signatures.ss"
+   "src/types/subtyping.ss"
+   "src/types/validation.ss"])
+
 (def (refresh-native-fast-static-artifacts!)
   (display "... refresh native fast static artifacts\n")
   (set-provider-compile-env!)
   (for-each compile-static-provider-source!
             +native-fast-static-sources+))
+
+(def (refresh-native-check-static-artifacts!)
+  (display "... refresh native check static artifacts\n")
+  (set-provider-compile-env!)
+  (for-each compile-static-provider-source!
+            (append +native-fast-static-sources+
+                    +native-check-static-sources+)))
 
 (def (script-executable? path)
   (with-catch
@@ -309,13 +568,18 @@
     binary))
 
 (def (compile-native-fast-cli!)
-  (refresh-native-fast-static-artifacts!)
+  (refresh-native-check-static-artifacts!)
   (compile-native-fast-binary!
    "gerbil-scheme-search-extension"
    "src/search-fast/gerbil-scheme-search-extension.ss")
   (compile-native-fast-binary!
    "gerbil-scheme-search-pattern"
    "src/search-fast/gerbil-scheme-search-pattern.ss")
+  (compile-native-fast-binary!
+   "gerbil-scheme-check"
+   "src/check-fast/gerbil-scheme-check.ss"
+   (append +native-fast-static-sources+
+           +native-check-static-sources+))
   (compile-native-owner-items-binary!)
   (compile-native-provider-dispatcher!))
 
@@ -375,7 +639,11 @@
 
 (def (set-provider-compile-env!)
   (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
-  (setenv "GERBIL_LOADPATH" (path-expand "src" (current-directory))))
+  (setenv "GERBIL_LOADPATH"
+          (string-join
+           (absolute-package-roots
+            (package-source-scope-roots '(roots: source-roots: source-root:)))
+           ":")))
 
 (def (build-source-directory? path)
   (eq? (file-type path) 'directory))
@@ -415,10 +683,25 @@
         (source-time (file-mtime-seconds source)))
     (and target-time
          source-time
-         (>= target-time source-time))))
+         (> target-time source-time))))
 
-(def (native-binary-current? binary source)
-  (and (file-current-for-source? binary source)
+(def (target-current-for-sources? target-time sources)
+  (cond
+   ((not target-time) #f)
+   ((null? sources) #t)
+   (else
+    (let (source-time (file-mtime-seconds (car sources)))
+      (and source-time
+           (> target-time source-time)
+           (target-current-for-sources? target-time (cdr sources)))))))
+
+(def (file-current-for-sources? target sources)
+  (target-current-for-sources?
+   (file-mtime-seconds target)
+   (if (list? sources) sources [sources])))
+
+(def (native-binary-current? binary sources)
+  (and (file-current-for-sources? binary sources)
        (not (script-executable? binary))))
 
 (def (static-artifact-path source)
@@ -459,10 +742,12 @@
             (static-provider-source-files)))
 
 (def (run-provider-tests!)
+  (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
   (setenv "GERBIL_LOADPATH"
-          (string-append (path-expand "src" (current-directory))
-                         ":"
-                         (path-expand "t" (current-directory))))
+          (string-join
+           (absolute-package-roots
+            (package-source-scope-roots '(runtime-roots: runtime-root: roots:)))
+           ":"))
   (let (tests (top-level-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")

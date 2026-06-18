@@ -4,8 +4,9 @@
 ;;; - Owns source-backed pattern families and selector/schema payloads.
 ;;; - Keeps :extensions/poo focused on activation and origin dispatch.
 
-(import (only-in :std/sugar hash-get)
-        :support/list)
+(import (only-in :clan/poo/object .@ object<-alist)
+        (only-in :std/srfi/13 string-join)
+        (only-in :std/sugar hash))
 
 (export poo-pattern-id
         poo-pattern-focus
@@ -21,8 +22,8 @@
         poo-pattern-missing
         poo-pattern-next)
 
-;;; Pattern specs are static POO prototype objects. They keep extension metadata
-;;; slot-oriented so overrides and inheritance mirror the gerbil-poo model.
+;;; Pattern specs are static POO objects. Extension metadata remains slot-oriented
+;;; so overrides and inheritance exercise the same prototype model we recommend.
 ;; : (-> Role Symbol Selector SourceSelector )
 (def (poo-selector role symbol selector)
   (hash (role role)
@@ -49,18 +50,39 @@
 
 ;;; Boundary:
 ;;; - Pattern inheritance keeps slot-level POO override semantics.
-;;; - Base specs are static hashes so search import does not need the POO runtime.
+;;; - Base specs are package dependency-backed POO objects, not ad hoc records.
 ;; : (-> PatternSpec Symbol Value Value Value )
 (def (poo-pattern-inherit base slot override default)
   (if override
     override
     (if base
-      (let (inherited (hash-get base slot))
+      (let (inherited (poo-pattern-object-slot base slot))
         (if inherited inherited default))
       default)))
 
 ;;; Boundary:
-;;; - This factory materializes one POO-backed pattern prototype.
+;;; - Dynamic public slot lookup is normalized through a stable local helper.
+;;; - Packet builders never receive the underlying record representation.
+;; : (-> PatternSpec Slot Value )
+(def (poo-pattern-object-slot spec slot)
+  (case slot
+    ((id) (.@ spec id))
+    ((defaultFocus) (.@ spec defaultFocus))
+    ((sourceOwners) (.@ spec sourceOwners))
+    ((agentScenario) (.@ spec agentScenario))
+    ((agentSteering) (.@ spec agentSteering))
+    ((intent) (.@ spec intent))
+    ((selectors) (.@ spec selectors))
+    ((minimalForms) (.@ spec minimalForms))
+    ((failureCases) (.@ spec failureCases))
+    ((qualitySignals) (.@ spec qualitySignals))
+    ((witness) (.@ spec witness))
+    ((missing) (.@ spec missing))
+    ((next) (.@ spec next))
+    (else #f)))
+
+;;; Boundary:
+;;; - This factory materializes one static pattern record.
 ;;; - Slot defaults and base overrides stay centralized so pattern sections remain declarative.
 ;; : (-> PatternSpec ... PatternSpec )
 (def (make-poo-pattern-spec base: (base #f)
@@ -77,19 +99,20 @@
                             witness: (witness #f)
                             missing: (missing #f)
                             next: (next #f))
-  (hash (id (poo-pattern-inherit base 'id id #f))
-        (defaultFocus (poo-pattern-inherit base 'defaultFocus defaultFocus #f))
-        (sourceOwners (poo-pattern-inherit base 'sourceOwners sourceOwners []))
-        (agentScenario (poo-pattern-inherit base 'agentScenario agentScenario #f))
-        (agentSteering (poo-pattern-inherit base 'agentSteering agentSteering #f))
-        (intent (poo-pattern-inherit base 'intent intent #f))
-        (selectors (poo-pattern-inherit base 'selectors selectors []))
-        (minimalForms (poo-pattern-inherit base 'minimalForms minimalForms []))
-        (failureCases (poo-pattern-inherit base 'failureCases failureCases []))
-        (qualitySignals (poo-pattern-inherit base 'qualitySignals qualitySignals []))
-        (witness (poo-pattern-inherit base 'witness witness #f))
-        (missing (poo-pattern-inherit base 'missing missing []))
-        (next (poo-pattern-inherit base 'next next #f))))
+  (object<-alist
+   [(cons 'id (poo-pattern-inherit base 'id id #f))
+    (cons 'defaultFocus (poo-pattern-inherit base 'defaultFocus defaultFocus #f))
+    (cons 'sourceOwners (poo-pattern-inherit base 'sourceOwners sourceOwners []))
+    (cons 'agentScenario (poo-pattern-inherit base 'agentScenario agentScenario #f))
+    (cons 'agentSteering (poo-pattern-inherit base 'agentSteering agentSteering #f))
+    (cons 'intent (poo-pattern-inherit base 'intent intent #f))
+    (cons 'selectors (poo-pattern-inherit base 'selectors selectors []))
+    (cons 'minimalForms (poo-pattern-inherit base 'minimalForms minimalForms []))
+    (cons 'failureCases (poo-pattern-inherit base 'failureCases failureCases []))
+    (cons 'qualitySignals (poo-pattern-inherit base 'qualitySignals qualitySignals []))
+    (cons 'witness (poo-pattern-inherit base 'witness witness #f))
+    (cons 'missing (poo-pattern-inherit base 'missing missing []))
+    (cons 'next (poo-pattern-inherit base 'next next #f))]))
 
 ;;; Boundary:
 ;;; - Object-system is the base prototype for all POO pattern families.
@@ -933,7 +956,7 @@
     (and entry (cdr entry))))
 
 ;;; Boundary:
-;;; - Public accessors stay stable while storage is hash-backed static data.
+;;; - Public accessors stay stable while storage is POO-backed static data.
 ;;; - Unknown slots return #f instead of exposing storage details to packet builders.
 ;; : (-> Kind Slot Value )
 (def (poo-pattern-spec-slot kind slot)
@@ -943,13 +966,13 @@
            ((id defaultFocus sourceOwners agentScenario agentSteering intent
                 selectors minimalForms failureCases qualitySignals witness
                 missing next)
-            (hash-get spec slot))
+            (poo-pattern-object-slot spec slot))
            (else #f)))))
 
 ;; : (-> String (List PooFormFact) PooPatternFocus )
 (def (poo-pattern-focus kind terms)
   (if (and (pair? terms) (pair? (cdr terms)))
-    (join (cdr terms) " ")
+    (string-join (cdr terms) " ")
     (poo-pattern-default-focus kind)))
 ;; : (-> String String )
 (def (poo-pattern-id kind)

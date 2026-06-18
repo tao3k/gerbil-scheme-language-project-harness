@@ -8,10 +8,15 @@
         :parser/selectors
         :parser/support
         :parser/syntax
-        :support/list
+        (only-in :std/misc/list unique)
         (only-in :std/misc/ports open-output-string read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-contains string-prefix? string-trim)
+        (only-in :std/srfi/1 take)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-join
+                 string-prefix?
+                 string-trim)
         (only-in :std/sugar cut filter hash))
 
 (export owner-items-source-path?
@@ -113,9 +118,9 @@
             (set! calls next-calls)))
           (set! rest next-rest)))
       (make-source-file relpath line-count package prelude namespace
-                        (dedupe imports)
-                        (dedupe exports)
-                        (dedupe includes)
+                        (unique imports)
+                        (unique exports)
+                        (unique includes)
                         (reverse definitions)
                         (reverse calls)
                         (reverse top-forms)
@@ -172,7 +177,7 @@
         (location (owner-fact-location-json (module-import-fact-path fact)
                                             (module-import-fact-start fact)
                                             (module-import-fact-end fact)))
-        (queryKeys (dedupe [(module-import-fact-module fact)
+        (queryKeys (unique [(module-import-fact-module fact)
                             (module-import-fact-modifier fact)
                             (module-import-fact-phase fact)
                             (module-import-fact-path fact)]))
@@ -196,7 +201,7 @@
         (location (owner-fact-location-json (module-export-fact-path fact)
                                             (module-export-fact-start fact)
                                             (module-export-fact-end fact)))
-        (queryKeys (dedupe [(module-export-fact-name fact)
+        (queryKeys (unique [(module-export-fact-name fact)
                             (module-export-fact-modifier fact)
                             (or (module-export-fact-alias fact) "")
                             (or (module-export-fact-module fact) "")
@@ -221,7 +226,7 @@
         (location (owner-fact-location-json (call-fact-path fact)
                                             (call-fact-start fact)
                                             (call-fact-end fact)))
-        (queryKeys (dedupe [(call-fact-callee fact)
+        (queryKeys (unique [(call-fact-callee fact)
                             (or (call-fact-caller fact) "")
                             (call-fact-path fact)]))
         (fields (hash (role "")
@@ -243,7 +248,7 @@
         (location (owner-fact-location-json (top-form-path fact)
                                             (top-form-start fact)
                                             (top-form-end fact)))
-        (queryKeys (dedupe [(top-form-head fact)
+        (queryKeys (unique [(top-form-head fact)
                             (top-form-kind fact)
                             (top-form-path fact)]))
         (fields (hash (role (top-form-kind fact))))))
@@ -313,7 +318,7 @@
 ;; : (-> SourcePath OwnerReadResult )
 (def (owner-read-lang-syntax-forms path)
   (let* ((lines (read-file-lines path))
-         (body-text (join-lines (cdr lines)))
+         (body-text (string-join (cdr lines) "\n"))
          (forms
           (call-with-input-string body-text
             (lambda (port)
@@ -350,4 +355,5 @@
       (lambda (line)
         (and (string-prefix? "prelude:" (string-trim line))
              (not (string-contains line ":gerbil/core"))))
-      (take* (read-file-lines path) 12)))))
+      (let (lines (read-file-lines path))
+        (take lines (min 12 (length lines))))))))

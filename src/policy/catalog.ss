@@ -2,8 +2,7 @@
 ;;; Central agent-facing policy rule catalog.
 
 (import :policy/model
-        (only-in :std/srfi/13 string-prefix?)
-        :support/list)
+        (only-in :std/srfi/13 string-join string-prefix?))
 
 (export agent-steering-facts
         agent-steering-rule-json
@@ -136,7 +135,14 @@
          (guideTopic "build-runtime-quality")
          (guideIntent "repair")
          (nextCommand "asp gerbil-scheme search owner build-support/provider-cli.ss items --query runtime|launcher|process --workspace . --view seeds")
-         (requires "build/runtime quality warnings require at least two independent parser-owned evidence groups, such as shell helper definitions plus shell control literals or sh -c dispatch plus pipeline literals; keep behavior in Gerbil runtime sources with list command arguments"))])
+         (requires "build/runtime quality warnings require at least two independent parser-owned evidence groups, such as shell helper definitions plus shell control literals or sh -c dispatch plus pipeline literals; keep behavior in Gerbil runtime sources with list command arguments"))
+   (hash (id (policy-rule-id +agent-package-build-canonical-shape-rule+))
+         (severity (policy-rule-severity +agent-package-build-canonical-shape-rule+))
+         (topic "package-build-canonical-shape")
+         (guideTopic "package-build-canonical-shape")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme search pattern defbuild-script std/make build.ss --workspace . --view seeds")
+         (requires "package-level build.ss should use the native Gerbil build surface: :std/build-script defbuild-script for simple packages, or :std/make with make/make-clean over an explicit build spec for intermediate scripts; manual compiler/process dispatch must not replace the build spec"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -153,7 +159,7 @@
   (match (agent-steering-rule-ids)
     ([] "")
     ([first . rest]
-     (join (cons first (map compact-agent-rule-id rest)) ","))))
+     (string-join (cons first (map compact-agent-rule-id rest)) ","))))
 ;; : (-> RuleId String )
 (def (compact-agent-rule-id rule-id)
   (if (string-prefix? +agent-rule-prefix+ rule-id)

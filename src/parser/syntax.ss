@@ -6,6 +6,8 @@
         :parser/imports
         :parser/model
         :parser/support
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/1 drop)
         (only-in :std/srfi/13 string-prefix?))
 
 (export +definition-heads+
@@ -105,7 +107,9 @@
         (calls-from-stxes relpath (cdr items) caller local-types))
        ((eq? head '.def)
         (calls-from-stxes relpath
-                          (drop* items 2)
+                          (if (>= (length items) 2)
+                            (drop items 2)
+                            '())
                           (or (form-caller-name datum) caller)
                           local-types))
        ((member head +definition-heads+)
@@ -462,17 +466,27 @@
      ((and (eq? head 'let)
            (pair? (cdr items))
            (symbol? (syntax->datum (cadr items))))
-      (drop* items 3))
-     (else (drop* items 2)))))
+      (if (>= (length items) 3)
+        (drop items 3)
+        '()))
+     (else
+      (if (>= (length items) 2)
+        (drop items 2)
+        '())))))
 ;; : (-> Form Datum Integer )
 (def (stx-form-body-items form datum)
   (let (items (stx-list-items form))
     (if (and (pair? datum) (member (car datum) +definition-heads+))
-      (drop* items 2)
+      (if (>= (length items) 2)
+        (drop items 2)
+        '())
       [form])))
 ;; : (-> ExprStx LambdaBodyStxes )
 (def (lambda-body-stxes expr-stx)
-  (drop* (stx-list-items expr-stx) 2))
+  (let (items (stx-list-items expr-stx))
+    (if (>= (length items) 2)
+      (drop items 2)
+      '())))
 ;;; Boundary:
 ;;; - case-lambda-body-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -489,10 +503,16 @@
   (let (items (stx-list-items expr-stx))
     (append (if (pair? (cdr items)) [(cadr items)] '())
             (apply append
-                   (map clause-body-stxes (drop* items 2))))))
+                   (map clause-body-stxes
+                        (if (>= (length items) 2)
+                          (drop items 2)
+                          '()))))))
 ;; : (-> ClauseStx ClauseBodyStxes )
 (def (clause-body-stxes clause-stx)
-  (drop* (stx-list-items clause-stx) 1))
+  (let (items (stx-list-items clause-stx))
+    (if (>= (length items) 1)
+      (drop items 1)
+      '())))
 ;; let-body-local-types
 ;;   : (-> Head (List Binding) LocalTypes LocalTypes)
 ;;   | doc m%
@@ -637,7 +657,7 @@
 ;;; Macro quality facets expose Gerbil-specific macro engineering evidence to policy/search without relying on prose heuristics.
 ;; : (-> Head Datum (List QualityFacet) )
 (def (macro-quality-facets head datum)
-  (dedupe
+  (unique
    (filter identity
            [(and (macro-hygienic? datum) "hygienic-macro")
             (and (member head '(defrule defrules)) "macro-sugar")
@@ -699,7 +719,7 @@
 ;;       ```
 ;;     %
 (def (module-refs datum)
-  (dedupe
+  (unique
    (filter-map
     (lambda (item)
       (cond
@@ -722,7 +742,7 @@
 ;;       ```
 ;;     %
 (def (export-symbols datum)
-  (dedupe
+  (unique
    (filter-map
     (lambda (item)
       (and (symbol? item)

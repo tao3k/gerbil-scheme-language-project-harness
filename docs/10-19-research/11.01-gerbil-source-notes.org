@@ -53,3 +53,26 @@ uses Gerbil reader/expander APIs as the parser boundary.
 6. Keep compiler/type enrichment as the next step: use ~import-module~,
    module-context exports, and compiler facts only where the command explicitly
    needs expanded or phase-aware semantics.
+
+** 11.01.4 Compiler Proof Boundary
+
+The upstream compiler evidence in ~.data/gerbil/src/gerbil/compiler~ supports
+our current lightweight proof design, not a full proof system.
+
+- ~compiler/optimize-base.ss~ defines optimizer metadata such as ~!signature~,
+  ~!class~, ~!predicate~, and ~!type-subtype?~.  The subtype relation is
+  metadata-level: exact type equality, top type, procedure shape, and
+  class/subclass checks through the class precedence list.
+- ~compiler/optimize-ann.ss~ uses local assertion environments for match and
+  syntax-case optimization.  Predicate assertions are folded into local
+  ~env-type~ facts, and ~assert-type~ can satisfy positive assertions only when
+  class/subclass metadata proves the requested relation.
+- There is no general constraint solver, quantifier reasoning, principal type
+  inference, proof-term calculus, or cross-module theorem prover in this layer.
+
+Harness implication: =TypeProof= should remain a positive derivation witness
+over normalized =TypeSpec= relations.  It can expose rule chains for policy
+composition, but it must not claim complete type-theory soundness.  If we need
+stronger guarantees later, the next step is a separate typed core plus
+counterexample diagnostics, not stretching Gerbil compiler optimizer facts into
+a theorem prover.

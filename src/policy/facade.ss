@@ -2,6 +2,7 @@
 ;;; Stable policy facade for Gerbil project rules.
 
 (import :policy/agent
+        :policy/agent-build
         :policy/core
         :policy/model
         :policy/modularity
@@ -40,6 +41,7 @@
         +agent-policy-source-scope-rule+
         +agent-alist-access-rule+
         +agent-anonymous-pair-access-rule+
+        +agent-package-build-canonical-shape-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -79,6 +81,7 @@
         dependency-protocol-adapter-finding
         explicit-precise-import-finding
         package-build-responsibility-finding
+        package-build-canonical-shape-finding
         build-runtime-quality-finding
         policy-source-scope-finding
         alist-access-finding

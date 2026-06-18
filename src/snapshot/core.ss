@@ -6,6 +6,7 @@
         :extensions/facade
         :parser/facade
         :snapshot/support
+        (only-in :std/srfi/1 list-copy)
         (only-in :std/sugar hash-key?)
         :types/facade)
 
@@ -42,7 +43,7 @@
   (list 'projectPackage
         (list 'path (project-package-path package))
         (list 'name (project-package-name package))
-        (list 'dependencies (snapshot-list (project-package-dependencies package)))
+        (list 'dependencies (list-copy (project-package-dependencies package)))
         (list 'fields
               (list 'packageManager (project-package-manager package))
               (source-scope-policy-snapshot
@@ -55,9 +56,9 @@
 (def (source-scope-policy-snapshot policy)
   (list 'sourceScopePolicy
         (if policy
-          (list (list 'roots (snapshot-list (source-scope-policy-roots policy)))
-                (list 'runtimeRoots (snapshot-list (source-scope-policy-runtime-roots policy)))
-                (list 'excludeDirectories (snapshot-list (source-scope-policy-exclude-directories policy)))
+          (list (list 'roots (list-copy (source-scope-policy-roots policy)))
+                (list 'runtimeRoots (list-copy (source-scope-policy-runtime-roots policy)))
+                (list 'excludeDirectories (list-copy (source-scope-policy-exclude-directories policy)))
                 (list 'explanation (source-scope-policy-explanation policy)))
           '())))
 ;; : (-> Policy Snapshot )
@@ -65,7 +66,7 @@
   (list 'agentPolicy
         (if policy
           (list (list 'default "all-rules-enabled")
-                (list 'disabledRules (snapshot-list (agent-policy-disabled-rules policy)))
+                (list 'disabledRules (list-copy (agent-policy-disabled-rules policy)))
                 (list 'explanation (agent-policy-explanation policy)))
           '())))
 ;; : (-> Policy Snapshot )
@@ -73,8 +74,8 @@
   (list 'modularityPolicy
         (if policy
           (list (list 'disabled (modularity-policy-disabled policy))
-                (list 'enabledRules (snapshot-list (modularity-policy-enabled-rules policy)))
-                (list 'disabledRules (snapshot-list (modularity-policy-disabled-rules policy)))
+                (list 'enabledRules (list-copy (modularity-policy-enabled-rules policy)))
+                (list 'disabledRules (list-copy (modularity-policy-disabled-rules policy)))
                 (list 'maxSourceLineCount (modularity-policy-max-source-line-count policy))
                 (list 'maxTestLineCount (modularity-policy-max-test-line-count policy))
                 (list 'minSourceDefinitionCount (modularity-policy-min-source-definition-count policy))
@@ -90,8 +91,8 @@
         (list 'dependencyMode (extension-fact-dependency-mode fact))
         (list 'packageManager (extension-fact-package-manager fact))
         (list 'package (extension-fact-package fact))
-        (list 'dependencies (snapshot-list (extension-fact-dependencies fact)))
-        (list 'capabilities (snapshot-list (extension-fact-capabilities fact)))))
+        (list 'dependencies (list-copy (extension-fact-dependencies fact)))
+        (list 'capabilities (list-copy (extension-fact-capabilities fact)))))
 ;;; Boundary:
 ;;; - extension-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -114,7 +115,7 @@
         (list 'extension (hash-get pattern 'extension))
         (list 'focus (hash-get pattern 'focus))
         (source-ref-snapshot (hash-get pattern 'sourceRef))
-        (list 'sourceOwners (snapshot-list (hash-get pattern 'sourceOwners)))
+        (list 'sourceOwners (list-copy (hash-get pattern 'sourceOwners)))
         (list 'agentScenario (hash-get pattern 'agentScenario))
         (list 'intent (hash-get pattern 'intent))
         (list 'selectors
@@ -127,7 +128,7 @@
               (map pattern-failure-case-snapshot
                    (hash-get pattern 'failureCases)))
         (list 'qualitySignals
-              (snapshot-list (hash-get pattern 'qualitySignals)))
+              (list-copy (hash-get pattern 'qualitySignals)))
         (list 'witness (hash-get pattern 'witness))))
 ;; : (-> SourceRef Snapshot )
 (def (source-ref-snapshot source-ref)
@@ -190,8 +191,8 @@
 (def (pattern-form-template-snapshot template)
   (list 'template
         (list 'head (hash-get template 'head))
-        (list 'operands (snapshot-list (hash-get template 'operands)))
-        (list 'keywords (snapshot-list (hash-get template 'keywords)))))
+        (list 'operands (list-copy (hash-get template 'operands)))
+        (list 'keywords (list-copy (hash-get template 'keywords)))))
 ;; : (-> Failure Snapshot )
 (def (pattern-failure-case-snapshot failure)
   (list 'failureCase
@@ -206,11 +207,11 @@
           (list 'badPattern (hash-get failure 'badPattern))
           (list 'badPattern ""))
         (if (hash-key? failure 'selectors)
-          (list 'selectors (snapshot-list (hash-get failure 'selectors)))
+          (list 'selectors (list-copy (hash-get failure 'selectors)))
           (list 'selectors '()))))
 ;; : (-> Query Pattern Missing Next Snapshot )
 (def (pattern-search-snapshot query pattern missing next)
-  (let (missing-items (snapshot-list missing))
+  (let (missing-items (list-copy missing))
     (list 'patternSearch
           (list 'namespace "pattern")
           (list 'authority "executable-pattern")
@@ -255,7 +256,7 @@
                 (map evidence-failure-case-snapshot
                      (hash-get fact 'failureCases)))
           (list 'qualitySignals
-                (snapshot-list (hash-get fact 'qualitySignals))))))
+                (list-copy (hash-get fact 'qualitySignals))))))
 ;; : (-> SourceRef Snapshot )
 (def (runtime-source-ref-snapshot source-ref)
   (list 'sourceRef
@@ -338,7 +339,7 @@
               (map evidence-failure-case-snapshot
                    (hash-get fact 'failureCases)))
         (list 'qualitySignals
-              (snapshot-list (hash-get fact 'qualitySignals)))))
+              (list-copy (hash-get fact 'qualitySignals)))))
 ;; : (-> Details String )
 (def (language-evidence-details-snapshot details)
   (cons 'details
@@ -370,7 +371,7 @@
 ;; : (-> Details Key Snapshot )
 (def (snapshot-detail-list details key)
   (if (hash-key? details key)
-    [(list key (snapshot-list (hash-get details key)))]
+    [(list key (list-copy (hash-get details key)))]
     '()))
 ;; : (-> Details Key Snapshot )
 (def (snapshot-detail-list-value details key)
@@ -417,8 +418,8 @@
 (def (source-example-form-snapshot form)
   (list 'form
         (list 'head (hash-get form 'head))
-        (list 'operands (snapshot-list (hash-get form 'operands)))
-        (list 'keywords (snapshot-list (hash-get form 'keywords)))))
+        (list 'operands (list-copy (hash-get form 'operands)))
+        (list 'keywords (list-copy (hash-get form 'keywords)))))
 ;; : (-> Comment Snapshot )
 (def (source-comment-snapshot comment)
   (list 'sourceComment
@@ -442,7 +443,7 @@
 ;; : (-> (List String) String )
 (def (guide-snapshot lines)
   (list 'guide
-        (list 'lines (snapshot-list lines))))
+        (list 'lines (list-copy lines))))
 ;;; Boundary:
 ;;; - registry-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -456,7 +457,7 @@
           (list 'registryVersion (hash-get registry 'registryVersion))
           (list 'languageId (hash-get language 'languageId))
           (list 'providerId (hash-get language 'providerId))
-          (list 'methods (snapshot-list (hash-get language 'methods)))
+          (list 'methods (list-copy (hash-get language 'methods)))
           (list 'schemas (map schema-registry-entry-snapshot schemas))
           (list 'methodDescriptors
                 (map method-descriptor-snapshot descriptors)))))
@@ -472,7 +473,7 @@
         (list 'method (hash-get descriptor 'method))
         (list 'command (hash-get descriptor 'command))
         (list 'outputSchemaIds
-              (snapshot-list (hash-get descriptor 'outputSchemaIds)))))
+              (list-copy (hash-get descriptor 'outputSchemaIds)))))
 ;;; Boundary:
 ;;; - compare-fact-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -493,7 +494,7 @@
               (map evidence-failure-case-snapshot
                    (hash-get fact 'failureCases)))
         (list 'qualitySignals
-              (snapshot-list (hash-get fact 'qualitySignals)))))
+              (list-copy (hash-get fact 'qualitySignals)))))
 ;; : (-> Label Side String )
 (def (compare-side-snapshot label side)
   (cons label

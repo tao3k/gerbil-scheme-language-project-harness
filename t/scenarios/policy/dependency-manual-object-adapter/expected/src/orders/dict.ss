@@ -2,7 +2,8 @@
 (package: sample/orders)
 (import
   (only-in :clan/pure/dict/orderdict
-           orderdict-empty? orderdict-ref orderdict-put orderdict->list
+           orderdict-empty? orderdict-ref orderdict-put orderdict-remove
+           orderdict-foldl orderdict-foldr orderdict->list
            list->orderdict orderdict=?)
   (only-in :clan/poo/mop define-type Any raise-type-error)
   (only-in ./table methods.table))
@@ -13,9 +14,10 @@
   .empty: orderdict-empty?
   .ref: orderdict-ref
   .acons: (lambda (k v d) (orderdict-put d k v))
-  .foldl: (lambda (f seed d) seed)
+  .remove: (lambda (d k) (orderdict-remove d k))
+  .foldl: (lambda (f seed d) (orderdict-foldl f seed d))
+  .foldr: (lambda (f seed d) (orderdict-foldr f seed d))
   .<-list: list->orderdict
   .list<-: orderdict->list
   .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))
   .=?: (lambda (a b) (orderdict=? a b)))
-

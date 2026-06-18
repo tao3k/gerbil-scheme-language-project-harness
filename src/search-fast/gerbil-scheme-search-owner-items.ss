@@ -3,6 +3,7 @@
 
 (import :gerbil/gambit
         :commands/search-owner-items
+        (only-in :std/srfi/13 string-suffix?)
         (only-in :std/sugar match))
 
 (export main)
@@ -13,9 +14,7 @@
 ;; : (-> ArgValue Boolean )
 (def (source-script-path? value)
   (and (string? value)
-       (let (length (string-length value))
-         (and (fx>= length 3)
-              (equal? (substring value (- length 3) length) ".ss")))))
+       (string-suffix? ".ss" value)))
 
 ;;; Arg normalization:
 ;;; - Fast-path binaries accept both full `search owner` and owner-local forms.

@@ -418,8 +418,7 @@ owner-size/modularity policy, where the count itself is the policy signal.
 The loop is closed only when:
 
 #+begin_src shell
-GERBIL_LOADPATH=src:t gxtest -v t/parser-test.ss t/policy-test.ss t/search-test.ss t/snapshot-test.ss t/schema-test.ss
-GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss t/bench-test.ss
+gxi build.ss test
 ./bin/gerbil-scheme-harness check --json .
 ./bin/gerbil-scheme-harness self-apply --json .
 ./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .

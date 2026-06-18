@@ -3,8 +3,8 @@
 
 (import :parser/owner-items
         :support/args
-        :support/list
-        (only-in :std/srfi/13 string-contains)
+        (only-in :std/srfi/1 take)
+        (only-in :std/srfi/13 string-contains string-empty?)
         (only-in :std/sugar cut filter filter-map ormap))
 
 (export emit-owner-items
@@ -47,7 +47,8 @@
         (if (flag? "--names-only" args)
           (begin
             (for-each (lambda (defn) (displayln (definition-name defn)))
-                      (take* definition-matches limit))
+                      (take definition-matches
+                            (min limit (length definition-matches))))
             (for-each (lambda (fact) (displayln (hash-get fact 'name)))
                       syntax-matches))
           (emit-owner-items file definition-matches syntax-matches limit)))
@@ -110,9 +111,11 @@
 ;; : (-> SourceFile Matches SyntaxMatches Unit )
 (def (emit-owner-items file definition-matches syntax-matches . maybe-limit)
   (let* ((limit (owner-items-effective-limit maybe-limit))
-         (shown-definitions (take* definition-matches limit))
+         (shown-definitions
+          (take definition-matches (min limit (length definition-matches))))
          (syntax-budget (max 0 (- limit (length shown-definitions))))
-         (shown-syntax (take* syntax-matches syntax-budget)))
+         (shown-syntax
+          (take syntax-matches (min syntax-budget (length syntax-matches)))))
   (displayln "[gerbil-owner-items] path=" (source-file-path file)
              " matches=" (+ (length definition-matches)
                              (length syntax-matches))
@@ -225,7 +228,7 @@
 ;; : (-> String Boolean )
 (def (owner-item-query-term? value)
   (and (string? value)
-       (> (string-length value) 0)))
+       (not (string-empty? value))))
 
 ;;; Boundary:
 ;;; - Split only the owner-items query grammar, not global search parsing.

@@ -3,8 +3,8 @@
 
 (import :parser/facade
         :protocol/support
-        (only-in :std/sugar filter hash)
-        :support/list)
+        (only-in :std/misc/list unique)
+        (only-in :std/sugar filter hash))
 
 (export predicate-family-structural-fact-json
         field-access-pattern-structural-fact-json
@@ -33,7 +33,7 @@
 ;;; the source owner.
 ;; : (-> PredicateFamilyFact (List QueryKey) )
 (def (predicate-family-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(predicate-family-fact-name fact)
                     (predicate-family-fact-kind fact)
@@ -82,7 +82,7 @@
 ;;; accessors and callers that justify a future combinator rewrite.
 ;; : (-> FieldAccessPatternFact (List QueryKey) )
 (def (field-access-pattern-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(field-access-pattern-fact-name fact)
                     (field-access-pattern-fact-kind fact)
@@ -127,7 +127,7 @@
 ;;; discoverable even when the family-level policy is the warning owner.
 ;; : (-> BooleanConditionFact (List QueryKey) )
 (def (boolean-condition-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(boolean-condition-fact-name fact)
                     (boolean-condition-fact-kind fact)
@@ -174,7 +174,7 @@
 ;;; IO/runtime boundary before policy decides whether to suggest a rewrite.
 ;; : (-> LoopDriverFact (List QueryKey) )
 (def (loop-driver-query-keys fact)
-  (dedupe
+  (unique
    (filter identity
            (append [(loop-driver-fact-name fact)
                     (loop-driver-fact-kind fact)

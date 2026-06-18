@@ -192,13 +192,13 @@
 (def (check-structural-index-json-schema-conformance)
   (let* ((packet (search-json ["structural" "--json" "."]))
          (owner-packet
-          (search-json
-           ["structural" "--owner" "t/fixtures/parser/complex-syntax.ss"
-            "--json" "."]))
+         (search-json
+           ["structural" "--owner" "parser/complex-syntax.ss"
+            "--json" "t/fixtures"]))
          (higher-order-packet
           (search-json
-           ["structural" "--owner" "t/fixtures/parser/higher-order.ss"
-            "--json" "."]))
+           ["structural" "--owner" "parser/higher-order.ss"
+            "--json" "t/fixtures"]))
          (syntax-facts (json-get owner-packet "facts"))
          (higher-order-facts (json-get higher-order-packet "facts"))
          (macro-fact (find-syntax-fact syntax-facts "macro" "capture-safe"))
@@ -234,9 +234,9 @@
     (check (length (json-get packet "syntaxFacts")) => 0)
     (check (not (null? (json-get packet "nativeSyntaxFactSummaries"))) => #t)
     (check (json-get owner-packet "scope") => "owner")
-    (check (json-get owner-packet "query") => "t/fixtures/parser/complex-syntax.ss")
+    (check (json-get owner-packet "query") => "parser/complex-syntax.ss")
     (check (json-get higher-order-packet "scope") => "owner")
-    (check (json-get higher-order-packet "query") => "t/fixtures/parser/higher-order.ss")
+    (check (json-get higher-order-packet "query") => "parser/higher-order.ss")
     (check (not (null? syntax-facts)) => #t)
     (check (json-get macro-fact "source") => "native-parser")
     (check (json-get macro-fact "languageKind") => "defsyntax")

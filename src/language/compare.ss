@@ -2,7 +2,7 @@
 ;;; Stable compare facts for active Gerbil runtime evidence.
 
 (import :language/evidence
-        (only-in :std/srfi/13 string-contains string-prefix?)
+        (only-in :std/srfi/13 string-contains string-prefix? string-split)
         (only-in :std/sugar cut filter ormap))
 
 (export compare-facts
@@ -99,7 +99,10 @@
 ;; : (-> (List SearchTerm) Boolean )
 (def (compare-compile-query? terms)
   (ormap (lambda (term)
-           (or (string-contains "compile compiler gsc target requested source checkout nightly" term)
+           (or (term-matches-token-list?
+                term
+                ["compile" "compiler" "gsc" "target" "requested" "runtime"
+                 "source" "checkout" "nightly"])
                (string-prefix? "v0." term)
                (string-prefix? "0." term)))
          terms))
@@ -116,9 +119,51 @@
 ;; : (-> CompareFact (List SearchTerm) Boolean )
 (def (compare-fact-matches-terms? fact terms)
   (ormap (lambda (term)
-           (ormap (cut string-contains <> term)
-                  (hash-get fact 'terms)))
+           (term-matches-token-list? term (hash-get fact 'terms)))
          terms))
+
+;;; Data-flow boundary:
+;;; - Direct token containment wins first.
+;;; - Hyphenated query terms then require every part to match an evidence token.
+;; : (-> SearchTerm (List String) Boolean )
+(def (term-matches-token-list? term tokens)
+  (or (ormap (cut term-matches-token? term <>) tokens)
+      (let (parts (hyphenated-term-parts term))
+        (and (pair? (cdr parts))
+             (all?
+              parts
+              (lambda (part)
+                (ormap (cut term-matches-token? part <>) tokens)))))))
+
+;; : (-> SearchTerm String Boolean )
+(def (term-matches-token? term token)
+  (or (string-contains token term)
+      (string-contains term token)))
+
+;; hyphenated-term-parts
+;;   : (-> SearchTerm (List String))
+;;   | doc m%
+;;       `hyphenated-term-parts term` splits a search term on hyphen boundaries
+;;       and drops empty segments before part-wise token matching.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (hyphenated-term-parts "compile-target-runtime")
+;;       ;; => ["compile" "target" "runtime"]
+;;       ```
+;;     %
+;;; Intent: this is a pure tokenization transform; use the standard string
+;;; splitter plus filter so search matching does not hide a character scanner.
+(def (hyphenated-term-parts term)
+  (filter (lambda (part) (> (string-length part) 0))
+          (string-split term #\-)))
+
+;; : (-> (List X) (-> X Boolean) Boolean )
+(def (all? values predicate)
+  (or (null? values)
+      (and (predicate (car values))
+           (all? (cdr values) predicate))))
 ;; : (-> Fact Json )
 (def (compare-fact-json fact)
   (hash (id (hash-get fact 'id))

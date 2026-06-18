@@ -573,7 +573,7 @@ the real =.data/gerbil-utils= checkout.
 Validation command:
 
 #+begin_src sh
-GERBIL_LOADPATH=src:t gxi -e '(begin (import :parser/core) ...)'
+gxi build.ss test
 ./bin/gerbil-scheme-harness check ../../.data/gerbil-utils
 #+end_src
 

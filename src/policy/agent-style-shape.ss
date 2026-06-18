@@ -6,8 +6,8 @@
         :policy/detection
         :policy/gerbil-utils-source
         :policy/model
+        (only-in :std/srfi/1 take)
         (only-in :std/sugar cut filter filter-map foldl hash ormap)
-        :support/list
         :types/findings)
 
 (export controlled-branch-shape-findings
@@ -88,16 +88,16 @@
         (subject (predicate-family-fact-subject fact))
         (predicateCount (predicate-family-fact-predicate-count fact))
         (predicateNames
-         (take-at-most (predicate-family-fact-predicate-names fact) 8))
+         (let (names (predicate-family-fact-predicate-names fact))
+           (take names (min 8 (length names)))))
         (fieldKeys (predicate-family-fact-field-keys fact))
         (repeatedCallees (predicate-family-fact-repeated-callees fact))
         (conditionCount (predicate-family-fact-condition-count fact))
         (qualityFacets (predicate-family-fact-quality-facets fact))
         (fieldAccessPatterns
-         (take-at-most
-          (map field-access-pattern-repair-evidence
-               (source-file-field-access-pattern-facts file))
-          6))
+         (let (patterns (map field-access-pattern-repair-evidence
+                             (source-file-field-access-pattern-facts file)))
+           (take patterns (min 6 (length patterns)))))
         (agentRepairStandard "rewrite toward gerbil-utils style: keep predicate names stable, extract role/field selector helpers, and compose small expression-returning predicates")
         (agentRepairEnvelope
          (hash (flexibility "agent may choose helper names, role-set tables, or predicate combinator shape")
@@ -121,7 +121,7 @@
 
 ;; : (-> FieldAccessPatternFact Boolean )
 (def (field-access-helper-evidence-complete? fact)
-  (not (not (field-access-helper-detection fact))))
+  (if (field-access-helper-detection fact) #t #f))
 
 ;;; Detector boundary:
 ;;; - R016 field-access warnings require two independent parser-owned groups.
@@ -226,7 +226,9 @@
   (hash (fieldKey (field-access-pattern-fact-field-key fact))
         (accessCount (field-access-pattern-fact-access-count fact))
         (accessors (field-access-pattern-fact-accessors fact))
-        (callers (take-at-most (field-access-pattern-fact-callers fact) 8))
+        (callers
+         (let (callers (field-access-pattern-fact-callers fact))
+           (take callers (min 8 (length callers)))))
         (selector (field-access-pattern-fact-selector fact))
         (advice (field-access-pattern-fact-advice fact))))
 

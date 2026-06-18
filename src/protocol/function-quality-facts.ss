@@ -3,7 +3,7 @@
 
 (import :parser/facade
         :protocol/support
-        :support/list)
+        (only-in :std/misc/list unique))
 
 (export function-quality-profile-structural-fact-json)
 
@@ -30,7 +30,7 @@
 ;;; broad policy or source scans.
 ;; : (-> FunctionQualityProfile (List QueryKey) )
 (def (function-quality-profile-query-keys profile)
-  (dedupe
+  (unique
    (filter identity
            (append [(function-quality-profile-name profile)
                     (function-quality-profile-kind profile)

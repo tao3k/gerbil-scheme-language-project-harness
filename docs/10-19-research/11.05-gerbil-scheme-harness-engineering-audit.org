@@ -619,8 +619,7 @@ static prompt paragraph.
 Run these after implementing the next improvements:
 
 #+begin_src shell
-GERBIL_LOADPATH=src:t gxtest t/parser-test.ss t/policy-test.ss t/search-test.ss t/snapshot-test.ss t/schema-test.ss
-GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss
+gxi build.ss test
 ./bin/gerbil-scheme-harness check --full .
 ./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .
 asp gerbil-scheme search structural --workspace . --view seeds

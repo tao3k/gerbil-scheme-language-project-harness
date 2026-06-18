@@ -2,28 +2,17 @@
 ;;; Shared helpers for stable snapshot projections.
 
 (import :parser/facade
-        :support/list
-        (only-in :std/srfi/13 string-prefix? string-suffix?))
+        (only-in :std/misc/string string-trim-suffix)
+        (only-in :std/srfi/13 string-prefix?))
 
-(export snapshot-list
-        map-indexed
-        snapshot-project-root
-        trim-trailing-slash)
+(export snapshot-project-root)
 ;; : (-> ProjectIndex Snapshot )
 (def (snapshot-project-root index)
-  (let* ((root (trim-trailing-slash (project-index-root index)))
+  (let* ((project-root (project-index-root index))
+         (root (if (> (string-length project-root) 1)
+                 (string-trim-suffix "/" project-root)
+                 project-root))
          (cwd (current-directory)))
     (if (string-prefix? cwd root)
       (substring root (string-length cwd) (string-length root))
       root)))
-;; : (-> String TrimTrailingSlash )
-(def (trim-trailing-slash path)
-  (if (and (> (string-length path) 1) (string-suffix? "/" path))
-    (substring path 0 (fx1- (string-length path)))
-    path))
-;;; Boundary:
-;;; - snapshot-list composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; : (forall (a) (-> (List a) (List a)) )
-(def (snapshot-list xs)
-  (map (lambda (x) x) xs))

@@ -1,0 +1,200 @@
+* Purpose
+Gerbil source annotations should stay readable as comments while becoming structured enough for the parser, policy checks, and agent guidance.
+The project should borrow Nickel's documentation layout, not its surface syntax. Type expressions should project upstream Gerbil contract/signature forms into provider-owned facts so comments do not become a second foreign language.
+* Short Form
+Use the short form for ordinary helpers:
+#+begin_src scheme
+;; : (forall (a b) (-> (-> a b) (List a) (List b)))
+(def (map f xs)
+  ...)
+#+end_src
+The parser binds the block to the immediately following definition. The definition name is read from the source form and should not be repeated in ordinary helper comments.
+* Local Type Environment
+Use =| type= lines for aliases that make the signature readable:
+#+begin_src scheme
+;; : (forall (a)
+;;     (-> (-> a a Order)
+;;         (List a)
+;;         (List a)
+;;         Order))
+;; | type Order = (U 'Lesser 'Equal 'Greater)
+(def (compare order a b)
+  ...)
+#+end_src
+The alias is local to the attached block unless a later RFC defines file-level or section-level typed comment environments.
+* Full Form
+Use the full form for public APIs, exported helpers, macros, policy-sensitive helpers, and functions whose examples or laws materially improve review:
+#+begin_src scheme
+;; compare
+;;   : (forall (a)
+;;       (-> (-> a a Order)
+;;           (List a)
+;;           (List a)
+;;           Order))
+;;   | type Order = (U 'Lesser 'Equal 'Greater)
+;;   | doc m%
+;;       `compare order a b` lexicographically compares `a` and `b`,
+;;       using `order` to compare individual elements.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (compare number-compare '(3 1 4) '(6 2 8))
+;;       ;; => 'Lesser
+;;       ```
+;;     %
+(def (compare order a b)
+  ...)
+#+end_src
+The leading name is optional for private helpers and exists to improve human navigation.
+When the full form is required by policy, the leading name is required and must match the following definition.
+* Type Expression Shape
+- Use =(forall (a b) TYPE)= for polymorphism.
+- Use =(-> A B C)= for function types.
+- Use Gerbil keyword parameters inside arrows as named parameter pairs, for
+  example =(-> String SlotPrototype supers: (List SlotProfile) SlotProfile)=.
+  The parser reads =supers:= as a Gerbil keyword marker and attaches the
+  following type expression to one =keyword-parameter= TypeSpec node; it must
+  not be treated as a nominal type named =supers=.
+- Use =(List a)=, =(Vector a)=, =(Hash k v)=, and =(Maybe a)= for containers.
+- Use =(Values a b)= for multiple values.
+- Use =(U 'Left 'Right)= for symbol unions and finite enums.
+The parser treats the expression after =;;   := as a Scheme datum-backed type
+language, not as display text. A form such as =(List TypeFinding)= is a unary
+type constructor application: =List= is the constructor and =TypeFinding= is a
+type name parameter. Lowercase symbols in type position are type variables and
+must be bound by the nearest enclosing =forall=. For example, =(Array a)= is
+invalid on its own and reports =unbound-type-variable:a=, while
+=(forall (a) (-> (Array a) Boolean))= records =a= as a bound type variable.
+
+Built-in type constructors carry parser-owned arity checks. =List=, =Listof=,
+=Array=, =Vector=, and =Maybe= require one parameter; =Hash= requires key and
+value parameters; =Values= and =U= require at least one child; =Refine=
+requires a base type and predicate. Unknown uppercase symbols remain valid type
+names or custom type applications so project-local aliases can be introduced
+without hard-coding a global type environment.
+* Formal TypeSpec Validation
+The parser has two validation layers:
+- Syntax diagnostics stay parser-owned and explain source grammar problems such
+  as =Hash-requires-key-and-value= or =unbound-type-variable:a=.
+- =TypeSpec= validation checks the normalized semantic AST after parsing. The
+  =typeSpec= JSON packet exposes =valid= and =diagnostics= so agents do not need
+  to reparse comment strings or infer checker behavior from prose.
+
+The formal relation lives under =src/types/validation.ss= and is re-exported by
+=:types/facade=. It owns:
+- structural diagnostics for unknown child types, empty =Values= or =U= nodes,
+  missing =Refine= predicates, invalid variadic arity, duplicate record fields,
+  missing required record fields, and known alias application arity mismatch;
+- structured diagnostic facts with stable =code=, =path=, =category=, and
+  =message= fields, while retaining the legacy string =diagnostics= projection;
+- local alias expansion and alias equivalence through explicit alias
+  environments; arity-only alias entries remain valid, while entries with
+  parameters and a body can be expanded before compatibility checks;
+- conservative subtyping for refinements, unions, applications, records,
+  functions, variadic functions, pairs, lists, vectors, hashes, and values;
+- union normalization through =simplify-union=, including nested union
+  flattening, duplicate removal, and single-member collapse;
+- Scheme-list compatibility witnesses such as =Null= as a subtype of =List=
+  and =List a= as a subtype of a pair shape when the element and tail types
+  satisfy the pair contract;
+- checker compatibility, where =unknown=, =Any=, and type variables remain open
+  only to avoid speculative findings.
+
+Checker code must consume =type-compatible?= from the validation layer instead of
+implementing local string or constructor checks. Parser code may attach
+=typeSpec.valid=, =typeSpec.diagnostics=, and =typeSpec.diagnosticFacts= to
+facts, but it should keep syntax diagnostics separate from semantic diagnostics.
+Alias arity, expansion, and equivalence are driven by explicit alias
+environments, not by hard-coded constructor names. Type relation tests should
+cover reflexivity, transitivity witnesses, and =simplify-union= idempotence so
+the validation layer remains more than a display formatter.
+** Pseudo Type Comment Closure
+
+Parser-owned typed comment validation is a hard policy input, not display
+metadata. Full-form =;; := blocks carry =signatureType= and local alias
+=expressionType= JSON from =typed-contract-scheme.ss=. =typed-contract.ss=
+must fold those structural diagnostics into =TypedContractFact.reasons=, so an
+invalid shape such as =(List)=, =(Hash String)=, =(Values)=, or an unbound
+short type variable becomes a typed-combinator invalid contract finding.
+Keyword-aware arrows are part of the same closure: =name: Type= contributes a
+named parameter whose child =Type= is still validated structurally. An orphan
+keyword marker reports =keyword-parameter-requires-type:name= instead of being
+silently accepted as display text.
+
+** Runtime Contract Arrow Closure
+
+Runtime contracts may use both Scheme prefix arrows and Nickel-style top-level
+infix arrows:
+#+begin_src scheme
+;; | contract (-> procedure? natural? vector?)
+;; | contract Dyn -> NonEmpty -> Dyn
+#+end_src
+
+The parser normalizes both forms into one runtime contract arrow packet. This
+packet remains separate from the static =;; := type, but it also carries a
+=typeSpec= projection and structural diagnostics from the same validation
+layer used by static comments. Invalid child shapes such as
+=Dyn -> (List) -> Dyn= become parser-owned invalid contract reasons, so policy
+does not need to reparse contract prose.
+
+Legacy =Output <- Input= comments are validated through their projected output
+and indexed input expressions. The indexed reason prefix preserves whether the
+malformed type came from the output side or a specific input position, without
+asking policy to reparse comment text.
+
+This closure is intentionally structural. Unknown nominal names such as
+=Order= or =Money= remain admissible unless explicit alias/import/definition
+evidence later proves they are unresolved. The next strictness tier should be
+environment-aware nominal resolution, not a hard-coded list of suspicious type
+names.
+** Internal Lightweight Proof Witnesses
+
+The validation layer owns a small positive proof object for successful type relations. =type-subtype-proof=, =type-compatible-proof=, and =type-alias-equivalence-proof= return a =TypeProof= with a rule name, structured conclusion, premise proofs, and optional detail. The existing boolean predicates are projections over these witnesses. =type-proof-rules= exposes the preorder rule chain so policy code can combine multiple proof signals without manually traversing the proof tree.
+
+This is intentionally internal and lightweight. It proves only successful derivations over the normalized =TypeSpec= AST: equality, refinement erasure, union member matching, container shape recursion, function variance, record field width subtyping, open compatibility, and explicit alias expansion. It is not a full type theory, solver, or theorem prover. Failure remains =#f= until a later counterexample diagnostic layer is needed.
+
+* Static Type And Runtime Contract
+Nickel's standard library often keeps a static type next to a runtime contract. Gerbil comments should preserve that separation instead of hiding runtime preconditions inside prose.
+Use =:= for the static type. Use =| contract= for runtime predicate/contract evidence that cannot be expressed precisely by the static shape alone:
+#+begin_src scheme
+;; : (forall (a)
+;;     (-> (-> Number a)
+;;         Number
+;;         (Vector a)))
+;; | contract (-> procedure? natural? vector?)
+;; | type Nat = (Refine Number natural?)
+(def (generate f n)
+  ...)
+#+end_src
+Use =| requires= for named preconditions that are important to the helper's behavior or safety:
+#+begin_src scheme
+;; : (forall (a) (-> (NonEmptyList a) a))
+;; | type NonEmptyList a = (Refine (List a) pair?)
+;; | requires (pair? xs)
+(def (first xs)
+  (car xs))
+#+end_src
+=Refine= is the preferred type expression when a Scheme predicate narrows a broader type. The refinement expression names the base type first and the predicate second, for example =(Refine Number natural?)=.
+Runtime contracts and preconditions are parser-owned metadata. They should be available to policy and guide output as facets and under the provider-owned =typedComment= structural field.
+They must not change the legacy =contract=, =contractOutput=, or =contractInputs= fields; a future versioned shared schema may standardize the richer typed-comment shape across providers.
+The =typedComment= field should expose parser-owned grammar facts, including =signatureType=, local alias =expressionType= facts, =runtimeContractsDetailed= predicate arrows, =requiresDetailed= predicate calls, and =diagnostics= for malformed or underspecified type forms.
+* Warnings And Rationale
+Use =| warning= or =| rationale= only when the contract has a real review consequence:
+#+begin_src scheme
+;; : (forall (a) (-> (List a) a))
+;; | requires (pair? xs)
+;; | warning empty-list input raises through car
+;; | rationale call sites already guard xs through parser-visible pair? checks
+(def (first xs)
+  (car xs))
+#+end_src
+Do not use these fields as decoration. A block that needs warning/rationale evidence should cite the concrete predicate, call-site witness, macro phase boundary, or runtime boundary that makes the contract safe.
+* Compatibility
+The legacy contract form remains valid during migration:
+#+begin_src scheme
+;; (List Money) <- (List Order)
+(def (order-totals orders)
+  ...)
+#+end_src
+New code should prefer the Gerbil contract projection typed block. Parser support keeps legacy fields populated so existing policy and snapshot consumers keep working while the richer provider-owned =typedComment= field carries local types, runtime contracts, preconditions, warnings, rationale, docs, doc examples, refinements, type grammar shape, and diagnostics.

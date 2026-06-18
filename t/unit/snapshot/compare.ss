@@ -35,4 +35,7 @@
             "compile v0.18 v0.19 nightly"
             [compile-fact]
             (hash-get compile-fact 'next))
-           => (snapshot-load "t/snapshots/compare-compile-target-runtime-source.ss"))))
+           => (snapshot-load "t/snapshots/compare-compile-target-runtime-source.ss"))
+    (check (map (lambda (fact) (hash-get fact 'id))
+                (matching-compare-facts ["compile-target" "runtime-source"]))
+           => ["compile-target-runtime-source"])))

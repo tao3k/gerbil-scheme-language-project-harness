@@ -9,8 +9,8 @@
         :policy/repair
         :protocol/structural-index
         :protocol/structural-facts
-        :support/list
         (only-in :std/sort sort)
+        (only-in :std/srfi/1 iota take)
         (only-in :std/sugar hash hash-key? hash-put!)
         (only-in :std/text/json write-json)
         :types/facade)
@@ -260,7 +260,9 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> ProjectIndex Json )
 (def (search-prime-packet-json index)
-  (let* ((owners (take* (ranked-files index) 100))
+  (let* ((ranked-owners (ranked-files index))
+         (owners (take ranked-owners (min 100 (length ranked-owners))))
+         (owner-ranks (iota (length owners) 1))
          (package (project-index-package index))
          (extensions (project-extension-facts index))
          (packet
@@ -281,7 +283,7 @@
            (nodes (search-prime-nodes package extensions owners))
            (edges (search-prime-edges package extensions owners))
            (owners (map owner-json owners))
-           (hits (map-indexed owner-hit-json owners))
+           (hits (map owner-hit-json owners owner-ranks))
            (findings '())
            (nextActions (list (hash (kind "search")
                                     (target "fzf")
@@ -308,7 +310,7 @@
 (def (search-prime-nodes package extensions owners)
   (append (if package (list (package-node-json package)) '())
           (map extension-node-json extensions)
-          (map-indexed owner-node-json owners)))
+          (map owner-node-json owners (iota (length owners) 1))))
 ;;; Boundary:
 ;;; - search-prime-edges composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

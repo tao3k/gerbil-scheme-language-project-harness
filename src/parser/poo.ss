@@ -4,10 +4,13 @@
 (import :gerbil/expander
         :parser/model
         :parser/support
+        (only-in :std/misc/list unique)
+        (only-in :std/misc/string string-trim-suffix)
         (only-in :std/srfi/13 string-prefix? string-suffix?))
 
 (export +poo-definition-heads+
         poo-form-facts-from-form)
+
 ;; ConfigConstant
 (def +poo-definition-heads+
   '(.def define-type defclass .defclass defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol))
@@ -40,6 +43,18 @@
 ;; ConfigConstant
 (def +poo-inherited-slot-call-heads+
   '(next-method))
+
+;; ConfigConstant
+(def +poo-category-algebra-tokens+
+  '("Category." "domain" "codomain" "compose" "identity"))
+
+;; ConfigConstant
+(def +poo-functor-algebra-tokens+
+  '("Functor." "ParametricFunctor." "Functor^." ".tap" ".ap" ".map"))
+
+;; ConfigConstant
+(def +poo-wrapper-algebra-tokens+
+  '("Wrapper." "Wrap." "Wrap^." ".wrap" ".unwrap" ".bind" ".map/wrap"))
 
 ;;; Boundary:
 ;;; - poo-form-facts-from-form composes first-class procedures.
@@ -233,7 +248,8 @@
    ((eq? head 'define-type)
     (append
      (filter define-type-option? (keyword-like-symbols (safe-cddr datum)))
-     (poo-define-type-method-options datum)))
+     (poo-define-type-method-options datum)
+     (poo-define-type-algebra-options datum)))
    ((member head '(defgeneric .defgeneric))
     (append (poo-generic-options datum)
             (poo-runtime-hook-options (poo-generic-name datum))))
@@ -254,7 +270,7 @@
 ;;; - Type parameters such as `T` or `Value` remain out of method-slot evidence.
 ;; : (-> Datum (List String) )
 (def (poo-define-type-slots datum)
-  (dedupe
+  (unique
    (append
     (poo-define-type-header-method-slots datum)
     (poo-define-type-body-method-slots (safe-cddr datum)))))
@@ -300,14 +316,40 @@
     (let ((slot (poo-method-slot-name (car items)))
           (rest (cdr items)))
       (if slot
-        (let (value (and (pair? rest) (car rest)))
-          (cons (string-append "methodSlot:" slot)
-                (cons (string-append "methodBody:" slot ":"
-                                     (poo-method-body-shape value))
-                      (poo-define-type-body-method-options
-                       (if (pair? rest) (cdr rest) '())))))
+        (let* ((value (and (pair? rest) (car rest)))
+               (shape (poo-method-body-shape value)))
+          (append [(string-append "methodSlot:" slot)
+                   (string-append "methodBody:" slot ":" shape)]
+                  (poo-method-body-quality-options slot shape)
+                  (poo-define-type-body-method-options
+                   (if (pair? rest) (cdr rest) '()))))
         (poo-define-type-body-method-options rest)))
     '()))
+
+;;; Method body quality is emitted by the native POO parser, not by policy text
+;;; matching.  Policy consumers only read these stable option tokens.
+;; : (-> MethodSlot MethodBodyShape (List String) )
+(def (poo-method-body-quality-options slot shape)
+  (let (slot-token (string-append "methodBodyQuality:" slot ":"))
+    (cond
+     ((equal? slot ".validate")
+      [(string-append slot-token "validation-boundary")
+       "methodTableBody:validation-boundary"])
+     ((member shape '("partial-application" "function-curry"
+                      "function-composition" "pipeline-composition"
+                      "function-constructor" "poo-selector-call"
+                      "case-lambda"))
+      [(string-append slot-token "combinator")
+       "methodTableBody:combinator"])
+     ((equal? shape "lambda")
+      [(string-append slot-token "lambda-drift")
+       "methodTableBody:lambda-drift"])
+     ((or (and (string-prefix? "call:" shape)
+               (not (equal? shape "call:@list")))
+          (equal? shape "compound"))
+      [(string-append slot-token "low-level")
+       "methodTableBody:low-level"])
+     (else '()))))
 
 ;; : (-> Datum MaybeString )
 (def (poo-method-slot-name item)
@@ -318,7 +360,7 @@
          (else #f)))
     (and key-name
          (string-prefix? "." key-name)
-         (poo-strip-slot-colon key-name))))
+         (string-trim-suffix ":" key-name))))
 
 ;;; Body shape classifies method implementations at the syntax level.  It never
 ;;; evaluates POO code; it only records whether a method is a lambda, partial
@@ -341,6 +383,42 @@
        ((member head '(.@ .call @method)) "poo-selector-call")
        ((symbol? head) (string-append "call:" (symbol->string head)))
        (else "compound"))))))
+
+;;; Typeclass/functor options expose gerbil-poo/fun.ss algebra as search facts.
+;;; They are parser-owned syntax tokens: no POO code is evaluated, and the
+;;; option names stay stable for agent-facing structural search.
+;; : (-> Datum (List String) )
+(def (poo-define-type-algebra-options datum)
+  (let (tokens (poo-define-type-token-strings datum))
+    (filter identity
+            [(and (poo-any-token? +poo-category-algebra-tokens+ tokens)
+                  "typeclass:category")
+             (and (poo-any-token? +poo-category-algebra-tokens+ tokens)
+                  "categoryAlgebra:compose-identity")
+             (and (poo-any-token? +poo-functor-algebra-tokens+ tokens)
+                  "typeclass:functor")
+             (and (poo-any-token? +poo-functor-algebra-tokens+ tokens)
+                  "functorAlgebra:tap-ap-map")
+             (and (poo-any-token? +poo-wrapper-algebra-tokens+ tokens)
+                  "typeclass:wrapper")
+             (and (poo-any-token? +poo-wrapper-algebra-tokens+ tokens)
+                  "wrapperAlgebra:wrap-unwrap-bind-map")])))
+
+;;; Boundary:
+;;; - define-type token extraction normalizes nested algebra declarations.
+;;; - Flatten/filter/map keeps role detection independent from source layout depth.
+;; : (-> Datum (List String) )
+(def (poo-define-type-token-strings datum)
+  (unique
+   (filter string?
+           (map datum->string (flatten (safe-cadr datum))))))
+
+;; : (-> (List String) (List String) Boolean )
+(def (poo-any-token? candidates tokens)
+  (and (pair? candidates)
+       (or (member (car candidates) tokens)
+           (poo-any-token? (cdr candidates) tokens))))
+
 ;; : (-> Datum MaybeString )
 (def (poo-generic-name datum)
   (let (spec (safe-cadr datum))
@@ -361,7 +439,7 @@
 ;; : (-> Datum (List String) )
 (def (poo-generic-options datum)
   (poo-generic-options-with-default-dispatch
-   (dedupe
+   (unique
     (poo-generic-options-from-items (datum-list-items (safe-cddr datum))))))
 ;;; Invariant:
 ;;; - Option values are skipped only for recognized POO generic keywords.
@@ -422,7 +500,7 @@
 ;;; - Keyword slots consume their value; list and symbol slots consume one item.
 ;; : (-> Datum (List (Pair String String)) )
 (def (poo-object-slot-shapes datum)
-  (dedupe
+  (unique
    (poo-object-slot-shapes-from-items (datum-list-items (safe-cddr datum)))))
 ;;; Invariant:
 ;;; - The scanner is permissive because fixtures include unusual slot syntax.
@@ -452,13 +530,7 @@
 ;; : (-> Datum MaybeString )
 (def (poo-keyword-slot-name item)
   (let (key-name (poo-option-key-name item))
-    (and key-name (poo-strip-slot-colon key-name))))
-;; : (-> String String )
-(def (poo-strip-slot-colon text)
-  (if (and (< 0 (string-length text))
-           (string-suffix? ":" text))
-    (substring text 0 (1- (string-length text)))
-    text))
+    (and key-name (string-trim-suffix ":" key-name))))
 ;; : (-> String (List Datum) (Pair String String) )
 (def (poo-keyword-slot-shape name rest)
   (cons name
@@ -500,7 +572,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> Datum (List String) )
 (def (keyword-like-symbols datum)
-  (dedupe
+  (unique
    (filter-map (lambda (item)
                  (poo-option-key-name item))
                (flatten datum))))

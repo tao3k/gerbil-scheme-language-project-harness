@@ -17,8 +17,8 @@
         :protocol/json
         :support/args
         :support/io
-        :support/list
-        (only-in :std/srfi/13 string-contains)
+        (only-in :std/srfi/1 take)
+        (only-in :std/srfi/13 string-contains string-join)
         (only-in :std/sugar cut filter match ormap))
 
 (export search-main
@@ -51,7 +51,7 @@
          (cond
           ((equal? view "compare") (emit-compare-search args json?))
           ((language-evidence-index-free-view? view)
-           (emit-language-evidence-search #f view args json?))
+           (emit-language-evidence-search root view args json?))
           ((poo-pattern-package-only-search? view args)
            (emit-pattern-search
             (collect-project-package-only root)
@@ -137,7 +137,8 @@
           (displayln "|owner path=" (source-file-path file)
                      " package=" (or (source-file-package file) "-")
                      " defs=" (length (source-file-definitions file))))
-        (take* (project-index-files index) 20))))
+        (let (files (project-index-files index))
+          (take files (min 20 (length files)))))))
   0)
 ;; emit-prime
 ;;   : (-> ProjectIndex Boolean Integer)
@@ -171,7 +172,8 @@
                     " sourceClass=" (source-path-class (source-file-path file))
                     " defs=" (length (source-file-definitions file))
                     " imports=" (length (source-file-imports file))))
-       (take* (ranked-files index) 12))
+       (let (files (ranked-files index))
+         (take files (min 12 (length files)))))
       (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")
       (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))
   0)
@@ -182,7 +184,7 @@
       (displayln "|package name=" (project-package-name package)
                  " path=" (project-package-path package)
                  " packageManager=" (project-package-manager package)
-                 " dependencies=" (join (project-package-dependencies package) ",")))))
+                 " dependencies=" (string-join (project-package-dependencies package) ",")))))
 ;; : (-> ProjectIndex (List String) )
 (def (emit-extension-lines index)
   (for-each displayln (project-extension-search-lines index)))
@@ -209,7 +211,7 @@
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (emit-owner-search index '("src/support/list.ss") #f)
+;;       (emit-owner-search index '("src/parser/support.ss") #f)
 ;;       ;; => 0
 ;;       ```
 ;;     %
@@ -234,7 +236,8 @@
                       definition-matches))
            ((flag? "--names-only" args)
             (for-each (lambda (defn) (displayln (definition-name defn)))
-                      (take* definition-matches limit))
+                      (take definition-matches
+                            (min limit (length definition-matches))))
             (for-each (lambda (fact) (displayln (hash-get fact 'name)))
                       syntax-matches))
            (else (emit-owner-items file definition-matches syntax-matches limit))))
@@ -276,13 +279,14 @@
   (when (source-file-namespace file)
     (displayln "|namespace " (source-file-namespace file)))
   (unless (null? (source-file-imports file))
-    (displayln "|imports " (join (source-file-imports file) ",")))
+    (displayln "|imports " (string-join (source-file-imports file) ",")))
   (for-each
    (lambda (defn)
      (displayln "|item kind=" (definition-kind defn)
                 " name=" (definition-name defn)
                 " selector=" (definition-selector defn)))
-   (take* (source-file-definitions file) 30))
+   (let (definitions (source-file-definitions file))
+     (take definitions (min 30 (length definitions)))))
   (displayln "nextCommand=gerbil-scheme-harness query " (source-file-path file)
              " --term '<symbol>' --workspace . --names-only"))
 ;; emit-symbol-search
@@ -294,7 +298,7 @@
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (emit-symbol-search index '("dedupe") #f)
+;;       (emit-symbol-search index '("datum-list-items") #f)
 ;;       ;; => 0
 ;;       ```
 ;;     %
@@ -313,7 +317,7 @@
              (displayln "|match name=" (definition-name defn)
                         " kind=" (definition-kind defn)
                         " selector=" (definition-selector defn)))
-           (take* matches 40)))))
+           (take matches (min 40 (length matches)))))))
     0))
 ;; emit-import-search
 ;;   : (-> ProjectIndex (List String) Boolean Integer)
@@ -324,7 +328,7 @@
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (emit-import-search index '(":support/list") #f)
+;;       (emit-import-search index '(":parser/support") #f)
 ;;       ;; => 0
 ;;       ```
 ;;     %
@@ -345,7 +349,7 @@
           (for-each
            (lambda (file)
              (displayln "|owner path=" (source-file-path file)))
-           (take* matches 40)))))
+           (take matches (min 40 (length matches)))))))
     0))
 ;; emit-fzf-search
 ;;   : (-> ProjectIndex (List String) Boolean Integer)
@@ -375,7 +379,7 @@
                         " package=" (or (source-file-package file) "-")
                         " sourceClass=" (source-path-class (source-file-path file))
                         " defs=" (length (source-file-definitions file))))
-           (take* matches 24))
+           (take matches (min 24 (length matches))))
           (when (pair? matches)
             (displayln "recommendedNext=gerbil-scheme-harness search owner "
                        (source-file-path (car matches)) " --workspace . --view seeds")))))

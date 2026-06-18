@@ -3,6 +3,10 @@
 
 (import :std/test
         (only-in :std/text/json read-json)
+        :parser/facade
+        :policy/facade
+        :policy/gxtest
+        :policy/repair-calibration
         :policy/fixtures)
 
 (export agent-repair-policy-test)
@@ -58,16 +62,74 @@
                => ["GERBIL-SCHEME-AGENT-R015"])
         (check (hash-get comment-plan "commentRepairOrder")
                => "comment-quality repairs run after structural/style repairs when both hit the same group")
+        (check (hash-get comment-plan "triggerSource")
+               => "policy-warning")
+        (check (hash-get comment-plan "action")
+               => "apply-policy-triggered-repair")
         (check (hash-get finding-repair "repairable") => #t)
         (check (hash-get finding-repair "active") => #t)
         (check (hash-get finding-repair "trigger") => "warning")
         (check (hash-get finding-repair "guideTopic")
                => "functional-data-transform")
         (check (hash-get finding-repair "guideIntent") => "repair")
-        (check (hash-get finding-repair "action") => "inspect-code-shape")
+        (check (hash-get finding-repair "action")
+               => "apply-policy-triggered-repair")
         (check (hash-get finding-repair "guideCodeFlag") => "--code")
         (check (hash-get finding-repair "nextCommand")
                => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")
         (check (hash-get (hash-get comment-finding "agentRepair")
                          "nextCommand")
-               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))))
+               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))
+    (test-case "agent repair replay calibrates repaired structural witnesses"
+      (let* ((before-root ".run/policy-agent-repair-replay-input")
+             (after-root ".run/policy-agent-repair-replay-after")
+             (_ (write-functional-idiom-project before-root))
+             (_ (write-functional-idiom-calibrated-project after-root))
+             (report (project-policy-report before-root))
+             (after-index (collect-project after-root))
+             (after-findings (run-policy-checks after-index))
+             (calibration
+              (agent-repair-calibration-report
+               report
+               after-index
+               after-findings))
+             (assertions (hash-get calibration 'assertions)))
+        (check after-findings => [])
+        (check (hash-get calibration 'status) => "pass")
+        (check (hash-get calibration 'groupCount) => 2)
+        (check (hash-get calibration 'failureCount) => 0)
+        (check (> (hash-get calibration 'assertionCount) 6) => #t)
+        (check (calibration-assertion-present?
+                assertions
+                "repairPlanDrivesRepair"
+                "repairPlan")
+               => #t)
+        (check (calibration-assertion-present?
+                assertions
+                "typedContractFactsPresent"
+                "typedContractFacts")
+               => #t)
+        (check (calibration-assertion-present?
+                assertions
+                "higherOrderFactsPresent"
+                "higherOrderFacts")
+               => #t)
+        (check (calibration-assertion-present?
+                assertions
+                "functionQualityProfilePresent"
+                "functionQualityProfile")
+               => #t)
+        (check (calibration-assertion-present?
+                assertions
+                "commentQualityFactsStrong"
+                "commentQualityFacts")
+               => #t)))))
+
+;; : (-> (List Json) AssertionName Witness Boolean)
+(def (calibration-assertion-present? assertions name witness)
+  (not (not
+        (find (lambda (assertion)
+                (and (equal? (hash-get assertion 'status) "pass")
+                     (equal? (hash-get assertion 'assertion) name)
+                     (equal? (hash-get assertion 'witness) witness)))
+              assertions))))

@@ -18,9 +18,9 @@
         :policy/model
         :policy/modularity
         (only-in :std/misc/ports read-file-lines)
+        (only-in :std/srfi/1 take)
         (only-in :std/srfi/13 string-contains string-prefix? string-trim)
         (only-in :std/sugar cut filter filter-map find hash ormap while with-catch)
-        :support/list
         :types/findings)
 
 (export run-agent-policy
@@ -76,7 +76,14 @@
   '("andmap/ormap" "every/any" "find/list-index"))
 ;; Integer
 (def +functional-composition-idioms+
-  '("cut/cute" "curry/rcurry" "compose/compose1"))
+  '("cut/cute" "curry/rcurry" "compose/compose1" "!>/!!>"))
+;; Integer
+(def +functional-native-lambda-idioms+
+  '("fun" "lambda-match/λ-match" "λ" "case-lambda"))
+;; Integer
+(def +functional-typeclass-idioms+
+  '("gerbil-poo/fun.ss Category." "Functor." "ParametricFunctor."
+    "Wrapper./Wrap." "methods.table protocol slots"))
 ;; String
 (def +functional-preservation-control-roles+
   '("protected-control"
@@ -129,6 +136,7 @@
    (dependency-protocol-adapter-findings index)
    (explicit-precise-import-findings index)
    (package-build-responsibility-findings index)
+   (package-build-canonical-shape-findings index)
    (build-runtime-quality-findings index)
    (policy-source-scope-findings index)
    (alist-access-findings index)
@@ -163,11 +171,11 @@
   (with-catch
    (lambda (_) #f)
    (lambda ()
-     (ormap intent-comment?
-            (take* (read-file-lines
-                    (path-expand (source-file-path file)
-                                 (project-index-root index)))
-                   8)))))
+     (let (lines (read-file-lines
+                  (path-expand (source-file-path file)
+                               (project-index-root index))))
+       (ormap intent-comment?
+              (take lines (min 8 (length lines))))))))
 ;; : (-> SourceLine Boolean )
 (def (intent-comment? line)
   (let (text (string-trim line))
@@ -342,6 +350,8 @@
                      (sequenceIdioms +functional-sequence-idioms+)
                      (predicateIdioms +functional-predicate-idioms+)
                      (compositionIdioms +functional-composition-idioms+)
+                     (nativeLambdaIdioms +functional-native-lambda-idioms+)
+                     (typeclassIdioms +functional-typeclass-idioms+)
                      (builderIdioms '("with-list-builder"))
                      (styleGuide "typed-combinator-style")
                      (styleCommand "asp gerbil-scheme guide --code --topic typed-combinator-style --intent style")
@@ -358,7 +368,7 @@
                         "stateful control flow"
                         "C3-style fixpoint selection"
                         "generator, coroutine, actor, or continuation driver"))
-                     (learnedFrom ".data/gerbil-utils/list.ss uses small typed-commented helpers with map/filter/fold/cut and keeps named let for C3 selection; generator.ss models coroutine control inversion; bytestring.ss uses for/fold for pure counts and named let for port IO")))))))
+                     (learnedFrom ".data/gerbil-utils/base.ss exposes λ/lambda-match/compose/!>/curry/rcurry/fun for compact higher-order helpers; .data/gerbil-poo/fun.ss models Category./Functor./ParametricFunctor. algebra; table.ss methods.table shows protocol slots plus derived table/list/sexp/json/marshal capability; named let remains valid for C3 selection, reader IO, and coroutine control")))))))
 ;;; Boundary:
 ;;; Manual-loop advice is caller scoped and multi-signal.
 ;;; Named let remains valid Gerbil.

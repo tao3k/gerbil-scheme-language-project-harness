@@ -6,4 +6,6 @@
  (names . (vector string))
  (string-or-number . (union string number))
  (node . (record ((value number) (next (union null any))) (value)))
- (rest-sum . (function* number number 1)))
+ (rest-sum . (function* number number 1))
+ (contract-findings . (-> CallFact NativeSignatures ParamEnv (List TypeFinding)))
+ (identity . (forall (a) (-> a a))))

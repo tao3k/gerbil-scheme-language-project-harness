@@ -13,6 +13,9 @@
 
 (export macro-controlled-helper-policy-snapshot
         functional-idiom-policy-snapshot
+        generator-combinator-policy-snapshot
+        controlled-macro-syntax-policy-snapshot
+        typeclass-algebra-policy-snapshot
         controlled-branch-shape-policy-snapshot
         typed-combinator-style-policy-snapshot
         comment-quality-policy-snapshot
@@ -21,6 +24,7 @@
         predicate-family-combinator-policy-snapshot
         build-support-shell-template-policy-snapshot
         package-build-shell-pipeline-policy-snapshot
+        package-build-canonical-shape-policy-snapshot
         dependency-protocol-adapter-policy-snapshot
         dependency-manual-object-adapter-policy-snapshot
         check-policy-snapshot-fixtures)
@@ -70,6 +74,8 @@
         (list 'sequenceIdioms (hash-get details 'sequenceIdioms))
         (list 'predicateIdioms (hash-get details 'predicateIdioms))
         (list 'compositionIdioms (hash-get details 'compositionIdioms))
+        (list 'nativeLambdaIdioms (hash-get details 'nativeLambdaIdioms))
+        (list 'typeclassIdioms (hash-get details 'typeclassIdioms))
         (list 'builderIdioms (hash-get details 'builderIdioms))
         (list 'styleGuide (hash-get details 'styleGuide))
         (list 'styleCommand (hash-get details 'styleCommand))
@@ -124,10 +130,34 @@
 
 ;; Snapshot
 (def (typed-combinator-style-policy-snapshot)
+  (typed-combinator-style-scenario-policy-snapshot
+   "typed-combinator-style"
+   "t/scenarios/policy/typed-combinator-style"))
+
+;; Snapshot
+(def (generator-combinator-policy-snapshot)
+  (typed-combinator-style-scenario-policy-snapshot
+   "generator-combinator"
+   "t/scenarios/policy/generator-combinator"))
+
+;; Snapshot
+(def (controlled-macro-syntax-policy-snapshot)
+  (typed-combinator-style-scenario-policy-snapshot
+   "controlled-macro-syntax"
+   "t/scenarios/policy/controlled-macro-syntax"))
+
+;; Snapshot
+(def (typeclass-algebra-policy-snapshot)
+  (typed-combinator-style-scenario-policy-snapshot
+   "typeclass-algebra"
+   "t/scenarios/policy/typeclass-algebra"))
+
+;; : (-> ScenarioId ScenarioRoot Snapshot )
+(def (typed-combinator-style-scenario-policy-snapshot id root)
   (let* ((scenario
           (make-policy-scenario
-           "typed-combinator-style"
-           "t/scenarios/policy/typed-combinator-style"))
+           id
+           root))
          (result (policy-scenario-run scenario))
          (before-finding
           (policy-scenario-required-finding
@@ -170,19 +200,34 @@
         (list 'implementationEvidenceCount
               (hash-get details 'implementationEvidenceCount))
         (list 'qualityFacets (hash-get details 'qualityFacets))
+        (list 'gerbilUtilsImplementationSignals
+              (hash-get details 'gerbilUtilsImplementationSignals))
+        (list 'generatorCombinatorSignals
+              (hash-get details 'generatorCombinatorSignals))
+        (list 'generatorContractTargets
+              (hash-get details 'generatorContractTargets))
+        (list 'controlledMacroSyntaxSignals
+              (hash-get details 'controlledMacroSyntaxSignals))
+        (list 'controlledMacroTargets
+              (hash-get details 'controlledMacroTargets))
+        (list 'typeclassAlgebraSignals
+              (hash-get details 'typeclassAlgebraSignals))
+        (list 'typeclassAlgebraTargets
+              (hash-get details 'typeclassAlgebraTargets))
+        (list 'gerbilContractProjectionSignals
+              (hash-get details 'gerbilContractProjectionSignals))
         (list 'qualityFacetSteering
               (hash-get details 'qualityFacetSteering))))
-
-;; : (-> String String )
-(def (snapshot-string-copy value)
-  (and value (string-append "" value)))
 
 ;; : (-> TypeFinding SnapshotFinding )
 (def (finding-snapshot-copy finding)
   [(type-finding-rule-id finding)
-   (snapshot-string-copy (type-finding-path finding))
-   (snapshot-string-copy (type-finding-selector finding))
-   (snapshot-string-copy (type-finding-message finding))])
+   (and (type-finding-path finding)
+        (string-copy (type-finding-path finding)))
+   (and (type-finding-selector finding)
+        (string-copy (type-finding-selector finding)))
+   (and (type-finding-message finding)
+        (string-copy (type-finding-message finding)))])
 
 ;; Snapshot
 (def (comment-quality-policy-snapshot)
@@ -230,10 +275,11 @@
           (list 'weakCommentCount
                 (hash-get details 'weakCommentCount))
           (list 'repairTargets
-                (map snapshot-string-copy
+                (map string-copy
                      (hash-get details 'repairTargets)))
           (list 'exampleTarget
-                (snapshot-string-copy (hash-get example 'target)))
+                (and (hash-get example 'target)
+                     (string-copy (hash-get example 'target))))
           (list 'exampleContext (hash-get example 'context))
           (list 'exampleCommentKind (hash-get example 'commentKind))
           (list 'exampleQuality (hash-get example 'quality))
@@ -436,6 +482,54 @@
    "package-build-shell-pipeline"
    "t/scenarios/policy/package-build-shell-pipeline"))
 
+;; Snapshot
+(def (package-build-canonical-shape-policy-snapshot)
+  (let* ((scenario
+          (make-policy-scenario
+           "package-build-canonical-shape"
+           "t/scenarios/policy/package-build-canonical-shape"))
+         (result (policy-scenario-run scenario))
+         (before-finding
+          (policy-scenario-required-finding
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R025"))
+         (before-details (type-finding-details before-finding))
+         (after-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R025")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'finding (finding-snapshot before-finding))
+                (list 'buildShape
+                      (package-build-canonical-shape-snapshot
+                       before-details)))
+          (list 'after
+                (list 'r025Findings
+                      (map finding-snapshot after-findings))))))
+
+;; : (-> PolicyDetails BuildShapeSnapshot )
+(def (package-build-canonical-shape-snapshot details)
+  (list (list 'kind (hash-get details 'kind))
+        (list 'nativeBuildImport
+              (hash-get details 'nativeBuildImport))
+        (list 'nativeBuildImportModifier
+              (hash-get details 'nativeBuildImportModifier))
+        (list 'buildSpecEntrypoint
+              (hash-get details 'buildSpecEntrypoint))
+        (list 'manualCompilerDispatch
+              (hash-get details 'manualCompilerDispatch))
+        (list 'handWrittenMain
+              (hash-get details 'handWrittenMain))
+        (list 'allowedShape (hash-get details 'allowedShape))
+        (list 'disallowedShape (hash-get details 'disallowedShape))
+        (list 'sourceEvidence (hash-get details 'sourceEvidence))
+        (list 'nativeFactSource (hash-get details 'nativeFactSource))
+        (list 'next (hash-get details 'next))))
+
 ;; : (-> ScenarioId ScenarioRoot Snapshot )
 (def (build-runtime-quality-policy-snapshot id root)
   (let* ((scenario
@@ -536,6 +630,10 @@
         (list 'qualityFacets (hash-get details 'qualityFacets))
         (list 'derivedCapabilities
               (hash-get details 'derivedCapabilities))
+        (list 'methodTablePrimitiveSlots
+              (hash-get details 'methodTablePrimitiveSlots))
+        (list 'methodTableDerivedFamilies
+              (hash-get details 'methodTableDerivedFamilies))
         (list 'adapterRepairShape
               (hash-get details 'adapterRepairShape))
         (list 'agentRepairStandard
@@ -561,6 +659,15 @@
   (check (typed-combinator-style-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-typed-combinator-style.ss"))
+  (check (generator-combinator-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-generator-combinator.ss"))
+  (check (controlled-macro-syntax-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-controlled-macro-syntax.ss"))
+  (check (typeclass-algebra-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-typeclass-algebra.ss"))
   (check (comment-quality-policy-snapshot)
          => (snapshot-load "t/snapshots/policy-comment-quality.ss"))
   (check (harness-dependency-policy-application-policy-snapshot)
@@ -580,6 +687,9 @@
   (check (package-build-shell-pipeline-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-package-build-shell-pipeline.ss"))
+  (check (package-build-canonical-shape-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-package-build-canonical-shape.ss"))
   (check (dependency-manual-object-adapter-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-dependency-manual-object-adapter.ss"))

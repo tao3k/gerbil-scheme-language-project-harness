@@ -6,7 +6,8 @@
 ;;; Invariant:
 ;;; - Definition and formal recovery must stay deterministic across value, list, method, and macro-style heads.
 
-(import :parser/support)
+(import :parser/support
+        (only-in :std/misc/list unique))
 
 (export definition-name-datums
         definition-formal-names
@@ -113,7 +114,7 @@
    ((and (pair? datum) (eq? (car datum) 'lambda))
     (formal-tail-datums (safe-cadr datum)))
    ((and (pair? datum) (eq? (car datum) 'case-lambda))
-    (dedupe
+    (unique
      (apply append
             (map (lambda (clause)
                    (formal-tail-datums (car clause)))

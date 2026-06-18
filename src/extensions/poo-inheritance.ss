@@ -5,8 +5,8 @@
 ;;; - Does not inspect ambient load paths or mutate package declarations.
 
 (import :package-manager/facade
-        (only-in :std/sugar hash ormap)
-        :support/list)
+        (only-in :std/srfi/13 string-join)
+        (only-in :std/sugar hash ormap))
 
 (export poo-inherited-utils-capability-names
         poo-inherited-utils-pattern-query?
@@ -71,7 +71,7 @@
 ;; : (-> (List PatternTerm) PooPatternFocus )
 (def (poo-inherited-utils-pattern-focus terms)
   (if (and (pair? terms) (pair? (cdr terms)))
-    (join terms " ")
+    (string-join terms " ")
     "higher-order-control typed-combinator-style"))
 ;; : (-> DependencyName (List DependencyName) )
 (def (poo-inherited-utils-dependency-chain activation-dependency)

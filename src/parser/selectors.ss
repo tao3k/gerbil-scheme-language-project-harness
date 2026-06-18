@@ -272,12 +272,20 @@
 ;;; - Absolute selectors stay stable for CLI callers before becoming relpaths.
 ;; : (-> String String String )
 (def (relative-path root path)
-  (let* ((root* (path-normalize root))
-         (path* (path-normalize path))
+  (let* ((root* (canonical-root-path root))
+         (path* (path-normalize (path-expand path root*)))
          (prefix (if (string-suffix? "/" root*) root* (string-append root* "/"))))
     (if (string-prefix? prefix path*)
       (substring path* (string-length prefix) (string-length path*))
       path*)))
+
+;; : (-> String String )
+(def (canonical-root-path root)
+  (let (path (path-normalize (path-expand "" root)))
+    (if (and (> (string-length path) 1)
+             (string-suffix? "/" path))
+      (substring path 0 (- (string-length path) 1))
+      path)))
 
 ;; : (-> String String String )
 (def (source-full-path root path)

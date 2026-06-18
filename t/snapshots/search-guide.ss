@@ -10,6 +10,10 @@
                "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --workspace . --view seeds"
                "|cmd lang=gerbil-scheme-harness search lang [term ...] --workspace . --view seeds"
                "|cmd std=gerbil-scheme-harness search std [term ...] --workspace . --view seeds"
+               "|cmd cache-source-index-refresh=asp cache source-index refresh --root ."
+               "|cmd cache-source-index-lookup=asp gerbil-scheme cache source-index lookup --query <term> --index-root . --limit 8"
+               "|cmd runtime-source-acquire=asp cache runtime-source acquire --language-id gerbil-scheme --repository <gerbil-repo-or-path> --checkout <ref> --state-namespace runtime-source/gerbil-scheme --index-owner asp-structural-index --root ."
+               "|cmd runtime-source-lookup=asp gerbil-scheme cache source-index lookup --query <symbol> --index-root .cache/agent-semantic-protocol/client/runtime-source/gerbil-scheme/<ref> --limit 8"
                "|cmd capability=gerbil-scheme-harness search capability [term ...] --workspace . --view seeds"
                "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --workspace . --view seeds"
                "|cmd structural=gerbil-scheme-harness search structural --workspace . --view seeds"
@@ -20,5 +24,5 @@
                "|cmd evidence-analyze=gerbil-scheme-harness evidence analyze --json ."
                "|cmd info=gerbil-scheme-harness info --json ."
                "|cmd check=gerbil-scheme-harness check --changed ."
-               "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 2000 --max-interface-ms 50 ."
+               "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-interface-ms 50 ."
                "|more guide-detail=gerbil-scheme-harness guide --downstream | --policy | --extensions | --poo | --exemplars | --all")))

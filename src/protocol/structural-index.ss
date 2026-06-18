@@ -4,10 +4,12 @@
 (import :constants
         :parser/facade
         :protocol/structural-facts
-        :support/list
+        (only-in :std/misc/list unique)
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/sugar append-map* cut foldl hash hash-put! with-catch))
+        (only-in :std/srfi/1 append-map)
+        (only-in :std/srfi/13 string-join)
+        (only-in :std/sugar cut foldl hash hash-put! with-catch))
 
 (export structural-index-packet-json
         structural-index-artifact-packet-json
@@ -91,10 +93,10 @@
      (indexMode "artifact")
      (fileHashes (map (cut structural-file-hash-json index <>) files))
      (owners (map structural-owner-json files))
-     (symbols (append-map* structural-symbol-json files))
+     (symbols (append-map structural-symbol-json files))
      (syntaxFacts (json-rows-by-id
-                   (append-map* structural-syntax-fact-json files)))
-     (dependencyUsages (append-map* structural-dependency-json files)))))
+                   (append-map structural-syntax-fact-json files)))
+     (dependencyUsages (append-map structural-dependency-json files)))))
 
 ;;; Owner fact packet is the ASP fan-out unit.
 ;;; One owner keeps projection cost bounded and lets the Rust side decide
@@ -265,7 +267,7 @@
    +language-id+
    "-structural-"
    (substring (stable-hex64
-               (join (map (cut structural-file-fingerprint index <>)
+               (string-join (map (cut structural-file-fingerprint index <>)
                           (project-index-files index))
                      "|"))
               0
@@ -280,7 +282,7 @@
    +language-id+
    "-structural-interface-"
    (substring (stable-hex64
-               (join (map structural-interface-file-fingerprint
+               (string-join (map structural-interface-file-fingerprint
                           (project-index-files index))
                      "|"))
               0
@@ -300,7 +302,7 @@
 ;; : (-> SourceFile String )
 (def (structural-interface-file-fingerprint file)
   (stable-hex64
-   (join [(source-file-path file)
+   (string-join [(source-file-path file)
           (number->string (source-file-line-count file))
           (or (source-file-package file) "")
           (or (source-file-namespace file) "")
@@ -328,7 +330,7 @@
      (stable-hex64 (structural-file-fact-string file)))
    (lambda ()
      (stable-hex64
-      (join (read-file-lines
+      (string-join (read-file-lines
              (path-expand (source-file-path file)
                           (project-index-root index)))
             "\n")))))
@@ -338,20 +340,20 @@
 ;;; storing source payloads.
 ;; : (-> SourceFile String )
 (def (structural-file-fact-string file)
-  (join [(source-file-path file)
+  (string-join [(source-file-path file)
          (number->string (source-file-line-count file))
          (or (source-file-package file) "")
          (or (source-file-namespace file) "")
-         (join (source-file-imports file) ",")
-         (join (source-file-exports file) ",")
-         (join (map definition-name (source-file-definitions file)) ",")
-         (join (map call-fact-callee (source-file-calls file)) ",")
-         (join (map macro-fact-name (source-file-macros file)) ",")
-         (join (map binding-fact-name (source-file-bindings file)) ",")
-         (join (map poo-form-fact-name (source-file-poo-forms file)) ",")
-         (join (map higher-order-fact-name
+         (string-join (source-file-imports file) ",")
+         (string-join (source-file-exports file) ",")
+         (string-join (map definition-name (source-file-definitions file)) ",")
+         (string-join (map call-fact-callee (source-file-calls file)) ",")
+         (string-join (map macro-fact-name (source-file-macros file)) ",")
+         (string-join (map binding-fact-name (source-file-bindings file)) ",")
+         (string-join (map poo-form-fact-name (source-file-poo-forms file)) ",")
+         (string-join (map higher-order-fact-name
                     (source-file-higher-order-forms file)) ",")
-         (join (map dependency-adapter-quality-fact-name
+         (string-join (map dependency-adapter-quality-fact-name
                     (source-file-dependency-adapter-quality-facts file)) ",")]
         "|"))
 
@@ -368,7 +370,7 @@
                                     "1:"
                                     (number->string
                                      (max 1 (source-file-line-count file)))))))
-        (queryKeys (dedupe (append [(source-file-path file)]
+        (queryKeys (unique (append [(source-file-path file)]
                                    (if (source-file-package file)
                                      [(source-file-package file)]
                                      '())
@@ -391,7 +393,7 @@
                              "public"
                              "private"))
                (sourceLocator (definition-selector defn))
-               (queryKeys (dedupe [(definition-name defn)
+               (queryKeys (unique [(definition-name defn)
                                    (structural-qualified-name file defn)
                                    (definition-kind defn)
                                    (definition-path defn)]))))
@@ -426,13 +428,7 @@
         (manifestPath "gerbil.pkg")
         (source source)
         (sourceLocator (string-append (source-file-path file) ":1:1"))
-        (queryKeys (dedupe [module-ref (source-file-path file) source]))))
-
-;; : (forall (a b) (-> (-> a (List b)) (List a) (List b)) )
-(def (append-map* proc xs)
-  (if (null? xs)
-    '()
-    (append (proc (car xs)) (append-map* proc (cdr xs)))))
+        (queryKeys (unique [module-ref (source-file-path file) source]))))
 
 ;; : (-> SourceLine StableHex64 )
 (def (stable-hex64 text)

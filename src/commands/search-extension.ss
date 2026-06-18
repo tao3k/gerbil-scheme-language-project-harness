@@ -5,8 +5,7 @@
         :extensions/facade
         :protocol/json
         :support/args
-        :support/list
-        (only-in :std/srfi/13 string-contains)
+        (only-in :std/srfi/13 string-contains string-join)
         (only-in :std/sugar cut ormap when))
 
 (export emit-extension-search)
@@ -26,7 +25,7 @@
 ;;     %
 (def (emit-extension-search index args json?)
   (let* ((positionals (positional-args args))
-         (query (if (pair? positionals) (join positionals " ") "-"))
+         (query (if (pair? positionals) (string-join positionals " ") "-"))
          (matches (matching-extension-facts index positionals))
          (grade (if (null? matches) "unknown" "fact")))
     (if json?
@@ -113,7 +112,7 @@
         (focus (if (poo-extension-lookup-query? terms)
                  (poo-registered-extension-focus terms)
                  (if (and (pair? terms) (pair? (cdr terms)))
-                   (join (cdr terms) " ")
+                   (string-join (cdr terms) " ")
                    "<api|syntax|pattern>"))))
     (string-append "search pattern " extension-name " " focus)))
 ;;; Boundary:

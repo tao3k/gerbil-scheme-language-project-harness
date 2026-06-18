@@ -1,14 +1,16 @@
 ;;; -*- Gerbil -*-
 ;;; Type mismatch checks over parser-owned calls and native type environments.
 
-(import (only-in :std/srfi/13 string-contains)
-        (only-in :std/sugar append-map cut filter-map find iota)
+(import (only-in :std/srfi/1 append-map)
+        (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar cut filter-map find iota)
         :checker/model
         :parser/facade
         :types/env
         :types/findings
         :types/model
-        :types/signatures)
+        :types/signatures
+        (only-in :types/validation type-compatible?))
 
 (export run-type-mismatch-checks
         call-type-mismatch-findings)
@@ -158,19 +160,6 @@
 ;; : (-> ArgName Boolean )
 (def (valid-argument-name? arg-name)
   (and arg-name (not (string-contains arg-name " "))))
-;; : (-> Actual Expected Boolean )
-(def (type-compatible? actual expected)
-  (or (member (type-kind actual) '(unknown any))
-      (member (type-kind expected) '(unknown any))
-      (type=? actual expected)
-      (and (eq? (type-kind expected) 'union)
-           (any-type-compatible? actual (type-union-members expected)))))
-;; : (-> Actual ExpectedMembers Boolean )
-(def (any-type-compatible? actual expected-members)
-  (cond
-   ((null? expected-members) #f)
-   ((type-compatible? actual (car expected-members)) #t)
-   (else (any-type-compatible? actual (cdr expected-members)))))
 ;; : (-> CallFact ArgName ProjectIndex Expected Actual TypeFinding )
 (def (type-mismatch-finding call arg-name index expected actual)
   (make-type-finding
@@ -188,21 +177,3 @@
          (argumentIndex index)
          (expectedType (type->string expected))
          (actualType (type->string actual)))))
-;; append-map
-;;   : (forall (a b)
-;;       (-> (-> a (List b))
-;;           (List a)
-;;           (List b)))
-;;   | doc m%
-;;       `append-map fn items` maps `fn` over `items` and appends the returned
-;;       lists in input order.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (append-map (lambda (x) (list x x)) '(a b))
-;;       ;; => (a a b b)
-;;       ```
-;;     %
-(def (append-map fn items)
-  (foldr (lambda (item out) (append (fn item) out)) '() items))

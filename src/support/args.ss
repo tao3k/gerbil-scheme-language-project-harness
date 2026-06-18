@@ -5,7 +5,7 @@
 ;;; Command-line argument helpers.
 
 (import :gerbil/gambit
-        :support/list
+        (only-in :std/srfi/1 last)
         (only-in :std/srfi/13 string-prefix?))
 
 (export flag?

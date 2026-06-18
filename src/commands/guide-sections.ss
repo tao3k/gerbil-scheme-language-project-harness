@@ -5,7 +5,7 @@
 ;;; - Heavy policy, extension, POO, and exemplar rows require explicit flags.
 
 (import :policy/catalog
-        :support/list)
+        (only-in :std/misc/list unique))
 
 (export guide-section-lines-for)
 
@@ -32,6 +32,10 @@
    "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --workspace . --view seeds"
    "|cmd lang=gerbil-scheme-harness search lang [term ...] --workspace . --view seeds"
    "|cmd std=gerbil-scheme-harness search std [term ...] --workspace . --view seeds"
+   "|cmd cache-source-index-refresh=asp cache source-index refresh --root ."
+   "|cmd cache-source-index-lookup=asp gerbil-scheme cache source-index lookup --query <term> --index-root . --limit 8"
+   "|cmd runtime-source-acquire=asp cache runtime-source acquire --language-id gerbil-scheme --repository <gerbil-repo-or-path> --checkout <ref> --state-namespace runtime-source/gerbil-scheme --index-owner asp-structural-index --root ."
+   "|cmd runtime-source-lookup=asp gerbil-scheme cache source-index lookup --query <symbol> --index-root .cache/agent-semantic-protocol/client/runtime-source/gerbil-scheme/<ref> --limit 8"
    "|cmd capability=gerbil-scheme-harness search capability [term ...] --workspace . --view seeds"
    "|cmd compare=gerbil-scheme-harness search compare <axis> [left right] --workspace . --view seeds"
    "|cmd structural=gerbil-scheme-harness search structural --workspace . --view seeds"
@@ -42,7 +46,7 @@
    "|cmd evidence-analyze=gerbil-scheme-harness evidence analyze --json ."
    "|cmd info=gerbil-scheme-harness info --json ."
    "|cmd check=gerbil-scheme-harness check --changed ."
-    "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 2000 --max-interface-ms 50 ."
+    "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-interface-ms 50 ."
     "|more guide-detail=gerbil-scheme-harness guide --downstream | --policy | --extensions | --poo | --exemplars | --all"]))
 
 ;; GuideSection
@@ -85,8 +89,8 @@
    (agent-rule-policy-lines)
    ["|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
     "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads"
-    "|policy typed-combinator-style-criteria=three criteria are required: adjacent Scheme-native typed block, compact expression-level composition, and optimization-boundary comments for specialized branches"
-    "|policy typed-combinator-style-signature=ordinary helpers use ;; : (forall (a) (-> Input Output)); exported helpers/macros/policy helpers use full form with matching leading name, | type/contract/requires/warning/rationale metadata when needed, | doc m% with # Examples fenced scheme input/result comments, and parser-owned typedComment.signatureType/docs.hasResultExamples diagnostics"
+    "|policy typed-combinator-style-criteria=three criteria are required: adjacent Gerbil contract projection block, compact expression-level composition, and optimization-boundary comments for specialized branches"
+    "|policy typed-combinator-style-signature=ordinary helpers use ;; : (forall (a) (-> Input Output)) as a Gerbil contract/signature projection; exported helpers/macros/policy helpers use full form with matching leading name, | type/contract/requires/warning/rationale metadata when needed, | doc m% with # Examples fenced scheme input/result comments, and parser-owned typedComment.signatureType/docs.hasResultExamples diagnostics"
     "|policy typed-combinator-style-composition=prefer small helper functions and expression-level map/filter/fold/cut/curry/compose chains when behavior fits"
     "|policy typed-combinator-style-optimization-boundary=for case-lambda or common-case specializations, comment why the branch exists; do not restate the code mechanics"
     "|policy m3-policy-repair-loop=when check --full emits findings, follow agentRepair.nextCommand and grouped repair phases; when findings=0, continue from POO-adjacent owner evidence and source-backed guide exemplars instead of adding isolated rules"
@@ -135,7 +139,8 @@
    "|guideExemplar id=gerbil.engineering-comment-quality.contract-boundary topic=engineering-comment-quality intent=style rule=GERBIL-SCHEME-AGENT-R015 level=normal locator=parser-definition owner=src/policy/agent-comment.ss symbols=comment-quality-details,comment-quality-fact-summary,weak-required-comment-quality-fact? comments=leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style\""
    "|guideExemplar id=gerbil.predicate-family-combinator.native-facts topic=predicate-family-combinator intent=style rule=GERBIL-SCHEME-AGENT-R016 level=normal locator=parser-definition owner=src/parser/quality-shape.ss symbols=predicate-family-facts-from-source,field-access-pattern-facts-from-source comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style\""
    "|guideExemplar id=gerbil.dependency-protocol-adapter.rationaldict-shape topic=dependency-protocol-adapter intent=repair rule=GERBIL-SCHEME-AGENT-R017 level=normal locator=runtime-source owner=gerbil-poo/rationaldict.ss symbols=RationalDict.,RationalSet comments=file-purpose+leading repairAction=inspect-code-shape guideCodeFlag=--code nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair\" moreCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair --more\""
-    "|guideExemplar id=gerbil.explicit-precise-import.policy-shape topic=explicit-precise-import intent=repair rule=GERBIL-SCHEME-AGENT-R018 level=normal locator=parser-definition owner=src/policy/agent-import.ss symbols=explicit-precise-import-finding,imprecise-runtime-import?,explicit-precise-import-details comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair\""]))
+    "|guideExemplar id=gerbil.explicit-precise-import.policy-shape topic=explicit-precise-import intent=repair rule=GERBIL-SCHEME-AGENT-R018 level=normal locator=parser-definition owner=src/policy/agent-import.ss symbols=explicit-precise-import-finding,imprecise-runtime-import?,explicit-precise-import-details comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair\""
+    "|guideExemplar id=gerbil.package-build-canonical-shape.native-build topic=package-build-canonical-shape intent=repair rule=GERBIL-SCHEME-AGENT-R025 level=normal locator=parser-definition owner=src/policy/agent-build.ss symbols=package-build-canonical-shape-finding,package-build-spec-call?,package-build-manual-compiler-dispatch-call? comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R025 --intent repair\""]))
 
 ;;; Boundary: section flags are local to guide rendering, not global CLI parsing.
 ;; : (-> (List String) Flag Boolean )
@@ -170,12 +175,12 @@
 
 ;;; Boundary:
 ;;; - Collapse selected guide section objects into the line protocol.
-;;; - Dedupe keeps --all stable when sections share cross-cutting policy rows.
-;;; Boundary: flatten selected sections only after selection, then dedupe rows.
+;;; - Uniqueness keeps --all stable when sections share cross-cutting policy rows.
+;;; Boundary: flatten selected sections only after selection, then remove duplicate rows.
 ;; guide-section-lines-for
 ;;   : (-> (List String) (List String) )
 ;;   | doc m%
-;;       `guide-section-lines-for args` returns the deduped line protocol for
+;;       `guide-section-lines-for args` returns the unique line protocol for
 ;;       the requested guide sections while keeping the basic section first.
 ;;
 ;;       # Examples
@@ -185,5 +190,5 @@
 ;;       ```
 ;;     %
 (def (guide-section-lines-for args)
-  (dedupe
+  (unique
    (apply append (map guide-section-rows (selected-guide-sections args)))))

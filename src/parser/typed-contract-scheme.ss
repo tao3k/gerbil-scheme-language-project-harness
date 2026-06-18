@@ -1,34 +1,49 @@
 ;;; -*- Gerbil -*-
-;;; Scheme-native typed contract parsing helpers.
+;;; Gerbil contract projection helpers for typed comments.
 
 (import :gerbil/gambit
+        (only-in :types/model
+                 parse-type-sexpr
+                 type->string
+                 type-kind
+                 type-name
+                 type-params
+                 type-result
+                 type-record-required)
+        (only-in :types/validation
+                 type-validation-diagnostic-facts
+                 type-validation-diagnostic-code
+                 type-validation-diagnostic-path
+                 type-validation-diagnostic-category
+                 type-validation-diagnostic-message
+                 type-spec-valid?
+                 type-validation-diagnostics)
         (only-in :std/srfi/13
                  string-contains
+                 string-empty?
                  string-ref
                  string-trim-both)
-        (only-in :std/srfi/1 drop-right)
-        (only-in :std/sugar cut filter foldl hash)
-        :support/list)
+        (only-in :std/srfi/1 drop-right iota)
+        (only-in :std/sugar cut filter foldl hash))
 
 (export scheme-contract-output
         scheme-contract-inputs
         scheme-type-signature-json
         scheme-type-expression-text-json
         scheme-type-expression-json
-        scheme-runtime-contract-json
         scheme-predicate-expression-json
         split-top-level-type-exprs
         typed-contract-token-char?
         typed-contract-arrow-count
         typed-contract-group-count)
 
-;;; Scheme-native output extraction parses `;; : (-> Input Output)` comments
+;;; Gerbil contract output extraction parses `;; : (-> Input Output)` comments
 ;;; before legacy token parsing is attempted by the parent typed-contract owner.
 ;; scheme-contract-output
 ;;   : (-> SignatureContract (Maybe TypeExpr))
 ;;   | doc m%
 ;;       `scheme-contract-output contract` returns the final output position of
-;;       a Scheme-native arrow signature, preserving legacy output fields.
+;;       a Gerbil contract arrow signature, preserving legacy output fields.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -42,13 +57,13 @@
          (datum->type-string (typed-contract-last items)))))
 
 ;;; Input extraction uses the parsed arrow items and drops the final output
-;;; position.  This keeps Scheme-native contracts aligned with legacy
+;;; position.  This keeps Gerbil contract projections aligned with legacy
 ;;; `Output <- Input` contracts without duplicating parser logic.
 ;; scheme-contract-inputs
 ;;   : (-> SignatureContract (Maybe (List TypeExpr)))
 ;;   | doc m%
 ;;       `scheme-contract-inputs contract` returns arrow input positions from a
-;;       Scheme-native signature for legacy contract input fields.
+;;       Gerbil contract signature projection for legacy contract input fields.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -59,7 +74,7 @@
 (def (scheme-contract-inputs contract)
   (let (items (scheme-contract-arrow-items contract))
     (and (pair? items)
-         (map datum->type-string (drop-right-one items)))))
+         (map datum->type-string (drop-right items 1)))))
 
 ;;; Boundary:
 ;;; - JSON preserves legacy arrow fields for existing consumers.
@@ -94,19 +109,21 @@
              (diagnostics
               (append (scheme-type-signature-diagnostics datum body arrow)
                       (scheme-type-expression-diagnostics body forall-vars))))
-        (hash (syntax "scheme-native-type")
+        (hash (syntax "gerbil-contract-type")
               (raw contract)
               (valid (not (pair? diagnostics)))
               (forall forall-vars)
               (shape (scheme-type-expression-json* datum forall-vars))
+              (typeSpec (type-spec-json (parse-type-sexpr datum)))
               (arrow (and arrow
                           (scheme-arrow-json arrow forall-vars)))
               (diagnostics diagnostics)))
-      (hash (syntax "scheme-native-type")
+      (hash (syntax "gerbil-contract-type")
             (raw contract)
             (valid #f)
             (forall [])
             (shape #f)
+            (typeSpec #f)
             (arrow #f)
             (diagnostics ["malformed-type-datum"])))))
 
@@ -136,48 +153,13 @@
         (hash (raw text)
               (valid (not (pair? diagnostics)))
               (shape (scheme-type-expression-json* datum bound-vars))
+              (typeSpec (type-spec-json (parse-type-sexpr datum)))
               (diagnostics diagnostics)))
       (hash (raw text)
             (valid #f)
             (shape #f)
+            (typeSpec #f)
             (diagnostics ["malformed-type-datum"])))))
-
-;;; Boundary:
-;;; - Runtime contracts stay predicate-shaped instead of becoming static types.
-;;; - Predicate arrows are diagnostics-bearing facts for typed-comment metadata.
-;; scheme-runtime-contract-json
-;;   : (-> RuntimeContract Json)
-;;   | doc m%
-;;       `scheme-runtime-contract-json contract` parses runtime predicate
-;;       arrows such as `(-> procedure? natural? vector?)`.
-;;
-;;       # Examples
-;;       ```scheme
-;;       (hash-get (scheme-runtime-contract-json "(-> procedure? vector?)") 'valid)
-;;       ;; => #t
-;;       ```
-;;     %
-(def (scheme-runtime-contract-json contract)
-  (let* ((datum (scheme-contract-datum contract))
-         (arrow (and datum (scheme-contract-arrow-datum datum)))
-         (items (and arrow (cdr arrow)))
-         (diagnostics
-          (cond
-           ((not datum) ["malformed-contract-datum"])
-           ((not arrow) ["runtime-contract-missing-arrow"])
-           ((< (length items) 2) ["runtime-contract-arrow-too-short"])
-           (else []))))
-    (hash (syntax "scheme-runtime-contract")
-          (raw contract)
-          (valid (not (pair? diagnostics)))
-          (inputPredicates (if (and items (>= (length items) 2))
-                             (map datum->type-string (drop-right-one items))
-                             []))
-          (outputPredicate (if (and items (>= (length items) 2))
-                             (datum->type-string (typed-contract-last items))
-                             #f))
-          (predicateCount (if items (length items) 0))
-          (diagnostics diagnostics))))
 
 ;;; Boundary:
 ;;; - Preconditions are parsed as predicate calls, not folded into prose.
@@ -291,7 +273,7 @@
    (if (not arrow)
      ["signature-missing-arrow"]
      [])
-   (if (and arrow (< (length (cdr arrow)) 2))
+   (if (and arrow (< (length (cdr arrow)) 1))
      ["signature-arrow-too-short"]
      [])))
 
@@ -302,23 +284,89 @@
 (def (scheme-arrow-json arrow . maybe-bound-vars)
   (let (items (cdr arrow))
     (let (bound-vars (if (pair? maybe-bound-vars) (car maybe-bound-vars) []))
-      (hash (kind "function")
-            (inputs (if (>= (length items) 2)
-                      (map (cut scheme-type-expression-json* <> bound-vars)
-                           (drop-right-one items))
-                      []))
-            (output (if (>= (length items) 2)
-                      (scheme-type-expression-json* (typed-contract-last items)
-                                                    bound-vars)
-                      #f))
-            (inputCount (if (>= (length items) 2)
-                          (length (drop-right-one items))
-                          0))))))
+      (let (inputs (if (>= (length items) 1)
+                    (scheme-arrow-input-jsons (drop-right items 1) bound-vars)
+                    []))
+        (hash (kind "function")
+              (typeSpec (type-spec-json (parse-type-sexpr arrow)))
+              (inputs inputs)
+              (output (if (>= (length items) 1)
+                        (scheme-type-expression-json* (typed-contract-last items)
+                                                      bound-vars)
+                        #f))
+              (inputCount (length inputs)))))))
+
+;;; Arrow inputs are keyword-aware: `name: Type` is one named parameter, not two
+;;; positional type expressions.
+;; : (-> (List TypeDatum) (List TypeVariable) (List Json))
+(def (scheme-arrow-input-jsons items bound-vars)
+  (cond
+   ((null? items) [])
+   ((scheme-keyword-marker? (car items))
+    (let (value (if (pair? (cdr items)) (cadr items) 'unknown))
+      (cons (scheme-keyword-parameter-json (car items) value bound-vars)
+            (scheme-arrow-input-jsons (if (pair? (cdr items))
+                                       (cddr items)
+                                       (cdr items))
+                                     bound-vars))))
+   (else
+    (cons (scheme-type-expression-json* (car items) bound-vars)
+          (scheme-arrow-input-jsons (cdr items) bound-vars)))))
+
+;; : (-> TypeDatum TypeDatum (List TypeVariable) Json)
+(def (scheme-keyword-parameter-json marker value bound-vars)
+  (hash (kind "keyword-parameter")
+        (name (scheme-keyword-name marker))
+        (type (scheme-type-expression-json* value bound-vars))))
+
+;;; Boundary:
+;;; - TypeSpec projection is the normalized semantic view used by checker code.
+;;; - Shape JSON remains syntax-oriented so policy can cite the original form.
+;; : (-> TypeSpec Json)
+(def (type-spec-json type)
+  (hash (kind (symbol->string (type-kind type)))
+        (name (type-name type))
+        (display (type->string type))
+        (valid (type-spec-valid? type))
+        (diagnostics (type-validation-diagnostics type))
+        (diagnosticFacts
+         (map type-validation-diagnostic-json
+              (type-validation-diagnostic-facts type)))
+        (params (type-spec-params-json type))
+        (result (type-spec-result-json type))))
+
+;; : (-> TypeValidationDiagnostic Json)
+(def (type-validation-diagnostic-json diagnostic)
+  (hash (code (type-validation-diagnostic-code diagnostic))
+        (path (type-validation-diagnostic-path diagnostic))
+        (category (type-validation-diagnostic-category diagnostic))
+        (message (type-validation-diagnostic-message diagnostic))))
+
+;; : (-> TypeSpec Json)
+(def (type-spec-result-json type)
+  (case (type-kind type)
+    ((record) (type-record-required type))
+    (else (and (type-result type)
+               (type-spec-json (type-result type))))))
+
+;;; Boundary:
+;;; - Record parameters are named fields; other TypeSpec parameters are positional.
+;;; - The map split keeps those two shapes explicit for downstream JSON consumers.
+;; : (-> TypeSpec (List Json))
+(def (type-spec-params-json type)
+  (case (type-kind type)
+    ((record) (map type-spec-field-json (type-params type)))
+    (else (map type-spec-json (type-params type)))))
+
+;; : (-> TypeField Json)
+(def (type-spec-field-json field)
+  (hash (name (car field))
+        (type (type-spec-json (cdr field)))))
 
 ;; scheme-type-expression-json
 ;;   : (-> TypeDatum Json)
 ;;   | doc m%
-;;       `scheme-type-expression-json datum` renders one Scheme-native type
+;;       `scheme-type-expression-json datum` renders one Gerbil contract type
 ;;       expression as structured facts for containers, unions, refinements, and arrows.
 ;;
 ;;       # Examples
@@ -339,6 +387,9 @@
   (cond
    ((symbol? datum)
     (scheme-type-symbol-json datum bound-vars))
+   ((keyword? datum)
+    (hash (kind "keyword-marker")
+          (name (keyword->string datum))))
    ((scheme-quoted-symbol? datum)
     (hash (kind "literal-symbol")
           (name (symbol->string (cadr datum)))))
@@ -394,7 +445,7 @@
 (def (scheme-type-symbol-json datum bound-vars)
   (let* ((name (symbol->string datum))
          (variable? (scheme-type-variable-symbol? datum))
-         (bound? (not (not (member name bound-vars)))))
+         (bound? (if (member name bound-vars) #t #f)))
     (if variable?
       (hash (kind "name")
             (name name)
@@ -431,8 +482,11 @@
                        (list? (car tail))
                        (pair? (cdr tail)))))
         ["forall-requires-variable-list-and-body"])
-       ((and (eq? head '->) (< (length tail) 2))
-        ["arrow-requires-input-and-output"])
+       ((eq? head '->)
+        (append (if (< (length tail) 1)
+                  ["arrow-requires-input-and-output"]
+                  [])
+                (scheme-arrow-keyword-diagnostics tail)))
        ((and (member head '(List Listof Array Vector Maybe))
              (not (= (length tail) 1)))
         [(string-append (symbol->string head) "-requires-one-parameter")])
@@ -446,6 +500,45 @@
         ["Refine-requires-base-and-predicate"])
        (else []))))
    (else [])))
+
+;; : (-> (List TypeDatum) (List Diagnostic))
+(def (scheme-arrow-keyword-diagnostics items)
+  (if (>= (length items) 1)
+    (scheme-arrow-keyword-input-diagnostics (drop-right items 1))
+    []))
+
+;; : (-> (List TypeDatum) (List Diagnostic))
+(def (scheme-arrow-keyword-input-diagnostics items)
+  (cond
+   ((null? items) [])
+   ((scheme-keyword-marker? (car items))
+    (if (pair? (cdr items))
+      (scheme-arrow-keyword-input-diagnostics (cddr items))
+      [(string-append "keyword-parameter-requires-type:"
+                      (scheme-keyword-name (car items)))]))
+   (else
+    (scheme-arrow-keyword-input-diagnostics (cdr items)))))
+
+;; : (-> TypeDatum Boolean)
+(def (scheme-keyword-marker? datum)
+  (or (keyword? datum)
+      (and (symbol? datum)
+           (let (text (symbol->string datum))
+             (and (> (string-length text) 0)
+                  (eq? (string-ref text (- (string-length text) 1)) #\:))))))
+
+;; : (-> TypeDatum KeywordName)
+(def (scheme-keyword-name datum)
+  (cond
+   ((keyword? datum) (keyword->string datum))
+   ((symbol? datum)
+    (let (text (symbol->string datum))
+      (if (and (> (string-length text) 0)
+               (eq? (string-ref text (- (string-length text) 1)) #\:))
+        (substring text 0 (- (string-length text) 1))
+        text)))
+   ((string? datum) datum)
+   (else "unknown")))
 
 ;;; Boundary:
 ;;; - Recurse into child type expressions after the current node is checked.
@@ -494,7 +587,7 @@
 (def (scheme-type-variable-symbol? datum)
   (and (symbol? datum)
        (let (text (symbol->string datum))
-         (and (> (string-length text) 0)
+         (and (not (string-empty? text))
               (char-lower-case? (string-ref text 0))))))
 
 ;;; Type datum rendering delegates to the Scheme printer so nested type forms
@@ -503,12 +596,6 @@
 (def (datum->type-string datum)
   (call-with-output-string []
     (cut write datum <>)))
-
-;;; Dropping the output item is a small wrapper around SRFI-1 so callers can
-;;; keep the type-parser vocabulary local to this module.
-;; : (forall (x) (-> (List x) (List x)))
-(def (drop-right-one items)
-  (drop-right items 1))
 
 ;; : (forall (x) (-> (List x) x))
 (def (typed-contract-last items)
@@ -593,12 +680,12 @@
       (cons part out))))
 
 ;;; Character classification is shared by legacy token extraction and
-;;; Scheme-native fallback parsing so both surfaces split type names equally.
+;;; Gerbil contract projection parsing so both surfaces split type names equally.
 ;; typed-contract-token-char?
 ;;   : (-> Character Boolean )
 ;;   | doc m%
 ;;       `typed-contract-token-char? ch` identifies characters that belong to
-;;       legacy and Scheme-native type tokens.
+;;       legacy and Gerbil contract projection type tokens.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -642,7 +729,9 @@
                  (and (< index (fx1- text-length))
                       (char=? (car entry) first)
                       (char=? (string-ref contract (fx1+ index)) second))))
-             (map-indexed cons (string->list contract))))))
+             (map cons
+                  (string->list contract)
+                  (iota (string-length contract) 1))))))
 
 ;;; Boundary:
 ;;; - Legacy contracts use parentheses as grouped-shape evidence.

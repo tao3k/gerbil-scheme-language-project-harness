@@ -5,26 +5,43 @@
         :types/env
         :types/findings
         :types/model
-        :types/signatures)
+        :types/signatures
+        :types/validation)
 
 (export make-type-unknown
         make-type-any
         make-type-base
+        make-type-variable
         make-type-pair
         make-type-list
         make-type-vector
+        make-type-maybe
+        make-type-hash
+        make-type-values
+        make-type-refine
+        make-type-application
+        make-type-literal-symbol
         make-type-function
+        make-type-keyword-parameter
         make-type-function-variadic
         make-type-union
         make-type-record
         type-kind
         type-name
+        type-variable-name
         type-params
         type-result
         type-pair-car
         type-pair-cdr
         type-list-elem
         type-vector-elem
+        type-hash-key
+        type-hash-value
+        type-values-members
+        type-refine-base
+        type-refine-predicate
+        type-keyword-parameter-name
+        type-keyword-parameter-type
         type-function-variadic-param
         type-function-variadic-min-arity
         type-union-members
@@ -33,7 +50,35 @@
         record-field-type
         type=?
         type->string
+        parse-type-contract
         parse-type-sexpr
+        make-type-alias-env
+        type-alias-env-bind
+        type-alias-env-bind-type
+        type-alias-env-lookup
+        type-expand-aliases
+        type-alias-equivalent?
+        type-alias-equivalence-proof
+        make-type-proof
+        type-proof?
+        type-proof-rule
+        type-proof-conclusion
+        type-proof-premises
+        type-proof-detail
+        type-proof-rules
+        make-type-validation-diagnostic
+        type-validation-diagnostic-code
+        type-validation-diagnostic-path
+        type-validation-diagnostic-category
+        type-validation-diagnostic-message
+        type-validation-diagnostic-facts
+        type-validation-diagnostics
+        type-spec-valid?
+        simplify-union
+        type-subtype-proof
+        type-subtype?
+        type-compatible-proof
+        type-compatible?
         load-type-signatures
         parse-type-signature
         signature-type-for

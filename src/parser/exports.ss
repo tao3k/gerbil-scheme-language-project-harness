@@ -4,6 +4,7 @@
 (import :gerbil/expander
         :parser/model
         :parser/support
+        (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-prefix?))
 
 (export module-export-facts-from-form)
@@ -80,7 +81,7 @@
 (def (export-symbol-list datum)
   (if (symbol? datum)
     [(symbol->string datum)]
-    (dedupe
+    (unique
      (filter-map
       (lambda (item)
         (and (symbol? item)

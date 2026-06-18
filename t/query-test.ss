@@ -14,6 +14,8 @@
 ;;; - It still rejects the old timeout-scale path while tolerating host jitter.
 ;; : Milliseconds
 (def +native-query-fast-path-budget-ms+ 5000)
+;; : Milliseconds
+(def +native-query-single-owner-budget-ms+ 1000)
 
 ;; QueryTest
 (def query-test
@@ -77,6 +79,22 @@
                  (string-contains
                   (query-result-output result)
                   "\"code\"")))
+               => #t)))
+    (test-case "native provider owner term query parses only requested owner"
+      (let (result (native-query-output ["src/parser/typed-contract.ss"
+                                         "--term"
+                                         "typed-comment-structural-invalid-reasons"
+                                         "--workspace"
+                                         "."]))
+        (check (query-result-exit-code result) => 0)
+        (check (< (query-result-duration-ms result)
+                  +native-query-single-owner-budget-ms+)
+               => #t)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "typed-comment-structural-invalid-reasons")))
                => #t)))
     (test-case "ownerless gerbil-poo query routes to registered knowledge"
       (let (result (query-output ["--term"

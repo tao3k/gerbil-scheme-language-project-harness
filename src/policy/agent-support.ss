@@ -2,9 +2,8 @@
 ;;; Shared helpers for agent-facing policy rule families.
 
 (import :parser/facade
-        (only-in :std/srfi/13 string-contains string-prefix? string-suffix?)
-        (only-in :std/sugar ormap)
-        :support/list)
+        (only-in :std/srfi/13 string-contains string-empty? string-prefix? string-suffix?)
+        (only-in :std/sugar ormap))
 
 (export +poo-declarative-heads+
         +poo-capability-dependencies+
@@ -19,8 +18,7 @@
         project-poo-forms
         poo-class-fact-exists?
         poo-protocol-fact-exists?
-        blank-string?
-        join-missing)
+        blank-string?)
 ;; ConfigConstant
 (def +poo-declarative-heads+
   '(".def" "define-type" "defclass" ".defclass" ".defgeneric" "defmethod" ".defmethod"))
@@ -119,10 +117,6 @@
    (project-poo-forms index)))
 ;; : (-> MaybeString Boolean )
 (def (blank-string? value)
-  (or (not value) (equal? value "")))
-;;; Invariant:
-;;; - join-missing owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; : (-> (List String) String )
-(def (join-missing items)
-  (join items ","))
+  (or (not value)
+      (and (string? value)
+           (string-empty? value))))

@@ -9,6 +9,7 @@
         +config-files+
         +ignored-dirs+
         collect-project
+        collect-project/files
         collect-project-package-only
         collect-source-files
         gerbil-source-path?

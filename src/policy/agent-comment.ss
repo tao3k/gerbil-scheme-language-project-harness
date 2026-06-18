@@ -5,8 +5,8 @@
 (import :parser/facade
         :policy/agent-support
         :policy/model
+        (only-in :std/srfi/1 take)
         (only-in :std/sugar cut filter filter-map hash ormap)
-        :support/list
         :types/findings)
 
 (export comment-quality-findings
@@ -37,8 +37,8 @@
 ;;; Labels are examples, so agents can choose concise prose or bullets when clearer.
 ;; : (-> (List CommentQualityFact) PolicyDetails )
 (def (comment-quality-details weak-facts)
-  (let ((examples (take-at-most weak-facts 6))
-        (targets (take-at-most weak-facts 12)))
+  (let ((examples (take weak-facts (min 6 (length weak-facts))))
+        (targets (take weak-facts (min 12 (length weak-facts)))))
     (hash (styleGuide "engineering-comment-quality")
           (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")
           (factSource "native-parser")

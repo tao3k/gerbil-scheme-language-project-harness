@@ -2,7 +2,8 @@
 ;;; Stable snapshot projections for native parser facts.
 
 (import :parser/facade
-        :snapshot/support)
+        :snapshot/support
+        (only-in :std/srfi/1 list-copy))
 
 (export parser-source-file-snapshot)
 
@@ -71,7 +72,7 @@
   (list 'definition
         (list 'name (definition-name defn))
         (list 'kind (definition-kind defn))
-        (list 'formals (snapshot-list (definition-formals defn)))
+        (list 'formals (list-copy (definition-formals defn)))
         (list 'arity (definition-arity defn))
         (list 'selector (definition-selector defn))))
 
@@ -81,7 +82,7 @@
         (list 'module (module-import-fact-module fact))
         (list 'phase (module-import-fact-phase fact))
         (list 'modifier (module-import-fact-modifier fact))
-        (list 'symbols (snapshot-list (module-import-fact-symbols fact)))
+        (list 'symbols (list-copy (module-import-fact-symbols fact)))
         (list 'selector (module-import-fact-selector fact))))
 
 ;; : (-> Fact Snapshot )
@@ -91,7 +92,7 @@
         (list 'modifier (module-export-fact-modifier fact))
         (list 'alias (or (module-export-fact-alias fact) ""))
         (list 'module (or (module-export-fact-module fact) ""))
-        (list 'symbols (snapshot-list (module-export-fact-symbols fact)))
+        (list 'symbols (list-copy (module-export-fact-symbols fact)))
         (list 'selector (module-export-fact-selector fact))))
 
 ;; : (-> Fact Snapshot )
@@ -103,7 +104,7 @@
         (list 'phase (macro-fact-phase fact))
         (list 'patternCount (macro-fact-pattern-count fact))
         (list 'hygienicSyntax (macro-fact-hygienic fact))
-        (list 'qualityFacets (snapshot-list (macro-fact-quality-facets fact)))
+        (list 'qualityFacets (list-copy (macro-fact-quality-facets fact)))
         (list 'selector (macro-fact-selector fact))))
 
 ;; : (-> Fact Snapshot )
@@ -124,11 +125,11 @@
         (list 'generic (or (poo-form-fact-generic fact) ""))
         (list 'receiver (or (poo-form-fact-receiver fact) ""))
         (list 'receiverType (or (poo-form-fact-receiver-type fact) ""))
-        (list 'supers (snapshot-list (poo-form-fact-supers fact)))
-        (list 'slots (snapshot-list (poo-form-fact-slots fact)))
-        (list 'options (snapshot-list (poo-form-fact-options fact)))
-        (list 'specializers (snapshot-list (poo-form-fact-specializers fact)))
-        (list 'specializerTypes (snapshot-list (poo-form-fact-specializer-types fact)))
+        (list 'supers (list-copy (poo-form-fact-supers fact)))
+        (list 'slots (list-copy (poo-form-fact-slots fact)))
+        (list 'options (list-copy (poo-form-fact-options fact)))
+        (list 'specializers (list-copy (poo-form-fact-specializers fact)))
+        (list 'specializerTypes (list-copy (poo-form-fact-specializer-types fact)))
         (list 'selector (poo-form-fact-selector fact))))
 
 ;; : (-> Fact Snapshot )
@@ -138,10 +139,10 @@
         (list 'kind (higher-order-fact-kind fact))
         (list 'role (higher-order-fact-role fact))
         (list 'operandCount (higher-order-fact-operand-count fact))
-        (list 'arities (snapshot-list (higher-order-fact-arities fact)))
-        (list 'formals (snapshot-list (higher-order-fact-formals fact)))
+        (list 'arities (list-copy (higher-order-fact-arities fact)))
+        (list 'formals (list-copy (higher-order-fact-formals fact)))
         (list 'caller (or (higher-order-fact-caller fact) ""))
-        (list 'qualityFacets (snapshot-list (higher-order-quality-facets fact)))
+        (list 'qualityFacets (list-copy (higher-order-quality-facets fact)))
         (list 'selector (higher-order-fact-selector fact))))
 
 ;; : (-> Fact Snapshot )
@@ -153,7 +154,7 @@
         (list 'caller (or (control-flow-fact-caller fact) ""))
         (list 'bindingCount (control-flow-fact-binding-count fact))
         (list 'bodyFormCount (control-flow-fact-body-form-count fact))
-        (list 'qualityFacets (snapshot-list (control-flow-quality-facets fact)))
+        (list 'qualityFacets (list-copy (control-flow-quality-facets fact)))
         (list 'selector (control-flow-fact-selector fact))))
 
 ;; : (-> PredicateFamilyFact Snapshot )
@@ -164,14 +165,14 @@
         (list 'role (predicate-family-fact-role fact))
         (list 'subject (predicate-family-fact-subject fact))
         (list 'predicateNames
-              (snapshot-list (predicate-family-fact-predicate-names fact)))
+              (list-copy (predicate-family-fact-predicate-names fact)))
         (list 'predicateCount (predicate-family-fact-predicate-count fact))
-        (list 'fieldKeys (snapshot-list (predicate-family-fact-field-keys fact)))
+        (list 'fieldKeys (list-copy (predicate-family-fact-field-keys fact)))
         (list 'repeatedCallees
-              (snapshot-list (predicate-family-fact-repeated-callees fact)))
+              (list-copy (predicate-family-fact-repeated-callees fact)))
         (list 'conditionCount (predicate-family-fact-condition-count fact))
         (list 'qualityFacets
-              (snapshot-list (predicate-family-fact-quality-facets fact)))
+              (list-copy (predicate-family-fact-quality-facets fact)))
         (list 'advice (predicate-family-fact-advice fact))
         (list 'selector (predicate-family-fact-selector fact))))
 
@@ -182,11 +183,11 @@
         (list 'kind (field-access-pattern-fact-kind fact))
         (list 'role (field-access-pattern-fact-role fact))
         (list 'fieldKey (field-access-pattern-fact-field-key fact))
-        (list 'callers (snapshot-list (field-access-pattern-fact-callers fact)))
+        (list 'callers (list-copy (field-access-pattern-fact-callers fact)))
         (list 'accessCount (field-access-pattern-fact-access-count fact))
-        (list 'accessors (snapshot-list (field-access-pattern-fact-accessors fact)))
+        (list 'accessors (list-copy (field-access-pattern-fact-accessors fact)))
         (list 'qualityFacets
-              (snapshot-list (field-access-pattern-fact-quality-facets fact)))
+              (list-copy (field-access-pattern-fact-quality-facets fact)))
         (list 'advice (field-access-pattern-fact-advice fact))
         (list 'selector (field-access-pattern-fact-selector fact))))
 
@@ -197,13 +198,13 @@
         (list 'kind (boolean-condition-fact-kind fact))
         (list 'role (boolean-condition-fact-role fact))
         (list 'caller (boolean-condition-fact-caller fact))
-        (list 'formals (snapshot-list (boolean-condition-fact-formals fact)))
+        (list 'formals (list-copy (boolean-condition-fact-formals fact)))
         (list 'conditionCallees
-              (snapshot-list (boolean-condition-fact-condition-callees fact)))
-        (list 'fieldKeys (snapshot-list (boolean-condition-fact-field-keys fact)))
+              (list-copy (boolean-condition-fact-condition-callees fact)))
+        (list 'fieldKeys (list-copy (boolean-condition-fact-field-keys fact)))
         (list 'conditionCount (boolean-condition-fact-condition-count fact))
         (list 'qualityFacets
-              (snapshot-list (boolean-condition-fact-quality-facets fact)))
+              (list-copy (boolean-condition-fact-quality-facets fact)))
         (list 'advice (boolean-condition-fact-advice fact))
         (list 'selector (boolean-condition-fact-selector fact))))
 
@@ -218,7 +219,7 @@
         (list 'bindingCount (loop-driver-fact-binding-count fact))
         (list 'bodyFormCount (loop-driver-fact-body-form-count fact))
         (list 'qualityFacets
-              (snapshot-list (loop-driver-fact-quality-facets fact)))
+              (list-copy (loop-driver-fact-quality-facets fact)))
         (list 'advice (loop-driver-fact-advice fact))
         (list 'selector (loop-driver-fact-selector fact))))
 
@@ -233,37 +234,37 @@
         (list 'role (function-quality-profile-role profile))
         (list 'exported (function-quality-profile-exported profile))
         (list 'formals
-              (snapshot-list (function-quality-profile-formals profile)))
+              (list-copy (function-quality-profile-formals profile)))
         (list 'arity (function-quality-profile-arity profile))
         (list 'typedContractQuality
               (function-quality-profile-typed-contract-quality profile))
         (list 'commentQuality
               (function-quality-profile-comment-quality profile))
         (list 'controlFlowRoles
-              (snapshot-list
+              (list-copy
                (function-quality-profile-control-flow-roles profile)))
         (list 'higherOrderRoles
-              (snapshot-list
+              (list-copy
                (function-quality-profile-higher-order-roles profile)))
         (list 'predicateFamilyRefs
-              (snapshot-list
+              (list-copy
                (function-quality-profile-predicate-family-refs profile)))
         (list 'fieldAccessPatternRefs
-              (snapshot-list
+              (list-copy
                (function-quality-profile-field-access-pattern-refs profile)))
         (list 'loopDriverRefs
-              (snapshot-list
+              (list-copy
                (function-quality-profile-loop-driver-refs profile)))
         (list 'macroRefs
-              (snapshot-list (function-quality-profile-macro-refs profile)))
+              (list-copy (function-quality-profile-macro-refs profile)))
         (list 'pooProtocolRefs
-              (snapshot-list
+              (list-copy
                (function-quality-profile-poo-protocol-refs profile)))
         (list 'qualityFacets
-              (snapshot-list
+              (list-copy
                (function-quality-profile-quality-facets profile)))
         (list 'preservationReasons
-              (snapshot-list
+              (list-copy
                (function-quality-profile-preservation-reasons profile)))
         (list 'suggestedRepairClass
               (function-quality-profile-suggested-repair-class profile))
@@ -277,17 +278,17 @@
   (list 'typedContractFact
         (list 'definition (typed-contract-fact-definition-name fact))
         (list 'definitionKind (typed-contract-fact-definition-kind fact))
-        (list 'definitionFormals (snapshot-list (typed-contract-fact-definition-formals fact)))
+        (list 'definitionFormals (list-copy (typed-contract-fact-definition-formals fact)))
         (list 'definitionArity (typed-contract-fact-definition-arity fact))
         (list 'contract (typed-contract-fact-contract fact))
         (list 'contractOutput (typed-contract-fact-contract-output fact))
-        (list 'contractInputs (snapshot-list (typed-contract-fact-contract-inputs fact)))
+        (list 'contractInputs (list-copy (typed-contract-fact-contract-inputs fact)))
         (list 'contractInputCount (typed-contract-fact-contract-input-count fact))
         (list 'arityAlignment (typed-contract-fact-arity-alignment fact))
-        (list 'tokens (snapshot-list (typed-contract-fact-tokens fact)))
+        (list 'tokens (list-copy (typed-contract-fact-tokens fact)))
         (list 'quality (typed-contract-fact-quality fact))
-        (list 'reasons (snapshot-list (typed-contract-fact-reasons fact)))
-        (list 'qualityFacets (snapshot-list (typed-contract-fact-quality-facets fact)))
+        (list 'reasons (list-copy (typed-contract-fact-reasons fact)))
+        (list 'qualityFacets (list-copy (typed-contract-fact-quality-facets fact)))
         (list 'repairEvidence
               (parser-typed-contract-repair-evidence-snapshot
                (typed-contract-fact-repair-evidence fact)))
@@ -305,15 +306,15 @@
         (list 'definition (hash-get evidence 'definition))
         (list 'definitionKind (hash-get evidence 'definitionKind))
         (list 'definitionFormals
-              (snapshot-list (hash-get evidence 'definitionFormals)))
+              (list-copy (hash-get evidence 'definitionFormals)))
         (list 'definitionArity (hash-get evidence 'definitionArity))
         (list 'path (hash-get evidence 'path))
-        (list 'lineSpan (snapshot-list (hash-get evidence 'lineSpan)))
+        (list 'lineSpan (list-copy (hash-get evidence 'lineSpan)))
         (list 'selector (parser-json-selector evidence))
         (list 'contract (hash-get evidence 'contract))
         (list 'quality (hash-get evidence 'quality))
         (list 'qualityFacets
-              (snapshot-list (hash-get evidence 'qualityFacets)))
+              (list-copy (hash-get evidence 'qualityFacets)))
         (list 'matchedCalls
               (map parser-repair-call-snapshot
                    (hash-get evidence 'matchedCalls)))
@@ -324,11 +325,11 @@
               (map parser-repair-control-flow-snapshot
                    (hash-get evidence 'matchedControlFlow)))
         (list 'allowedMoves
-              (snapshot-list (hash-get evidence 'allowedMoves)))
+              (list-copy (hash-get evidence 'allowedMoves)))
         (list 'forbiddenMoves
-              (snapshot-list (hash-get evidence 'forbiddenMoves)))
+              (list-copy (hash-get evidence 'forbiddenMoves)))
         (list 'witnessNeeded
-              (snapshot-list (hash-get evidence 'witnessNeeded)))
+              (list-copy (hash-get evidence 'witnessNeeded)))
         (list 'agentRepairMode (hash-get evidence 'agentRepairMode))))
 
 ;; : (-> Json Snapshot )
@@ -367,8 +368,8 @@
         (list 'commentKind (comment-quality-fact-comment-kind fact))
         (list 'quality (comment-quality-fact-quality fact))
         (list 'required (comment-quality-fact-required fact))
-        (list 'reasons (snapshot-list (comment-quality-fact-reasons fact)))
-        (list 'commentLines (snapshot-list (comment-quality-fact-comment-lines fact)))
+        (list 'reasons (list-copy (comment-quality-fact-reasons fact)))
+        (list 'commentLines (list-copy (comment-quality-fact-comment-lines fact)))
         (list 'targetStart (comment-quality-fact-target-start fact))
         (list 'targetEnd (comment-quality-fact-target-end fact))
         (list 'parserEvidence
@@ -390,7 +391,7 @@
                   (hash-get evidence 'existingCommentLineCount))
             (list 'commentFocus (hash-get evidence 'commentFocus))
             (list 'commentQuestions
-                  (snapshot-list (hash-get evidence 'commentQuestions)))
+                  (list-copy (hash-get evidence 'commentQuestions)))
             (list 'agentRepairMode (hash-get evidence 'agentRepairMode)))
       (list 'commentEvidence
             (list 'factSource (hash-get evidence 'factSource))
@@ -398,7 +399,7 @@
             (list 'definition (hash-get evidence 'definition))
             (list 'definitionKind (hash-get evidence 'definitionKind))
             (list 'definitionFormals
-                  (snapshot-list (hash-get evidence 'definitionFormals)))
+                  (list-copy (hash-get evidence 'definitionFormals)))
             (list 'definitionArity (hash-get evidence 'definitionArity))
             (list 'lineSpan (hash-get evidence 'lineSpan))
             (list 'context (hash-get evidence 'context))
@@ -410,7 +411,7 @@
                        (hash-get evidence 'matchedFacts)))
             (list 'commentFocus (hash-get evidence 'commentFocus))
             (list 'commentQuestions
-                  (snapshot-list (hash-get evidence 'commentQuestions)))
+                  (list-copy (hash-get evidence 'commentQuestions)))
             (list 'agentRepairMode (hash-get evidence 'agentRepairMode))
             (list 'selector (parser-json-selector evidence))))))
 
@@ -429,7 +430,7 @@
             (list 'patternCount (hash-get fact 'patternCount))
             (list 'hygienicSyntax (hash-get fact 'hygienicSyntax))
             (list 'qualityFacets
-                  (snapshot-list (hash-get fact 'qualityFacets)))
+                  (list-copy (hash-get fact 'qualityFacets)))
             (list 'selector (parser-json-selector fact))))
      ((equal? fact-kind "poo")
       (list 'matchedFact
@@ -440,11 +441,11 @@
             (list 'generic (hash-get fact 'generic))
             (list 'receiver (hash-get fact 'receiver))
             (list 'receiverType (hash-get fact 'receiverType))
-            (list 'supers (snapshot-list (hash-get fact 'supers)))
-            (list 'slots (snapshot-list (hash-get fact 'slots)))
-            (list 'specializers (snapshot-list (hash-get fact 'specializers)))
+            (list 'supers (list-copy (hash-get fact 'supers)))
+            (list 'slots (list-copy (hash-get fact 'slots)))
+            (list 'specializers (list-copy (hash-get fact 'specializers)))
             (list 'specializerTypes
-                  (snapshot-list (hash-get fact 'specializerTypes)))
+                  (list-copy (hash-get fact 'specializerTypes)))
             (list 'selector (parser-json-selector fact))))
      ((equal? fact-kind "higher-order")
       (list 'matchedFact
@@ -453,8 +454,8 @@
             (list 'formKind (hash-get fact 'formKind))
             (list 'role (hash-get fact 'role))
             (list 'operandCount (hash-get fact 'operandCount))
-            (list 'arities (snapshot-list (hash-get fact 'arities)))
-            (list 'formals (snapshot-list (hash-get fact 'formals)))
+            (list 'arities (list-copy (hash-get fact 'arities)))
+            (list 'formals (list-copy (hash-get fact 'formals)))
             (list 'caller (hash-get fact 'caller))
             (list 'selector (parser-json-selector fact))))
      (else
@@ -476,9 +477,9 @@
         (list 'callee (call-fact-callee fact))
         (list 'arity (call-fact-arity fact))
         (list 'caller (or (call-fact-caller fact) ""))
-        (list 'arguments (snapshot-list (call-fact-arguments fact)))
+        (list 'arguments (list-copy (call-fact-arguments fact)))
         (list 'argumentTypes
-              (snapshot-list
+              (list-copy
                (map (lambda (type) (or type "unknown"))
                     (call-fact-argument-types fact))))
         (list 'selector (call-fact-selector fact))))

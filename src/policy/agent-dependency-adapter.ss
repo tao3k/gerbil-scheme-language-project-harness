@@ -5,8 +5,8 @@
         :policy/agent-support
         :policy/dependency-adapter-profile
         :policy/model
-        (only-in :std/srfi/13 string-contains string-prefix?)
-        :support/list
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/13 string-contains string-join string-prefix?)
         :types/findings)
 
 (export dependency-protocol-adapter-findings
@@ -41,9 +41,9 @@
                  (source-file-dependency-adapter-quality-facts file)))
               (project-index-files index))))
 
-;;; Finding gate: incomplete local adapter evidence or missing project contract
-;;; witness triggers agent repair. Complete local facts stay advisory only when
-;;; a t/ witness exercises the adapter.
+;;; Finding gate: incomplete local adapter evidence or missing visible project
+;;; contract witness triggers repair. Package policy can intentionally disable
+;;; test-owner scanning for fast self-apply indexes.
 ;; : (-> ProjectIndex SourceFile DependencyAdapterQualityFact TypeFinding )
 (def (dependency-protocol-adapter-finding index file fact)
   (and (index-source-runtime-file-path? index (source-file-path file))
@@ -59,9 +59,10 @@
 
 ;; : (-> ProjectIndex DependencyAdapterQualityFact (List MissingEvidence) )
 (def (dependency-protocol-adapter-missing-evidence index fact)
-  (dedupe
+  (unique
    (append (dependency-adapter-quality-fact-missing-evidence fact)
-           (if (dependency-adapter-generic-contract-witness-exists? index fact)
+           (if (or (not (dependency-adapter-generic-contract-witness-required? index))
+                   (dependency-adapter-generic-contract-witness-exists? index fact))
              []
              ["generic-contract-test-witness"]))))
 
@@ -70,7 +71,7 @@
   (string-append
    "dependency adapter " (dependency-adapter-quality-fact-name fact)
    " wraps " (dependency-adapter-quality-fact-dependency fact)
-   " but is missing " (join missing ",")
+   " but is missing " (string-join missing ",")
    "; lift dependency primitives into a thin typed protocol adapter and add a contract witness"))
 
 ;;; Boundary:
@@ -99,6 +100,35 @@
 (def (dependency-adapter-generic-contract-witness-exists? index fact)
   (equal? (dependency-adapter-contract-witness-kind index fact)
           "generic-contract-test"))
+
+;;; Boundary:
+;;; - Generic witnesses live in test owners, but package-level fast self-apply
+;;;   can intentionally exclude tests to avoid scenario/fixture noise.
+;;; - When tests are excluded by parsed package policy and absent from the
+;;;   current index, R017 still enforces local adapter quality but does not
+;;;   require invisible project-level witness evidence.
+;; : (-> ProjectIndex Boolean )
+(def (dependency-adapter-generic-contract-witness-required? index)
+  (or (project-index-has-test-owner? index)
+      (project-index-test-owner-scan-enabled? index)))
+
+;; : (-> ProjectIndex Boolean )
+(def (project-index-test-owner-scan-enabled? index)
+  (let* ((package (project-index-package index))
+         (policy (and package
+                      (project-package-test-directory-policy package))))
+    (or (not policy)
+        (pair? (test-directory-policy-allowed-directories policy)))))
+
+;;; Index witness scan:
+;;; - `ormap` expresses the existential query over parser-owned files.
+;;; - The lambda keeps path classification delegated to test-owner-path?.
+;;; - A hand-written loop would hide the "any visible test owner" invariant.
+;; : (-> ProjectIndex Boolean )
+(def (project-index-has-test-owner? index)
+  (ormap (lambda (file)
+           (test-owner-path? (source-file-path file)))
+         (project-index-files index)))
 
 ;;; Boundary:
 ;;; - Contract witness classification is project-wide.

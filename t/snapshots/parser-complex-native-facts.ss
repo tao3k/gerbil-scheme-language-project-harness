@@ -267,7 +267,8 @@
     (arities (0 1))
     (formals ("x"))
     (caller "select")
-    (qualityFacets ("case-lambda-optimization-boundary"))
+    (qualityFacets
+     ("case-lambda-optimization-boundary" "multi-arity-abstraction"))
     (selector "t/fixtures/parser/complex-syntax.ss:49-51"))))
  (controlFlowForms
   ((controlFlowForm
@@ -311,6 +312,7 @@
       "comment-quality-weak"
       "macro-runtime-source-witness"
       "contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"
@@ -347,6 +349,7 @@
       "comment-quality-weak"
       "macro-runtime-source-witness"
       "contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"
@@ -383,6 +386,7 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
+      "legacy-contract"
       "declaration-contract"
       "declaration"
       "weak-engineering-comment"))
@@ -417,6 +421,7 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
+      "legacy-contract"
       "declaration-contract"
       "declaration"
       "call-backed"
@@ -453,6 +458,7 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
+      "legacy-contract"
       "declaration-contract"
       "declaration"
       "weak-engineering-comment"))
@@ -487,6 +493,7 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
+      "legacy-contract"
       "declaration-contract"
       "declaration"
       "call-backed"
@@ -503,7 +510,7 @@
     (exported #t)
     (formals ("name" "rest"))
     (arity 2)
-    (typedContractQuality "grouped-transform")
+    (typedContractQuality "domain-transform")
     (commentQuality "weak")
     (controlFlowRoles ())
     (higherOrderRoles ())
@@ -518,10 +525,11 @@
       "quality-profile"
       "function-quality"
       "public-api"
-      "typed-contract-grouped-transform"
+      "typed-contract-domain-transform"
       "comment-quality-weak"
       "contract-valid"
-      "grouped-transform"
+      "scheme-native-block"
+      "domain-transform"
       "aligned"
       "arity-bearing-definition"
       "call-backed"
@@ -557,6 +565,7 @@
       "typed-contract-domain-transform"
       "comment-quality-weak"
       "contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"
@@ -595,6 +604,7 @@
       "typed-contract-domain-transform"
       "comment-quality-weak"
       "contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"
@@ -602,7 +612,9 @@
       "higher-order-used"
       "combinator-backed"
       "contract-only-is-not-engineering-comment"
-      "multi-arity-function"))
+      "multi-arity-function"
+      "case-lambda-optimization-boundary"
+      "multi-arity-abstraction"))
     (preservationReasons ())
     (suggestedRepairClass "engineering-comment-quality")
     (parserConfidence "medium")
@@ -614,16 +626,17 @@
     (definitionKind "defrule")
     (definitionFormals ("value" "body"))
     (definitionArity 2)
-    (contract "String <- Value SourceLine")
+    (contract "(-> Value SourceLine String )")
     (contractOutput "String")
     (contractInputs ("Value" "SourceLine"))
     (contractInputCount 2)
     (arityAlignment "aligned")
-    (tokens ("String" "Value" "SourceLine"))
+    (tokens ("Value" "SourceLine" "String"))
     (quality "domain-transform")
     (reasons ())
     (qualityFacets
      ("contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"))
@@ -638,10 +651,11 @@
       (path "t/fixtures/parser/complex-syntax.ss")
       (lineSpan (14 16))
       (selector "t/fixtures/parser/complex-syntax.ss:14-16")
-      (contract "String <- Value SourceLine")
+      (contract "(-> Value SourceLine String )")
       (quality "domain-transform")
       (qualityFacets
        ("contract-valid"
+        "scheme-native-block"
         "domain-transform"
         "aligned"
         "arity-bearing-definition"))
@@ -664,16 +678,17 @@
     (definitionKind "defsyntax")
     (definitionFormals ("stx"))
     (definitionArity 1)
-    (contract "CaptureSafe <- Stx")
+    (contract "(-> Stx CaptureSafe )")
     (contractOutput "CaptureSafe")
     (contractInputs ("Stx"))
     (contractInputCount 1)
     (arityAlignment "aligned")
-    (tokens ("CaptureSafe" "Stx"))
+    (tokens ("Stx" "CaptureSafe"))
     (quality "domain-transform")
     (reasons ())
     (qualityFacets
      ("contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"))
@@ -688,10 +703,11 @@
       (path "t/fixtures/parser/complex-syntax.ss")
       (lineSpan (18 22))
       (selector "t/fixtures/parser/complex-syntax.ss:18-22")
-      (contract "CaptureSafe <- Stx")
+      (contract "(-> Stx CaptureSafe )")
       (quality "domain-transform")
       (qualityFacets
        ("contract-valid"
+        "scheme-native-block"
         "domain-transform"
         "aligned"
         "arity-bearing-definition"))
@@ -722,7 +738,8 @@
     (tokens ("String"))
     (quality "declaration-contract")
     (reasons ())
-    (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+    (qualityFacets
+     ("contract-valid" "legacy-contract" "declaration-contract" "declaration"))
     (repairEvidence
      (repairEvidence
       (factSource "native-parser")
@@ -736,7 +753,11 @@
       (selector "t/fixtures/parser/complex-syntax.ss:24-24")
       (contract "String")
       (quality "declaration-contract")
-      (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+      (qualityFacets
+       ("contract-valid"
+        "legacy-contract"
+        "declaration-contract"
+        "declaration"))
       (matchedCalls ())
       (matchedHigherOrder ())
       (matchedControlFlow ())
@@ -765,7 +786,11 @@
     (quality "declaration-contract")
     (reasons ())
     (qualityFacets
-     ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+     ("contract-valid"
+      "legacy-contract"
+      "declaration-contract"
+      "declaration"
+      "call-backed"))
     (repairEvidence
      (repairEvidence
       (factSource "native-parser")
@@ -780,7 +805,11 @@
       (contract "Integer")
       (quality "declaration-contract")
       (qualityFacets
-       ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+       ("contract-valid"
+        "legacy-contract"
+        "declaration-contract"
+        "declaration"
+        "call-backed"))
       (matchedCalls
        ((repairCall
          (kind "call")
@@ -828,7 +857,8 @@
     (tokens ("Integer"))
     (quality "declaration-contract")
     (reasons ())
-    (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+    (qualityFacets
+     ("contract-valid" "legacy-contract" "declaration-contract" "declaration"))
     (repairEvidence
      (repairEvidence
       (factSource "native-parser")
@@ -842,7 +872,11 @@
       (selector "t/fixtures/parser/complex-syntax.ss:28-28")
       (contract "Integer")
       (quality "declaration-contract")
-      (qualityFacets ("contract-valid" "declaration-contract" "declaration"))
+      (qualityFacets
+       ("contract-valid"
+        "legacy-contract"
+        "declaration-contract"
+        "declaration"))
       (matchedCalls ())
       (matchedHigherOrder ())
       (matchedControlFlow ())
@@ -871,7 +905,11 @@
     (quality "declaration-contract")
     (reasons ())
     (qualityFacets
-     ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+     ("contract-valid"
+      "legacy-contract"
+      "declaration-contract"
+      "declaration"
+      "call-backed"))
     (repairEvidence
      (repairEvidence
       (factSource "native-parser")
@@ -886,7 +924,11 @@
       (contract "Integer")
       (quality "declaration-contract")
       (qualityFacets
-       ("contract-valid" "declaration-contract" "declaration" "call-backed"))
+       ("contract-valid"
+        "legacy-contract"
+        "declaration-contract"
+        "declaration"
+        "call-backed"))
       (matchedCalls
        ((repairCall
          (kind "call")
@@ -926,17 +968,18 @@
     (definitionKind "def")
     (definitionFormals ("name" "rest"))
     (definitionArity 2)
-    (contract "String <- String (List String)")
+    (contract "(-> String (List String) String )")
     (contractOutput "String")
     (contractInputs ("String" "(List String)"))
     (contractInputCount 2)
     (arityAlignment "aligned")
-    (tokens ("String" "String" "List" "String"))
-    (quality "grouped-transform")
+    (tokens ("String" "List" "String" "String"))
+    (quality "domain-transform")
     (reasons ())
     (qualityFacets
      ("contract-valid"
-      "grouped-transform"
+      "scheme-native-block"
+      "domain-transform"
       "aligned"
       "arity-bearing-definition"
       "call-backed"
@@ -952,11 +995,12 @@
       (path "t/fixtures/parser/complex-syntax.ss")
       (lineSpan (38 41))
       (selector "t/fixtures/parser/complex-syntax.ss:38-41")
-      (contract "String <- String (List String)")
-      (quality "grouped-transform")
+      (contract "(-> String (List String) String )")
+      (quality "domain-transform")
       (qualityFacets
        ("contract-valid"
-        "grouped-transform"
+        "scheme-native-block"
+        "domain-transform"
         "aligned"
         "arity-bearing-definition"
         "call-backed"
@@ -986,23 +1030,24 @@
       (agentRepairMode
        "use parserEvidence to choose the smallest helper/combinator rewrite; keep names and exact composition flexible when tests and selectors preserve behavior")))
     (arrowCount 1)
-    (groupCount 2)
+    (groupCount 0)
     (selector "t/fixtures/parser/complex-syntax.ss:37-37"))
    (typedContractFact
     (definition "dispatch")
     (definitionKind "def")
     (definitionFormals ("value"))
     (definitionArity 1)
-    (contract "Dispatch <- Value")
+    (contract "(-> Value Dispatch )")
     (contractOutput "Dispatch")
     (contractInputs ("Value"))
     (contractInputCount 1)
     (arityAlignment "aligned")
-    (tokens ("Dispatch" "Value"))
+    (tokens ("Value" "Dispatch"))
     (quality "domain-transform")
     (reasons ())
     (qualityFacets
      ("contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"
@@ -1020,10 +1065,11 @@
       (path "t/fixtures/parser/complex-syntax.ss")
       (lineSpan (43 46))
       (selector "t/fixtures/parser/complex-syntax.ss:43-46")
-      (contract "Dispatch <- Value")
+      (contract "(-> Value Dispatch )")
       (quality "domain-transform")
       (qualityFacets
        ("contract-valid"
+        "scheme-native-block"
         "domain-transform"
         "aligned"
         "arity-bearing-definition"
@@ -1069,16 +1115,17 @@
     (definitionKind "def")
     (definitionFormals ("x"))
     (definitionArity 1)
-    (contract "Widget <- Value")
+    (contract "(-> Value Widget )")
     (contractOutput "Widget")
     (contractInputs ("Value"))
     (contractInputCount 1)
     (arityAlignment "aligned")
-    (tokens ("Widget" "Value"))
+    (tokens ("Value" "Widget"))
     (quality "domain-transform")
     (reasons ())
     (qualityFacets
      ("contract-valid"
+      "scheme-native-block"
       "domain-transform"
       "aligned"
       "arity-bearing-definition"
@@ -1096,10 +1143,11 @@
       (path "t/fixtures/parser/complex-syntax.ss")
       (lineSpan (48 51))
       (selector "t/fixtures/parser/complex-syntax.ss:48-51")
-      (contract "Widget <- Value")
+      (contract "(-> Value Widget )")
       (quality "domain-transform")
       (qualityFacets
        ("contract-valid"
+        "scheme-native-block"
         "domain-transform"
         "aligned"
         "arity-bearing-definition"
@@ -1175,7 +1223,7 @@
     (quality "weak")
     (required #t)
     (reasons ("contract-only-is-not-engineering-comment"))
-    (commentLines ("String <- Value SourceLine"))
+    (commentLines (": (-> Value SourceLine String )"))
     (targetStart 14)
     (targetEnd 16)
     (parserEvidence
@@ -1219,7 +1267,7 @@
     (quality "weak")
     (required #t)
     (reasons ("contract-only-is-not-engineering-comment"))
-    (commentLines ("CaptureSafe <- Stx"))
+    (commentLines (": (-> Stx CaptureSafe )"))
     (targetStart 18)
     (targetEnd 22)
     (parserEvidence
@@ -1480,7 +1528,7 @@
     (quality "weak")
     (required #f)
     (reasons ("contract-only-is-not-engineering-comment"))
-    (commentLines ("String <- String (List String)"))
+    (commentLines (": (-> String (List String) String )"))
     (targetStart 38)
     (targetEnd 41)
     (parserEvidence
@@ -1514,7 +1562,7 @@
     (quality "weak")
     (required #t)
     (reasons ("contract-only-is-not-engineering-comment"))
-    (commentLines ("Dispatch <- Value"))
+    (commentLines (": (-> Value Dispatch )"))
     (targetStart 43)
     (targetEnd 46)
     (parserEvidence
@@ -1557,7 +1605,7 @@
     (quality "weak")
     (required #t)
     (reasons ("contract-only-is-not-engineering-comment"))
-    (commentLines ("Widget <- Value"))
+    (commentLines (": (-> Value Widget )"))
     (targetStart 48)
     (targetEnd 51)
     (parserEvidence

@@ -153,6 +153,35 @@
                      => ["GERBIL-SCHEME-MOD-R007"])
               (check (modularity-policy-explanation policy)
                      => "Large generated replay tests stay package-local while policy config remains out of the test owner."))))
+    (test-case "collect-project/files parses only named changed owners"
+          (let* ((root ".run/parser-changed-project-files")
+                 (src (string-append root "/src"))
+                 (generated (string-append root "/src/generated")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir generated)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/parser-changed\n  (policy: (source-scope roots: (\"src\") exclude-directories: (\"generated\"))))\n")
+            (write-text (string-append src "/changed.ss")
+                        ";;; -*- Gerbil -*-\n(def (changed) #t)\n")
+            (write-text (string-append src "/unchanged.ss")
+                        ";;; -*- Gerbil -*-\n(def (unchanged) #t)\n")
+            (write-text (string-append generated "/ignored.ss")
+                        ";;; -*- Gerbil -*-\n(def (ignored) #t)\n")
+            (write-text (string-append root "/README.md")
+                        "not Gerbil source\n")
+            (let* ((index
+                    (collect-project/files
+                     root
+                     ["src/changed.ss"
+                      "src/generated/ignored.ss"
+                      "src/missing.ss"
+                      "README.md"]))
+                   (files (project-index-files index)))
+              (check (map source-file-path files) => ["src/changed.ss"])
+              (check (map definition-name (project-definitions index))
+                     => ["changed"]))))
     (test-case "native reader captures definition formals"
           (let* ((root (path-normalize "."))
                  (file (parse-source-file root "t/fixtures/formals.ss")))

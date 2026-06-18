@@ -3,7 +3,7 @@
 
 (import :parser/facade
         :policy/prototype
-        :support/list
+        (only-in :std/srfi/1 take)
         (only-in :std/sugar hash))
 
 (export dependency-adapter-profile
@@ -33,6 +33,9 @@
 (def (dependency-adapter-profile-precedence profile)
   (slot-profile-precedence-names profile))
 
+;;; Boundary:
+;;; - This profile is the protocol-surface repair payload for dependency adapters.
+;;; - Keep the long slot-family guidance cohesive so R017 can explain one repair shape.
 ;; DependencyAdapterProfile
 (def +dependency-adapter-protocol-surface-profile+
   (dependency-adapter-profile
@@ -44,14 +47,25 @@
     (cons 'guideCodeFlag "--code")
     (cons 'codeShapeExemplar "gerbil-poo rationaldict-style typed protocol adapter")
     (cons 'protocolSurface
-          "minimal protocol slots first; derive table/set/list/sexp/json/marshal-facing capabilities from the slot surface")
+          "minimal protocol slots first; derive table/set/list/iteration/lens/sexp/json/bytes/marshal-facing capabilities from the slot surface")
     (cons 'protocolSurfaceReference "gerbil-poo table.ss methods.table")
+    (cons 'methodTablePrimitiveSlots
+          [".empty" ".ref" ".acons" ".remove" ".foldl" ".foldr"])
+    (cons 'methodTableDerivedFamilies
+          ["membership: .empty? .key? .ref/opt"
+           "iteration/fold: .for-each .for-each/reverse .<-iter .iter<-"
+           "conversion: .list<- .<-list .sexp<- .<-sexp .json<- .<-json .bytes<- .<-bytes .marshal .unmarshal"
+           "update/merge: .acons/opt .merge .union .join .join/list .update/opt .update"
+           "selection: .min-binding/opt .max-binding/opt .min-binding .max-binding .choose/opt .choose .find-first/opt .find-last/opt .find-first .find-last"
+           "equality/division: .=? .divide .divide/list .validate .count .every .any"
+           "lens/binding: .lens .Binding .Bindings"
+           "set algebra: .union .inter .diff .compare"])
     (cons 'reusableContractTestPattern
           "small t/ owner calls generic table-contract-tests or protocol-contract-tests against the adapter type descriptor")
     (cons 'adapterRepairShape
-          "query the search-forwarded rationaldict adapter example first, then use R017 guide --code for local parser/policy repair code; follow exact only-in dependency import -> define-type protocol surface -> Key/Value/validation/serialization/equality slots -> generic contract tests")
+          "query the search-forwarded rationaldict adapter example first, then use R017 guide --code for local parser/policy repair code; follow exact only-in dependency import -> define-type protocol surface -> Key/Value -> primitive methods.table slots (.empty/.ref/.acons/.remove/.foldl/.foldr) -> iteration/conversion/update/selection/equality/lens/serialization slots when dependency primitives exist -> generic contract tests")
     (cons 'agentRepairStandard
-          "current dependency already provides the bottom data structure; do not hand-write loose hash/alist objects. Build a typed protocol adapter: precise only-in imports for primitives, define-type Key/Value/validate/serialization/equality slots, behavior on protocol slots, derived table/set/list/sexp/json/marshal capabilities when slots exist, and generic contract tests")
+          "current dependency already provides the bottom data structure; do not hand-write loose hash/alist objects. Build a typed protocol adapter: precise only-in imports for primitives, define-type Key/Value plus primitive methods.table slots (.empty/.ref/.acons/.remove/.foldl/.foldr), iteration/conversion/update/selection/equality/lens/serialization slots, behavior on protocol slots, derived table/set/list/iteration/lens/sexp/json/bytes/marshal capabilities when slots exist, and generic contract tests")
     (cons 'agentFlexibility
           "agent may choose helper names, exact slot grouping, and generic test helper shape; preserve public adapter name and dependency primitive semantics")
     (cons 'nativeFactSource
@@ -92,8 +106,9 @@
                           " to inspect local R017 parser/policy repair code")
            "add or tighten only-in dependency primitive imports"
            "wrap dependency primitives with define-type and protocol slots"
-           "add .validate, .sexp<-, .=?, .list<- or .<-list boundaries when behavior exists"
-           "derive table/set/list/sexp/json/marshal-facing capability from protocol slots"
+           "implement primitive methods.table slots .empty/.ref/.acons/.remove/.foldl/.foldr before relying on derived table helpers"
+           "add iteration/conversion/update/selection/equality/lens/serialization boundaries when behavior exists"
+           "derive table/set/list/iteration/lens/sexp/json/bytes/marshal-facing capability from protocol slots"
            "add t/ generic contract tests such as table-contract-tests or protocol-contract-tests"])
     (cons 'disallowedMoves
           ["do not replace dependency primitives with hand-written hash/alist storage"
@@ -146,9 +161,11 @@
         (dependency (dependency-adapter-quality-fact-dependency fact))
         (imports (dependency-adapter-quality-fact-imports fact))
         (importedSymbols
-         (take-at-most (dependency-adapter-quality-fact-imported-symbols fact) 12))
+         (let (symbols (dependency-adapter-quality-fact-imported-symbols fact))
+           (take symbols (min 12 (length symbols)))))
         (usedSymbols
-         (take-at-most (dependency-adapter-quality-fact-used-symbols fact) 12))
+         (let (symbols (dependency-adapter-quality-fact-used-symbols fact))
+           (take symbols (min 12 (length symbols)))))
         (protocolRefs (dependency-adapter-quality-fact-protocol-refs fact))
         (slots (dependency-adapter-quality-fact-slots fact))
         (derivedCapabilities
@@ -156,6 +173,10 @@
         (protocolSurface (dependency-adapter-profile-ref profile 'protocolSurface ""))
         (protocolSurfaceReference
          (dependency-adapter-profile-ref profile 'protocolSurfaceReference ""))
+        (methodTablePrimitiveSlots
+         (dependency-adapter-profile-ref profile 'methodTablePrimitiveSlots '()))
+        (methodTableDerivedFamilies
+         (dependency-adapter-profile-ref profile 'methodTableDerivedFamilies '()))
         (reusableContractTestPattern
          (dependency-adapter-profile-ref profile 'reusableContractTestPattern ""))
         (macroBridgeBoundary

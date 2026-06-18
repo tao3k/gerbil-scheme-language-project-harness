@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Search evidence packet rendering for pattern, compare, runtime-source, and ingest views.
 
-(import :constants
+(import :gerbil/gambit
+        :constants
         :commands/search-render
         :extensions/facade
         :language/facade
@@ -9,9 +10,9 @@
         :protocol/json
         :support/args
         :support/io
-        :support/list
-        (only-in :std/misc/ports read-all-as-string)
-        (only-in :std/srfi/13 string-contains)
+        (only-in :std/misc/ports read-all-as-lines read-all-as-string)
+        (only-in :std/misc/process process-status run-process)
+        (only-in :std/srfi/13 string-contains string-join string-prefix?)
         (only-in :std/sugar cut filter hash ormap))
 
 (export language-evidence-view?
@@ -122,7 +123,7 @@
 ;;     %
 (def (emit-pattern-search index args json?)
   (let* ((positionals (positional-args args))
-         (query (if (pair? positionals) (join positionals " ") "-"))
+         (query (if (pair? positionals) (string-join positionals " ") "-"))
          (pattern (pattern-evidence index positionals))
          (grade (if pattern "fact" "unknown"))
          (missing (if pattern
@@ -159,7 +160,7 @@
                    " quality=" quality)
         (if pattern
           (emit-pattern-lines pattern)
-          (displayln "|missing " (join missing ",")))
+          (displayln "|missing " (string-join missing ",")))
         (displayln "next=" next)))
     0))
 ;; : (-> ProjectIndex (List String) String )
@@ -183,7 +184,7 @@
   (let* ((missing (pattern-missing pattern))
          (quality (if (null? missing) "verified" "partial"))
          (via (if (hash-key? pattern 'via) (hash-get pattern 'via) []))
-         (via-text (if (null? via) "-" (join via "->"))))
+         (via-text (if (null? via) "-" (string-join via "->"))))
     (emit-field-line
      "|pattern"
      [(line-field "id" (hash-get pattern 'id))
@@ -197,7 +198,7 @@
     (when (hash-key? pattern 'importWitness)
       (let* ((witness (hash-get pattern 'importWitness))
              (chain (hash-get witness 'dependencyChain))
-             (chain-text (if (null? chain) "-" (join chain "->"))))
+             (chain-text (if (null? chain) "-" (string-join chain "->"))))
         (emit-field-line
          "|importWitness"
          [(line-field "status" (hash-get witness 'status))
@@ -225,18 +226,18 @@
        (let (template (hash-get form 'template))
          (emit-field-line
           "|form"
-          [(line-field "role" (hash-get form 'role))
-           (line-field "symbol" (hash-get form 'symbol))
-           (line-field "head" (hash-get template 'head))
-           (line-field "operands" (join (hash-get template 'operands) ","))
-           (line-field "keywords" (join (hash-get template 'keywords) ","))
+         [(line-field "role" (hash-get form 'role))
+          (line-field "symbol" (hash-get form 'symbol))
+          (line-field "head" (hash-get template 'head))
+           (line-field "operands" (string-join (hash-get template 'operands) ","))
+           (line-field "keywords" (string-join (hash-get template 'keywords) ","))
            (line-field "selector" (hash-get form 'selector))])))
      (hash-get pattern 'minimalForms))
     (for-each emit-failure-case-line (hash-get pattern 'failureCases))
     (for-each emit-quality-signal-line (hash-get pattern 'qualitySignals))
     (emit-field-line
      (string-append "|quality " quality)
-     [(line-field "missing" (if (null? missing) "-" (join missing ",")))
+     [(line-field "missing" (if (null? missing) "-" (string-join missing ",")))
       (line-field "selectorCount" (length (hash-get pattern 'selectors)))
       (line-field "formCount" (length (hash-get pattern 'minimalForms)))
       (line-field "failureCaseCount" (length (hash-get pattern 'failureCases)))])))
@@ -283,7 +284,7 @@
 ;;     %
 (def (emit-compare-search args json?)
   (let* ((positionals (positional-args args))
-         (query (if (pair? positionals) (join positionals " ") "-"))
+         (query (if (pair? positionals) (string-join positionals " ") "-"))
          (facts (matching-compare-facts positionals))
          (grade (if (null? facts) "unknown" "fact"))
          (quality (if (null? facts) "insufficient" "verified"))
@@ -392,12 +393,12 @@
 ;;; Boundary:
 ;;; - emit-language-evidence-search coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;; : (-> ProjectIndex Namespace (List String) Json String )
-(def (emit-language-evidence-search index namespace args json?)
+;; : (-> (U ProjectIndex ProjectRoot) Namespace (List String) Json String )
+(def (emit-language-evidence-search context namespace args json?)
   (let* ((positionals (positional-args args))
-         (query (if (pair? positionals) (join positionals " ") "-"))
+         (query (if (pair? positionals) (string-join positionals " ") "-"))
          (authority (language-evidence-authority namespace))
-         (facts (matching-language-evidence-facts index namespace positionals))
+         (facts (matching-language-evidence-facts context namespace positionals))
          (grade (if (null? facts) "unknown" "fact"))
          (next (if (null? facts)
                  (language-evidence-next namespace query)
@@ -422,10 +423,136 @@
         (if (null? facts)
           (begin
             (displayln "|missing fact-registry-or-query-match")
-            (displayln "|witness pending"))
+            (displayln "|witness pending")
+            (emit-language-source-index-fallback context namespace query))
           (for-each emit-language-evidence-line facts))
         (displayln "next=" next)))
     0))
+
+;; : (-> (U ProjectIndex ProjectRoot) Namespace Query Unit )
+(def (emit-language-source-index-fallback context namespace query)
+  (when (and (string? context)
+             (runtime-source-index-namespace? namespace)
+             (not (equal? query "-")))
+    (let (index-root (runtime-source-index-root context))
+      (if index-root
+        (emit-source-index-lookup-lines namespace query index-root)
+        (emit-source-index-acquire-line namespace query)))))
+
+;; : (-> Namespace Boolean )
+(def (runtime-source-index-namespace? namespace)
+  (or (equal? namespace "std")
+      (equal? namespace "runtime-source")))
+
+;; : (-> ProjectRoot (U #f Path) )
+(def (runtime-source-index-root root)
+  (let* ((base (path-expand
+                ".cache/agent-semantic-protocol/client/runtime-source/gerbil-scheme"
+                root))
+         (version-key (runtime-source-version-key))
+         (version-root (and version-key (path-expand version-key base))))
+    (cond
+     ((and version-root (file-directory? version-root)) version-root)
+     ((file-directory? base)
+      (let (checkouts (runtime-source-checkout-roots base))
+        (and (pair? checkouts) (car checkouts))))
+     (else #f))))
+
+;; : (-> (U #f String) )
+(def (runtime-source-version-key)
+  (let* ((facts (runtime-source-facts))
+         (fact (and (pair? facts) (car facts)))
+         (details (and fact (hash-get fact 'details)))
+         (acquisition (and details (hash-get details 'acquisition))))
+    (and acquisition (hash-get acquisition 'versionKey))))
+
+;;; Runtime-source selection boundary:
+;;; - Only existing child directories become checkout roots.
+;;; - Expansion stays relative to the cache base so compact output never leaks
+;;;   unrelated local paths into agent-facing evidence.
+;; : (-> Path (List Path) )
+(def (runtime-source-checkout-roots base)
+  (map (cut path-expand <> base)
+       (filter (lambda (entry)
+                 (file-directory? (path-expand entry base)))
+               (directory-files base))))
+
+;; : (-> Namespace Query Unit )
+(def (emit-source-index-acquire-line namespace query)
+  (displayln "|sourceIndexLookup noOutput reason=runtime-source-not-acquired"
+             " namespace=" namespace
+             " query=" query
+             " nextCommand=\"asp cache runtime-source acquire --language-id gerbil-scheme --repository <gerbil-repo-or-path> --checkout <ref> --state-namespace runtime-source/gerbil-scheme --index-owner asp-structural-index --root .\""))
+
+;; : (-> Namespace Query Path Unit )
+(def (emit-source-index-lookup-lines namespace query index-root)
+  (let (result (source-index-lookup-result query index-root 4))
+    (if (and (source-index-lookup-ok? result)
+             (source-index-hit? (cdr result)))
+      (begin
+        (displayln "|sourceIndexLookup status=hit namespace=" namespace
+                   " query=" query
+                   " indexRoot=runtime-source")
+        (for-each displayln (source-index-candidate-summary-lines (cdr result) 4)))
+      (displayln "|sourceIndexLookup noOutput reason=source-index-miss"
+                 " namespace=" namespace
+                 " query=" query
+                 " indexRoot=runtime-source"))))
+
+;;; Process boundary: source-index lookup delegates to the installed `asp`
+;;; command and captures status plus stdout lines as data, not shell text.
+;;; The caller owns hit/miss interpretation so acquisition guidance stays
+;;; explicit and no hidden repository fallback is introduced here.
+;; : (-> Query Path PositiveInteger (Pair ProcessStatus (List String)) )
+(def (source-index-lookup-result query index-root limit)
+  (let ((asp (or (getenv "SEMANTIC_AGENT_PROTOCOL_BIN" #f) "asp")))
+    (run-process [asp "gerbil-scheme" "cache" "source-index" "lookup"
+                  "--query" query
+                  "--index-root" index-root
+                  "--limit" (number->string limit)]
+                 stdin-redirection: #f
+                 stdout-redirection: #t
+                 stderr-redirection: #t
+                 check-status: #f
+                 coprocess:
+                 (lambda (process)
+                   (cons (process-status process)
+                         (read-all-as-lines process))))))
+
+;; : (-> (Pair ProcessStatus (List String)) Boolean )
+(def (source-index-lookup-ok? result)
+  (zero? (car result)))
+
+;;; Hit detection is intentionally narrow: only provider-emitted status lines
+;;; can mark a lookup successful, while candidate text remains presentation.
+;; : (-> (List String) Boolean )
+(def (source-index-hit? lines)
+  (ormap (lambda (line)
+           (string-contains line "status=hit"))
+         lines))
+
+;;; Agent-facing compression keeps candidate order and removes bulky query-key
+;;; payloads after lookup succeeds; semantic lookup already happened upstream.
+;; : (-> (List String) PositiveInteger (List String) )
+(def (source-index-candidate-summary-lines lines limit)
+  (take-up-to
+   (map compact-source-index-candidate-line
+        (filter (cut string-prefix? "|candidate " <>) lines))
+   limit))
+
+;; : (-> String String )
+(def (compact-source-index-candidate-line line)
+  (let (query-key-start (string-contains line " queryKeys="))
+    (if query-key-start
+      (substring line 0 query-key-start)
+      line)))
+
+;; : (-> (List X) Natural (List X) )
+(def (take-up-to values limit)
+  (cond
+   ((or (zero? limit) (null? values)) '())
+   (else (cons (car values)
+               (take-up-to (cdr values) (- limit 1))))))
 ;; matching-language-evidence-facts
 ;;   : (-> ProjectIndex String (List String) (List LanguageEvidenceFact))
 ;;   | doc m%

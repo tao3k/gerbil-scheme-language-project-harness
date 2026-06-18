@@ -20,6 +20,7 @@
         write-poo-declarative-project
         write-functional-idiom-project
         write-functional-idiom-positive-project
+        write-functional-idiom-calibrated-project
         write-functional-idiom-caller-scope-project
         write-functional-idiom-reader-project
         write-controlled-branch-shape-project
@@ -212,7 +213,19 @@
     (write-text (string-append owner "/facade.ss")
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export total)\n")
     (write-text (string-append owner "/core.ss")
-                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export total)\n(def (total xs)\n  (for/fold ((acc 0)) ((x xs)) (+ acc x)))\n")))
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import (only-in :clan/base !> compose curry fun lambda-match))\n(export total total+fee classify-order)\n;; total\n;;   : (-> (List Number) Number)\n;;   | doc m%\n;;       `total xs` sums order totals with a pure fold.\n;;     %\n(def (total xs)\n  (foldl + 0 xs))\n;; total+fee\n;;   : (-> Number (List Number) Number)\n;;   | doc m%\n;;       `total+fee fee xs` composes the base total with a fee transform.\n;;     %\n(def (total+fee fee xs)\n  (!> xs total (curry + fee)))\n;; classify-order\n;;   : (-> Order Symbol)\n;;   | type Order = HashTable\n;;   | doc m%\n;;       `classify-order order` keeps local destructuring in a lambda-match helper.\n;;     %\n(def classify-order\n  (fun (classify order)\n    ((lambda-match\n       ((hash ('state \"paid\")) 'paid)\n       (_ 'open))\n     order)))\n")))
+;; : (-> String String )
+(def (write-functional-idiom-calibrated-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (write-text (string-append owner "/facade.ss")
+                ";;; -*- Gerbil -*-\n;;; Orders facade exports calibrated repair targets.\n;;; Keep public names aligned with the core combinator helpers.\n(export total total+fee classify-order)\n")
+    (write-text (string-append owner "/core.ss")
+                ";;; -*- Gerbil -*-\n;;; Orders core owns pure order-total combinators.\n;;; Invariant: exported helpers stay expression-level and parser-readable.\n(package: sample/orders)\n(import (only-in :clan/base !> compose curry fun lambda-match))\n(export total total+fee classify-order)\n;;; Boundary:\n;;; - total is the reduction boundary for order amounts.\n;;; - Keep accumulator state inside fold, not a handwritten loop.\n;; total\n;;   : (-> (List Number) Number)\n;;   | doc m%\n;;       `total xs` sums order totals with a pure fold.\n;;     %\n(def (total xs)\n  (foldl + 0 xs))\n;;; Boundary:\n;;; - total+fee specializes total with a fee transform.\n;;; - Keep the pipeline visible as reusable composition evidence.\n;; total+fee\n;;   : (-> Number (List Number) Number)\n;;   | doc m%\n;;       `total+fee fee xs` composes the base total with a fee transform.\n;;     %\n(def (total+fee fee xs)\n  (!> xs total (curry + fee)))\n;;; Boundary:\n;;; - classify-order owns local destructuring for order state.\n;;; - Keep lambda-match isolated so callers see one named classifier.\n;; classify-order\n;;   : (-> Order Symbol)\n;;   | type Order = HashTable\n;;   | doc m%\n;;       `classify-order order` keeps local destructuring in a lambda-match helper.\n;;     %\n(def classify-order\n  (fun (classify order)\n    ((lambda-match\n       ((hash ('state \"paid\")) 'paid)\n       (_ 'open))\n     order)))\n")))
 ;; : (-> String String )
 (def (write-functional-idiom-caller-scope-project root)
   (let* ((src (string-append root "/src"))
@@ -301,7 +314,8 @@
                 (string-append
                  ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n"
                  "  (only-in :clan/pure/dict/orderdict\n"
-                 "           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n"
+                 "           orderdict-empty? orderdict-ref orderdict-put orderdict-remove\n"
+                 "           orderdict-foldl orderdict-foldr orderdict->list\n"
                  "           list->orderdict orderdict=?)\n"
                  "  (only-in :clan/poo/mop define-type Any raise-type-error)\n"
                  "  (only-in ./table methods.table))\n"
@@ -309,7 +323,7 @@
                  "  Key: String\n"
                  "  Value: Any\n"
                  (if complete?
-                   "  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n"
+                   "  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .remove: (lambda (d k) (orderdict-remove d k))\n  .foldl: (lambda (f seed d) (orderdict-foldl f seed d))\n  .foldr: (lambda (f seed d) (orderdict-foldr f seed d))\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n"
                    "  .empty: orderdict-empty?\n  .ref: orderdict-ref\n  .acons: (lambda (k v d) (orderdict-put d k v)))\n")))
     (if witness?
       (write-text (string-append test-dir "/dict-test.ss")
@@ -335,7 +349,7 @@
     (write-text (string-append root "/gerbil.pkg")
                 "(package: sample/orders\n  depend: (\"git.cons.io/mighty-gerbils/gerbil-poo\"))\n")
     (write-text (string-append owner "/dict.ss")
-                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/orderdict\n           orderdict-empty? orderdict-ref orderdict-put orderdict->list\n           list->orderdict orderdict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./table methods.table))\n(define-type (OrderDict. @ [methods.table] Value)\n  Key: String\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: (lambda (d k) (hash-get (hash) k))\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .foldl: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import\n  (only-in :clan/pure/dict/orderdict\n           orderdict-empty? orderdict-ref orderdict-put orderdict-remove\n           orderdict-foldl orderdict-foldr orderdict->list\n           list->orderdict orderdict=?)\n  (only-in :clan/poo/mop define-type Any raise-type-error)\n  (only-in ./table methods.table))\n(define-type (OrderDict. @ [methods.table] Value)\n  Key: String\n  Value: Any\n  .validate: => (lambda (super) (lambda (x) (super x)))\n  .empty: orderdict-empty?\n  .ref: (lambda (d k) (hash-get (hash) k))\n  .acons: (lambda (k v d) (orderdict-put d k v))\n  .remove: (lambda (d k) d)\n  .foldl: (lambda (f seed d) seed)\n  .foldr: (lambda (f seed d) seed)\n  .<-list: list->orderdict\n  .list<-: orderdict->list\n  .sexp<-: (lambda (x) `(list->orderdict ,(orderdict->list x)))\n  .=?: (lambda (a b) (orderdict=? a b)))\n")
     (write-text (string-append test-dir "/dict-test.ss")
                 ";;; -*- Gerbil -*-\n(import :std/test ../src/orders/dict)\n(def (table-contract-tests adapter) adapter)\n(def order-dict-test\n  (test-suite \"order dict\"\n    (test-case \"adapter contract witness\"\n      (check (table-contract-tests (OrderDict. String)) => (OrderDict. String)))))\n")))
 ;; : (-> String Unit )

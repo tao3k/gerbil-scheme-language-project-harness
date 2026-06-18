@@ -9,8 +9,8 @@
         :extensions/poo-patterns
         :package-manager/facade
         :parser/facade
-        (only-in :std/sugar filter hash ormap)
-        :support/list)
+        (only-in :std/srfi/13 string-join string-suffix?)
+        (only-in :std/sugar filter hash ormap))
 
 (export poo-extension-active?
         poo-extension-fact
@@ -117,7 +117,7 @@
   (let (focus (filter (lambda (term)
                         (not (poo-registered-extension-focus-token? term)))
                       terms))
-    (if (pair? focus) (join focus " ") "usage")))
+    (if (pair? focus) (string-join focus " ") "usage")))
 ;;; Boundary:
 ;;; - poo-registered-extension-pattern-terms canonicalizes split aliases.
 ;;; - Pattern renderers expect the first term to be the extension identity.
@@ -296,11 +296,3 @@
     (poo-pattern-next kind)
     (string-append "search extension gerbil-poo "
                    (poo-pattern-focus kind terms))))
-
-;; : (-> Suffix SourceLine Boolean )
-(def (string-suffix? suffix text)
-  (let ((suffix-length (string-length suffix))
-        (text-length (string-length text)))
-    (and (fx<= suffix-length text-length)
-         (equal? suffix
-                 (substring text (fx- text-length suffix-length) text-length)))))

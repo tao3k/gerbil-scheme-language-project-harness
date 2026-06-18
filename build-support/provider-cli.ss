@@ -42,6 +42,8 @@
                                     (path-directory binary)))
     (fast-owner-items . ,(path-expand "gerbil-scheme-search-owner-items"
                                       (path-directory binary)))
+    (fast-check . ,(path-expand "gerbil-scheme-check"
+                                (path-directory binary)))
     (guide-static-file . ,(path-expand "gerbil-scheme-guide-basic.txt"
                                        (path-directory binary)))
     (guide-static-all-file . ,(path-expand "gerbil-scheme-guide-all.txt"
@@ -145,6 +147,7 @@
 (def +dispatcher-config-constants+
   [(cons "harness_root" 'harness-root)
    (cons "fast_extension" 'fast-extension)
+   (cons "fast_check" 'fast-check)
    (cons "guide_static_file" 'guide-static-file)
    (cons "guide_static_all_file" 'guide-static-all-file)
    (cons "guide_static_policy_file" 'guide-static-policy-file)
@@ -301,6 +304,48 @@
     "  emit_selector_range_or_exit(selector, has_arg(argc, argv, \"--json\"));"
     "  exit(0);"
     "}"]
+   ["static int option_like(const char *arg) { return arg && arg[0] == '-'; }"]
+   ["static char *joined_query_terms(int argc, char **argv) {"
+    "  size_t total = 0;"
+    "  int count = 0;"
+    "  for (int i = 1; i + 1 < argc; i++) {"
+    "    if (streq(argv[i], \"--term\")) { total += strlen(argv[i + 1]) + 1; count++; i++; }"
+    "  }"
+    "  if (!count) return NULL;"
+    "  char *out = calloc(total + 1, sizeof(char));"
+    "  if (!out) { perror(\"calloc\"); exit(127); }"
+    "  for (int i = 1; i + 1 < argc; i++) {"
+    "    if (streq(argv[i], \"--term\")) {"
+    "      if (*out) strcat(out, \" \");"
+    "      strcat(out, argv[i + 1]);"
+    "      i++;"
+    "    }"
+    "  }"
+    "  return out;"
+    "}"]
+   ["static void route_query_owner_items_or_continue(int argc, char **argv) {"
+    "  if (argc <= 2 || !streq(argv[1], \"query\")) return;"
+    "  if (option_like(argv[2])) return;"
+    "  if (has_arg(argc, argv, \"--json\") || has_arg(argc, argv, \"--code\") || has_arg(argc, argv, \"--selector\") || has_arg(argc, argv, \"--from-hook\")) return;"
+    "  const char *workspace = arg_value(argc, argv, \"--workspace\");"
+    "  char *query = joined_query_terms(argc, argv);"
+    "  if (!query || !*query) { free(query); return; }"
+    "  char **next = calloc(11, sizeof(char *));"
+    "  if (!next) { perror(\"calloc\"); exit(127); }"
+    "  int n = 0;"
+    "  next[n++] = argv[0];"
+    "  next[n++] = \"search\";"
+    "  next[n++] = \"owner\";"
+    "  next[n++] = argv[2];"
+    "  next[n++] = \"items\";"
+    "  if (query && *query) { next[n++] = \"--query\"; next[n++] = query; }"
+    "  if (workspace) { next[n++] = \"--workspace\"; next[n++] = (char *)workspace; }"
+    "  if (has_arg(argc, argv, \"--names-only\")) next[n++] = \"--names-only\";"
+    "  int status = owner_items_native_main(n, next);"
+    "  free(query);"
+    "  free(next);"
+    "  exit(status);"
+    "}"]
    ["static const char *static_guide_file(int argc, char **argv, int start) {"
     "  const char *selected = guide_static_file;"
     "  int detail_seen = 0;"
@@ -333,7 +378,14 @@
     "  }"
     "  if (argc > 2 && streq(argv[1], \"search\") && streq(argv[2], \"guide\")) route_guide_or_fail(argc, argv, 3);"
     "  if (argc > 1 && streq(argv[1], \"guide\") && !has_arg(argc, argv, \"--code\")) route_guide_or_fail(argc, argv, 2);"
-    "  if (argc > 2 && streq(argv[1], \"query\")) route_query_selector_or_continue(argc, argv, 2);"
+    "  if (argc > 2 && streq(argv[1], \"query\")) {"
+    "    route_query_selector_or_continue(argc, argv, 2);"
+    "    route_query_owner_items_or_continue(argc, argv);"
+    "  }"
+    "  if (argc > 1 && streq(argv[1], \"check\")) {"
+    "    if (!executable_exists(fast_check)) fail_missing_build_artifact(\"native check\", fast_check);"
+    "    exec_forward(fast_check, argc, argv, 2);"
+    "  }"
     "  if (argc > 1 && streq(argv[1], \"search\")) exec_gerbil_runtime(search_runtime, argc, argv, 2);"
     "  exec_gerbil_runtime(harness_runtime, argc, argv, 1);"
     "}"]])

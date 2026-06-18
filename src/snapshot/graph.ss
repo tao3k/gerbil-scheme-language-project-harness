@@ -7,7 +7,7 @@
         :parser/query
         :snapshot/core
         :snapshot/support
-        :support/list)
+        (only-in :std/srfi/1 iota list-copy take))
 
 (export extension-packet-snapshot
         search-prime-snapshot)
@@ -26,7 +26,9 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> ProjectIndex Snapshot )
 (def (search-prime-snapshot index)
-  (let* ((owners (take* (ranked-files index) 100))
+  (let* ((ranked-owners (ranked-files index))
+         (owners (take ranked-owners (min 100 (length ranked-owners))))
+         (owner-ranks (iota (length owners) 1))
          (package (project-index-package index))
          (extensions (project-extension-facts index)))
     (list 'searchPrime
@@ -48,7 +50,7 @@
           (list 'nodes (search-prime-node-snapshots package extensions owners))
           (list 'edges (search-prime-edge-snapshots package extensions owners))
           (list 'owners (map owner-snapshot owners))
-          (list 'hits (map-indexed owner-hit-snapshot owners))
+          (list 'hits (map owner-hit-snapshot owners owner-ranks))
           (list 'findings '())
           (list 'nextActions
                 (list (list 'nextAction
@@ -77,7 +79,7 @@
 (def (search-prime-node-snapshots package extensions owners)
   (append (if package (list (package-node-snapshot package)) '())
           (map extension-node-snapshot extensions)
-          (map-indexed owner-node-snapshot owners)))
+          (map owner-node-snapshot owners (iota (length owners) 1))))
 ;;; Boundary:
 ;;; - search-prime-edge-snapshots composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -115,7 +117,7 @@
         (list 'fields
               (list 'name (project-package-name package))
               (list 'packageManager (project-package-manager package))
-              (list 'dependencies (snapshot-list (project-package-dependencies package))))))
+              (list 'dependencies (list-copy (project-package-dependencies package))))))
 ;; : (-> Extension Snapshot )
 (def (extension-node-snapshot extension)
   (list 'node
@@ -127,8 +129,8 @@
               (list 'dependencyMode (extension-fact-dependency-mode extension))
               (list 'packageManager (extension-fact-package-manager extension))
               (list 'package (extension-fact-package extension))
-              (list 'dependencies (snapshot-list (extension-fact-dependencies extension)))
-              (list 'capabilities (snapshot-list (extension-fact-capabilities extension))))))
+              (list 'dependencies (list-copy (extension-fact-dependencies extension)))
+              (list 'capabilities (list-copy (extension-fact-capabilities extension))))))
 ;; : (-> SourceFile Integer Snapshot )
 (def (owner-node-snapshot file rank)
   (list 'node

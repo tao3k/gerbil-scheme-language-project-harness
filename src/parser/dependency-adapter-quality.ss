@@ -4,6 +4,8 @@
 (import :gerbil/expander
         :parser/model
         :parser/support
+        (only-in :std/misc/list unique)
+        (only-in :std/misc/string string-trim-suffix)
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-contains string-prefix? string-suffix?))
 
@@ -83,7 +85,7 @@
 ;; : (-> Datum (List String) )
 (def (define-type-protocol-refs spec)
   (if (pair? spec)
-    (dedupe
+    (unique
      (filter protocol-ref-token?
              (filter string?
                      (map datum->string (flatten (cdr spec))))))
@@ -99,33 +101,26 @@
 ;;; while search can still explain the whole adapter surface.
 ;; : (-> Datum (List String) )
 (def (define-type-slots datum)
-  (dedupe
+  (unique
    (filter-map slot-token (safe-cddr datum))))
 
 ;; : (-> Datum SlotName )
 (def (slot-token item)
   (cond
-   ((keyword? item) (normalize-slot-token (datum->string item)))
+   ((keyword? item) (string-trim-suffix ":" (datum->string item)))
    ((symbol? item)
     (let (text (symbol->string item))
       (and (or (string-prefix? "." text)
                (string-suffix? ":" text))
-           (normalize-slot-token text))))
+           (string-trim-suffix ":" text))))
    (else #f)))
-
-;; : (-> String SlotName )
-(def (normalize-slot-token text)
-  (if (and (> (string-length text) 0)
-           (string-suffix? ":" text))
-    (substring text 0 (fx1- (string-length text)))
-    text))
 
 ;;; Boundary:
 ;;; - Body symbol extraction feeds import-use joins.
 ;;; - Keep this as a pure token projection so adapter evidence stays parser-owned.
 ;; : (-> Datum (List String) )
 (def (define-type-body-symbols datum)
-  (dedupe
+  (unique
    (filter string?
            (map datum->string (flatten (safe-cddr datum))))))
 
@@ -253,7 +248,7 @@
 (def (dependency-adapter-imported-symbols imports)
   (if (null? imports)
     '()
-    (dedupe (apply append (map module-import-fact-symbols imports)))))
+    (unique (apply append (map module-import-fact-symbols imports)))))
 
 ;;; Boundary:
 ;;; - Matched imports are the only dependency authority for adapter facts.
@@ -302,7 +297,7 @@
 ;;; - Dedupe after fan-in so repeated import clauses do not inflate quality.
 ;; : (-> Imports BodySymbols (List String) )
 (def (dependency-adapter-used-symbols imports body-symbols)
-  (dedupe
+  (unique
    (apply append
           (map (cut dependency-adapter-import-used-symbols <> body-symbols)
                imports))))
@@ -321,7 +316,7 @@
 ;; : (-> Candidate Imports UsedSymbols Capabilities ManualRisk (List QualityFacet) )
 (def (dependency-adapter-quality-facets candidate imports used-symbols derived-capabilities manual-object-risk)
   (let (slots (dependency-adapter-candidate-slots candidate))
-    (dedupe
+    (unique
      (filter identity
              [(and (pair? imports) "dependency-protocol-adapter")
               (and (ormap precise-only-in-import? imports)
@@ -367,7 +362,7 @@
          (tokens (append slots
                          (dependency-adapter-candidate-protocol-refs candidate)
                          used-symbols)))
-    (dedupe
+    (unique
      (filter identity
              [(and (or (adapter-slot-any? slots +core-table-slots+)
                        (tokens-contain-any? tokens ["table" "dict"]))

@@ -208,8 +208,7 @@ Next boundary:
 Use this set before claiming the quality loop is closed:
 
 #+begin_src shell
-GERBIL_LOADPATH=src:t gxtest -v t/parser-test.ss t/policy-test.ss t/search-test.ss t/snapshot-test.ss t/schema-test.ss
-GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss t/bench-test.ss
+gxi build.ss test
 ./bin/gerbil-scheme-harness check --json .
 ./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .
 ./bin/gerbil-scheme-harness search capability posture --workspace . --view seeds

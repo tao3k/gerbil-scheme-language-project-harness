@@ -4,11 +4,12 @@
 (import :gerbil/gambit
         :parser/model
         (only-in :std/misc/ports read-file-lines)
-        (only-in :std/srfi/13 string-contains string-downcase string-prefix?)
-        (only-in :std/sugar cut filter find hash ormap while)
-        :support/list)
+        (only-in :std/srfi/1 drop-while iota take take-while)
+        (only-in :std/srfi/13 string-contains string-downcase string-empty? string-prefix?)
+        (only-in :std/sugar cut filter find hash ormap))
 
-(export comment-quality-facts-from-source)
+(export comment-quality-facts-from-source
+        comment-quality-facts-from-lines)
 
 ;;; Boundary:
 ;;; - comment-quality-facts-from-source composes first-class procedures.
@@ -28,8 +29,16 @@
 ;;       ```
 ;;     %
 (def (comment-quality-facts-from-source fullpath relpath definitions macros poo-forms higher-order-forms control-flow-forms)
-  (let* ((lines (read-file-lines fullpath))
-         (module-fact (module-comment-quality-fact relpath lines)))
+  (let (lines (read-file-lines fullpath))
+    (comment-quality-facts-from-lines
+     lines relpath definitions macros poo-forms higher-order-forms control-flow-forms)))
+
+;;; Boundary:
+;;; - parse-source-file already owns source line IO; this helper keeps comment
+;;;   quality extraction reusable without a second read-file-lines pass.
+;; : (-> (List SourceLine) Relpath (List Definition) (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List CommentQualityFact) )
+(def (comment-quality-facts-from-lines lines relpath definitions macros poo-forms higher-order-forms control-flow-forms)
+  (let (module-fact (module-comment-quality-fact relpath lines))
     (cons module-fact
           (map (cut definition-comment-quality-fact
                     relpath lines <> macros poo-forms
@@ -125,39 +134,56 @@
 (def (definition-comment-matched-facts definition macros poo-forms higher-order-forms control-flow-forms)
   (let (name (definition-name definition))
      (append
-      (map macro-comment-evidence
-          (take-at-most (matching-macro-facts name macros) 4))
-      (map poo-comment-evidence
-          (take-at-most (matching-poo-facts name poo-forms) 4))
-      (map higher-order-comment-evidence
-          (take-at-most (matching-higher-order-facts name higher-order-forms) 6))
-      (map control-flow-comment-evidence
-          (take-at-most (matching-control-flow-facts name control-flow-forms) 4)))))
+      (let (facts (matching-macro-facts name macros))
+        (map macro-comment-evidence
+             (take facts (min 4 (length facts)))))
+      (let (facts (matching-poo-facts name poo-forms))
+        (map poo-comment-evidence
+             (take facts (min 4 (length facts)))))
+      (let (facts (matching-higher-order-facts name higher-order-forms))
+        (map higher-order-comment-evidence
+             (take facts (min 6 (length facts)))))
+      (let (facts (matching-control-flow-facts name control-flow-forms))
+        (map control-flow-comment-evidence
+             (take facts (min 4 (length facts))))))))
 
 ;;; Parser-owned macro evidence is joined by definition name.
 ;;; Do not widen this into comment text or selector substring matching.
 ;; : (-> String (List MacroFact) (List MacroFact) )
 (def (matching-macro-facts name facts)
-  (filter (lambda (fact) (equal? (macro-fact-name fact) name))
-          facts))
+  (facts-matching-field macro-fact-name name facts))
 
 ;;; POO evidence is joined by object/generic/protocol form name so comment repair can cite the declared language feature boundary.
 ;; : (-> String (List PooFormFact) (List PooFormFact) )
 (def (matching-poo-facts name facts)
-  (filter (lambda (fact) (equal? (poo-form-fact-name fact) name))
-          facts))
+  (facts-matching-field poo-form-fact-name name facts))
 
 ;;; Higher-order evidence is joined by caller, which preserves the expression-level combinator witness for comment generation.
 ;; : (-> String (List HigherOrderFact) (List HigherOrderFact) )
 (def (matching-higher-order-facts name facts)
-  (filter (lambda (fact) (equal? (higher-order-fact-caller fact) name))
-          facts))
+  (facts-matching-field higher-order-fact-caller name facts))
 
 ;;; Control-flow evidence is joined by caller so loop, match, continuation, and resource-driver comments stay tied to parsed facts.
 ;; : (-> String (List ControlFlowFact) (List ControlFlowFact) )
 (def (matching-control-flow-facts name facts)
-  (filter (lambda (fact) (equal? (control-flow-fact-caller fact) name))
+  (facts-matching-field control-flow-fact-caller name facts))
+
+;;; Fact-field matching is the shared join primitive for parser witness lists.
+;;; Keep the field accessor explicit so macro, POO, higher-order, and control-flow
+;;; joins stay domain-named without duplicating the predicate body.
+;; : (-> (-> Fact Value) Value (List Fact) (List Fact))
+(def (facts-matching-field accessor expected facts)
+  (filter (cut fact-field-equal? accessor expected <>)
           facts))
+
+;; : (-> (-> Fact Value) Value (List Fact) Boolean)
+(def (any-fact-matching-field? accessor expected facts)
+  (ormap (cut fact-field-equal? accessor expected <>)
+         facts))
+
+;; : (-> (-> Fact Value) Value Fact Boolean)
+(def (fact-field-equal? accessor expected fact)
+  (equal? (accessor fact) expected))
 
 ;; : (-> MacroFact Json )
 (def (macro-comment-evidence fact)
@@ -304,30 +330,16 @@
 ;;       ```
 ;;     %
 (def (module-leading-comments lines)
-  (let ((rest lines)
-        (line-number 1)
-        (out '())
-        (done? #f))
-    (while (and (pair? rest) (not done?))
-      (let ((line (car rest))
-            (more (cdr rest)))
-        (cond
-         ((script-header-line? line line-number)
-          (set! rest more)
-          (set! line-number (fx1+ line-number)))
-         ((engineering-comment-line? line)
-          (set! rest more)
-          (set! line-number (fx1+ line-number))
-          (set! out (cons (comment-body line) out)))
-         ((blank-string? line)
-          (if (null? out)
-            (begin
-              (set! rest more)
-              (set! line-number (fx1+ line-number)))
-            (set! done? #t)))
-         (else
-          (set! done? #t)))))
-    (reverse out)))
+  (map (lambda (entry) (comment-body (cdr entry)))
+       (take-while
+        (lambda (entry) (engineering-comment-line? (cdr entry)))
+        (drop-while
+         (lambda (entry)
+           (let ((line-number (car entry))
+                 (line (cdr entry)))
+             (or (script-header-line? line line-number)
+                 (blank-string? line))))
+         (map cons (iota (length lines) 1) lines)))))
 
 ;;; Boundary:
 ;;; - Script shebangs and Gerbil mode comments are transport headers.
@@ -353,17 +365,12 @@
 ;;       ```
 ;;     %
 (def (leading-comment-lines lines start-line)
-  (let ((line-number (fx1- start-line))
-        (out '())
-        (done? #f))
-    (while (and (not done?) (fx>= line-number 1))
-      (let (line (line-at* lines (fx1- line-number)))
-        (if (comment-line? line)
-          (begin
-            (set! out (cons (comment-body line) out))
-            (set! line-number (fx1- line-number)))
-          (set! done? #t))))
-    out))
+  (map comment-body
+       (take-while
+        comment-line?
+        (map (lambda (line-number)
+               (line-at* lines (fx1- line-number)))
+             (reverse (iota (max 0 (fx1- start-line)) 1))))))
 
 ;; : (-> Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) String )
 (def (definition-comment-context definition macros poo-forms higher-order-forms control-flow-forms)
@@ -383,10 +390,10 @@
 
 ;; : (-> Definition String Boolean )
 (def (definition-comment-required? definition context)
-  (or (list-member? (definition-kind definition)
-                    '("defrule" "defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
-      (list-member? context
-                    '("macro" "poo" "higher-order" "control-flow" "long-definition"))))
+  (or (member (definition-kind definition)
+              '("defrule" "defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
+      (member context
+              '("macro" "poo" "higher-order" "control-flow" "long-definition"))))
 
 ;; : (-> (List CommentLine) Boolean String CommentSummary )
 (def (comment-quality-summary comments required context)
@@ -494,7 +501,9 @@
                           comment
                           length
                           index)))))
-           (map-indexed cons (string->list comment)))))
+           (map cons
+                (string->list comment)
+                (iota (string-length comment) 1)))))
 
 ;; : (-> CommentLine Integer Integer Boolean)
 (def (comment-semicolon-neighbor? comment length index)
@@ -547,36 +556,28 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> String (List MacroFact) Boolean )
 (def (definition-name-in-macros? name macros)
-  (ormap (lambda (fact)
-           (equal? (macro-fact-name fact) name))
-         macros))
+  (any-fact-matching-field? macro-fact-name name macros))
 
 ;;; Boundary:
 ;;; - definition-name-in-poo-forms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
 ;; : (-> String (List PooFormFact) Boolean )
 (def (definition-name-in-poo-forms? name poo-forms)
-  (ormap (lambda (fact)
-           (equal? (poo-form-fact-name fact) name))
-         poo-forms))
+  (any-fact-matching-field? poo-form-fact-name name poo-forms))
 
 ;;; Boundary:
 ;;; - definition-name-in-higher-order-forms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
 ;; : (-> String (List HigherOrderFact) Boolean )
 (def (definition-name-in-higher-order-forms? name higher-order-forms)
-  (ormap (lambda (fact)
-           (equal? (higher-order-fact-caller fact) name))
-         higher-order-forms))
+  (any-fact-matching-field? higher-order-fact-caller name higher-order-forms))
 
 ;;; Boundary:
 ;;; - definition-name-in-control-flow-forms? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
 ;; : (-> String (List ControlFlowFact) Boolean )
 (def (definition-name-in-control-flow-forms? name control-flow-forms)
-  (ormap (lambda (fact)
-           (equal? (control-flow-fact-caller fact) name))
-         control-flow-forms))
+  (any-fact-matching-field? control-flow-fact-caller name control-flow-forms))
 
 ;; : (-> SourceLine Boolean )
 (def (comment-line? line)
@@ -619,7 +620,9 @@
 (def (first-non-ascii-space text length)
   (let (hit (find (lambda (entry)
                     (not (ascii-space? (car entry))))
-                  (map-indexed cons (string->list text))))
+                  (map cons
+                       (string->list text)
+                       (iota (string-length text) 1))))
     (if hit (fx1- (cdr hit)) length)))
 
 ;;; Boundary:
@@ -631,7 +634,10 @@
                     (let (index (fx1- (cdr entry)))
                       (and (fx>= index start)
                            (not (ascii-space? (car entry))))))
-                  (reverse (map-indexed cons (string->list text)))))
+                  (reverse
+                   (map cons
+                        (string->list text)
+                        (iota (string-length text) 1)))))
     (if hit (cdr hit) start)))
 
 ;; : (-> Character Boolean )
@@ -648,7 +654,9 @@
 (def (drop-leading-semicolons text)
   (let (hit (find (lambda (entry)
                     (not (char=? (car entry) #\;)))
-                  (map-indexed cons (string->list text))))
+                  (map cons
+                       (string->list text)
+                       (iota (string-length text) 1))))
     (substring text
                (if hit (fx1- (cdr hit)) (string-length text))
                (string-length text))))
@@ -670,8 +678,4 @@
 ;; : (-> String Boolean )
 (def (blank-string? value)
   (or (not (string? value))
-      (= (string-length (trim-ascii-space value)) 0)))
-
-;; : (-> Item (List Item) Boolean )
-(def (list-member? item values)
-  (if (member item values) #t #f))
+      (string-empty? (trim-ascii-space value))))

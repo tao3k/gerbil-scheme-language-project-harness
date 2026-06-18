@@ -2,18 +2,13 @@
 ;;; Shared parser support helpers for Gerbil syntax facts.
 
 (import :gerbil/expander
-        :gerbil/gambit
-        :support/list)
+        :gerbil/gambit)
 
-(export dedupe
-        take*
-        join-lines
-        flatten
+(export flatten
         flatten-with-pairs
         tree-contains-symbol?
         datum-list-items
         stx-list-items
-        drop*
 	        list-safe-cadr
 	        list-safe-caddr
 	        metadata-head?
@@ -29,20 +24,6 @@
         source-start-line
         source-end-line
         exception->string)
-;; join-lines
-;;   : (-> (List String) String)
-;;   | doc m%
-;;       `join-lines lines` joins source lines with newline separators.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (join-lines '("alpha" "beta"))
-;;       ;; => "alpha\nbeta"
-;;       ```
-;;     %
-(def (join-lines lines)
-  (join lines "\n"))
 ;; : (-> Obj Flatten )
 (def (flatten obj)
   (cond
@@ -88,23 +69,6 @@
    ((stx-pair? obj)
     (cons (stx-car obj) (stx-list-items (stx-cdr obj))))
    (else '())))
-;; drop*
-;;   : (forall (a) (-> (List a) Integer (List a)))
-;;   | doc m%
-;;       `drop* items count` drops `count` elements when enough items exist,
-;;       otherwise returns the empty list.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (drop* '(a b c) 2)
-;;       ;; => (c)
-;;       ```
-;;     %
-(def (drop* items count)
-  (if (fx<= count (length items))
-    (drop items count)
-    '()))
 ;; list-safe-cadr
 ;;   : (forall (a) (-> (List a) (U #f a)))
 ;;   | doc m%

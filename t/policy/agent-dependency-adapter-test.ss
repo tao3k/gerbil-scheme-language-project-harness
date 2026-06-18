@@ -3,15 +3,65 @@
 
 (import :gerbil/gambit
         :std/test
+        (only-in :clan/poo/object .call)
         :parser/facade
         :policy/facade
+        :policy/prototype
         :types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (export agent-dependency-adapter-policy-test)
+
+;; : (-> TableAdapter TableSample Boolean )
+(def (table-contract-tests adapter sample)
+  (let* ((updated (.call adapter .update 'alpha (lambda (value) (+ value 10)) sample 0))
+         (merged (.call adapter
+                        .merge
+                        (lambda (_key left right) (or right left))
+                        sample
+                        '((beta . 3) (gamma . 4)))))
+    (and (.call adapter .key? sample 'alpha)
+         (equal? (.call adapter .ref sample 'alpha) 1)
+         (equal? (.call adapter .ref sample 'missing (lambda _ 'fallback))
+                 'fallback)
+         (equal? (.call adapter .ref updated 'alpha) 11)
+         (equal? (.call adapter .ref merged 'beta) 3)
+         (equal? (.call adapter .foldl (lambda (_key _value count) (1+ count)) 0 sample)
+                 2)
+         (equal? (.call adapter .list<- (.call adapter .<-list (.call adapter .list<- sample)))
+                 (.call adapter .list<- sample))
+         (.call adapter .=? sample sample))))
+
+;; : (-> Boolean )
+(def (slot-prototype-table-contract-witness)
+  (table-contract-tests SlotPrototypeTable. '((alpha . 1) (beta . 2))))
+
 ;; PolicyTest
 (def agent-dependency-adapter-policy-test
   (test-suite "gerbil scheme harness dependency adapter policy"
+    (test-case "slot prototype table adapter has generic contract witness"
+          (let* ((sample '((alpha . 1) (beta . 2)))
+                 (updated (.call SlotPrototypeTable.
+                                  .update
+                                  'alpha
+                                  (lambda (value) (+ value 10))
+                                  sample
+                                  0))
+                 (merged (.call SlotPrototypeTable.
+                                 .merge
+                                 (lambda (_key left right) (or right left))
+                                 sample
+                                 '((beta . 3) (gamma . 4)))))
+            (check (.call SlotPrototypeTable. .ref sample 'alpha) => 1)
+            (check (.call SlotPrototypeTable. .ref updated 'alpha) => 11)
+            (check (.call SlotPrototypeTable. .ref merged 'beta) => 3)
+            (check (.call SlotPrototypeTable. .foldl
+                          (lambda (_key _value count) (1+ count))
+                          0
+                          sample)
+                   => 2)
+            (check (.call SlotPrototypeTable. .list<- sample) => sample)
+            (check (slot-prototype-ref sample 'missing 'fallback) => 'fallback)))
     (test-case "agent policy reports weak dependency protocol adapters"
           (let* ((root ".run/policy-dependency-protocol-adapter")
                  (_ (write-dependency-protocol-adapter-project root #f #f))
@@ -40,7 +90,7 @@
                                       (hash-get details 'derivedCapabilities))))
                    => #t)
             (check (hash-get details 'agentRepairStandard)
-                   => "current dependency already provides the bottom data structure; do not hand-write loose hash/alist objects. Build a typed protocol adapter: precise only-in imports for primitives, define-type Key/Value/validate/serialization/equality slots, behavior on protocol slots, derived table/set/list/sexp/json/marshal capabilities when slots exist, and generic contract tests")
+                   => "current dependency already provides the bottom data structure; do not hand-write loose hash/alist objects. Build a typed protocol adapter: precise only-in imports for primitives, define-type Key/Value plus primitive methods.table slots (.empty/.ref/.acons/.remove/.foldl/.foldr), iteration/conversion/update/selection/equality/lens/serialization slots, behavior on protocol slots, derived table/set/list/iteration/lens/sexp/json/bytes/marshal capabilities when slots exist, and generic contract tests")
             (check (hash-get details 'repairAction)
                    => "search-forwarded-example-then-guide-code")
             (check (hash-get details 'guideCodeFlag) => "--code")
@@ -67,9 +117,23 @@
             (check (hash-get details 'sourcePatternLineage)
                    => "gerbil-poo build/cli/rationaldict/table/brace/object/mop/io patterns")
             (check (hash-get details 'protocolSurface)
-                   => "minimal protocol slots first; derive table/set/list/sexp/json/marshal-facing capabilities from the slot surface")
+                   => "minimal protocol slots first; derive table/set/list/iteration/lens/sexp/json/bytes/marshal-facing capabilities from the slot surface")
             (check (hash-get details 'protocolSurfaceReference)
                    => "gerbil-poo table.ss methods.table")
+            (check (hash-get details 'methodTablePrimitiveSlots)
+                   => [".empty" ".ref" ".acons" ".remove" ".foldl" ".foldr"])
+            (check (not (not (member "update/merge: .acons/opt .merge .union .join .join/list .update/opt .update"
+                                      (hash-get details 'methodTableDerivedFamilies))))
+                   => #t)
+            (check (not (not (member "iteration/fold: .for-each .for-each/reverse .<-iter .iter<-"
+                                      (hash-get details 'methodTableDerivedFamilies))))
+                   => #t)
+            (check (not (not (member "lens/binding: .lens .Binding .Bindings"
+                                      (hash-get details 'methodTableDerivedFamilies))))
+                   => #t)
+            (check (not (not (member "set algebra: .union .inter .diff .compare"
+                                      (hash-get details 'methodTableDerivedFamilies))))
+                   => #t)
             (check (hash-get details 'reusableContractTestPattern)
                    => "small t/ owner calls generic table-contract-tests or protocol-contract-tests against the adapter type descriptor")
             (check (hash-get details 'macroBridgeBoundary)
@@ -92,7 +156,7 @@
             (check (not (not (member "run asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair to inspect local R017 parser/policy repair code"
                                       (hash-get details 'allowedMoves))))
                    => #t)
-            (check (not (not (member "derive table/set/list/sexp/json/marshal-facing capability from protocol slots"
+            (check (not (not (member "derive table/set/list/iteration/lens/sexp/json/bytes/marshal-facing capability from protocol slots"
                                       (hash-get details 'allowedMoves))))
                    => #t)
             (check (not (not (member "do not replace dependency primitives with hand-written hash/alist storage"
@@ -105,10 +169,18 @@
           (let* ((root ".run/policy-dependency-manual-object-adapter")
                  (_ (write-dependency-manual-object-adapter-project root))
                  (index (collect-project root))
+                 (facts (project-dependency-adapter-quality-facts index))
+                 (fact (car facts))
                  (findings (run-policy-checks index))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings))
                  (finding (car matching))
                  (details (type-finding-details finding)))
+            (check (not (not (member ".remove"
+                                      (dependency-adapter-quality-fact-slots fact))))
+                   => #t)
+            (check (not (not (member ".foldr"
+                                      (dependency-adapter-quality-fact-slots fact))))
+                   => #t)
             (check (length matching) => 1)
             (check (type-finding-path finding) => "src/orders/dict.ss")
             (check (hash-get details 'manualObjectEncodingRisk)
@@ -139,6 +211,12 @@
                    => "none")
             (check (dependency-adapter-quality-fact-generic-contract-witness-kind fact)
                    => "table-protocol-contract-witness")
+            (check (not (not (member ".remove"
+                                      (dependency-adapter-quality-fact-slots fact))))
+                   => #t)
+            (check (not (not (member ".foldr"
+                                      (dependency-adapter-quality-fact-slots fact))))
+                   => #t)
             (check matching => [])))
     (test-case "agent policy accepts generic witnesses that pass POO adapters as values"
           (let* ((root ".run/policy-dependency-protocol-adapter-argument-witness")

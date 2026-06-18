@@ -1,6 +1,9 @@
 ;;; -*- Gerbil -*-
-(import :std/test
+(import :gerbil/gambit
+        :std/test
         :parser/facade
+        :parser/runtime-contract
+        :parser/typed-contract-scheme
         :types/facade)
 (export types-test)
 ;; TypeSpec
@@ -15,45 +18,58 @@
         (check (type-finding-rule-id finding) => "GERBIL-SCHEME-READ-R001")
         (check (type-finding-severity finding) => "error")
         (check (type-finding-path finding) => "t/fixtures/invalid-read.fixture")))
-    (test-case "type env is built from native parser facts"
-      (let* ((root (path-normalize "."))
+    (test-case "type env is built from parser-owned typed contracts"
+      (let* ((root (path-normalize "t/fixtures"))
              (index (collect-project root))
              (sample-bindings
               (filter (lambda (binding)
                         (equal? (type-binding-path binding)
-                                "t/fixtures/formals.ss"))
+                                "formals.ss"))
                       (build-type-env index))))
         (check (map type-binding-name sample-bindings)
                => ["sum-two" "collect"])
         (check (map type-binding-kind sample-bindings)
                => ["def" "def"])
         (check (map type->string (map type-binding-type sample-bindings))
-               => ["unknown" "unknown"])
+               => ["(function (Number Number) Number)"
+                   "(function ((list Number)) (list Number))"])
         (check (map type-binding-formals sample-bindings)
                => [["x" "y"] ["xs"]])
         (check (map type-binding-arity sample-bindings)
-               => [2 1])))
+               => [2 1])
+        (let (param-bindings
+              (filter (lambda (binding)
+                        (equal? (type-param-binding-path binding)
+                                "formals.ss"))
+                      (build-param-type-env index)))
+          (check (map type-param-binding-function-name param-bindings)
+                 => ["sum-two" "sum-two" "collect"])
+          (check (map type-param-binding-name param-bindings)
+                 => ["x" "y" "xs"])
+          (check (map type->string
+                      (map type-param-binding-type param-bindings))
+                 => ["Number" "Number" "(list Number)"]))))
     (test-case "signature types merge into native type env"
-      (let* ((root (path-normalize "."))
+      (let* ((root (path-normalize "t/fixtures"))
              (index (collect-project root))
              (signatures (load-type-signatures "t/fixtures/type-signatures.scm"))
              (sample-bindings
               (filter (lambda (binding)
                         (equal? (type-binding-path binding)
-                                "t/fixtures/formals.ss"))
+                                "formals.ss"))
                       (build-type-env/signatures index signatures))))
         (check (map type-binding-name sample-bindings)
                => ["sum-two" "collect"])
         (check (map type->string (map type-binding-type sample-bindings))
                => ["(function (number number) number)" "(function (any) any)"])))
     (test-case "signature parameter types build native param env"
-      (let* ((root (path-normalize "."))
+      (let* ((root (path-normalize "t/fixtures"))
              (index (collect-project root))
              (signatures (load-type-signatures "t/fixtures/type-signatures.scm"))
              (param-bindings
               (filter (lambda (binding)
                         (equal? (type-param-binding-path binding)
-                                "t/fixtures/formals.ss"))
+                                "formals.ss"))
                       (build-param-type-env/signatures index signatures))))
         (check (map type-param-binding-function-name param-bindings)
                => ["sum-two" "sum-two"])
@@ -68,7 +84,22 @@
              (names-type (signature-type-for "names" signatures))
              (union-type (signature-type-for "string-or-number" signatures))
              (node-type (signature-type-for "node" signatures))
-             (rest-type (signature-type-for "rest-sum" signatures)))
+             (rest-type (signature-type-for "rest-sum" signatures))
+             (contract-type (signature-type-for "contract-findings" signatures))
+             (identity-type (signature-type-for "identity" signatures))
+             (native-list-arrow-type
+              (parse-type-contract "(-> (List Number) (List Number))"))
+             (keyword-arrow-type
+              (parse-type-contract "(-> String SlotPrototype supers: (List SlotProfile) SlotProfile)"))
+             (hash-type (parse-type-contract "(Hash String Number)"))
+             (values-type (parse-type-contract "(Values String Number)"))
+             (refine-type (parse-type-contract "(Refine Number natural?)"))
+             (application-type
+              (parse-type-contract "(NonEmptyList TypeFinding)"))
+             (literal-union-type
+              (parse-type-contract "(U 'Left 'Right)"))
+             (application-arrow-type
+              (parse-type-contract "(forall (a) (-> (NonEmptyList a) a))")))
         (check (type->string pair-type) => "(pair string number)")
         (check (type->string (type-pair-car pair-type)) => "string")
         (check (type->string (type-pair-cdr pair-type)) => "number")
@@ -86,7 +117,234 @@
                => "(union null any)")
         (check (type->string rest-type) => "(function* number number 1)")
         (check (type-kind rest-type) => 'function-variadic)
-        (check (type-function-variadic-min-arity rest-type) => 1)))
+        (check (type-function-variadic-min-arity rest-type) => 1)
+        (check (type->string (parse-type-contract "(Maybe TypeSignature)"))
+               => "(maybe TypeSignature)")
+        (check (type->string native-list-arrow-type)
+               => "(function ((list Number)) (list Number))")
+        (check (map type->string (type-params native-list-arrow-type))
+               => ["(list Number)"])
+        (check (type->string keyword-arrow-type)
+               => "(function (String SlotPrototype supers: (list SlotProfile)) SlotProfile)")
+        (check (map type->string (type-params keyword-arrow-type))
+               => ["String" "SlotPrototype" "supers: (list SlotProfile)"])
+        (check (type-kind (caddr (type-params keyword-arrow-type)))
+               => 'keyword-parameter)
+        (check (type-keyword-parameter-name
+                (caddr (type-params keyword-arrow-type)))
+               => "supers")
+        (check (type->string
+                (type-keyword-parameter-type
+                 (caddr (type-params keyword-arrow-type))))
+               => "(list SlotProfile)")
+        (check (type->string contract-type)
+               => "(function (CallFact NativeSignatures ParamEnv) (list TypeFinding))")
+        (check (map type->string (type-params contract-type))
+               => ["CallFact" "NativeSignatures" "ParamEnv"])
+        (check (type->string (type-result contract-type))
+               => "(list TypeFinding)")
+        (check (type->string identity-type) => "(function (a) a)")
+        (check (type-kind (car (type-params identity-type))) => 'variable)
+        (check (type-variable-name (type-result identity-type)) => "a")
+        (check (type->string hash-type) => "(hash String Number)")
+        (check (type-kind hash-type) => 'hash)
+        (check (type->string (type-hash-key hash-type)) => "String")
+        (check (type->string (type-hash-value hash-type)) => "Number")
+        (check (type->string values-type) => "(values String Number)")
+        (check (map type->string (type-values-members values-type))
+               => ["String" "Number"])
+        (check (type->string refine-type) => "(refine Number natural?)")
+        (check (type->string (type-refine-base refine-type)) => "Number")
+        (check (type-refine-predicate refine-type) => "natural?")
+        (check (type->string application-type)
+               => "(NonEmptyList TypeFinding)")
+        (check (type-kind application-type) => 'application)
+        (check (type-name application-type) => "NonEmptyList")
+        (check (type->string literal-union-type)
+               => "(union 'Left 'Right)")
+        (check (type->string application-arrow-type)
+               => "(function ((NonEmptyList a)) a)")
+        (check (type-kind (car (type-params application-arrow-type)))
+               => 'application)))
+    (test-case "type specs validate structurally and support subtyping"
+      (let* ((number-type (parse-type-contract "Number"))
+             (string-type (parse-type-contract "String"))
+             (refined-number (parse-type-contract "(Refine Number natural?)"))
+             (null-type (parse-type-contract "Null"))
+             (number-list (parse-type-contract "(List Number)"))
+             (number-pair-list
+              (make-type-pair number-type number-list))
+             (string-or-number (parse-type-contract "(U String Number)"))
+             (non-empty-number
+              (parse-type-contract "(NonEmptyList Number)"))
+             (non-empty-string
+              (parse-type-contract "(NonEmptyList String)"))
+             (bad-hash (parse-type-contract "(Hash String)"))
+             (bad-values (parse-type-sexpr '(Values)))
+             (bad-refine (parse-type-contract "(Refine Number)"))
+             (bad-keyword-arrow
+              (parse-type-contract "(-> String supers: (List) Result)"))
+             (alias-env
+              (type-alias-env-bind
+               (make-type-alias-env)
+               "NonEmptyList"
+               1))
+             (box-alias-env
+              (type-alias-env-bind-type
+               alias-env
+               "Box"
+               ["a"]
+               (make-type-list (make-type-variable "a"))))
+             (box-number (parse-type-contract "(Box Number)"))
+             (bad-hash-diagnostic
+              (car (type-validation-diagnostic-facts bad-hash)))
+             (bad-application
+              (parse-type-contract "(NonEmptyList String Number)"))
+             (duplicate-union
+              (simplify-union [number-type number-type]))
+             (nested-union
+              (simplify-union
+               [number-type (make-type-union [number-type string-type])]))
+             (expected-record
+              (make-type-record
+               (list (cons "value" number-type))
+               ["value"]))
+             (actual-record
+              (make-type-record
+               (list (cons "value" refined-number)
+                     (cons "tag" string-type))
+               ["value"]))
+             (refined-union-proof
+              (type-subtype-proof refined-number string-or-number))
+             (alias-equivalence-proof
+              (type-alias-equivalence-proof box-number
+                                            number-list
+                                            box-alias-env))
+             (alias-compatible-proof
+              (type-compatible-proof box-number number-list box-alias-env))
+             (record-proof
+              (type-subtype-proof actual-record expected-record)))
+        (check (type-spec-valid? refined-number) => #t)
+        (check (type-validation-diagnostics bad-hash)
+               => ["hash-value:unknown-type"])
+        (check (type-validation-diagnostic-code bad-hash-diagnostic)
+               => "unknown-type")
+        (check (type-validation-diagnostic-path bad-hash-diagnostic)
+               => ["hash-value"])
+        (check (type-validation-diagnostic-category bad-hash-diagnostic)
+               => "shape")
+        (check (type-validation-diagnostic-message bad-hash-diagnostic)
+               => "hash-value:unknown-type")
+        (check (type-validation-diagnostics bad-values)
+               => ["values-requires-at-least-one-value"])
+        (check (type-validation-diagnostics bad-refine)
+               => ["refine-requires-predicate"])
+        (check (type-validation-diagnostics bad-keyword-arrow)
+               => ["function-parameter[1]:keyword-parameter:list-element:unknown-type"])
+        (check (type-validation-diagnostics bad-application alias-env)
+               => ["application-arity-mismatch:NonEmptyList:expected=1:actual=2"])
+        (check (type-subtype? refined-number number-type) => #t)
+        (check (type-subtype? number-type refined-number) => #f)
+        (check (type-compatible? refined-number number-type) => #t)
+        (check (type-compatible? number-type refined-number) => #f)
+        (check (type-compatible? number-type string-or-number) => #t)
+        (check (type-compatible? null-type number-list) => #t)
+        (check (type-compatible? number-list number-pair-list) => #t)
+        (check (type->string (type-expand-aliases box-number box-alias-env))
+               => "(list Number)")
+        (check (type-alias-equivalent? box-number number-list box-alias-env)
+               => #t)
+        (check (type-alias-equivalent? number-list box-number box-alias-env)
+               => #t)
+        (check (type-compatible? box-number number-list box-alias-env) => #t)
+        (check (type-proof? refined-union-proof) => #t)
+        (check (type-proof-rule refined-union-proof) => "refine-base")
+        (check (type-proof-conclusion refined-union-proof)
+               => ["subtype"
+                   "(refine Number natural?)"
+                   "(union String Number)"])
+        (check (map type-proof-rule (type-proof-premises refined-union-proof))
+               => ["union-right"])
+        (check (type-proof-rules refined-union-proof)
+               => ["refine-base" "union-right" "type-equal"])
+        (check (type-proof-rule alias-equivalence-proof)
+               => "alias-equivalent")
+        (check (type-proof-detail alias-equivalence-proof)
+               => [(cons "leftExpanded" "(list Number)")
+                   (cons "rightExpanded" "(list Number)")])
+        (check (type-proof-rule alias-compatible-proof)
+               => "compatible-subtype")
+        (check (type-proof-conclusion alias-compatible-proof)
+               => ["compatible" "(list Number)" "(list Number)"])
+        (check (map type-proof-rule
+                    (type-proof-premises alias-compatible-proof))
+               => ["type-equal"])
+        (check (type-subtype-proof number-type refined-number) => #f)
+        (check (type-compatible-proof number-type refined-number) => #f)
+        (check (type->string duplicate-union) => "Number")
+        (check (type->string nested-union) => "(union Number String)")
+        (check (type=? (simplify-union [nested-union]) nested-union) => #t)
+        (check (type-subtype? non-empty-number non-empty-number) => #t)
+        (check (type-subtype? refined-number string-or-number) => #t)
+        (check (type-subtype? non-empty-number non-empty-string) => #f)
+        (check (type-subtype? actual-record expected-record) => #t)
+        (check (type-proof-rule record-proof) => "record")
+        (check (map type-proof-rule (type-proof-premises record-proof))
+               => ["record-field"])))
+    (test-case "runtime contract arrows project to formal TypeSpec"
+      (let* ((nickel-contract
+              (scheme-runtime-contract-json "Dyn -> NonEmpty -> Dyn"))
+             (scheme-contract
+              (scheme-runtime-contract-json "(-> procedure? natural? vector?)"))
+             (bad-contract
+              (scheme-runtime-contract-json "Dyn -> (List) -> Dyn"))
+             (nickel-type (hash-get nickel-contract 'typeSpec))
+             (scheme-type (hash-get scheme-contract 'typeSpec))
+             (bad-type (hash-get bad-contract 'typeSpec)))
+        (check (hash-get nickel-contract 'valid) => #t)
+        (check (hash-get nickel-contract 'notation) => "infix-arrow")
+        (check (hash-get nickel-contract 'inputPredicates)
+               => ["Dyn" "NonEmpty"])
+        (check (hash-get nickel-contract 'outputPredicate) => "Dyn")
+        (check (hash-get nickel-type 'display)
+               => "(function (Dyn NonEmpty) Dyn)")
+        (check (hash-get scheme-contract 'valid) => #t)
+        (check (hash-get scheme-contract 'notation) => "scheme-prefix-arrow")
+        (check (hash-get scheme-type 'display)
+               => "(function (procedure? natural?) vector?)")
+        (check (hash-get bad-contract 'valid) => #f)
+        (check (hash-get bad-type 'diagnostics)
+               => ["function-parameter[1]:list-element:unknown-type"])))
+    (test-case "legacy higher-order contracts split at the top-level arrow"
+      (let* ((root (path-normalize "."))
+             (file (parse-source-file root "t/fixtures/legacy-contracts.ss"))
+             (facts (source-file-typed-contract-facts file))
+             (sample-curry
+              (car
+               (filter (lambda (fact)
+                         (equal? (typed-contract-fact-definition-name fact)
+                                 "sample-curry"))
+                       facts)))
+             (sample-generating-map
+              (car
+               (filter (lambda (fact)
+                         (equal? (typed-contract-fact-definition-name fact)
+                                 "sample-generating-map"))
+                       facts))))
+        (check (typed-contract-fact-contract-output sample-curry)
+               => "(Z <- YY)")
+        (check (typed-contract-fact-contract-inputs sample-curry)
+               => ["(Z <- XX YY)" "XX"])
+        (check (typed-contract-fact-quality sample-curry)
+               => "higher-order-transform")
+        (check (typed-contract-fact-reasons sample-curry) => [])
+        (check (typed-contract-fact-contract-output sample-generating-map)
+               => "(Generating B)")
+        (check (typed-contract-fact-contract-inputs sample-generating-map)
+               => ["(Generating A)" "(B <- A)"])
+        (check (not (not (member "Generating"
+                                 (typed-contract-fact-tokens sample-generating-map))))
+               => #t)))
     (test-case "duplicate definitions become type env facts"
       (let* ((first (make-type-binding "answer" "definition" (make-type-unknown)
                                        '() 0 "same.ss" "same.ss:1-1"))

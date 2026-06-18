@@ -34,7 +34,15 @@
           (check (length matching) => 1)
           (check (type-finding-path finding) => "src/profile/bad.ss")
           (check (hash-get details 'kind) => "repeated-inline-alist-lookup")
-          (check (hash-get details 'lookupCount) => 2))))
+          (check (hash-get details 'lookupCount) => 2)
+          (check (if (member "alist:name" (hash-get details 'fieldKeys)) #t #f)
+                 => #t)
+          (check (if (member "alist:owner" (hash-get details 'fieldKeys)) #t #f)
+                 => #t)
+          (check (if (member "profile-name" (hash-get details 'callers)) #t #f)
+                 => #t)
+          (check (if (member "profile-owner" (hash-get details 'callers)) #t #f)
+                 => #t))))
     (test-case "agent policy accepts one named alist bridge"
       (let* ((root ".run/policy-alist-helper")
              (source-dir (string-append root "/src/profile")))
@@ -52,4 +60,3 @@
                (findings (run-agent-policy index))
                (matching (filter-rule "GERBIL-SCHEME-AGENT-R022" findings)))
           (check matching => []))))))
-

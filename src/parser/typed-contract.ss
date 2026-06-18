@@ -7,15 +7,20 @@
         :parser/typed-contract-scheme
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/13
+                 string-join
                  string-contains
+                 string-empty?
+                 string-every
                  string-prefix?
                  string-trim
                  string-trim-both)
-        (only-in :std/srfi/1 iota last take-while)
-        (only-in :std/sugar andmap cut filter filter-map find foldl hash ormap while with-catch)
-        :support/list)
+        (only-in :std/srfi/1 iota last take take-while)
+        (only-in :std/misc/list length<=n? unique)
+        (only-in :std/sugar cut filter filter-map find foldl hash ormap while with-catch)
+        )
 
-(export typed-contract-facts-from-definitions)
+(export typed-contract-facts-from-definitions
+        typed-contract-facts-from-lines)
 
 ;;; Boundary:
 ;;; - typed-contract-facts-from-definitions composes first-class procedures.
@@ -37,10 +42,18 @@
    (lambda (_) '())
    (lambda ()
      (let (lines (read-file-lines fullpath))
-       (filter-map (cut typed-contract-fact-from-definition
-                        relpath lines <> calls
-                        higher-order-forms control-flow-forms)
-                   definitions)))))
+       (typed-contract-facts-from-lines
+        lines relpath definitions calls higher-order-forms control-flow-forms)))))
+
+;;; Boundary:
+;;; - parse-source-file already owns source line IO; this helper keeps typed
+;;;   contract extraction reusable without re-reading the file on hot paths.
+;; : (-> (List SourceLine) Relpath (List Definition) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (List TypedContractFact) )
+(def (typed-contract-facts-from-lines lines relpath definitions calls higher-order-forms control-flow-forms)
+  (filter-map (cut typed-contract-fact-from-definition
+                   relpath lines <> calls
+                   higher-order-forms control-flow-forms)
+              definitions))
 
 ;;; Boundary:
 ;;; - typed-contract-fact-from-definition coordinates multiple evidence fields.
@@ -65,9 +78,9 @@
                  (typed-contract-arity-alignment definition
                                                  arrow-count
                                                  contract-input-count))
-                (reasons (typed-contract-invalid-reasons definition contract tokens
-                                                         arrow-count
-                                                         group-count))
+                (reasons (typed-contract-invalid-reasons
+                          definition contract contract-output contract-inputs
+                          typed-comment tokens arrow-count group-count))
                 (quality (typed-contract-quality reasons arrow-count group-count))
                 (matched-calls
                  (definition-calls definition calls))
@@ -112,7 +125,7 @@
 ;;; Keep style signals separate from hard findings so guidance stays flexible.
 ;; : (-> Definition SignatureQuality ArityAlignment (List SignatureReason) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) BlockStyle (List QualityFacet) (List QualityFacet) )
 (def (typed-contract-quality-facets definition quality arity-alignment reasons calls higher-order-forms control-flow-forms block-style block-facets)
-  (dedupe-strings
+  (unique
    (filter identity
            (append
             [(if (pair? reasons) "contract-invalid" "contract-valid")
@@ -180,11 +193,16 @@
         (contract contract)
         (quality quality)
         (qualityFacets quality-facets)
-        (matchedCalls (map call-repair-evidence (take-at-most calls 5)))
+        (matchedCalls (map call-repair-evidence
+                           (if (length<=n? calls 5) calls (take calls 5))))
         (matchedHigherOrder (map higher-order-repair-evidence
-                                 (take-at-most higher-order-forms 5)))
+                                 (if (length<=n? higher-order-forms 5)
+                                   higher-order-forms
+                                   (take higher-order-forms 5))))
         (matchedControlFlow (map control-flow-repair-evidence
-                                 (take-at-most control-flow-forms 5)))
+                                 (if (length<=n? control-flow-forms 5)
+                                   control-flow-forms
+                                   (take control-flow-forms 5))))
         (allowedMoves (typed-contract-allowed-moves quality-facets))
         (forbiddenMoves ["change-public-export-without-policy-evidence"
                          "rewrite-io-or-runtime-boundary-without-witness"
@@ -194,7 +212,7 @@
 
 ;; : (-> (List QualityFacet) (List RepairMove) )
 (def (typed-contract-allowed-moves quality-facets)
-  (dedupe-strings
+  (unique
    (append ["add-or-expand-adjacent-typed-contract-block"]
            (if (member "combinator-candidate" quality-facets)
              ["extract-predicate-mapper-or-reducer-helper"
@@ -206,7 +224,7 @@
 
 ;; : (-> (List QualityFacet) (List WitnessName) )
 (def (typed-contract-witness-needed quality-facets)
-  (dedupe-strings
+  (unique
    (append
     (if (member "manual-loop-drift" quality-facets)
       ["state-or-early-exit-witness-if-named-let-remains"]
@@ -298,9 +316,6 @@
 ;;; Stable de-duplication keeps quality facets compact while preserving first evidence.
 ;;; Do not sort here.
 ;;; Source-order facets make repair payloads easier to trace.
-;; : (-> (List String) (List String) )
-(def (dedupe-strings items)
-  (dedupe items))
 
 ;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
@@ -326,7 +341,7 @@
 (def (typed-contract-legacy-facets contract)
   (if (string-contains contract "<-")
     ["legacy-typed-contract"
-     "scheme-native-typed-block-migration"]
+     "gerbil-contract-projection-migration"]
     []))
 
 ;; : (-> TypedContractEntry (List QualityFacet))
@@ -375,7 +390,7 @@
 
 ;; : (-> SourceLine TypedCommentText)
 (def (typed-comment-text line)
-  (string-trim (drop-leading-semicolons (string-trim line))))
+  (string-trim (string-trim (string-trim line) #\;)))
 
 ;; : (-> (List TypedCommentLine) (Maybe TypedContractEntry))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
@@ -409,12 +424,12 @@
            signature-entries)))
     [(typed-comment-signature-comment-start block signature-start)
      (typed-comment-block-end-line entries)
-     (join-nonblank-with-space parts)
+     (string-join parts " ")
      "scheme-native-block"
      (typed-comment-section-facets section-entries)
      (typed-comment-metadata block
                              signature-start
-                             (join-nonblank-with-space parts)
+                             (string-join parts " ")
                              section-entries)]))
 
 ;; : (-> (List TypedCommentLine) LineNumber)
@@ -434,40 +449,152 @@
 
 ;; : (-> SourceLine SignatureContract )
 (def (typed-contract-body-text trimmed)
-  (let (body (string-trim (drop-leading-semicolons trimmed)))
+  (let (body (string-trim (string-trim trimmed #\;)))
     (if (string-prefix? ":" body)
       (string-trim (substring body 1 (string-length body)))
       body)))
 
-;;; Invariant:
-;;; - drop-leading-semicolons owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; : (-> SourceLine SourceLine )
-(def (drop-leading-semicolons text)
-  (let ((length (string-length text))
-        (index 0))
-    (while (and (< index length)
-                (char=? (string-ref text index) #\;))
-      (set! index (fx1+ index)))
-    (substring text index length)))
 
 ;; : (-> Definition SignatureContract (List SignatureToken) Integer Integer (List SignatureReason) )
-(def (typed-contract-invalid-reasons definition contract tokens arrow-count group-count)
+;;; Structural TypeSpec diagnostics are folded into the same invalid-reason
+;;; channel as token evidence. Policy can then reject pseudo typed comments
+;;; without reparsing source text or hard-coding suspicious type names.
+;; : (-> Definition SignatureContract TypeExpr (List TypeExpr) TypedCommentMetadata (List SignatureToken) Integer Integer (List SignatureReason) )
+(def (typed-contract-invalid-reasons definition contract contract-output contract-inputs typed-comment tokens arrow-count group-count)
+  (unique
+   (append
+    (if (string-contains contract ";") ["inline-comment"] [])
+    (if (and (= arrow-count 0)
+             (typed-contract-transform-definition? definition))
+      ["missing-transform-arrow"]
+      [])
+    (if (typed-contract-unknown-token? tokens)
+      ["unknown-or-any-token"]
+      [])
+    (if (typed-contract-placeholder-token-invalid? tokens arrow-count group-count)
+      ["placeholder-type-variable-token"]
+      [])
+    (if (typed-contract-simple-placeholder? tokens arrow-count group-count)
+      ["placeholder-contract-without-domain-or-higher-order-shape"]
+      [])
+    (typed-contract-structural-invalid-reasons contract-output
+                                               contract-inputs
+                                               typed-comment
+                                               arrow-count
+                                               (string-contains contract "<-")))))
+
+;;; Full-form `;; :` blocks carry parser-owned TypeSpec diagnostics in
+;;; typed-comment metadata. Legacy `Output <- Input` comments are validated
+;;; through their projected input/output expressions so old fields cannot hide
+;;; malformed type shapes.
+;; : (-> TypeExpr (List TypeExpr) TypedCommentMetadata Integer Boolean (List SignatureReason) )
+(def (typed-contract-structural-invalid-reasons contract-output contract-inputs typed-comment arrow-count legacy-transform?)
   (append
-   (if (string-contains contract ";") ["inline-comment"] [])
-   (if (and (= arrow-count 0)
-            (typed-contract-transform-definition? definition))
-     ["missing-transform-arrow"]
+   (if (and (> arrow-count 0)
+            (not legacy-transform?)
+            (typed-comment-signature-type typed-comment))
+     (typed-comment-structural-invalid-reasons typed-comment)
+     (typed-contract-expression-invalid-reasons contract-output contract-inputs))
+   (typed-comment-local-type-invalid-reasons typed-comment)))
+
+;; : (-> TypedCommentMetadata MaybeJson )
+(def (typed-comment-signature-type typed-comment)
+  (and typed-comment
+       (hash-get typed-comment 'signatureType)))
+
+;; : (-> TypedCommentMetadata (List SignatureReason) )
+(def (typed-comment-structural-invalid-reasons typed-comment)
+  (append
+   (typed-contract-json-invalid-reasons
+    "type-signature"
+    (typed-comment-signature-type typed-comment))
+   (typed-comment-runtime-contract-invalid-reasons typed-comment)))
+
+;; : (-> TypedCommentMetadata (List SignatureReason) )
+(def (typed-comment-runtime-contract-invalid-reasons typed-comment)
+  (typed-comment-runtime-contract-invalid-reasons*
+   (if typed-comment
+     (or (hash-get typed-comment 'runtimeContractsDetailed) [])
      [])
-   (if (typed-contract-unknown-token? tokens)
-     ["unknown-or-any-token"]
-     [])
-   (if (typed-contract-placeholder-token? tokens)
-     ["placeholder-type-variable-token"]
-     [])
-   (if (typed-contract-simple-placeholder? tokens arrow-count group-count)
-     ["placeholder-contract-without-domain-or-higher-order-shape"]
-     [])))
+   0))
+
+;; : (-> (List Json) Integer (List SignatureReason) )
+(def (typed-comment-runtime-contract-invalid-reasons* contracts index)
+  (if (null? contracts)
+    []
+    (append
+     (typed-contract-json-invalid-reasons
+      (string-append "runtime-contract[" (number->string index) "]")
+      (car contracts))
+     (typed-comment-runtime-contract-invalid-reasons*
+      (cdr contracts)
+      (fx1+ index)))))
+
+;;; Local type aliases are already section-parsed by typed-comment metadata.
+;;; Mapping each section independently preserves the alias name in the repair
+;;; reason prefix instead of collapsing all alias diagnostics into one bucket.
+;; : (-> TypedCommentMetadata (List SignatureReason) )
+(def (typed-comment-local-type-invalid-reasons typed-comment)
+  (apply append
+         (map typed-comment-local-type-invalid-reasons*
+              (if typed-comment
+                (or (hash-get typed-comment 'localTypes) [])
+                []))))
+
+;; : (-> Json (List SignatureReason) )
+(def (typed-comment-local-type-invalid-reasons* local-type)
+  (typed-contract-json-invalid-reasons
+   (string-append "local-type:" (or (hash-get local-type 'name) "<anonymous>"))
+   (hash-get local-type 'expressionType)))
+
+;;; Legacy contracts have separate projected output and input strings.
+;;; The indexed map keeps input-position diagnostics stable so agents can fix
+;;; the malformed type expression without guessing which side of `<-` failed.
+;; : (-> TypeExpr (List TypeExpr) (List SignatureReason) )
+(def (typed-contract-expression-invalid-reasons contract-output contract-inputs)
+  (append
+   (typed-contract-type-expression-invalid-reasons "type-output" contract-output)
+   (apply append
+          (map (lambda (entry)
+                 (typed-contract-type-expression-invalid-reasons
+                  (string-append "type-input[" (number->string (car entry)) "]")
+                  (cdr entry)))
+               (typed-contract-indexed-inputs contract-inputs 0)))))
+
+;; : (-> TypeExprIndex (List TypeExpr) (List (Pair Integer TypeExpr)) )
+(def (typed-contract-indexed-inputs inputs index)
+  (if (null? inputs)
+    []
+    (cons (cons index (car inputs))
+          (typed-contract-indexed-inputs (cdr inputs) (fx1+ index)))))
+
+;; : (-> SignatureReasonPrefix TypeExpr (List SignatureReason) )
+(def (typed-contract-type-expression-invalid-reasons prefix expression)
+  (typed-contract-json-invalid-reasons
+   prefix
+   (scheme-type-expression-text-json expression)))
+
+;;; This is the final diagnostic-to-policy bridge.
+;;; It prefixes parser-owned TypeSpec diagnostics with their comment location
+;;; class, so policy can group repairs without re-inspecting comment text.
+;; : (-> SignatureReasonPrefix Json (List SignatureReason) )
+(def (typed-contract-json-invalid-reasons prefix json)
+  (map (cut string-append prefix ":" <>)
+       (typed-contract-json-diagnostics json)))
+
+;; : (-> Json (List Diagnostic) )
+(def (typed-contract-json-diagnostics json)
+  (unique
+   (append
+    (if json (or (hash-get json 'diagnostics) []) [])
+    (typed-contract-type-spec-json-diagnostics
+     (and json (hash-get json 'typeSpec))))))
+
+;; : (-> MaybeJson (List Diagnostic) )
+(def (typed-contract-type-spec-json-diagnostics type-spec-json)
+  (if type-spec-json
+    (or (hash-get type-spec-json 'diagnostics) [])
+    []))
 
 ;; : (-> (List SignatureReason) Integer Integer SignatureQuality )
 (def (typed-contract-quality reasons arrow-count group-count)
@@ -503,9 +630,11 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> (List SignatureToken) Boolean )
 (def (typed-contract-unknown-token? tokens)
-  (not (not (find (lambda (token)
-                    (member token ["Any" "Unknown"]))
-                  tokens))))
+  (if (find (lambda (token)
+              (member token ["Any" "Unknown"]))
+            tokens)
+    #t
+    #f))
 
 ;; : (-> SignatureToken Boolean )
 (def (typed-contract-domain-token? token)
@@ -523,26 +652,33 @@
 ;;; - Keep this as token evidence so policy can repair docs without text scans.
 ;; : (-> (List SignatureToken) Boolean )
 (def (typed-contract-placeholder-token? tokens)
-  (not (not (find (lambda (token)
-                    (member token ["XX" "YY" "ZZ"]))
-                  tokens))))
+  (if (find (lambda (token)
+              (member token ["XX" "YY" "ZZ"]))
+            tokens)
+    #t
+    #f))
 
+;;; Placeholder-looking variables in gerbil-utils/base.ss can be real higher-order
+;;; contract variables, for example `(Z <- YY) <- (Z <- XX YY) XX`.
+;;; Keep the warning for low-information single-arrow comments, but do not mark
+;;; nested/grouped higher-order contracts invalid.
+;; : (-> (List SignatureToken) Integer Integer Boolean )
+(def (typed-contract-placeholder-token-invalid? tokens arrow-count group-count)
+  (and (typed-contract-placeholder-token? tokens)
+       (= arrow-count 1)
+       (= group-count 0)))
+
+;;; Token-classification boundary:
+;;; - Short uppercase tokens are treated as polymorphic variables, not domains.
+;;; - Keeping this narrow prevents legacy helper names from becoming fake types.
 ;; : (-> SignatureToken Boolean )
 (def (typed-contract-type-variable-token? token)
   (and (<= (string-length token) 2)
-       (string-all-uppercase? token)))
-
-;;; Boundary:
-;;; - string-all-uppercase? is a predicate over characters.
-;;; - Keep the non-empty guard separate from the universal character check.
-;; : (-> String Boolean )
-(def (string-all-uppercase? text)
-  (let (chars (string->list text))
-    (and (pair? chars)
-         (andmap (lambda (ch)
-                   (or (char-upper-case? ch)
-                       (char-numeric? ch)))
-                 chars))))
+       (not (string-empty? token))
+       (string-every (lambda (ch)
+                       (or (char-upper-case? ch)
+                           (char-numeric? ch)))
+                     token)))
 
 ;;; Invariant:
 ;;; - typed-contract-tokens owns branch/iteration semantics.
@@ -569,7 +705,7 @@
 
 ;; : (-> SignatureContract TypeExpr )
 (def (typed-contract-output contract)
-  (let (arrow (string-contains contract "<-"))
+  (let (arrow (typed-contract-main-transform-arrow-index contract))
     (if arrow
       (string-trim-both (substring contract 0 arrow))
       (or (scheme-contract-output contract)
@@ -577,13 +713,45 @@
 
 ;; : (-> SignatureContract (List TypeExpr) )
 (def (typed-contract-inputs contract)
-  (let (arrow (string-contains contract "<-"))
+  (let (arrow (typed-contract-main-transform-arrow-index contract))
     (if arrow
       (split-top-level-type-exprs
        (substring contract
                   (+ arrow (string-length "<-"))
                   (string-length contract)))
       (or (scheme-contract-inputs contract) []))))
+
+;;; Legacy `<-` contracts may contain higher-order arrows inside grouped output
+;;; or input positions.  Split the transform at the top-level arrow; fall back to
+;;; the first arrow only for malformed legacy comments without balanced groups.
+;; : (-> SignatureContract (Maybe Index) )
+(def (typed-contract-main-transform-arrow-index contract)
+  (and (string-contains contract "<-")
+       (or (typed-contract-top-level-transform-arrow-index contract)
+           (string-contains contract "<-"))))
+
+;;; Scan the raw contract once while tracking parentheses.  The first top-level
+;;; `<-` is the contract transform boundary.
+;; : (-> SignatureContract (Maybe Index) )
+(def (typed-contract-top-level-transform-arrow-index contract)
+  (let ((length (string-length contract))
+        (index 0)
+        (depth 0)
+        (found #f))
+    (while (and (not found) (< index length))
+      (let (ch (string-ref contract index))
+        (cond
+         ((and (= depth 0)
+               (< index (fx1- length))
+               (char=? ch #\<)
+               (char=? (string-ref contract (fx1+ index)) #\-))
+          (set! found index))
+         ((char=? ch #\()
+          (set! depth (fx1+ depth)))
+         ((char=? ch #\))
+          (set! depth (max 0 (fx1- depth))))))
+      (set! index (fx1+ index)))
+    found))
 
 ;;; Boundary:
 ;;; - line-at* is zero-based and total over malformed indices.
@@ -597,4 +765,4 @@
 ;; : (-> String Boolean )
 (def (blank-string? value)
   (or (not (string? value))
-      (= (string-length (string-trim value)) 0)))
+      (string-empty? (string-trim value))))

@@ -11,11 +11,14 @@
         :policy/repair
         :protocol/json
         (only-in :std/misc/process run-process)
+        (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-prefix? string-tokenize)
         (only-in :std/sugar cut filter ormap)
         :support/args
-        :support/list
-        :types/facade)
+        (only-in :types/core
+                 run-type-checks/whitelist
+                 type-status)
+        :types/findings)
 
 (export check-main)
 ;; check-main
@@ -39,11 +42,13 @@
          (whitelist (if whitelist-path
                       (load-call-whitelist whitelist-path)
                       '()))
-         (index (collect-project root))
-         (all-findings (run-type-checks/whitelist index '() whitelist))
          (changed-paths (if (equal? scope "changed")
                           (changed-project-paths root)
                           '()))
+         (index (if (equal? scope "changed")
+                  (collect-project/files root changed-paths)
+                  (collect-project root)))
+         (all-findings (run-type-checks/whitelist index '() whitelist))
          (findings (if (equal? scope "changed")
                      (filter-changed-findings all-findings changed-paths)
                      all-findings))
@@ -78,9 +83,10 @@
     "full"))
 ;; : (-> String String )
 (def (changed-project-paths root)
-  (dedupe
+  (unique
    (append
     (git-paths root ["diff" "--name-only" "--" "."])
+    (git-paths root ["diff" "--cached" "--name-only" "--" "."])
     (git-paths root ["ls-files" "--others" "--exclude-standard" "--" "."]))))
 ;; : (-> String (List String) String )
 (def (git-paths root args)

@@ -3,6 +3,8 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :std/sort
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/1 append-map)
         :std/srfi/13
         :std/test
         :std/text/json)
@@ -40,8 +42,7 @@
    "semantic-type-surface.v1.schema.json"])
 ;; SchemaRefClosure
 (def (schema-ref-closure)
-  (sort (dedupe-strings
-         (append-map schema-local-refs +schema-files+))
+  (sort (unique (append-map schema-local-refs +schema-files+))
         string<?))
 ;; : (-> SourceFile SchemaLocalRefs )
 (def (schema-local-refs file)
@@ -85,21 +86,3 @@
 ;; : (-> SourceFile String )
 (def (schema-path file)
   (string-append "schemas/" file))
-;; : (-> (-> XX YY ) (List XX) Integer )
-(def (append-map proc xs)
-  (if (null? xs)
-    '()
-    (append (proc (car xs)) (append-map proc (cdr xs)))))
-;; : (-> (List String) (List String) )
-(def (dedupe-strings xs)
-  (reverse
-   (cdr
-    (foldl (lambda (item state)
-             (let ((seen (car state))
-                   (out (cdr state)))
-               (if (member item seen)
-                 state
-                 (cons (cons item seen)
-                       (cons item out)))))
-           (cons '() '())
-           xs))))

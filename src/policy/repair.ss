@@ -2,7 +2,8 @@
 ;;; Agent repair metadata derived from policy findings.
 
 (import :policy/catalog
-        :support/list
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/1 take)
         :types/findings)
 
 (export repairable-finding?
@@ -37,8 +38,8 @@
          (trigger (repair-trigger warnings errors))
           (findingGroups (finding-groups-json repairable))
 	         (repairPlan (repair-plan-json repairable))
-	         (instruction
-	           "follow the primary findingGroup.repairPlan.nextCommand before editing; the --code flag is the repair action that shows the code shape to follow"))))
+         (instruction
+           "policy findings are repair triggers; follow the primary findingGroup.repairPlan.nextCommand for code-shape evidence, edit the owner, then rerun check"))))
 
 ;; : (-> (List TypeFinding) (List RepairSummaryPart) )
 (def (agent-repair-summary-parts findings)
@@ -55,15 +56,15 @@
        (string-append "trigger=" (repair-trigger warnings errors))
 	       (string-append "repairGroups="
 	                      (number->string (length (finding-groups repairable))))
-	       "next=follow-primary-findingGroup-repairPlan-nextCommand"
-	       "action=inspect-code-shape"])))
+       "next=follow-primary-findingGroup-repairPlan-nextCommand"
+       "action=apply-policy-triggered-repair"])))
 
 ;; : (-> (List TypeFinding) Json )
 (def (repair-plan-json findings)
   (let (groups (finding-groups-json findings))
     (hash (status (if (null? groups) "none" "active"))
           (groupCount (length groups))
-          (primaryGroups (take-at-most groups 4))
+          (primaryGroups (take groups (min 4 (length groups))))
           (strategy "repair once per owner/function selector; structural/style repairs run before comment rationale repairs")
           (requires ["parser-owned functionQualityProfiles when available"
                      "findingGroup primary rule guide"
@@ -137,12 +138,13 @@
           (repairOrder repair-order)
           (repairPlan
 	          (hash (nextCommand next)
-	                (action "inspect-code-shape")
+	                (triggerSource (string-append "policy-" (finding-group-severity findings)))
+	                (action "apply-policy-triggered-repair")
 	                (guideCodeFlag "--code")
                   (strategy strategy)
                   (repairPhases phases)
 	                (instruction
-	                  "run the primary guide --code command, inspect the code shape, apply one grouped repair, preserve listed witnesses, then rerun check")
+	                  "treat this policy finding group as the edit trigger: run the primary guide --code command for code-shape evidence, apply one grouped repair, preserve listed witnesses, then rerun check")
 	                (commentRepairOrder
 	                  "comment-quality repairs run after structural/style repairs when both hit the same group")))
           (agentInstruction
@@ -222,7 +224,7 @@
 ;;; owns aggregation.
 ;; : (-> (List RuleId) (List Witness) )
 (def (finding-group-required-witnesses rules)
-  (dedupe
+  (unique
    (apply append
           (map rule-required-witnesses rules))))
 
@@ -247,7 +249,7 @@
 ;;; This sequence gives the agent a deterministic one-pass repair plan.
 ;; : (-> (List RuleId) TypeFinding (List RuleId) (List RuleId) )
 (def (repair-order-rules rules primary suppressed)
-  (dedupe
+  (unique
    (append [(type-finding-rule-id primary)]
            (filter (lambda (rule) (not (member rule suppressed)))
                    rules)
@@ -269,7 +271,7 @@
 ;;; from independent one-rule warnings without re-parsing rule arrays.
 ;; : (-> (List RuleId) Boolean )
 (def (repair-multi-policy-group? rules)
-  (> (length (dedupe rules)) 1))
+  (> (length (unique rules)) 1))
 
 ;;; Repair phases turn a grouped rule list into an ordered action packet.
 ;;; Suppressed comment rules become an explicit second phase instead of hidden
@@ -283,8 +285,8 @@
                   (repair-phase
                    "primary-shape"
                    primary-rules
-                   "inspect-code-shape"
-                   "apply the primary structural/style repair once for this group"))
+                   "apply-policy-triggered-repair"
+                   "apply the primary structural/style repair once because this policy group fired"))
              (and (pair? suppressed)
                   (repair-phase
                    "dependent-comment-rationale"
@@ -331,10 +333,10 @@
                (severity (type-finding-severity finding))
 	               (guideTopic (car route))
 	               (guideIntent (cadr route))
-	               (action "inspect-code-shape")
+	               (action "apply-policy-triggered-repair")
 	               (guideCodeFlag "--code")
 	               (nextCommand (caddr route))
-	               (instruction "inspect-code-shape-with-guide-code-before-edit")))))
+	               (instruction "policy-finding-triggers-edit-with-guide-code-evidence")))))
 
 ;; : (-> TypeFinding FindingAgentRepairParts )
 (def (finding-agent-repair-parts finding)

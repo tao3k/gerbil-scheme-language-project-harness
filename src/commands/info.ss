@@ -7,7 +7,7 @@
         :protocol/json
         :support/args
         :support/io
-        :support/list)
+        (only-in :std/srfi/13 string-join))
 
 (export info-main
         info-packet
@@ -53,9 +53,9 @@
         (rules (agent-steering-rule-json))))
 ;; Json
 (def (closure-commands-json)
-  (hash (selfApply "GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss")
+  (hash (selfApply "gxi build.ss test")
         (check "gerbil-scheme-harness check .")
-        (bench "gerbil-scheme-harness bench --iterations 1 --max-total-ms 2000 --max-interface-ms 50 .")))
+        (bench "gerbil-scheme-harness bench --iterations 1 --max-interface-ms 50 .")))
 ;;; Boundary:
 ;;; - The info command emits line protocol and keeps packet field selection here.
 ;;; - Callers provide the already-built packet so command routing stays projection-free.
@@ -82,7 +82,7 @@
    "|interface agent-policy=gerbil.pkg-policy fields=enabled-rules,disabled-rules")
   (emit-field-line
    "|agent-steering"
-   [(line-field "facts" (join (agent-steering-facts) ","))])
+   [(line-field "facts" (string-join (agent-steering-facts) ","))])
   (emit-field-line
    "|agent-steering"
    [(line-field "rules" (agent-steering-rule-id-string))])

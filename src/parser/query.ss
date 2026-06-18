@@ -2,9 +2,14 @@
 ;;; Query helpers over parser-owned project facts.
 
 (import :parser/facade
-        :support/list
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-contains string-downcase string-tokenize))
+        (only-in :std/srfi/1 append-map)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-downcase
+                 string-empty?
+                 string-join
+                 string-tokenize))
 
 (export matching-definitions
         ranked-files
@@ -105,7 +110,7 @@
                     terms))))
 ;; : (-> SourceFile SourceFileQueryHaystack )
 (def (source-file-query-haystack file)
-  (join (source-file-query-terms file) " "))
+  (string-join (source-file-query-terms file) " "))
 ;; source-file-query-terms
 ;;   : (-> SourceFile (List String))
 ;;   | doc m%
@@ -129,26 +134,26 @@
            (source-file-imports file)
            (source-file-exports file)
            (source-file-includes file)
-           (append-map* definition-query-terms
-                        (source-file-definitions file))
-           (append-map* top-form-query-terms
-                        (source-file-forms file))
-           (append-map* module-import-query-terms
-                        (source-file-module-imports file))
-           (append-map* macro-query-terms
-                        (source-file-macros file))
-           (append-map* binding-query-terms
-                        (source-file-bindings file))
-           (append-map* poo-query-terms
-                        (source-file-poo-forms file))
-           (append-map* higher-order-query-terms
-                        (source-file-higher-order-forms file))
-           (append-map* control-flow-query-terms
-                        (source-file-control-flow-forms file))
-           (append-map* dependency-adapter-quality-query-terms
-                        (source-file-dependency-adapter-quality-facts file))
-           (append-map* call-query-terms
-                        (source-file-calls file)))))
+           (append-map definition-query-terms
+                       (source-file-definitions file))
+           (append-map top-form-query-terms
+                       (source-file-forms file))
+           (append-map module-import-query-terms
+                       (source-file-module-imports file))
+           (append-map macro-query-terms
+                       (source-file-macros file))
+           (append-map binding-query-terms
+                       (source-file-bindings file))
+           (append-map poo-query-terms
+                       (source-file-poo-forms file))
+           (append-map higher-order-query-terms
+                       (source-file-higher-order-forms file))
+           (append-map control-flow-query-terms
+                       (source-file-control-flow-forms file))
+           (append-map dependency-adapter-quality-query-terms
+                       (source-file-dependency-adapter-quality-facts file))
+           (append-map call-query-terms
+                       (source-file-calls file)))))
 ;; : (-> Definition Integer )
 (def (definition-query-terms defn)
   [(definition-name defn)
@@ -291,30 +296,8 @@
 ;;     %
 (def (split-query query)
   (string-tokenize query))
-;; : (-> Char Boolean )
-(def (query-separator? char)
-  (or (char=? char #\space)
-      (char=? char #\tab)
-      (char=? char #\newline)
-      (char=? char #\return)
-      (char=? char #\|)))
-;; append-map*
-;;   : (forall (a b) (-> (-> a (List b)) (List a) (List b)))
-;;   | doc m%
-;;       `append-map* proc values` maps `proc` across `values` and appends the
-;;       returned lists.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (append-map* (lambda (x) [x x]) '(1 2))
-;;       ;; => (1 1 2 2)
-;;       ```
-;;     %
-(def (append-map* proc values)
-  (apply append (map proc values)))
 ;; : (-> SearchTerm Boolean )
 (def (searchable-term? value)
   (and value
        (string? value)
-       (> (string-length value) 0)))
+       (not (string-empty? value))))

@@ -5,7 +5,6 @@
         :policy/agent-support
         :policy/model
         (only-in :std/srfi/13 string-prefix?)
-        :support/list
         :types/findings)
 
 (export explicit-precise-import-findings

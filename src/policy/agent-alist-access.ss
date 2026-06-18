@@ -5,8 +5,7 @@
 
 (import :parser/facade
         :policy/model
-        (only-in :std/srfi/13 string-contains)
-        (only-in :std/sugar filter hash ormap)
+        (only-in :std/sugar filter hash)
         :types/findings)
 
 (export alist-access-findings
@@ -28,41 +27,40 @@
 ;;; - Repetition means the owner needs a record, profile accessor, or helper.
 ;; : (-> SourceFile MaybeTypeFinding )
 (def (alist-access-finding file)
-  (let (lookups (alist-inline-assq-cdr-calls file))
-    (and (>= (length lookups) +alist-access-min-inline-lookups+)
+  (let (lookups (alist-inline-access-facts file))
+    (and (>= (alist-inline-access-count lookups)
+             +alist-access-min-inline-lookups+)
          (make-type-finding
           (policy-rule-id +agent-alist-access-rule+)
           (policy-rule-severity +agent-alist-access-rule+)
           (source-file-path file)
           "repeated inline assq/cdr alist lookups hide a data model; use a record/defstruct, source-backed profile accessors, or one named lookup helper"
-          (call-fact-selector (car lookups))
+          (field-access-pattern-fact-selector (car lookups))
           (alist-access-details lookups)))))
 
 ;;; Lookup collection:
-;;; - Only direct cdr-over-assq shape is counted.
-;;; - Ordinary cdr list traversal and a single local bridge stay out of scope.
-;; : (-> SourceFile (List CallFact) )
-(def (alist-inline-assq-cdr-calls file)
-  (filter alist-inline-assq-cdr-call?
-          (source-file-calls file)))
+;;; - Parser-owned field access facts carry native AST evidence.
+;;; - Policy does not inspect rendered call arguments or source strings.
+;; : (-> SourceFile (List FieldAccessPatternFact) )
+(def (alist-inline-access-facts file)
+  (filter inline-alist-access-fact?
+          (source-file-field-access-pattern-facts file)))
 
-;;; Parser call predicate:
-;;; - The callee must be cdr.
-;;; - At least one parser-owned argument string must contain an assq form.
-;; : (-> CallFact Boolean )
-(def (alist-inline-assq-cdr-call? call)
-  (and (equal? (call-fact-callee call) "cdr")
-       (ormap alist-inline-assq-argument?
-              (call-fact-arguments call))))
+;;; Fact predicate:
+;;; - The parser role is emitted only for native `(cdr (assq ...))` shapes.
+;;; - The facet keeps this policy aligned with function-quality/search reports.
+;; : (-> FieldAccessPatternFact Boolean )
+(def (inline-alist-access-fact? fact)
+  (and (equal? (field-access-pattern-fact-role fact)
+               "inline-alist-lookup")
+       (member "inline-alist-lookup-drift"
+               (field-access-pattern-fact-quality-facets fact))))
 
-;;; Argument predicate:
-;;; - Parser arguments are compact strings here.
-;;; - We match assq as a form head, not arbitrary prose.
-;; : (-> CallArgument Boolean )
-(def (alist-inline-assq-argument? argument)
-  (and (string? argument)
-       (or (string-contains argument "(assq ")
-           (string-contains argument "(assq'"))))
+;;; Access count sums parser-owned grouped facts so repeated lookups across
+;;; several alist keys still trigger one owner-level repair.
+;; : (-> (List FieldAccessPatternFact) Integer )
+(def (alist-inline-access-count lookups)
+  (apply + (map field-access-pattern-fact-access-count lookups)))
 
 ;;; Details boundary:
 ;;; - Finding details stay JSON-shaped at the report edge.
@@ -70,8 +68,10 @@
 ;; : (-> (List CallFact) PolicyDetails )
 (def (alist-access-details lookups)
   (hash (kind "repeated-inline-alist-lookup")
-        (lookupCount (length lookups))
-        (selectors (map call-fact-selector lookups))
+        (lookupCount (alist-inline-access-count lookups))
+        (selectors (map field-access-pattern-fact-selector lookups))
+        (fieldKeys (map field-access-pattern-fact-field-key lookups))
+        (callers (apply append
+                        (map field-access-pattern-fact-callers lookups)))
         (callees ["assq" "cdr"])
         (repair "replace repeated inline (cdr (assq ...)) with a record/defstruct, typed profile accessor, or one named alist lookup helper")))
-

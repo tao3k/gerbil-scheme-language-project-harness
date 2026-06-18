@@ -4,8 +4,8 @@
 (import :language/evidence
         :parser/facade
         :policy/catalog
-        (only-in :std/srfi/13 string-contains)
-        :support/list)
+        (only-in :std/srfi/1 append-map take)
+        (only-in :std/srfi/13 string-contains))
 
 (export capability-posture-facts
         matching-capability-posture-facts)
@@ -57,7 +57,9 @@
       "search runtime-source macro sugar"
       ["capability" "posture" "macro" "defsyntax" "defrule" "runtime-source" "hygienic"]
       (hash (macros (length macro-facts))
-            (macroSelectors (take* (map macro-fact-selector macro-facts) 8)))
+            (macroSelectors
+             (let (selectors (map macro-fact-selector macro-facts))
+               (take selectors (min 8 (length selectors))))))
       ["GERBIL-SCHEME-AGENT-R011"]
       ["macro-runtime-source-witness" "parser-owned-macro-heads"]
       "agent-edits-macro-or-syntax-transformer"
@@ -75,7 +77,9 @@
       ["capability" "posture" "poo" "object" "defclass" "defgeneric" "defmethod" "protocol" "gerbil-poo"]
       (hash (dependencies dependencies)
             (pooForms (length poo-facts))
-            (pooSelectors (take* (map poo-form-fact-selector poo-facts) 8)))
+            (pooSelectors
+             (let (selectors (map poo-form-fact-selector poo-facts))
+               (take selectors (min 8 (length selectors))))))
       ["GERBIL-SCHEME-AGENT-R008" "GERBIL-SCHEME-AGENT-R012"]
       ["poo-method-shape" "protocol-evidence" "manual-object-encoding-opportunity"]
       "agent-models-objects-or-protocols-in-gerbil"
@@ -89,7 +93,9 @@
       "search structural --workspace . --view seeds"
       ["capability" "posture" "higher-order" "map" "filter" "fold" "for/fold" "cut" "functional"]
       (hash (higherOrderForms (length higher-order-facts))
-            (higherOrderSelectors (take* (map higher-order-fact-selector higher-order-facts) 8)))
+            (higherOrderSelectors
+             (let (selectors (map higher-order-fact-selector higher-order-facts))
+               (take selectors (min 8 (length selectors))))))
       ["GERBIL-SCHEME-AGENT-R009"]
       ["functional-data-transform" "typed-combinator-style"]
       "agent-writes-data-transform-or-loop"
@@ -103,7 +109,9 @@
       "search structural --workspace . --view seeds"
       ["capability" "posture" "control-flow" "named-let" "loop" "generator" "state" "driver"]
       (hash (controlFlowForms (length control-flow-facts))
-            (controlFlowSelectors (take* (map control-flow-fact-selector control-flow-facts) 8)))
+            (controlFlowSelectors
+             (let (selectors (map control-flow-fact-selector control-flow-facts))
+               (take selectors (min 8 (length selectors))))))
       ["GERBIL-SCHEME-AGENT-R009"]
       ["manual-loop-functional-advice" "stateful-driver-exception"]
       "agent-edits-loop-or-driver"
@@ -173,12 +181,6 @@
                    (ormap (cut string-contains <> term)
                           (hash-get fact 'terms))))
              terms)))
-;;; Boundary:
-;;; - append-map composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; : (forall (a b) (-> (-> a (List b)) (List a) (List b)) )
-(def (append-map proc xs)
-  (apply append (map proc xs)))
 ;;; Boundary:
 ;;; - dependency-contains? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

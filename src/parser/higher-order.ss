@@ -5,7 +5,8 @@
         :parser/formals
         :parser/model
         :parser/support
-        :parser/syntax)
+        :parser/syntax
+        (only-in :std/misc/list unique))
 
 (export higher-order-facts-from-form
         higher-order-quality-facets)
@@ -172,7 +173,7 @@
 ;;; Quality facets expose gerbil-utils-style expression composition as parser-owned evidence.
 ;; : (-> HigherOrderFact (List QualityFacet) )
 (def (higher-order-quality-facets fact)
-  (dedupe
+  (unique
    (filter identity
            [(and (member (higher-order-fact-role fact)
                          '("sequence-map" "sequence-filter" "sequence-filter-map"
@@ -251,7 +252,7 @@
    ((eq? head 'lambda)
     (map datum->string (lambda-formal-datums datum)))
    ((eq? head 'case-lambda)
-    (dedupe
+    (unique
      (apply append
             (map (lambda (clause)
                    (map datum->string (lambda-formals-from-clause clause)))

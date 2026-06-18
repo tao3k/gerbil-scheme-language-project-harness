@@ -358,7 +358,7 @@ behavior-preserving refactor.
 Closure gates:
 
 #+begin_src shell
-GERBIL_LOADPATH=src:t gxi -e '(import :std/test :search-test) (run-tests! search-test)'
+gxi build.ss test
 gxi build.ss compile
 #+end_src
 
@@ -371,7 +371,7 @@ POO fixture blocks when they are touched.
 Closure gate:
 
 #+begin_src shell
-GERBIL_LOADPATH=src:t gxi -e '(import :std/test :parser-test) (run-tests! parser-test)'
+gxi build.ss test
 #+end_src
 
 ** P1: keep POO classification tables as the extension point

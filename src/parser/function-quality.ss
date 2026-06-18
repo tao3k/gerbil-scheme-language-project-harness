@@ -3,9 +3,10 @@
 
 (import :parser/model
         :parser/higher-order
-        (only-in :std/srfi/13 string-suffix?)
-        (only-in :std/sugar cut filter find foldl ormap)
-        :support/list)
+        (only-in :clan/base fun)
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/13 string-prefix? string-suffix?)
+        (only-in :std/sugar cut filter find ormap))
 
 (export function-quality-profiles-from-source)
 
@@ -83,8 +84,8 @@
      exported?
      typed-quality
      comment-quality
-     (unique-strings (map control-flow-fact-role matched-control-flow))
-     (unique-strings (map higher-order-fact-role matched-higher-order))
+     (unique (filter identity (map control-flow-fact-role matched-control-flow)))
+     (unique (filter identity (map higher-order-fact-role matched-higher-order)))
      (map predicate-family-fact-name matched-predicate-families)
      (map field-access-pattern-fact-name matched-field-access)
      (map loop-driver-fact-name matched-loop-drivers)
@@ -101,17 +102,15 @@
 ;;; fallback evidence from rendered comments or source text.
 ;; : (-> DefinitionName TypedContracts TypedContractFact )
 (def (matching-typed-contract name facts)
-  (find (lambda (fact)
-          (equal? (typed-contract-fact-definition-name fact) name))
-        facts))
+  (first-fact-with-field facts typed-contract-fact-definition-name name))
 
 ;;; Comment facts are keyed by definition target, not by free text.
 ;;; This prevents file/module comments from satisfying a function-level repair.
 ;; : (-> DefinitionName CommentFacts CommentQualityFact )
 (def (matching-comment-quality name facts)
-  (find (lambda (fact)
+  (find (fun (definition-comment-fact? fact)
           (and (equal? (comment-quality-fact-target-kind fact) "definition")
-               (equal? (comment-quality-fact-target-name fact) name)))
+               (fact-field=? comment-quality-fact-target-name name fact)))
         facts))
 
 ;;; Control-flow correlation is caller-owned.
@@ -119,66 +118,140 @@
 ;;; function that would be rewritten by a style policy.
 ;; : (-> DefinitionName ControlFlowFacts (List ControlFlowFact) )
 (def (matching-control-flow name facts)
-  (filter (lambda (fact)
-            (equal? (or (control-flow-fact-caller fact) "") name))
-          facts))
+  (facts-with-field facts control-flow-fact-caller name))
 
 ;;; Higher-order evidence is caller-owned.
 ;;; The filtered roles show whether a function already uses map/filter/fold/cut
 ;;; or needs a combinator-style repair.
 ;; : (-> DefinitionName HigherOrderFacts (List HigherOrderFact) )
 (def (matching-higher-order name facts)
-  (filter (lambda (fact)
-            (equal? (or (higher-order-fact-caller fact) "") name))
-          facts))
+  (facts-with-field facts higher-order-fact-caller name))
 
 ;;; Predicate-family facts point back to predicate function names.
 ;;; Filtering by membership lets policy repair repeated predicate shape without
 ;;; scanning source bodies again.
 ;; : (-> DefinitionName PredicateFamilies (List PredicateFamilyFact) )
 (def (matching-predicate-families name facts)
-  (filter (lambda (fact)
-            (member name (predicate-family-fact-predicate-names fact)))
-          facts))
+  (facts-containing-field facts predicate-family-fact-predicate-names name))
 
 ;;; Field-access patterns record callers that repeat the same selector shape.
 ;;; Filtering by caller keeps selector-helper advice scoped to the functions
 ;;; that own the repeated access.
 ;; : (-> DefinitionName FieldAccessFacts (List FieldAccessPatternFact) )
 (def (matching-field-access name facts)
-  (filter (lambda (fact)
-            (member name (field-access-pattern-fact-callers fact)))
-          facts))
+  (facts-containing-field facts field-access-pattern-fact-callers name))
 
 ;;; Loop-driver facts can name either the loop or its enclosing function.
 ;;; Both links are preserved so pure-transform repair does not erase IO/state
 ;;; driver boundaries.
 ;; : (-> DefinitionName LoopDrivers (List LoopDriverFact) )
 (def (matching-loop-drivers name facts)
-  (filter (lambda (fact)
-            (or (equal? (loop-driver-fact-name fact) name)
-                (equal? (or (loop-driver-fact-caller fact) "") name)))
-          facts))
+  (facts-with-any-field facts
+                        [loop-driver-fact-name
+                         loop-driver-fact-caller]
+                        name))
 
 ;;; Macro matching marks transformer-owned helpers as preservation boundaries.
 ;;; A name match is enough here because macro facts already carry parser-owned
 ;;; selectors and quality facets.
 ;; : (-> DefinitionName MacroFacts (List MacroFact) )
 (def (matching-macros name facts)
-  (filter (lambda (fact)
-            (equal? (macro-fact-name fact) name))
-          facts))
+  (facts-with-field facts macro-fact-name name))
 
 ;;; POO facts can relate through class/protocol name, generic, or receiver.
 ;;; The disjunction keeps method and receiver evidence attached before policy
 ;;; suggests object-system repairs.
 ;; : (-> DefinitionName PooFacts (List PooFormFact) )
 (def (matching-poo-protocols name facts)
-  (filter (lambda (fact)
-            (or (equal? (poo-form-fact-name fact) name)
-                (equal? (or (poo-form-fact-generic fact) "") name)
-                (equal? (or (poo-form-fact-receiver fact) "") name)))
+  (facts-with-any-field facts
+                        [poo-form-fact-name
+                         poo-form-fact-generic
+                         poo-form-fact-receiver]
+                        name))
+
+;;; Fact matching combinators keep parser correlation declarative.
+;;; Each owner-specific matcher supplies only an accessor and the target name;
+;;; the shared helpers own optional-field normalization and list membership.
+;;; Higher-order boundary: accessor procedures are caller-owned evidence routes;
+;;; these helpers own only reusable filter/search composition.
+;; facts-with-field
+;;   : (forall (fact)
+;;       (-> (List fact)
+;;           (-> fact MaybeString)
+;;           DefinitionName
+;;           (List fact)))
+;;   | doc m%
+;;       `facts-with-field facts accessor name` keeps facts whose optional
+;;       string field equals the definition name.
+;;     %
+(def (facts-with-field facts accessor name)
+  (filter (fun (matches-field? fact)
+            (fact-field=? accessor name fact))
           facts))
+
+;;; Higher-order boundary: this helper is the disjunction form for facts that
+;;; can point at a definition through several parser-owned accessors.
+;; facts-with-any-field
+;;   : (forall (fact)
+;;       (-> (List fact)
+;;           (List (-> fact MaybeString))
+;;           DefinitionName
+;;           (List fact)))
+;;   | doc m%
+;;       `facts-with-any-field facts accessors name` keeps facts when any
+;;       optional string field links the fact to `name`.
+;;     %
+(def (facts-with-any-field facts accessors name)
+  (filter (fun (matches-any-field? fact)
+            (ormap (cut fact-field=? <> name fact) accessors))
+          facts))
+
+;;; Higher-order boundary: membership accessors remain explicit so repeated
+;;; caller-name lists do not become ad hoc source-text scans.
+;; facts-containing-field
+;;   : (forall (fact)
+;;       (-> (List fact)
+;;           (-> fact (List DefinitionName))
+;;           DefinitionName
+;;           (List fact)))
+;;   | doc m%
+;;       `facts-containing-field facts accessor name` keeps facts whose
+;;       parser-owned name list contains the definition.
+;;     %
+(def (facts-containing-field facts accessor name)
+  (filter (fun (contains-field? fact)
+            (member name (accessor fact)))
+          facts))
+
+;;; Higher-order boundary: this is the single-result variant of field matching,
+;;; used where adjacency makes the first parser fact authoritative.
+;; first-fact-with-field
+;;   : (forall (fact)
+;;       (-> (List fact)
+;;           (-> fact MaybeString)
+;;           DefinitionName
+;;           (Maybe fact)))
+;;   | doc m%
+;;       `first-fact-with-field facts accessor name` returns the first adjacent
+;;       parser fact linked by the supplied accessor.
+;;     %
+(def (first-fact-with-field facts accessor name)
+  (find (fun (matches-field? fact)
+          (fact-field=? accessor name fact))
+        facts))
+
+;; fact-field=?
+;;   : (forall (fact)
+;;       (-> (-> fact MaybeString)
+;;           DefinitionName
+;;           fact
+;;           Boolean))
+;;   | doc m%
+;;       `fact-field=? accessor name fact` compares optional parser string
+;;       fields with a definition name.
+;;     %
+(def (fact-field=? accessor name fact)
+  (equal? (or (accessor fact) "") name))
 
 ;;; Role classification compresses parser evidence into a repair boundary.
 ;;; Specific preservation roles win before generic public/internal helper roles.
@@ -207,7 +280,7 @@
 ;;; and policy can compose repairs without reading source text.
 ;; : (-> Role Exported? TypedQuality CommentQuality TypedContract CommentFact ControlFlow HigherOrder PredicateFamilies FieldAccess LoopDrivers Macros PooFacts (List QualityFacet) )
 (def (function-quality-facets role exported? typed-quality comment-quality typed-contract comment-fact control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
-  (unique-strings
+  (unique
    (filter identity
            (append ["function-quality-profile"
                     "functionQualityProfile"
@@ -250,7 +323,40 @@
                                field-access-pattern-facts))
                    (apply append
                           (map loop-driver-fact-quality-facets
-                               loop-driver-facts))))))
+                               loop-driver-facts))
+                   (apply append
+                          (map function-quality-poo-profile-facets
+                               poo-forms))))))
+
+;;; POO profile facets consume option tokens emitted by parser/poo.ss.  The
+;;; parser owns method body shape classification from native datum syntax; this
+;;; layer only turns those stable tokens into repair vocabulary.
+;; : (-> PooFormFact (List QualityFacet) )
+(def (function-quality-poo-profile-facets fact)
+  (unique
+   (filter identity
+           (append [(and (member "methodTableBody:combinator"
+                                 (poo-form-fact-options fact))
+                         "method-table-combinator-body")
+                    (and (member "methodTableBody:validation-boundary"
+                                 (poo-form-fact-options fact))
+                         "method-table-validation-boundary")
+                    (and (member "methodTableBody:lambda-drift"
+                                 (poo-form-fact-options fact))
+                         "method-table-lambda-drift")
+                    (and (member "methodTableBody:low-level"
+                                 (poo-form-fact-options fact))
+                         "method-table-low-level-body")]
+                   (map function-quality-poo-option-facet
+                        (poo-form-fact-options fact))))))
+
+;;; Slot-specific facets let search and policy cite the exact method-table slot
+;;; without reparsing source.  Only parser-owned quality tokens are projected.
+;; : (-> String MaybeQualityFacet )
+(def (function-quality-poo-option-facet option)
+  (cond
+   ((string-prefix? "methodBodyQuality:" option) option)
+   (else #f)))
 
 ;;; Typed-contract profile facets forward parser-owned contract quality.
 ;;; Keeping this as a helper makes the aggregate facet pipeline uniform.
@@ -376,7 +482,7 @@
 ;;; before style rewrites are proposed.
 ;; : (-> Exported? LoopDrivers MacroFacts PooFacts (List PreservationReason) )
 (def (function-quality-preservation-reasons exported? loop-drivers macros poo-forms)
-  (unique-strings
+  (unique
    (filter identity
            (append [(and exported? "preserve-public-api")
                     (and (pair? macros)
@@ -406,6 +512,9 @@
    ((member "wrapper-lambda-drift" quality-facets) "typed-combinator-style")
    ((member "function-specialization-opportunity" quality-facets)
     "typed-combinator-style")
+   ((or (member "method-table-lambda-drift" quality-facets)
+        (member "method-table-low-level-body" quality-facets))
+    "poo-policy")
    ((member typed-quality '("missing" "invalid" "weak"))
     "typed-combinator-style")
    ((member comment-quality '("missing" "absent" "weak"))
@@ -446,6 +555,10 @@
     "replace repeated wrapper lambdas with a named function factory, cut/curry/rcurry, or compose/rcompose pipeline; use case-lambda when arity variants are real")
    ((member "function-specialization-opportunity" quality-facets)
     "turn repeated anonymous specialization into a first-class helper boundary before editing call sites")
+   ((member "method-table-lambda-drift" quality-facets)
+    "repair method-table lambdas with gerbil-poo/table.ss slot-shaped helpers, cut/curry/compose, or selector methods; preserve the protocol receiver boundary")
+   ((member "method-table-low-level-body" quality-facets)
+    "move low-level method-table bodies behind named helpers or combinator slots before widening the adapter")
    ((equal? repair-class "typed-combinator-style")
     "prefer small expression-returning helpers and map/filter/fold/cut when parser facts show pure transform drift")
    ((equal? repair-class "engineering-comment-quality")
@@ -457,16 +570,3 @@
    ((pair? preservation-reasons)
     "preserve public, macro, POO, IO, or state boundaries before style repair")
    (else "no policy repair is implied; profile is available for search and future correlation")))
-
-;;; Stable unique strings keep facet order deterministic for snapshots.
-;;; False values are discarded before dedupe so optional evidence does not leak
-;;; placeholder tokens.
-;; : (-> (List String) (List String) )
-(def (unique-strings values)
-  (reverse
-   (foldl (lambda (value out)
-            (if (or (not value) (member value out))
-              out
-              (cons value out)))
-          '()
-          values)))

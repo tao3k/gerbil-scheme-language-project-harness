@@ -2,6 +2,8 @@
 ;;; Parser-owned package metadata facts.
 
 (import :gerbil/gambit
+        (only-in :parser/support datum-list-items safe-cadr)
+        (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-index))
 
 (export read-project-package
@@ -130,7 +132,7 @@
 (def (package-dependencies datum)
   (let (deps (package-field-value datum 'depend:))
     (if deps
-      (dedupe (filter-map datum->string (datum-list-items deps)))
+      (unique (filter-map datum->string (datum-list-items deps)))
       '())))
 ;; : (-> Datum PackageTestDirectoryPolicy )
 (def (package-test-directory-policy datum)
@@ -353,8 +355,7 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> Targets (List String) )
 (def (build-target-source-roots targets)
-  (dedupe-strings
-   (filter-map build-target-source-root targets)))
+  (unique (filter-map build-target-source-root targets)))
 ;; : (-> Target BuildTargetSourceRoot )
 (def (build-target-source-root target)
   (let (slash (and target (string-index target #\/)))
@@ -401,7 +402,7 @@
     (cond
      ((not value) #f)
      ((or (string? value) (symbol? value)) [(datum->string value)])
-     (else (dedupe (filter-map datum->string (datum-list-items value)))))))
+     (else (unique (filter-map datum->string (datum-list-items value)))))))
 ;; : (-> Datum String String )
 (def (policy-string-field datum field)
   (let (value (package-field-value datum field))
@@ -452,29 +453,6 @@
     (and tail
          (pair? (cdr tail))
          (cadr tail))))
-;; datum-list-items
-;;   : (-> Obj (List Obj))
-;;   | doc m%
-;;       `datum-list-items obj` returns the proper-list prefix of a package
-;;       datum while preserving item order.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (datum-list-items '(package: name "demo" . tail))
-;;       ;; => (package: name "demo")
-;;       ```
-;;     %
-(def (datum-list-items obj)
-  (let ((rest obj)
-        (out '()))
-    (while (pair? rest)
-      (set! out (cons (car rest) out))
-      (set! rest (cdr rest)))
-    (reverse out)))
-;; : (-> Obj SafeCadr )
-(def (safe-cadr obj)
-  (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
 ;; datum->string
 ;;   : (-> Obj (U #f String))
 ;;   | doc m%
@@ -494,66 +472,3 @@
    ((string? obj) obj)
    ((symbol? obj) (symbol->string obj))
    (else (call-with-output-string "" (cut display obj <>)))))
-;; dedupe
-;;   : (forall (a) (-> (List a) (List a)))
-;;   | doc m%
-;;       `dedupe items` removes duplicate items while preserving the first
-;;       occurrence order.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (dedupe '(a b a c))
-;;       ;; => (a b c)
-;;       ```
-;;     %
-(def (dedupe items)
-  (let (state
-        (foldl (lambda (item state)
-                 (let ((seen (car state))
-                       (out (cdr state)))
-                   (if (member item seen)
-                     state
-                     (cons (cons item seen) (cons item out)))))
-               (cons '() '())
-               items))
-    (reverse (cdr state))))
-;; dedupe-strings
-;;   : (-> (List String) (List String))
-;;   | doc m%
-;;       `dedupe-strings items` removes duplicate strings while preserving the
-;;       first occurrence order.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (dedupe-strings '("src" "t" "src"))
-;;       ;; => ("src" "t")
-;;       ```
-;;     %
-(def (dedupe-strings items)
-  (let (state
-        (foldl (lambda (item state)
-                 (let ((seen (car state))
-                       (out (cdr state)))
-                   (if (string-list-member? item seen)
-                     state
-                     (cons (cons item seen) (cons item out)))))
-               (cons '() '())
-               items))
-    (reverse (cdr state))))
-;; string-list-member?
-;;   : (-> String (List String) Boolean)
-;;   | doc m%
-;;       `string-list-member? item items` returns `#t` when an equal string is
-;;       present in `items`.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (string-list-member? "src" '("src" "t"))
-;;       ;; => #t
-;;       ```
-;;     %
-(def (string-list-member? item items)
-  (find (lambda (candidate) (string=? item candidate)) items))

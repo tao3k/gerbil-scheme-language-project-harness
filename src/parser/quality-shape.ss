@@ -1,10 +1,16 @@
 ;;; -*- Gerbil -*-
 ;;; Parser-owned quality-shape facts derived from native call and control-flow facts.
+;;; Boundary: this module emits evidence packets only. Policy thresholds,
+;;; repair wording, and agent-facing severity stay outside the parser layer.
 
-(import :parser/model
+(import :gerbil/gambit
+        :parser/model
+        (only-in :parser/support datum-list-items)
+        (only-in :parser/syntax form-caller-name)
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/1 find)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
-        (only-in :std/sugar cut filter filter-map foldl ormap)
-        :support/list)
+        (only-in :std/sugar cut filter filter-map foldl ormap))
 
 (export predicate-family-facts-from-source
         field-access-pattern-facts-from-source
@@ -78,7 +84,7 @@
          (field-access-calls (filter field-access-call? family-calls))
          (condition-calls (filter condition-call? family-calls))
          (repeated-callees (repeated-call-callees family-calls))
-         (field-keys (unique-strings
+         (field-keys (unique
                       (filter identity (map call-field-key field-access-calls)))))
     (and (>= (length definitions) 3)
          (>= (length field-access-calls) 3)
@@ -101,10 +107,12 @@
           "extract field/role predicate helpers or a table-driven predicate combinator; preserve exported predicate names unless policy evidence permits"))))
 
 ;;; Field access facts expose repeated hash/field selectors independently from policy thresholds.
-;; : (-> Relpath Calls (List FieldAccessPatternFact) )
-(def (field-access-pattern-facts-from-source relpath calls)
-  (filter-map (cut field-access-pattern-fact-from-group relpath <>)
-              (field-access-groups calls)))
+;; : (-> Relpath Calls Definitions Forms (List FieldAccessPatternFact) )
+(def (field-access-pattern-facts-from-source relpath calls definitions form-datums)
+  (append
+   (filter-map (cut field-access-pattern-fact-from-group relpath <>)
+               (field-access-groups calls))
+   (inline-alist-access-facts-from-source relpath definitions form-datums)))
 
 ;;; Field accesses are grouped independently from predicate families so search,
 ;;; snapshot, and policy can each consume the same native fact without
@@ -140,7 +148,7 @@
 (def (field-access-pattern-fact-from-group relpath group)
   (let* ((field-key (car group))
          (calls (reverse (cdr group)))
-         (callers (unique-strings
+         (callers (unique
                    (filter identity (map call-fact-caller calls)))))
     (and (>= (length calls) 3)
          (make-field-access-pattern-fact
@@ -153,10 +161,133 @@
           field-key
           callers
           (length calls)
-          (unique-strings (map call-fact-callee calls))
+          (unique (map call-fact-callee calls))
           ["field-selector-helper-candidate"
            "predicate-family-combinator-drift"]
          "centralize repeated field access behind a small selector helper before adding more predicate branches"))))
+
+;;; Inline alist lookup facts catch generated `(cdr (assq ...))` access walls.
+;;; Detection walks native datum trees and skips quoted data; policy consumes
+;;; only the resulting FieldAccessPatternFact.
+;; : (-> Relpath Definitions Forms (List FieldAccessPatternFact) )
+(def (inline-alist-access-facts-from-source relpath definitions form-datums)
+  (filter-map (cut inline-alist-access-fact-from-group relpath <>)
+              (inline-alist-access-groups definitions form-datums)))
+
+;;; Grouping by key keeps repeated anonymous data-model access visible even
+;;; when it is spread across several helpers in one owner.
+;; : (-> Definitions Forms (List InlineAlistGroup) )
+(def (inline-alist-access-groups definitions form-datums)
+  (foldl add-inline-alist-entry '()
+         (apply append
+                (map (cut inline-alist-access-entries-from-datum
+                          definitions <>)
+                     form-datums))))
+
+;;; A definition-owned entry preserves the caller and selector span while the
+;;; alist key stays a compact field-key token.
+;; : (-> Definitions Datum (List InlineAlistEntry) )
+(def (inline-alist-access-entries-from-datum definitions datum)
+  (let* ((name (form-caller-name datum))
+         (definition (and name (definition-by-name definitions name))))
+    (if definition
+      (map (lambda (key)
+             (list key name definition))
+           (inline-alist-keys-from-datum datum))
+      [])))
+
+;;; The AST walk ignores quoted/syntax data so literal examples do not become
+;;; policy evidence.
+;; : (-> Datum (List FieldKey) )
+(def (inline-alist-keys-from-datum datum)
+  (cond
+   ((not (pair? datum)) [])
+   ((quoted-datum? datum) [])
+   (else
+    (append (if (inline-alist-lookup-datum? datum)
+              [(inline-alist-lookup-key datum)]
+              [])
+            (apply append
+                   (map inline-alist-keys-from-datum
+                        (datum-list-items datum)))))))
+
+;; : (-> Datum Boolean )
+(def (inline-alist-lookup-datum? datum)
+  (and (pair? datum)
+       (eq? (car datum) 'cdr)
+       (let (argument (and (pair? (cdr datum)) (cadr datum)))
+         (and (pair? argument)
+              (eq? (car argument) 'assq)))))
+
+;; : (-> Datum FieldKey )
+(def (inline-alist-lookup-key datum)
+  (let* ((argument (and (pair? (cdr datum)) (cadr datum)))
+         (key (and (pair? (cdr argument)) (cadr argument))))
+    (string-append "alist:"
+                   (cond
+                    ((and (pair? key)
+                          (eq? (car key) 'quote)
+                          (pair? (cdr key)))
+                     (quality-shape-datum->string (cadr key)))
+                    ((symbol? key) (symbol->string key))
+                    ((string? key) key)
+                    (else "<dynamic>")))))
+
+;;; Quoted alist keys use the Scheme printer so compound literal keys remain
+;;; distinct without inventing parser-local display syntax.
+;; : (-> Datum String)
+(def (quality-shape-datum->string datum)
+  (call-with-output-string []
+    (cut write datum <>)))
+
+;; : (-> InlineAlistEntry InlineAlistGroups InlineAlistGroups )
+(def (add-inline-alist-entry entry groups)
+  (let* ((key (car entry))
+         (prior (assoc key groups)))
+    (if prior
+      (cons (cons key (cons entry (cdr prior)))
+            (remove-inline-alist-group key groups))
+      (cons (cons key [entry]) groups))))
+
+;;; Accumulator invariant:
+;;; - Each inline alist field key has one bucket during fold grouping.
+;;; - Removing before re-cons keeps updates functional and deterministic.
+;; : (-> FieldKey InlineAlistGroups InlineAlistGroups )
+(def (remove-inline-alist-group key groups)
+  (filter (lambda (group) (not (equal? (car group) key))) groups))
+
+;; : (-> InlineAlistEntry Definition )
+(def (inline-alist-entry-definition entry)
+  (caddr entry))
+
+;; : (-> InlineAlistEntry CallerName )
+(def (inline-alist-entry-caller entry)
+  (cadr entry))
+
+;;; Materialization emits even a single passive fact so search can expose the
+;;; anonymous data-model shape. Policy owns the warning threshold.
+;; : (-> Relpath InlineAlistGroup FieldAccessPatternFact )
+(def (inline-alist-access-fact-from-group relpath group)
+  (let* ((field-key (car group))
+         (entries (reverse (cdr group)))
+         (definitions (map inline-alist-entry-definition entries))
+         (callers (unique (map inline-alist-entry-caller entries))))
+    (and (pair? entries)
+         (make-field-access-pattern-fact
+          (string-append "inline-alist-access:" field-key)
+          "field-access-pattern"
+          relpath
+          (earliest-definition-start definitions)
+          (latest-definition-end definitions)
+          "inline-alist-lookup"
+          field-key
+          callers
+          (length entries)
+          ["assq" "cdr"]
+          ["inline-alist-lookup-drift"
+           "anonymous-data-model"
+           "field-selector-helper-candidate"]
+          "replace repeated inline alist lookups with a record/defstruct, typed profile accessor, or one named lookup helper"))))
 
 ;;; Projection burst facts keep single-caller emit/projection walls visible.
 ;;; Policy later decides whether enough independent groups align for a warning.
@@ -207,7 +338,7 @@
          (calls (reverse (cdr group)))
          (access-calls (filter field-access-call? calls))
          (emitter-calls (filter projection-emitter-call? calls))
-         (field-keys (unique-strings
+         (field-keys (unique
                       (filter identity (map call-field-key access-calls)))))
     (and (>= (length access-calls)
              +projection-burst-native-min-access-count+)
@@ -224,18 +355,91 @@
           (length access-calls)
           (length field-keys)
           (length emitter-calls)
-          (unique-strings (map call-fact-callee access-calls))
-          (unique-strings (map call-fact-callee emitter-calls))
+          (unique (map call-fact-callee access-calls))
+          (unique (map call-fact-callee emitter-calls))
           ["emitter-projection-burst"
            "field-selector-helper-candidate"
            "list-builder-output-shape"]
           "separate field projection, line formatting, and output traversal before adding more hash-get/display scaffolding"))))
 
 ;;; Boolean condition facts keep individual predicate helpers queryable for repair payloads.
-;; : (-> Relpath Definitions Calls (List BooleanConditionFact) )
-(def (boolean-condition-facts-from-source relpath definitions calls)
-  (filter-map (cut boolean-condition-fact-from-definition relpath calls <>)
-              (filter predicate-definition? definitions)))
+;; : (-> Relpath Definitions Calls Forms (List BooleanConditionFact) )
+(def (boolean-condition-facts-from-source relpath definitions calls form-datums)
+  (append
+   (filter-map (cut boolean-condition-fact-from-definition relpath calls <>)
+               (filter predicate-definition? definitions))
+   (boolean-normalization-facts-from-source relpath definitions form-datums)))
+
+;;; Boolean normalization facts catch generated scaffold such as nested negation.
+;;; This is parser-owned evidence from native datum trees, not rendered source
+;;; or call-argument strings. The policy decides whether it is actionable.
+;; : (-> Relpath Definitions Forms (List BooleanConditionFact) )
+(def (boolean-normalization-facts-from-source relpath definitions form-datums)
+  (filter-map (cut boolean-normalization-fact-from-datum relpath definitions <>)
+              form-datums))
+
+;;; Evidence boundary: this AST walker isolates double-not scaffolds owned by
+;;; one definition before policy decides whether to warn.
+;; : (-> Relpath Definitions Datum BooleanConditionFact )
+(def (boolean-normalization-fact-from-datum relpath definitions datum)
+  (let* ((name (form-caller-name datum))
+         (definition (and name (definition-by-name definitions name)))
+         (normalization-count (nested-not-datum-count datum)))
+    (and definition
+         (> normalization-count 0)
+         (make-boolean-condition-fact
+          (string-append "boolean-normalization:" name)
+          "boolean-condition"
+          relpath
+          (definition-start definition)
+          (definition-end definition)
+          "boolean-normalization-scaffold"
+          name
+          (definition-formals definition)
+          ["not"]
+          []
+          normalization-count
+          ["boolean-normalization-drift"
+           "generated-scaffold-shape"
+           "expression-level-composition"]
+          "replace double negation with an explicit predicate/helper boundary or the underlying boolean expression"))))
+
+;;; Definition lookup preserves parser order and returns the original fact
+;;; object, so later evidence keeps the exact owner span instead of a copied
+;;; one-element filter result.
+;; : (-> Definitions DefinitionName (Maybe Definition) )
+(def (definition-by-name definitions name)
+  (find (lambda (definition)
+          (equal? (definition-name definition) name))
+        definitions))
+
+;;; The detector is an AST predicate: only an actual `(not (not ...))` datum
+;;; shape counts, and quoted/syntax data is skipped.
+;; : (-> Datum Nat )
+(def (nested-not-datum-count datum)
+  (cond
+   ((not (pair? datum)) 0)
+   ((quoted-datum? datum) 0)
+   (else
+    (+ (if (nested-not-datum? datum) 1 0)
+       (foldl (lambda (item count)
+                (+ count (nested-not-datum-count item)))
+              0
+              (datum-list-items datum))))))
+
+;; : (-> Datum Boolean )
+(def (nested-not-datum? datum)
+  (and (pair? datum)
+       (eq? (car datum) 'not)
+       (let (argument (and (pair? (cdr datum)) (cadr datum)))
+         (and (pair? argument)
+              (eq? (car argument) 'not)))))
+
+;; : (-> Datum Boolean )
+(def (quoted-datum? datum)
+  (and (pair? datum)
+       (member (car datum)
+               '(quote quasiquote syntax quote-syntax))))
 
 ;;; Individual condition facts keep predicate-level evidence available even
 ;;; when a family warning owns the repair decision.
@@ -257,15 +461,16 @@
           "predicate-condition"
           name
           (definition-formals definition)
-          (unique-strings (map call-fact-callee condition-calls))
-          (unique-strings
+          (unique (map call-fact-callee condition-calls))
+          (unique
            (filter identity (map call-field-key field-access-calls)))
           (+ (length condition-calls) (length field-access-calls))
           ["predicate-helper-candidate"]
           "keep this as a small expression-returning predicate or compose it through the predicate family helper"))))
 
-;;; Loop driver facts classify named-let facts so policies can distinguish pure transforms from real drivers.
-;; : (-> Relpath Calls HigherOrderFacts ControlFlowFacts (List LoopDriverFact) )
+;;; Boundary: loop-driver facts classify parser-owned control-flow evidence into
+;;; policy signals; they do not decide whether a named let should be rewritten.
+;; : (-> Relpath Calls (List HigherOrderFact) (List ControlFlowFact) (List LoopDriverFact) )
 (def (loop-driver-facts-from-source relpath calls higher-order-forms control-flow-forms)
   (map (cut loop-driver-fact-from-control-flow relpath calls higher-order-forms <>)
        (filter manual-loop-control-flow? control-flow-forms)))
@@ -443,15 +648,3 @@
            (max end (call-fact-end call)))
          (call-fact-end (car calls))
          (cdr calls)))
-
-;;; Order-preserving uniqueness keeps query keys predictable while allowing
-;;; parser facts to append evidence from several native sources.
-;; : (-> (List String) (List String) )
-(def (unique-strings values)
-  (reverse
-   (foldl (lambda (value out)
-            (if (member value out)
-              out
-              (cons value out)))
-          '()
-          values)))

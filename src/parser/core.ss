@@ -18,14 +18,23 @@
         :parser/syntax
         :parser/typed-contract
         (only-in :std/iter for/fold)
+        (only-in :std/misc/list unique)
         (only-in :std/misc/ports open-output-string read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-contains string-prefix? string-trim))
+        (only-in :std/srfi/1 take)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-index-right
+                 string-join
+                 string-prefix?
+                 string-suffix?
+                 string-trim))
 
 (export +source-extensions+
         +config-files+
         +ignored-dirs+
         collect-project
+        collect-project/files
         collect-project-package-only
         collect-source-files
         gerbil-source-path?
@@ -367,6 +376,26 @@
     (make-project-index root
                         (map (cut parse-source-file root <>) files)
                         package)))
+;; collect-project/files
+;;   : (-> String (List String) ProjectIndex)
+;;   | doc m%
+;;       `collect-project/files root paths` reads package metadata and parses
+;;       only the existing Gerbil/config files named by `paths`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (project-index-files (collect-project/files "." '("src/core.ss")))
+;;       ;; => changed source-file facts
+;;       ```
+;;     %
+(def (collect-project/files root paths)
+  (let* ((root (path-normalize root))
+         (package (read-project-package root))
+         (files (sort (changed-source-files root package paths) string<?)))
+    (make-project-index root
+                        (map (cut parse-source-file root <>) files)
+                        package)))
 ;; collect-project-package-only
 ;;   : (-> String ProjectIndex )
 ;;   | doc m%
@@ -402,12 +431,12 @@
                             (project-package-source-scope-policy package)))
          (source-roots (configured-source-roots scope-policy))
          (test-roots (configured-test-roots package))
-         (scan-roots (dedupe (append source-roots test-roots)))
+         (scan-roots (unique (append source-roots test-roots)))
          (ignored-dirs (append +ignored-dirs+
                                (if scope-policy
                                  (source-scope-policy-exclude-directories scope-policy)
                                  '()))))
-    (dedupe
+    (unique
      (map path-normalize
           (append (root-config-files root)
                   (apply append
@@ -417,6 +446,100 @@
                                     (walk-source-directory root path ignored-dirs)
                                     '())))
                               scan-roots)))))))
+
+;;; Changed-file indexing:
+;;; - Git reports paths relative to the workspace root.
+;;; - Changed mode validates reported paths directly against the same
+;;;   source-scope/exclude rules as full collection, without first walking the
+;;;   entire project.
+;;; - Deleted, non-source, generated, or otherwise out-of-scope files do not
+;;;   force a parse or produce policy noise.
+;;; - Parser ownership stays here instead of duplicated by the check command.
+;; : (-> Root MaybePackage (List Path) (List Path) )
+(def (changed-source-files root package paths)
+  (let* ((scope-policy (and package
+                            (project-package-source-scope-policy package)))
+         (source-roots (configured-source-roots scope-policy))
+         (test-roots (configured-test-roots package))
+         (scan-roots (unique (append source-roots test-roots)))
+         (ignored-dirs (append +ignored-dirs+
+                               (if scope-policy
+                                 (source-scope-policy-exclude-directories scope-policy)
+                                 '())))
+         (config-files (root-config-files root)))
+    (unique
+     (filter (lambda (path)
+               (changed-source-file? root scan-roots ignored-dirs config-files path))
+             (map (cut changed-source-full-path root <>)
+                  paths)))))
+
+;; : (-> Root Path Path )
+(def (changed-source-full-path root path)
+  (path-normalize (source-full-path root path)))
+;; : (-> Root (List String) IgnoredDirs ProjectFiles Path Boolean )
+(def (changed-source-file? root scan-roots ignored-dirs config-files path)
+  (and (file-exists? path)
+       (or (member path config-files)
+           (let (relpath (relative-path root path))
+             (and (gerbil-source-path? path)
+                  (path-under-scan-roots? relpath scan-roots)
+                  (not (path-under-ignored-directory? relpath ignored-dirs)))))))
+;;; Boundary: scan-root matching is a pure membership predicate over configured roots.
+;;; `ormap` plus `cut` keeps each root check independent and avoids reintroducing a manual loop in the changed-file hot path.
+;; : (-> Path (List String) Boolean )
+(def (path-under-scan-roots? relpath scan-roots)
+  (ormap (cut path-under-scan-root? relpath <>)
+         scan-roots))
+;; : (-> Path String Boolean )
+(def (path-under-scan-root? relpath root)
+  (let (root* (normalize-relative-rule-path root))
+    (or (equal? root* ".")
+        (equal? relpath root*)
+        (string-prefix? (string-append root* "/") relpath))))
+;;; Boundary: ignore matching is a pure membership predicate over configured directory rules.
+;;; The combinator form preserves short-circuit behavior while keeping scoped and segment rules in one owner.
+;; : (-> Path IgnoredDirs Boolean )
+(def (path-under-ignored-directory? relpath ignored-dirs)
+  (ormap (cut path-matches-ignored-directory? relpath <>)
+         ignored-dirs))
+;; : (-> Path String Boolean )
+(def (path-matches-ignored-directory? relpath ignored)
+  (let (ignored* (normalize-relative-rule-path ignored))
+    (or (path-under-scan-root? relpath ignored*)
+        (and (not (string-contains ignored* "/"))
+             (or (string-prefix? (string-append ignored* "/") relpath)
+                 (string-contains relpath (string-append "/" ignored* "/"))
+                 (string-suffix? (string-append "/" ignored*) relpath))))))
+;;; Package source-scope rules are relative to the workspace. `path-normalize`
+;;; expands them to absolute paths, which breaks comparison with parser relpaths.
+;; normalize-relative-rule-path
+;;   : (-> String String)
+;;   | doc m%
+;;       `normalize-relative-rule-path path` preserves source-scope rule paths as
+;;       workspace-relative match keys while trimming spelling that would make
+;;       equivalent rules compare differently.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (normalize-relative-rule-path "./src/")
+;;       ;; => "src"
+;;       ```
+;;     %
+(def (normalize-relative-rule-path path)
+  (let* ((path* (strip-leading-dot-slash path))
+         (last-path-char
+          (string-index-right path*
+                              (lambda (char)
+                                (not (char=? char #\/))))))
+    (if last-path-char
+      (substring path* 0 (fx1+ last-path-char))
+      ".")))
+;; : (-> String String )
+(def (strip-leading-dot-slash path)
+  (if (string-prefix? "./" path)
+    (substring path 2 (string-length path))
+    path))
 ;; : (-> Policy (List String) )
 (def (configured-source-roots policy)
   (let (roots (and policy (source-scope-policy-roots policy)))
@@ -511,9 +634,28 @@
 ;;       ```
 ;;     %
 (def (source-line-count path)
+  (length (read-source-lines path)))
+
+;;; Boundary:
+;;; - :std/misc/ports owns file IO; this helper is only the parser's safe
+;;;   failure boundary so hot paths can share one read-file-lines result.
+;; read-source-lines
+;;   : (-> String (List SourceLine))
+;;   | doc m%
+;;       `read-source-lines path` reads source lines once for parser hot paths,
+;;       returning `()` when the file cannot be read.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (list? (read-source-lines "src/parser/core.ss"))
+;;       ;; => #t
+;;       ```
+;;     %
+(def (read-source-lines path)
   (with-catch
-   (lambda (_) 0)
-   (lambda () (length (read-file-lines path)))))
+   (lambda (_) '())
+   (lambda () (read-file-lines path))))
 ;; read-native-forms
 ;;   : (-> String NativeFormsRead)
 ;;   | doc m%
@@ -528,13 +670,29 @@
 ;;       ```
 ;;     %
 (def (read-native-forms path)
+  (read-native-forms/lines path (read-source-lines path)))
+
+;; read-native-forms/lines
+;;   : (-> String (List SourceLine) NativeFormsRead)
+;;   | doc m%
+;;       `read-native-forms/lines path lines` reads native syntax forms while
+;;       reusing the source lines already read by `parse-source-file`.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (vector? (read-native-forms/lines "build.ss" (read-source-lines "build.ss")))
+;;       ;; => #t
+;;       ```
+;;     %
+(def (read-native-forms/lines path lines)
   (with-catch
    (lambda (exn)
      (vector '() (exception->string exn) #f #f #f))
    (lambda ()
      (if (member (path-extension path) +source-extensions+)
-       (if (file-starts-with-lang? path)
-         (read-lang-syntax-forms path)
+       (if (file-starts-with-lang?/lines lines)
+         (read-lang-syntax-forms/lines path lines)
          (read-syntax-forms path))
        (read-syntax-forms path)))))
 ;; read-syntax-forms
@@ -570,8 +728,16 @@
 ;;       ```
 ;;     %
 (def (read-lang-syntax-forms path)
-  (let* ((lines (read-file-lines path))
-         (body-text (join-lines (cdr lines)))
+  (read-lang-syntax-forms/lines path (read-source-lines path)))
+
+;;; Reader boundary:
+;;; - `call-with-input-string` owns the transient port lifetime for #lang body text.
+;;; - The loop is intentionally EOF-driven because `read-syntax` is an input
+;;;   protocol, not a pure list transform.
+;; : (-> String (List SourceLine) NativeFormsRead )
+(def (read-lang-syntax-forms/lines path lines)
+  (let* ((body-lines (if (pair? lines) (cdr lines) '()))
+         (body-text (string-join body-lines "\n"))
          (forms
          (call-with-input-string body-text
            (lambda (port)
@@ -598,11 +764,17 @@
 ;;       ```
 ;;     %
 (def (file-starts-with-lang? path)
+  (file-starts-with-lang?/lines (read-source-lines path)))
+
+;;; Probe boundary: malformed or unreadable leading text is treated as "not
+;;; #lang" so source classification never turns a cheap prelude check into a
+;;; parser error.
+;; : (-> (List SourceLine) Boolean )
+(def (file-starts-with-lang?/lines lines)
   (with-catch
    (lambda (_) #f)
    (lambda ()
-     (let (lines (read-file-lines path))
-       (and (pair? lines) (string-prefix? "#lang" (car lines)))))))
+     (and (pair? lines) (string-prefix? "#lang" (car lines))))))
 ;; file-has-non-core-prelude?
 ;;   : (-> String Boolean)
 ;;   | doc m%
@@ -624,7 +796,8 @@
       (lambda (line)
         (and (string-prefix? "prelude:" (string-trim line))
              (not (string-contains line ":gerbil/core"))))
-      (take* (read-file-lines path) 12)))))
+      (let (lines (read-file-lines path))
+        (take lines (min 12 (length lines))))))))
 ;; parse-source-file
 ;;   : (-> String String SourceFile)
 ;;   | doc m%
@@ -642,9 +815,11 @@
 (def (parse-source-file root path)
   (let* ((fullpath (source-full-path root path))
          (relpath (relative-path root fullpath))
-         (line-count (source-line-count fullpath))
-         (read-result (read-native-forms fullpath))
+         (source-lines (read-source-lines fullpath))
+         (line-count (length source-lines))
+         (read-result (read-native-forms/lines fullpath source-lines))
          (forms (vector-ref read-result 0))
+         (form-datums (map syntax->datum forms))
          (parse-error (vector-ref read-result 1))
          (initial-package (vector-ref read-result 2))
          (initial-prelude (vector-ref read-result 3))
@@ -753,15 +928,23 @@
             (ordered-control-flow-forms (reverse control-flow-forms))
             (ordered-dependency-adapter-candidates
              (reverse dependency-adapter-candidates)))
-        (let* ((ordered-exports (dedupe exports))
+        (let* ((ordered-exports (unique exports))
                (predicate-family-facts
                 (predicate-family-facts-from-source relpath ordered-definitions ordered-calls))
                (field-access-pattern-facts
-                (field-access-pattern-facts-from-source relpath ordered-calls))
+                (field-access-pattern-facts-from-source
+                 relpath
+                 ordered-calls
+                 ordered-definitions
+                 form-datums))
                (projection-burst-facts
                 (projection-burst-facts-from-source relpath ordered-calls))
                (boolean-condition-facts
-                (boolean-condition-facts-from-source relpath ordered-definitions ordered-calls))
+                (boolean-condition-facts-from-source
+                 relpath
+                 ordered-definitions
+                 ordered-calls
+                 form-datums))
                (loop-driver-facts
                 (loop-driver-facts-from-source relpath
                                                ordered-calls
@@ -773,14 +956,14 @@
                  ordered-dependency-adapter-candidates
                  (reverse module-imports)))
                (typed-contract-facts
-                (typed-contract-facts-from-definitions
-                 fullpath relpath ordered-definitions
+                (typed-contract-facts-from-lines
+                 source-lines relpath ordered-definitions
                  ordered-calls
                  ordered-higher-order-forms
                  ordered-control-flow-forms))
                (comment-quality-facts
-                (comment-quality-facts-from-source
-                 fullpath relpath ordered-definitions
+                (comment-quality-facts-from-lines
+                 source-lines relpath ordered-definitions
                  ordered-macros
                  ordered-poo-forms
                  ordered-higher-order-forms
@@ -800,7 +983,7 @@
                  ordered-macros
                  ordered-poo-forms)))
           (make-source-file relpath line-count package prelude namespace
-                            (dedupe imports) ordered-exports (dedupe includes)
+                            (unique imports) ordered-exports (unique includes)
                             ordered-definitions ordered-calls
                             (reverse top-forms)
                             (reverse module-imports)

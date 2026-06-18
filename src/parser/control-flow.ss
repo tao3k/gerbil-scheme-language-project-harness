@@ -4,7 +4,9 @@
 (import :gerbil/expander
         :parser/model
         :parser/support
-        :parser/syntax)
+        :parser/syntax
+        (only-in :std/misc/list unique)
+        (only-in :std/srfi/1 drop))
 
 (export control-flow-facts-from-form
         control-flow-quality-facets)
@@ -186,7 +188,7 @@
 ;;; - Keep this expression-level filter so every facet remains visibly tied to one control-flow role.
 ;; : (-> ControlFlowFact (List QualityFacet) )
 (def (control-flow-quality-facets fact)
-  (dedupe
+  (unique
    (filter identity
            [(and (member (control-flow-fact-role fact)
                          '("protected-control" "cleanup-boundary"
@@ -237,4 +239,6 @@
                             "pattern-branch"
                             caller
                             0
-                            (length (drop* items 2)))))
+                            (length (if (>= (length items) 2)
+                                      (drop items 2)
+                                      '())))))

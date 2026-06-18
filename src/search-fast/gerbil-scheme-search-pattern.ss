@@ -2,7 +2,8 @@
 ;;; Fast pattern search packet emitter for Gerbil POO guidance.
 ;;; Keeps startup dependency-light so pattern lookup stays below agent latency budget.
 ;;; Leaves protocol rows explicit because agents depend on stable line-oriented fields.
-(import :gerbil/gambit)
+(import :gerbil/gambit
+        (only-in :std/srfi/13 string-join string-suffix?))
 (export main)
 
 ;; : (-> Unit String )
@@ -32,17 +33,6 @@
 (def (positional-args args)
   (collect-positional-args args '()))
 
-;;; Invariant: insert the separator only between retained positional terms.
-;; : (-> (List String) String String )
-(def (join strings sep)
-  (if (null? strings)
-    ""
-    (apply string-append
-           (cons (car strings)
-                 (map (lambda (string)
-                        (string-append sep string))
-                      (cdr strings))))))
-
 ;; : (-> String Boolean )
 (def (identity-token? term)
   (or (equal? term "gerbil-poo")
@@ -55,9 +45,7 @@
 ;; : (-> MaybePathString Boolean )
 (def (source-script-path? value)
   (and (string? value)
-       (let (length (string-length value))
-         (and (fx>= length 3)
-              (equal? (substring value (- length 3) length) ".ss")))))
+       (string-suffix? ".ss" value)))
 
 ;; : (-> Unit (List String) )
 (def (entry-args)
@@ -72,7 +60,7 @@
 ;; : (-> (List String) String )
 (def (focus terms)
   (let (rest (filter (lambda (term) (not (identity-token? term))) terms))
-    (if (null? rest) "usage" (join rest " "))))
+    (if (null? rest) "usage" (string-join rest " "))))
 
 ;; : (-> Unit Unit )
 (def (emit-common-source-lookup)
@@ -201,7 +189,7 @@
             (cdr args)
             args))
          (terms (positional-args raw-pattern-args))
-         (query (if (null? terms) "-" (join terms " ")))
+         (query (if (null? terms) "-" (string-join terms " ")))
          (pattern-focus (focus terms)))
     (if (has-term? terms "rationaldict")
       (emit-rationaldict-pattern query pattern-focus)

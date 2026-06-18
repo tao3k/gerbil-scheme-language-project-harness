@@ -1,12 +1,13 @@
 ;;; -*- Gerbil -*-
 ;;; Lightweight parser-owned workspace scope renderer.
 
-(import :parser/facade
+(import (only-in :commands/search-render join-or-dash)
+        :parser/facade
         :protocol/json
         :protocol/workspace-scope
         :support/io
-        :support/list
-        (only-in :std/sort sort))
+        (only-in :std/sort sort)
+        (only-in :std/srfi/1 take))
 
 (export emit-workspace-scope)
 
@@ -65,11 +66,5 @@
         [(line-field "path" (hash-get file 'path))
          (line-field "sourceClass" (hash-get file 'sourceClass))
          (line-field "sourceKind" (hash-get file 'sourceKind))]))
-     (take* files +workspace-scope-preview-limit+))
+     (take files (min +workspace-scope-preview-limit+ (length files))))
     (emit-text-line "nextCommand=asp cache source-index refresh")))
-
-;; : (-> (List String) String )
-(def (join-or-dash values)
-  (if (null? values)
-    "-"
-    (join values ",")))

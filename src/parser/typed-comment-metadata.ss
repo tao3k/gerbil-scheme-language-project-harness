@@ -1,16 +1,17 @@
 ;;; -*- Gerbil -*-
-;;; Scheme-native typed comment metadata extraction.
+;;; Gerbil contract projection metadata extraction.
 
 (import :gerbil/gambit
+        :parser/runtime-contract
         :parser/typed-contract-scheme
         (only-in :std/srfi/13
                  string-contains
                  string-join
                  string-prefix?
                  string-trim)
+        (only-in :std/misc/list unique)
         (only-in :std/srfi/1 drop-right iota last take-while)
-        (only-in :std/sugar filter filter-map find foldl hash ormap)
-        :support/list)
+        (only-in :std/sugar filter filter-map find foldl hash ormap))
 
 (export typed-comment-empty-metadata
         typed-comment-metadata
@@ -59,9 +60,9 @@
   (let* ((leading-entry (typed-comment-leading-name-entry block signature-start))
          (sections (typed-comment-section-groups section-entries)))
     (hash (kind "typed-comment")
-          (syntax "scheme-native")
-          (blockStyle "scheme-native-block")
-          (fullForm (not (not leading-entry)))
+          (syntax "gerbil-contract-projection")
+          (blockStyle "gerbil-contract-block")
+          (fullForm (if leading-entry #t #f))
           (leadingName (and leading-entry (string-trim (cadr leading-entry))))
           (leadingNameMatchesDefinition #f)
           (signature signature)
@@ -108,7 +109,7 @@
 ;;       metadata into compact quality facets for existing policy consumers.
 ;;     %
 (def (typed-comment-section-facets entries)
-  (dedupe
+  (unique
    (apply append
           (map typed-comment-section-group-facets
                (typed-comment-section-groups entries)))))
@@ -126,7 +127,7 @@
 ;;   : (-> TypedCommentText SignatureContract)
 ;;   | doc m%
 ;;       `typed-comment-strip-signature-marker text` removes the leading `:`
-;;       marker from a Scheme-native signature line.
+;;       marker from a Gerbil contract projection signature line.
 ;;     %
 (def (typed-comment-strip-signature-marker text)
   (string-trim
@@ -260,7 +261,9 @@
                (expression expression)
                (expressionType
                 (scheme-type-expression-text-json expression parameters))
-               (refinement (not (not (string-contains expression "Refine")))))))))
+               (refinement (if (string-contains expression "Refine")
+                             #t
+                             #f)))))))
 
 ;;; Boundary:
 ;;; - Doc metadata remains parser-owned and section-local.
@@ -476,7 +479,7 @@
 
 ;; : (-> Json Boolean)
 (def (typed-comment-doc-example-has-expected-result? example)
-  (not (not (hash-get example 'hasExpectedResult))))
+  (if (hash-get example 'hasExpectedResult) #t #f))
 
 ;; : (-> SectionLine Boolean)
 (def (typed-comment-doc-examples-heading? line)

@@ -31,7 +31,7 @@
              (snapshot (search-prime-snapshot index))
              (expected (snapshot-load "t/snapshots/poo-search-prime-packet.ss")))
         (check snapshot => expected)))
-    (test-case "poo pattern specs are static keyword records"
+    (test-case "poo pattern specs are static POO objects"
       (check (poo-pattern-id 'object-system) => "poo-object-system")
       (check (poo-pattern-id 'prototype-composition)
              => "poo-prototype-composition")

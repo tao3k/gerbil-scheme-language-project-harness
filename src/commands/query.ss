@@ -6,12 +6,15 @@
 
 (import :extensions/facade
         :parser/facade
+        (only-in :parser/owner-items
+                 owner-items-source-path?
+                 parse-owner-items-source-file)
         :parser/query
         :protocol/json
         (only-in :std/sugar unless)
+        (only-in :std/srfi/13 string-join)
         :support/args
-        :support/io
-        :support/list)
+        :support/io)
 
 (export query-main)
 ;; query-main
@@ -64,9 +67,7 @@
                            " workspace="
                            workspace)
                 2)
-              (let* ((index (collect-project workspace))
-                     (file (find-owner index owner)))
-                (unless file (error "owner not found" owner))
+              (let* ((file (query-owner-source-file workspace owner)))
                 (let (matches (matching-definitions (source-file-definitions file) terms))
                   (cond
                    (json?
@@ -84,6 +85,17 @@
 ;; : (-> ProjectIndex String Boolean )
 (def (owner-path-exists? workspace owner)
   (file-exists? (path-expand owner workspace)))
+;;; Boundary:
+;;; - Owner term queries share the same explicit owner parser as search owner.
+;;; - This keeps path normalization parser-owned and avoids full-project
+;;;   indexing before a single-owner query.
+;; : (-> ProjectRoot OwnerPath SourceFile )
+(def (query-owner-source-file workspace owner)
+  (let* ((root (path-normalize (path-expand workspace)))
+         (path (path-expand owner root)))
+    (unless (and (owner-items-source-path? path) (file-exists? path))
+      (error "owner not found" owner))
+    (parse-owner-items-source-file root path)))
 ;; emit-owner-items
 ;;   : (-> SourceFile (List Definition) Unit)
 ;;   | doc m%
@@ -111,7 +123,7 @@
 ;;; - gerbil-poo:// is registered knowledge, not a workspace activation fallback.
 ;; : (-> Terms Boolean Unit )
 (def (emit-registered-poo-query-route terms json?)
-  (let* ((query (join terms " "))
+  (let* ((query (string-join terms " "))
          (pattern-next (string-append "search pattern gerbil-poo "
                                       (registered-poo-query-focus terms)))
          (extension-command

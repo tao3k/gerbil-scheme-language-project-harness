@@ -5,6 +5,7 @@
         :policy/detection
         :policy/model
         :policy/poo-source
+        (only-in :std/srfi/1 count)
         (only-in :std/srfi/13 string-contains string-prefix? string-suffix?)
         (only-in :std/sugar cut filter filter-map hash ormap)
         :types/findings)
@@ -389,6 +390,5 @@
 ;;; - Counting the matched subset keeps scoring independent from marker order.
 ;; : (-> String Integer )
 (def (string-shell-control-marker-count text)
-  (length
-   (filter (cut string-contains text <>)
-           +shell-control-literal-markers+)))
+  (count (cut string-contains text <>)
+         +shell-control-literal-markers+))

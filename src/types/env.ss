@@ -2,7 +2,8 @@
 ;;; Type environment facts derived from parser-owned definitions.
 
 (import :parser/facade
-        (only-in :std/sugar append-map cut filter-map foldl foldr)
+        (only-in :std/srfi/1 append-map)
+        (only-in :std/sugar cut filter-map foldl foldr)
         :types/model
         :types/signatures)
 
@@ -33,22 +34,52 @@
 (def (build-type-env index)
   (build-type-env/signatures index '()))
 ;;; Boundary:
-;;; - build-type-env/signatures composes first-class procedures.
-;;; - Keep data-flow evidence visible.
+;;; - External signatures keep priority, then parser-owned typed contracts fill gaps.
+;;; - Type facts therefore work in ordinary projects without a separate signature file.
 ;; : (-> ProjectIndex NativeSignatures TypeSpec )
 (def (build-type-env/signatures index signatures)
-  (map (cut definition->type-binding <> signatures)
-       (project-definitions index)))
+  (let (native-signatures (project-native-signatures index signatures))
+    (map (cut definition->type-binding <> native-signatures)
+         (project-definitions index))))
 ;; : (-> ProjectIndex TypeSpec )
 (def (build-param-type-env index)
   (build-param-type-env/signatures index '()))
 ;;; Boundary:
-;;; - build-param-type-env/signatures composes first-class procedures.
-;;; - Keep data-flow evidence visible.
+;;; - Parameter bindings use the same merged signature surface as function types.
+;;; - This keeps checker argument facts aligned with source-local `;; :` contracts.
 ;; : (-> ProjectIndex NativeSignatures TypeSpec )
 (def (build-param-type-env/signatures index signatures)
-  (append-map (cut definition->param-type-bindings <> signatures)
-              (project-definitions index)))
+  (let (native-signatures (project-native-signatures index signatures))
+    (append-map (cut definition->param-type-bindings
+                     <> native-signatures)
+                (project-definitions index))))
+
+;;; Boundary:
+;;; - Project typed contracts are parser-owned signatures.
+;;; - Caller-provided signatures are prepended so tests/tools can override fixtures explicitly.
+;; : (-> ProjectIndex NativeSignatures NativeSignatures )
+(def (project-native-signatures index signatures)
+  (append signatures (typed-contract-signatures index)))
+
+;;; Boundary:
+;;; - typed-contract-signatures projects valid contract facts into TypeSpec entries.
+;;; - Invalid comments remain policy evidence and do not feed checker assumptions.
+;; : (-> ProjectIndex NativeSignatures )
+(def (typed-contract-signatures index)
+  (filter-map typed-contract-fact->signature
+              (project-typed-contract-facts index)))
+
+;; : (-> TypedContractFact (Maybe TypeSignature) )
+(def (typed-contract-fact->signature fact)
+  (and (typed-contract-fact-signature-usable? fact)
+       (cons (typed-contract-fact-definition-name fact)
+             (parse-type-contract (typed-contract-fact-contract fact)))))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-contract-fact-signature-usable? fact)
+  (and (typed-contract-fact-definition-name fact)
+       (typed-contract-fact-contract fact)
+       (not (equal? (typed-contract-fact-quality fact) "invalid"))))
 ;; : (-> Definition NativeSignatures TypeSpec )
 (def (definition->type-binding defn signatures)
   (make-type-binding (definition-name defn)
@@ -83,21 +114,22 @@
          '()))
       (else '()))))
 ;;; Invariant:
-;;; - param-bindings owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
+;;; - param-bindings aligns formals and parameter types without allocating an
+;;;   intermediate pair list.
+;;; - Filtering remains tied to the aligned slot so unknown/any parameters do
+;;;   not shift later bindings.
 ;; : (-> Definition Formals ParamTypes (List BindingFact) )
 (def (param-bindings defn formals param-types)
   (filter-map
-   (lambda (param)
-     (let ((name (car param))
-           (type (cdr param)))
-       (and (useful-param-type? type)
-            (make-type-param-binding (definition-name defn)
-                                     name
-                                     type
-                                     (definition-path defn)
-                                     (definition-selector defn)))))
-   (map cons formals param-types)))
+   (lambda (name type)
+     (and (useful-param-type? type)
+          (make-type-param-binding (definition-name defn)
+                                   name
+                                   type
+                                   (definition-path defn)
+                                   (definition-selector defn))))
+   formals
+   param-types))
 ;; : (-> Type Boolean )
 (def (useful-param-type? type)
   (not (member (type-kind type) '(unknown any))))
@@ -107,12 +139,6 @@
 ;; : (-> Type Integer TypeSpec )
 (def (repeat-type type count)
   (make-list count type))
-;;; Invariant:
-;;; - append-map owns branch/iteration semantics.
-;;; - Preserve exit conditions and fallback order.
-;; : (forall (a b) (-> (-> a (List b)) (List a) (List b)) )
-(def (append-map fn items)
-  (foldr (lambda (item out) (append (fn item) out)) '() items))
 ;;; Boundary:
 ;;; - duplicate-type-bindings is a keyed fold over path/name/kind triples.
 ;;; - State keeps seen bindings and duplicate pairs separate for repair output.

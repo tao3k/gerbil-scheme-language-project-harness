@@ -4,7 +4,7 @@
 (import :parser/facade
         :policy/agent-support
         :policy/model
-        (only-in :std/srfi/13 string-contains string-prefix?)
+        (only-in :std/srfi/13 string-contains string-join string-prefix?)
         (only-in :std/sugar filter filter-map hash ormap)
         :types/findings)
 
@@ -182,7 +182,7 @@
    (source-file-path file)
    (string-append "POO method " (poo-form-fact-name fact)
                   " is missing parser-owned "
-                  (join-missing missing)
+                  (string-join missing ",")
                   " facts; query POO pattern evidence and add defgeneric/defclass/defprotocol structure before extending methods")
    (poo-form-fact-selector fact)
    (hash (generic (or (poo-form-fact-generic fact) ""))
