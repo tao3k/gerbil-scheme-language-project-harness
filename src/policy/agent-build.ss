@@ -39,6 +39,10 @@
 (def +package-build-native-build-modules+
   '(":std/build-script" ":std/make"))
 
+;; (List IncludePath)
+(def +package-build-provider-build-includes+
+  '("build-support/provider-build.ss"))
+
 ;; (List CalleeName)
 (def +package-build-spec-callees+
   '("defbuild-script" "make" "make-clean"))
@@ -107,20 +111,25 @@
          (native-build-definition
           (find package-build-native-build-definition?
                 (source-file-definitions file)))
+         (provider-build-include
+          (find package-build-provider-build-include?
+                (source-file-includes file)))
          (main-definition
           (find package-build-main-definition?
                 (source-file-definitions file))))
     (and (not (and native-import
-                   (or build-call native-build-definition)))
+                   (or build-call
+                       native-build-definition
+                       provider-build-include)))
          (make-type-finding
           (policy-rule-id +agent-package-build-canonical-shape-rule+)
           (policy-rule-severity +agent-package-build-canonical-shape-rule+)
           (source-file-path file)
           "package-level build.ss is not using the native Gerbil build-script/make shape; use (only-in :std/build-script defbuild-script) with defbuild-script for simple packages, or :std/make make/make-clean over an explicit build spec for intermediate scripts"
           (package-build-canonical-shape-selector
-           file native-import build-call manual-call native-build-definition main-definition)
+           file native-import build-call manual-call native-build-definition provider-build-include main-definition)
           (package-build-canonical-shape-details
-           native-import build-call manual-call native-build-definition main-definition)))))
+           native-import build-call manual-call native-build-definition provider-build-include main-definition)))))
 
 ;; : (-> ModuleImportFact Boolean )
 (def (package-build-native-build-import? fact)
@@ -150,7 +159,13 @@
 ;; : (-> DefinitionFact Boolean )
 (def (package-build-native-build-definition? definition)
   (member (definition-name definition)
-          '("provider-build-spec" "make-provider!" "clean-provider!")))
+          '("provider-build-spec" "make-provider!" "clean-provider!"
+            "provider-build-stages" "provider-build-stage-ref"
+            "run-provider-build-stage!")))
+
+;; : (-> IncludePath Boolean )
+(def (package-build-provider-build-include? include)
+  (member include +package-build-provider-build-includes+))
 
 ;;; Risk boundary:
 ;;; - Compiler executables inside process calls are manual dispatch evidence.
@@ -175,8 +190,8 @@
 (def (package-build-main-definition? definition)
   (equal? (definition-name definition) "main"))
 
-;; : (-> PackageBuildFile MaybeModuleImportFact MaybeCallFact MaybeCallFact MaybeDefinitionFact MaybeDefinitionFact Selector )
-(def (package-build-canonical-shape-selector file native-import build-call manual-call native-build-definition main-definition)
+;; : (-> PackageBuildFile MaybeModuleImportFact MaybeCallFact MaybeCallFact MaybeDefinitionFact MaybeIncludePath MaybeDefinitionFact Selector )
+(def (package-build-canonical-shape-selector file native-import build-call manual-call native-build-definition provider-build-include main-definition)
   (cond
    (manual-call (call-fact-selector manual-call))
    (main-definition (definition-selector main-definition))
@@ -187,8 +202,8 @@
 
 ;;; Details keep source provenance explicit so an agent can repair toward the
 ;;; upstream Gerbil pattern rather than inventing a local mini build system.
-;; : (-> MaybeModuleImportFact MaybeCallFact MaybeCallFact MaybeDefinitionFact MaybeDefinitionFact PolicyDetails )
-(def (package-build-canonical-shape-details native-import build-call manual-call native-build-definition main-definition)
+;; : (-> MaybeModuleImportFact MaybeCallFact MaybeCallFact MaybeDefinitionFact MaybeIncludePath MaybeDefinitionFact PolicyDetails )
+(def (package-build-canonical-shape-details native-import build-call manual-call native-build-definition provider-build-include main-definition)
   (hash (kind "package-build-canonical-shape")
         (nativeBuildImport
          (and native-import (module-import-fact-module native-import)))
@@ -199,23 +214,28 @@
         (nativeBuildDefinition
          (and native-build-definition
               (definition-name native-build-definition)))
+        (providerBuildInclude provider-build-include)
         (manualCompilerDispatch
          (and manual-call (call-fact-callee manual-call)))
         (handWrittenMain
          (and main-definition (definition-name main-definition)))
         (allowedShape
-         "simple build.ss: (only-in :std/build-script defbuild-script) plus defbuild-script; intermediate build.ss: :std/make make/make-clean over an explicit build spec")
+         "simple build.ss: (only-in :std/build-script defbuild-script) plus defbuild-script; intermediate build.ss: :std/make make/make-clean over an explicit build spec plus a small stage table for provider-specific commands")
+        (compositionalBuildShape
+         "use named stage descriptors for compile/full/native/test commands; each stage should delegate wrapper/runtime materialization to build-support or src owners")
+        (downstreamRepairPattern
+         "keep build.ss as the package build control plane, route compilation through defbuild-script or :std/make, and move command/runtime behavior into composable stage helpers")
         (disallowedShape
-         "hand-written compiler/process orchestration that replaces defbuild-script or make build specs")
+         "hand-written compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces defbuild-script, make build specs, or stage descriptors")
         (sourceEvidence
          [".data/gerbil/doc/reference/dev/build.md:20-60"
           ".data/gerbil/doc/reference/std/make.md:32-52"
           ".data/gerbil/src/std/build-script.ss:1-35"
           ".data/gerbil/src/lang/build.ss:1-20"])
         (nativeFactSource
-         "parser-owned moduleImportFacts plus callFacts and definitionFacts")
+         "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
         (next
-         "replace manual compiler dispatch with defbuild-script or :std/make make/make-clean; keep provider wrapper generation delegated to build-support")))
+         "replace manual compiler dispatch with defbuild-script or :std/make make/make-clean; for provider builds add a small stage table and keep wrapper/runtime generation delegated to build-support")))
 
 ;;; Finding contract:
 ;;; - Evidence comes from parser-owned call arguments, not raw grep.
