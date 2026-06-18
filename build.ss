@@ -758,6 +758,7 @@
             (static-provider-source-files)))
 
 (def (run-provider-tests!)
+  (compile-native-fast-cli!)
   (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
   (setenv "GERBIL_LOADPATH"
           (string-join
@@ -769,40 +770,100 @@
       (error "no top-level Gerbil test files found")
       (invoke "gxtest" tests))))
 
+;;; Build stage descriptor:
+;;; - `run-build!` owns command dispatch, but each provider stage owns only one
+;;;   build concern.
+;;; - The table mirrors std/build-script's command surface while keeping native
+;;;   provider stages explicit for downstream harnesses.
+;; : (-> CommandName BuildStageAction ProviderBuildStage )
+(defstruct provider-build-stage (name action))
+
+;; (List BuildCommand)
+(def +provider-build-command-names+
+  ["spec" "compile" "full" "native" "native-link"
+   "native-full" "native-full-link" "native-diagnose" "clean" "test"])
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-spec-stage! args)
+  (pretty-print (provider-build-spec)))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-clean-stage! args)
+  (clean-provider!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-native-stage! args)
+  (parse-build-options args)
+  (compile-native-fast-cli!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-full-stage! args)
+  (parse-build-options args)
+  (refresh-static-provider-artifacts!)
+  (compile-native-fast-cli!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-native-link-stage! args)
+  (compile-native-fast-cli!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-native-full-stage! args)
+  (parse-build-options args)
+  (refresh-static-provider-artifacts!)
+  (compile-full-native-cli!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-native-full-link-stage! args)
+  (compile-full-native-cli!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-native-diagnose-stage! args)
+  (run-native-diagnose!))
+
+;; : (-> BuildArgs Unit )
+(def (run-provider-test-stage! args)
+  (run-provider-tests!))
+
+;;; Stage table:
+;;; - Adding a downstream provider command should add one descriptor here.
+;;; - Command actions receive only their trailing arguments, which keeps option
+;;;   parsing local to stages that accept compiler flags.
+;; : (-> (List ProviderBuildStage) )
+(def (provider-build-stages)
+  [(make-provider-build-stage "spec" run-provider-spec-stage!)
+   (make-provider-build-stage "clean" run-provider-clean-stage!)
+   (make-provider-build-stage "compile" run-provider-native-stage!)
+   (make-provider-build-stage "native" run-provider-native-stage!)
+   (make-provider-build-stage "full" run-provider-full-stage!)
+   (make-provider-build-stage "native-link" run-provider-native-link-stage!)
+   (make-provider-build-stage "native-full" run-provider-native-full-stage!)
+   (make-provider-build-stage "native-full-link"
+                              run-provider-native-full-link-stage!)
+   (make-provider-build-stage "native-diagnose"
+                              run-provider-native-diagnose-stage!)
+   (make-provider-build-stage "test" run-provider-test-stage!)])
+
+;; : (-> CommandName MaybeProviderBuildStage )
+(def (provider-build-stage-ref name)
+  (find (lambda (stage)
+          (equal? (provider-build-stage-name stage) name))
+        (provider-build-stages)))
+
+;; : (-> ProviderBuildStage BuildArgs Unit )
+(def (run-provider-build-stage! stage args)
+  ((provider-build-stage-action stage) args))
+
 (def (run-build! args)
   (cond
    ((null? args) (make-provider! '()))
    ((equal? (car args) "meta")
-    (write ["spec" "compile" "full" "native" "native-link"
-            "native-full" "native-full-link" "native-diagnose" "clean" "test"])
+    (write +provider-build-command-names+)
     (newline))
-   ((equal? (car args) "spec")
-    (pretty-print (provider-build-spec)))
-   ((equal? (car args) "clean")
-    (clean-provider!))
-   ((equal? (car args) "compile")
-    (parse-build-options (cdr args))
-    (compile-native-fast-cli!))
-   ((equal? (car args) "full")
-    (parse-build-options (cdr args))
-    (refresh-static-provider-artifacts!)
-    (compile-native-fast-cli!))
-   ((equal? (car args) "native")
-    (parse-build-options (cdr args))
-    (compile-native-fast-cli!))
-   ((equal? (car args) "native-link")
-    (compile-native-fast-cli!))
-   ((equal? (car args) "native-full")
-    (parse-build-options (cdr args))
-    (refresh-static-provider-artifacts!)
-    (compile-full-native-cli!))
-   ((equal? (car args) "native-full-link")
-    (compile-full-native-cli!))
-   ((equal? (car args) "native-diagnose")
-    (run-native-diagnose!))
-   ((equal? (car args) "test")
-    (run-provider-tests!))
-   (else (error "Unexpected " args))))
+   (else
+    (let (stage (provider-build-stage-ref (car args)))
+      (if stage
+        (run-provider-build-stage! stage (cdr args))
+        (error "Unexpected " args))))))
 
 (def (main . args)
   (ensure-gerbil-gsc!)

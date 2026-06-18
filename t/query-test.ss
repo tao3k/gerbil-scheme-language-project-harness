@@ -278,7 +278,7 @@
 
 ;; : (-> (List XX) NativeQueryOutput )
 (def (native-query-output args)
-  (let* ((command (cons "../../.bin/gerbil-scheme-harness"
+  (let* ((command (cons (native-provider-binary)
                        (cons "query" args)))
          (start (monotonic-ms))
          (result
@@ -294,6 +294,17 @@
     [(car result)
      (cadr result)
      (duration-ms start (monotonic-ms))]))
+
+;; : (-> Path )
+(def (native-provider-binary)
+  (let (override (getenv "ASP_PROVIDER_BIN_DIR" #f))
+    (cond
+     ((and override (not (equal? override "")))
+      (path-expand "gerbil-scheme-harness" override))
+     ((file-exists? (path-expand "../../asp.toml" (current-directory)))
+      (path-expand "../../.bin/gerbil-scheme-harness" (current-directory)))
+     (else
+      (path-expand ".bin/gerbil-scheme-harness" (current-directory))))))
 
 ;; : (-> Port String )
 (def (read-port-as-string port)
