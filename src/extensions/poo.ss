@@ -7,6 +7,7 @@
 (import :extensions/model
         :extensions/poo-inheritance
         :extensions/poo-patterns
+        :extensions/poo-validation
         :package-manager/facade
         :parser/facade
         (only-in :std/srfi/13 string-join string-suffix?)
@@ -197,12 +198,15 @@
            (poo-inherited-utils-pattern-evidence
             (poo-extension-dependency index)
             terms)
-           (let (kind (poo-pattern-kind pattern-terms))
+           (let* ((kind (poo-pattern-kind pattern-terms))
+                  (source-ref (poo-source-ref index)))
              (hash (id (poo-pattern-id kind))
                    (extension +poo-extension-name+)
                    (focus (poo-pattern-focus kind pattern-terms))
                    (origin (if extension-fact "direct" "registered"))
-                   (sourceRef (poo-source-ref index))
+                   (sourceRef source-ref)
+                   (structuralValidation
+                    (poo-pattern-structural-validation kind source-ref))
                    (sourceOwners (poo-pattern-source-owners kind))
                    (selectors (poo-pattern-selectors kind))
                    (agentScenario (poo-pattern-agent-scenario kind))

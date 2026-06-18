@@ -363,8 +363,10 @@
        (let (effective-line-count (source-leaf-effective-line-count index file))
          (and (project-gerbil-source-path? index (source-file-path file))
               (not (project-gerbil-test-path? (source-file-path file)))
-              (fx>= effective-line-count max-line-count)
-              (fx>= (length (source-file-definitions file)) min-definition-count)
+              (or (fx>= effective-line-count +hard-max-leaf-line-count+)
+                  (and (fx>= effective-line-count max-line-count)
+                       (fx>= (length (source-file-definitions file))
+                             min-definition-count)))
               (source-leaf-bloat-finding
                file
                effective-line-count

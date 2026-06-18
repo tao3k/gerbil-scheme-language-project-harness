@@ -134,7 +134,7 @@
    weak-comment-quality-syntax-fact?
    comment-quality-syntax-fact?
    macro-or-import-syntax-fact?
-   (lambda (_) #t)])
+   any-syntax-fact?])
 
 ;; ranked-syntax-state-output
 ;;   : (-> RankedSyntaxState (List SyntaxFact))
@@ -193,7 +193,12 @@
          [(cons id seen) (cons fact out) (- remaining 1)]
          state)))))
 
-;; : (-> SyntaxFactPredicate (List SyntaxFactId) Integer SyntaxFact Boolean )
+;; ranked-syntax-fact-selected?
+;;   : (-> SyntaxFactPredicate (List SyntaxFactId) Integer SyntaxFact Boolean)
+;;   | doc m%
+;;       `ranked-syntax-fact-selected? predicate seen remaining fact` checks the
+;;       capacity, predicate, and duplicate guard for one syntax fact.
+;;     %
 (def (ranked-syntax-fact-selected? predicate seen remaining fact)
   (and (> remaining 0)
        (predicate fact)
@@ -202,21 +207,57 @@
 ;;; Predicate selectors share the same syntax field accessor so role and
 ;;; quality checks stay expression-level instead of re-opening the fields hash
 ;;; in each predicate branch.
-;; : (-> SyntaxFact Key String )
+;; syntax-fact-field-string
+;;   : (-> SyntaxFact Key String)
+;;   | doc m%
+;;       `syntax-fact-field-string fact key` reads a parser-owned syntax fact
+;;       field through the renderer's dash-normalized string boundary.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (syntax-fact-field-string fact 'role)
+;;       ;; => "typed-combinator-style"
+;;       ```
+;;     %
 (def (syntax-fact-field-string fact key)
   (field-string (hash-get fact 'fields) key))
 
-;; : (-> SyntaxFact Key (List String) Boolean )
+;; syntax-fact-field-member?
+;;   : (-> SyntaxFact Key (List String) Boolean)
+;;   | doc m%
+;;       `syntax-fact-field-member? fact key values` classifies syntax facts by
+;;       membership in a normalized field value set.
+;;     %
 (def (syntax-fact-field-member? fact key values)
   (member (syntax-fact-field-string fact key) values))
 
-;; : (-> SyntaxFact Key String Boolean )
+;; syntax-fact-field=?
+;;   : (-> SyntaxFact Key String Boolean)
+;;   | doc m%
+;;       `syntax-fact-field=? fact key expected` keeps equality checks on
+;;       rendered fields aligned with the same dash-normalized access path.
+;;     %
 (def (syntax-fact-field=? fact key expected)
   (equal? (syntax-fact-field-string fact key) expected))
 
-;; : (-> SyntaxFact Key (List String) Boolean )
+;; syntax-fact-value-member?
+;;   : (-> SyntaxFact Key (List String) Boolean)
+;;   | doc m%
+;;       `syntax-fact-value-member? fact key values` classifies top-level syntax
+;;       fact values without bypassing the renderer predicate vocabulary.
+;;     %
 (def (syntax-fact-value-member? fact key values)
   (member (hash-get fact key) values))
+
+;; any-syntax-fact?
+;;   : (-> SyntaxFact Boolean)
+;;   | doc m%
+;;       `any-syntax-fact? fact` is the explicit final selector for ranked
+;;       rendering once higher-signal syntax fact predicates have run.
+;;     %
+(def (any-syntax-fact? fact)
+  #t)
 
 ;; : (-> SyntaxFact Boolean )
 (def (poo-syntax-fact? fact)
@@ -251,7 +292,14 @@
 (def (weak-comment-quality-syntax-fact? fact)
   (and (comment-quality-syntax-fact? fact)
        (syntax-fact-field-member? fact 'quality '("absent" "weak"))))
-;; : (-> Fields Key String )
+
+;; field-string
+;;   : (-> Fields Key String)
+;;   | doc m%
+;;       `field-string fields key` renders a syntax fact field for packet output,
+;;       returning `-` for missing or empty data so callers do not each encode
+;;       their own absence semantics.
+;;     %
 (def (field-string fields key)
   (if (and fields (hash-key? fields key))
     (dash-empty (value->field-string (hash-get fields key)))

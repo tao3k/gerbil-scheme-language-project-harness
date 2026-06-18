@@ -98,6 +98,7 @@
              (index (collect-project root))
              (pattern (poo-pattern-evidence index ["poo" "class" "method" "protocol"]))
              (source-ref (hash-get pattern 'sourceRef))
+             (validation (hash-get pattern 'structuralValidation))
              (selectors (hash-get pattern 'selectors))
              (first-selector (car selectors)))
         (check (hash-get pattern 'agentScenario)
@@ -127,12 +128,32 @@
                => #t)
         (check (hash-get first-selector 'selector)
                => "gerbil-poo://object.ss#defclass")
+        (check (hash-get validation 'valid) => #t)
+        (check (hash-get validation 'schema) => "poo-pattern-evidence/v1")
+        (check (hash-get validation 'diagnostics) => [])
         (check (length (hash-get pattern 'selectors)) => 16)
         (check (length (hash-get pattern 'minimalForms)) => 13)
         (check (length (hash-get pattern 'failureCases)) => 9)
         (check (not (not (member "dependency-backed-mapping"
                                   (hash-get pattern 'qualitySignals))))
                => #t)))
+    (test-case "poo type validation pattern carries formal structural validation"
+      (let* ((root ".run/extensions-poo-type-validation-structure")
+             (_ (write-extension-project
+                 root
+                 "sample/app"
+                 ["git.cons.io/mighty-gerbils/gerbil-poo"]))
+             (index (collect-project root))
+             (pattern (poo-pattern-evidence index ["poo" "sealed" "validate"]))
+             (validation (hash-get pattern 'structuralValidation))
+             (checks (hash-get validation 'checkedSignals)))
+        (check (hash-get pattern 'id) => "poo-type-validation-sealed")
+        (check (hash-get validation 'patternKind) => "type-validation")
+        (check (hash-get validation 'valid) => #t)
+        (check (hash-get validation 'diagnostics) => [])
+        (check (not (not (member "selector-uri-grammar" checks))) => #t)
+        (check (not (not (member "failure-case-coverage" checks))) => #t)
+        (check (not (not (member "quality-signal-coverage" checks))) => #t)))
     (test-case "poo pattern evidence inherits gerbil-utils combinator guidance"
       (let* ((root ".run/extensions-poo-inherited-utils-pattern")
              (_ (write-extension-project

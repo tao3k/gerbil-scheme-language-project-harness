@@ -8,6 +8,7 @@
         :checker/facade
         :constants
         :parser/facade
+        :policy/core
         :policy/repair
         :protocol/json
         (only-in :std/misc/process run-process)
@@ -48,7 +49,9 @@
          (index (if (equal? scope "changed")
                   (collect-project/files root changed-paths)
                   (collect-project root)))
-         (all-findings (run-type-checks/whitelist index '() whitelist))
+         (all-findings (append
+                        (run-type-checks/whitelist index '() whitelist)
+                        (run-policy-checks index)))
          (findings (if (equal? scope "changed")
                      (filter-changed-findings all-findings changed-paths)
                      all-findings))
