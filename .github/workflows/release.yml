@@ -60,7 +60,6 @@ jobs:
           rm -rf package
           mkdir -p package/bin package/src
           cp bin/gerbil-scheme-harness package/bin/gerbil-scheme-harness
-          cp bin/gerbil-scheme-harness.ss package/bin/gerbil-scheme-harness.ss
           cp -R src/. package/src/
           cp gerbil.pkg package/gerbil.pkg
           chmod +x "package/bin/${BINARY}"

@@ -164,13 +164,13 @@ jobs:
       - name: Run harness check
         run: |
           export GERBIL="$(command -v gxi)"
-          GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss check --full .
+          GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e '(begin (import :cli) (exit (main "check" "--full" ".")))'
 
       - name: Run harness verification bench
         run: |
           export GERBIL="$(command -v gxi)"
           bench_output="$(mktemp)"
-          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss bench --json --iterations 1 --max-total-ms 60000 --max-interface-ms 500 . > "$bench_output"; then
+          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e '(begin (import :cli) (exit (main "bench" "--json" "--iterations" "1" "--max-total-ms" "60000" "--max-interface-ms" "500" ".")))' > "$bench_output"; then
             cat "$bench_output"
             exit 1
           fi
@@ -189,7 +189,7 @@ jobs:
       - name: Verify package extension packet
         run: |
           export GERBIL="$(command -v gxi)"
-          packet="$(GERBIL_LOADPATH="$PWD/src" gxpkg env gxi bin/gerbil-scheme-harness.ss search prime --json .)"
+          packet="$(GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e '(begin (import :cli) (exit (main "search" "prime" "--json" ".")))')"
           echo "$packet" | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
             .projectPackage.dependencies == ["git.cons.io/mighty-gerbils/gerbil-poo"] and
