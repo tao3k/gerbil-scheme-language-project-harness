@@ -14,7 +14,7 @@
              => ["check" "--changed" "."]))
     (test-case "provider argv strips gxi launcher frames"
       (check (provider-command-line-args
-              ["gxi" "bin/gerbil-scheme-harness.ss" "check" "--changed" "."])
+              ["gxi" "src/cli.ss" "check" "--changed" "."])
              => ["check" "--changed" "."]))
     (test-case "provider argv strips generated wrapper frames"
       (check (provider-command-line-args
@@ -30,7 +30,7 @@
              => []))
     (test-case "provider argv preserves unknown commands"
       (check (provider-command-line-args
-              ["gxi" "bin/gerbil-scheme-harness.ss" "bogus"])
+              ["gxi" "src/cli.ss" "bogus"])
              => ["bogus"]))))
 
 (run-tests! cli-test)

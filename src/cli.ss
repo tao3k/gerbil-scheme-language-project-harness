@@ -64,12 +64,28 @@
        (strip-provider-launcher-frames rest)
        argv))))
 
-;; : (-> (String) Bool )
+;;; Boundary:
+;;; - Keep launcher-frame families named so adding a runtime entrypoint does
+;;;   not grow an opaque inline boolean condition.
+;; : (-> String Boolean )
 (def (provider-launcher-frame? arg)
-  (or (member arg +provider-launcher-names+)
-      (string-suffix? "/gxi" arg)
-      (string-suffix? "/gerbil-scheme-harness" arg)
-      (string-suffix? "/gerbil-scheme-harness.ss" arg)))
+  (or (provider-launcher-name? arg)
+      (provider-launcher-binary-path? arg)
+      (provider-launcher-script-path? arg)))
+
+;; : (-> String Boolean )
+(def (provider-launcher-name? arg)
+  (member arg +provider-launcher-names+))
+
+;; : (-> String Boolean )
+(def (provider-launcher-binary-path? arg)
+  (or (string-suffix? "/gxi" arg)
+      (string-suffix? "/gerbil-scheme-harness" arg)))
+
+;; : (-> String Boolean )
+(def (provider-launcher-script-path? arg)
+  (or (equal? arg "src/cli.ss")
+      (string-suffix? "/src/cli.ss" arg)))
 
 ;;; Invariant:
 ;;; - main owns branch/iteration semantics.

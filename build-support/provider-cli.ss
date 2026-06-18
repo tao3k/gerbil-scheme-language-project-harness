@@ -62,7 +62,7 @@
                         "src/search-fast/gerbil-scheme-search.ss"
                         harness-root))
     (harness-runtime . ,(path-expand
-                         "bin/gerbil-scheme-harness.ss"
+                         "src/cli.ss"
                          harness-root))))
 
 ;; : (-> Config Path Path )
