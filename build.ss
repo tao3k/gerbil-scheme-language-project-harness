@@ -9,8 +9,7 @@
         (only-in :std/os/signal kill)
         (only-in :std/sort sort)
         :std/srfi/13
-        :clan/base
-        :clan/building)
+        (only-in :std/srfi/1 filter find))
 
 (include "build-support/provider-cli.ss")
 
@@ -52,13 +51,10 @@
 
 ;; : (-> Datum Symbol MaybeDatum )
 (def (package-field-value datum field)
-  (let loop ((items datum))
-    (cond
-     ((not (pair? items)) #f)
-     ((and (eq? (car items) field)
-           (pair? (cdr items)))
-      (cadr items))
-     (else (loop (cdr items))))))
+  (let (items (and (list? datum) (memq field datum)))
+    (and items
+         (pair? (cdr items))
+         (cadr items))))
 
 ;; : (-> Datum Boolean )
 (def (source-scope-form? datum)
@@ -86,12 +82,12 @@
   (let* ((package (read-package-form "gerbil.pkg"))
          (scope (and package (package-source-scope-form package))))
     (or (and scope
-             (let loop ((fields fields))
-               (and (pair? fields)
-                    (let (roots (policy-string-list-field scope (car fields)))
-                      (if (pair? roots)
-                        roots
-                        (loop (cdr fields)))))))
+             (let (field
+                   (find (lambda (field)
+                           (pair? (policy-string-list-field scope field)))
+                         fields))
+               (and field
+                    (policy-string-list-field scope field))))
         '("src"))))
 
 ;; : (-> (List String) (List Path) )
@@ -624,8 +620,8 @@
   (string-prefix? "src/" module))
 
 (def (provider-build-spec)
-  (!> (all-gerbil-modules)
-      (cut filter provider-build-module? <>)))
+  (filter provider-build-module?
+          (static-provider-source-files)))
 
 (def (build-keys)
   [libdir: (path-expand "lib" (build-prefix))
