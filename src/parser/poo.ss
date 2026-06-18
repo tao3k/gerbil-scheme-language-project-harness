@@ -161,7 +161,7 @@
 (def (poo-specializer-type receiver)
   (and (pair? (cdr receiver))
        (datum->string (cadr receiver))))
-;; : (-> (List XX) CarOrFalse )
+;; : (forall (a) (-> (List a) (Maybe a)) )
 (def (car-or-false items)
   (and (pair? items) (car items)))
 ;;; Boundary:
@@ -212,7 +212,7 @@
    ((member head '(defclass .defclass))
     (filter-map poo-slot-name (datum-list-items (safe-caddr datum))))
    ((eq? head 'define-type)
-    (keyword-like-symbols (safe-cddr datum)))
+    (poo-define-type-slots datum))
    ((eq? head '.def)
     (map car (poo-object-slot-shapes datum)))
    (else '())))
@@ -231,7 +231,9 @@
    ((member head '(defclass .defclass))
     (keyword-like-symbols (safe-cdddr datum)))
    ((eq? head 'define-type)
-    (filter define-type-option? (keyword-like-symbols (safe-cddr datum))))
+    (append
+     (filter define-type-option? (keyword-like-symbols (safe-cddr datum)))
+     (poo-define-type-method-options datum)))
    ((member head '(defgeneric .defgeneric))
     (append (poo-generic-options datum)
             (poo-runtime-hook-options (poo-generic-name datum))))
@@ -245,6 +247,100 @@
 ;; : (-> String Boolean )
 (def (define-type-option? item)
   (member item +poo-define-type-options+))
+
+;;; Boundary:
+;;; - define-type carries both declaration slots and method-table entries.
+;;; - Method slots use dot-prefixed names in the spec or body keyword surface.
+;;; - Type parameters such as `T` or `Value` remain out of method-slot evidence.
+;; : (-> Datum (List String) )
+(def (poo-define-type-slots datum)
+  (dedupe
+   (append
+    (poo-define-type-header-method-slots datum)
+    (poo-define-type-body-method-slots (safe-cddr datum)))))
+
+;;; Boundary:
+;;; - Header method-slot extraction only reads the define-type spec list.
+;;; - Body labels are handled by the sibling scanner so slot provenance stays precise.
+;; : (-> Datum (List String) )
+(def (poo-define-type-header-method-slots datum)
+  (let (spec (safe-cadr datum))
+    (if (pair? spec)
+      (filter-map poo-method-slot-name
+                  (datum-list-items (cdr spec)))
+      '())))
+
+;;; Body labels such as `.map:` and `.ref:` are method-table slots.  Their
+;;; following expression is parsed separately by poo-define-type-method-options.
+;; : (-> (List Datum) (List String) )
+(def (poo-define-type-body-method-slots items)
+  (if (pair? items)
+    (let (slot (poo-method-slot-name (car items)))
+      (if slot
+        (cons slot
+              (poo-define-type-body-method-slots
+               (if (pair? (cdr items)) (cddr items) '())))
+        (poo-define-type-body-method-slots (cdr items))))
+    '()))
+
+;;; Method options expose Gerbil-POO method-table fluency without changing the
+;;; public poo-form struct shape.  Search, guide, and policy can consume these
+;;; stable string tokens as parser-owned evidence.
+;; : (-> Datum (List String) )
+(def (poo-define-type-method-options datum)
+  (append
+   (map (lambda (slot)
+          (string-append "methodSlot:" slot))
+        (poo-define-type-header-method-slots datum))
+   (poo-define-type-body-method-options (safe-cddr datum))))
+
+;; : (-> (List Datum) (List String) )
+(def (poo-define-type-body-method-options items)
+  (if (pair? items)
+    (let ((slot (poo-method-slot-name (car items)))
+          (rest (cdr items)))
+      (if slot
+        (let (value (and (pair? rest) (car rest)))
+          (cons (string-append "methodSlot:" slot)
+                (cons (string-append "methodBody:" slot ":"
+                                     (poo-method-body-shape value))
+                      (poo-define-type-body-method-options
+                       (if (pair? rest) (cdr rest) '())))))
+        (poo-define-type-body-method-options rest)))
+    '()))
+
+;; : (-> Datum MaybeString )
+(def (poo-method-slot-name item)
+  (let (key-name
+        (cond
+         ((symbol? item) (symbol->string item))
+         ((keyword? item) (datum->string item))
+         (else #f)))
+    (and key-name
+         (string-prefix? "." key-name)
+         (poo-strip-slot-colon key-name))))
+
+;;; Body shape classifies method implementations at the syntax level.  It never
+;;; evaluates POO code; it only records whether a method is a lambda, partial
+;;; application, selector call, pipeline, direct identifier, or ordinary call.
+;; : (-> Datum String )
+(def (poo-method-body-shape value)
+  (cond
+   ((symbol? value) "identifier")
+   ((not (pair? value)) "literal")
+   (else
+    (let (head (car value))
+      (cond
+       ((eq? head 'lambda) "lambda")
+       ((eq? head 'case-lambda) "case-lambda")
+       ((member head '(cut cute)) "partial-application")
+       ((member head '(curry rcurry)) "function-curry")
+       ((member head '(compose compose1 rcompose)) "function-composition")
+       ((member head '(!> !!>)) "pipeline-composition")
+       ((member head '(fun fn defn %app)) "function-constructor")
+       ((member head '(.@ .call @method)) "poo-selector-call")
+       ((symbol? head) (string-append "call:" (symbol->string head)))
+       (else "compound"))))))
 ;; : (-> Datum MaybeString )
 (def (poo-generic-name datum)
   (let (spec (safe-cadr datum))

@@ -299,7 +299,7 @@
 ;;; Boundary:
 ;;; - runtime-source-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> Query (List XX) Next Snapshot )
+;; : (-> Query (List RuntimeSourceFact) Next Snapshot )
 (def (runtime-source-search-snapshot query facts next)
   (list 'runtimeSourceSearch
         (list 'namespace "runtime-source")
@@ -513,7 +513,7 @@
 ;;; Boundary:
 ;;; - compare-search-snapshot composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> Query (List XX) Next Snapshot )
+;; : (-> Query (List CompareFact) Next Snapshot )
 (def (compare-search-snapshot query facts next)
   (list 'compareSearch
         (list 'namespace "compare")

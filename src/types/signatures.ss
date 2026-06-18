@@ -40,7 +40,7 @@
 ;;; Boundary:
 ;;; - filter-map-signatures composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> (List XX) FilterMapSignatures )
+;; : (-> (List SignatureEntry) (List TypeSignature) )
 (def (filter-map-signatures entries)
   (reverse
    (foldl (lambda (entry out)

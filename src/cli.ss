@@ -74,7 +74,7 @@
 ;;; Invariant:
 ;;; - main owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; : (-> (List XX) Main )
+;; : (-> (List String) ExitCode )
 (def (main . args)
   (match args
     ([] (display +help+) 0)

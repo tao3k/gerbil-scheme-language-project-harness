@@ -56,6 +56,9 @@
   (hash (selfApply "GERBIL_LOADPATH=src:t gxtest -v t/self-apply-test.ss")
         (check "gerbil-scheme-harness check .")
         (bench "gerbil-scheme-harness bench --iterations 1 --max-total-ms 2000 --max-interface-ms 50 .")))
+;;; Boundary:
+;;; - The info command emits line protocol and keeps packet field selection here.
+;;; - Callers provide the already-built packet so command routing stays projection-free.
 ;; : (-> Packet JsonPacket )
 (def (display-info-packet packet)
   (emit-field-line

@@ -254,12 +254,13 @@
                                         (fx1+ equals)
                                         (string-length text)))
                             "")))
-         (hash (name (typed-comment-alias-name left))
-               (parameters (typed-comment-alias-parameters left))
+         (let (parameters (typed-comment-alias-parameters left))
+           (hash (name (typed-comment-alias-name left))
+               (parameters parameters)
                (expression expression)
                (expressionType
-                (scheme-type-expression-text-json expression))
-               (refinement (not (not (string-contains expression "Refine"))))))))
+                (scheme-type-expression-text-json expression parameters))
+               (refinement (not (not (string-contains expression "Refine")))))))))
 
 ;;; Boundary:
 ;;; - Doc metadata remains parser-owned and section-local.

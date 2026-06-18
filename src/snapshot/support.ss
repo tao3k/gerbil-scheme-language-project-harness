@@ -24,6 +24,6 @@
 ;;; Boundary:
 ;;; - snapshot-list composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> (List XX) Snapshot )
+;; : (forall (a) (-> (List a) (List a)) )
 (def (snapshot-list xs)
   (map (lambda (x) x) xs))

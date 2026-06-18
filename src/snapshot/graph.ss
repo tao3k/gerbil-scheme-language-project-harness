@@ -73,7 +73,7 @@
 ;;; Boundary:
 ;;; - search-prime-node-snapshots composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> Package Extensions (List XX) Snapshot )
+;; : (-> Package Extensions (List Owner) Snapshot )
 (def (search-prime-node-snapshots package extensions owners)
   (append (if package (list (package-node-snapshot package)) '())
           (map extension-node-snapshot extensions)
@@ -81,7 +81,7 @@
 ;;; Boundary:
 ;;; - search-prime-edge-snapshots composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> Package Extensions (List XX) Snapshot )
+;; : (-> Package Extensions (List Owner) Snapshot )
 (def (search-prime-edge-snapshots package extensions owners)
   (if package
     (append (map (lambda (extension)

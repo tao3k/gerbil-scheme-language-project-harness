@@ -21,5 +21,6 @@
     (test-case "search owner items fast entrypoint stays lightweight"
       (check-owner-items-fast-entrypoint-stays-light))
     (test-case "search guide fast entrypoint stays lightweight"
-      (check-search-guide-fast-entrypoint-stays-light))))
-
+      (check-search-guide-fast-entrypoint-stays-light))
+    (test-case "search guide static section data loads without runtime POO"
+      (check-guide-sections-static-data-loads))))

@@ -304,7 +304,7 @@
 ;;; Boundary:
 ;;; - search-prime-nodes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> Package Extensions (List XX) SearchPrimeNodes )
+;; : (-> Package Extensions (List Owner) (List Json) )
 (def (search-prime-nodes package extensions owners)
   (append (if package (list (package-node-json package)) '())
           (map extension-node-json extensions)
@@ -312,7 +312,7 @@
 ;;; Boundary:
 ;;; - search-prime-edges composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> Package Extensions (List XX) SearchPrimeEdges )
+;; : (-> Package Extensions (List Owner) (List Json) )
 (def (search-prime-edges package extensions owners)
   (if package
     (append (map (lambda (extension)

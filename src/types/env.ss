@@ -110,7 +110,7 @@
 ;;; Invariant:
 ;;; - append-map owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; : (-> (-> XX YY ) (List XX) Integer )
+;; : (forall (a b) (-> (-> a (List b)) (List a) (List b)) )
 (def (append-map fn items)
   (foldr (lambda (item out) (append (fn item) out)) '() items))
 ;;; Boundary:

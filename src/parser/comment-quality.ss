@@ -418,7 +418,7 @@
    ((equal? kind "contract-only") "weak")
    ((equal? kind "compressed-engineering") "weak")
    ((equal? kind "weak") "weak")
-   ((and required (member kind '("boundary" "invariant" "optimization" "risk")))
+   ((member kind '("boundary" "invariant" "optimization" "risk"))
     "engineering-grade")
    ((equal? kind "intent") "useful")
    (else "useful")))
@@ -463,7 +463,15 @@
 ;;; - Keep separate rationale clauses on adjacent lines when splitting improves evidence confidence.
 ;; : (-> (List CommentLine) Boolean )
 (def (compressed-engineering-comments? comments)
-  (ormap compressed-engineering-comment? comments))
+  (and (single-engineering-comment-body? comments)
+       (ormap compressed-engineering-comment? comments)))
+
+;;; Boundary:
+;;; - Compression only applies when one prose line carries all rationale.
+;;; - Structured multi-line Boundary or Invariant comments remain engineering-grade.
+;; : (-> (List CommentLine) Boolean )
+(def (single-engineering-comment-body? comments)
+  (= (length (filter engineering-comment-body? comments)) 1))
 
 ;;; Boundary:
 ;;; - A semicolon inside the comment body usually means two rationale clauses were squeezed together.

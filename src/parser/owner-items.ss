@@ -134,6 +134,7 @@
                         '()
                         '()
                         '()
+                        '()
                         parse-error))))
 
 ;;; Syntax projection:

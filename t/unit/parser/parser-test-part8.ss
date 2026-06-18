@@ -249,6 +249,73 @@
                               (function-quality-profile-advice wrapper-profile)
                               "curry/rcurry")))
                    => #t)))
+    (test-case "parser exposes poo method bodies and gerbil-utils fun helpers"
+          (let* ((root (path-normalize ".run/parser-poo-method-fun"))
+                 (source-dir (string-append root "/src"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (source-path (string-append source-dir "/core.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text package-path "(package: sample/poo-method-fun)\n")
+            (write-text
+             source-path
+             ";;; -*- Gerbil -*-\n\
+(package: sample/poo-method-fun/core)\n\
+;; Integer\n\
+(define-type (Box @ [Wrapper.] T .wrap .unwrap)\n\
+  .map: (lambda (f x) (.wrap (f (.unwrap x))))\n\
+  .unwrap*: (cut .unwrap <>)\n\
+  .wrap*: .wrap)\n\
+;; : (-> (List String) (List String) )\n\
+(def (label-items items)\n\
+  (map (fun (label-item item)\n\
+         (string-append \"item:\" item))\n\
+       items))\n")
+            (let* ((file (parse-source-file root "src/core.ss"))
+                 (box (find-poo-form (source-file-poo-forms file) "Box"))
+                 (fun-fact
+                  (find-higher-order
+                   (source-file-higher-order-forms file)
+                   "fun"
+                   "named-lambda-abstraction"
+                   "label-items"))
+                 (map-fact
+                  (find-higher-order
+                   (source-file-higher-order-forms file)
+                   "map"
+                   "sequence-map"
+                   "label-items")))
+            (check (not (not box)) => #t)
+            (check (not (not (member ".wrap" (poo-form-fact-slots box))))
+                   => #t)
+            (check (not (not (member ".unwrap" (poo-form-fact-slots box))))
+                   => #t)
+            (check (not (not (member ".map" (poo-form-fact-slots box))))
+                   => #t)
+            (check (not (not (member ".unwrap*" (poo-form-fact-slots box))))
+                   => #t)
+            (check (not (not (member "methodSlot:.map"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not (member "methodBody:.map:lambda"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not (member "methodBody:.unwrap*:partial-application"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not (member "methodBody:.wrap*:identifier"
+                                     (poo-form-fact-options box))))
+                   => #t)
+            (check (not (not fun-fact)) => #t)
+            (check (higher-order-fact-operand-count fun-fact) => 2)
+            (check (not (not (member "named-lambda-helper"
+                                     (higher-order-quality-facets fun-fact))))
+                   => #t)
+            (check (not (not map-fact)) => #t)
+            (check (not (not (member "expression-level-composition"
+                                     (higher-order-quality-facets map-fact))))
+                   => #t))))
     (test-case "project package infers runtime roots from build script"
           (let* ((root (path-normalize ".run/parser-build-scope"))
                  (lib-dir (string-append root "/lib"))

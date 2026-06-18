@@ -18,7 +18,7 @@
     cut cute
     curry rcurry compose compose1 rcompose !> !!>
     funcall constantly iterate-function iterated-function
-    fn defn %app
+    fun fn defn %app
     stx-apply stx-call stx-lambda def-stx defsyntax-stx defsyntax-stx/form
     generating<-for-each generating<-list generating<-vector
     generating-reverse<-vector generating<-iter
@@ -143,6 +143,7 @@
    ((member head '(!> !!>)) "pipeline-composition")
    ((member head '(funcall constantly iterate-function iterated-function))
     "higher-order-combinator")
+   ((eq? head 'fun) "named-lambda-abstraction")
    ((member head '(fn defn %app)) "autocurry-semantics")
    ((member head '(stx-apply stx-call stx-lambda def-stx
                    defsyntax-stx defsyntax-stx/form))
@@ -190,7 +191,14 @@
                  "autocurry-application-semantics")
             (and (equal? (higher-order-fact-role fact) "anonymous-function")
                  "lambda-local-abstraction")
+            (and (equal? (higher-order-fact-role fact) "named-lambda-abstraction")
+                 "lambda-local-abstraction")
+            (and (equal? (higher-order-fact-role fact) "named-lambda-abstraction")
+                 "named-lambda-helper")
             (and (and (equal? (higher-order-fact-role fact) "anonymous-function")
+                      (> (higher-order-fact-operand-count fact) 0))
+                 "parameterized-transform")
+            (and (and (equal? (higher-order-fact-role fact) "named-lambda-abstraction")
                       (> (higher-order-fact-operand-count fact) 0))
                  "parameterized-transform")
             (and (equal? (higher-order-fact-role fact) "syntax-helper-dsl")

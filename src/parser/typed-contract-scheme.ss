@@ -125,13 +125,17 @@
 ;;       ;; => ["unbound-type-variable:a"]
 ;;       ```
 ;;     %
-(def (scheme-type-expression-text-json text)
+(def (scheme-type-expression-text-json text . maybe-bound-vars)
   (let (datum (scheme-contract-datum text))
     (if datum
-      (let (diagnostics (scheme-type-expression-diagnostics datum))
+      (let* ((bound-vars (if (pair? maybe-bound-vars)
+                           (car maybe-bound-vars)
+                           []))
+             (diagnostics
+              (scheme-type-expression-diagnostics datum bound-vars)))
         (hash (raw text)
               (valid (not (pair? diagnostics)))
-              (shape (scheme-type-expression-json datum))
+              (shape (scheme-type-expression-json* datum bound-vars))
               (diagnostics diagnostics)))
       (hash (raw text)
             (valid #f)
@@ -458,6 +462,10 @@
        (caddr datum)
        (append (map datum->type-string (cadr datum))
                bound-vars))
+      []))
+   ((and (pair? datum) (eq? (car datum) 'Refine))
+    (if (pair? (cdr datum))
+      (scheme-type-expression-diagnostics (cadr datum) bound-vars)
       []))
    ((pair? datum)
     (if (pair? (cdr datum))

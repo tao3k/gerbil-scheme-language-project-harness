@@ -17,6 +17,7 @@
 (export check-owner-items-limit-budget
         check-provider-launcher-native-fast-route
         check-owner-items-fast-entrypoint-stays-light
+        check-guide-sections-static-data-loads
         check-search-guide-fast-entrypoint-stays-light)
 
 ;; FixturePath
@@ -85,6 +86,17 @@
     (check (source-contains? source ":commands/search ") => #f)
     (check (source-contains? source ":commands/search)") => #f)
     (check (source-contains? source ":cli") => #f)))
+
+;; : (-> () Unit )
+(def (check-guide-sections-static-data-loads)
+  (let (lines (guide-section-lines-for ["--poo"]))
+    (check (car lines) => "gerbil-scheme-harness guide")
+    (check (not (not (member "|cmd pattern-poo=gerbil-scheme-harness search pattern poo [term ...] --view seeds"
+                              lines)))
+           => #t)
+    (check (not (not (member "|policy poo-structural-facts=search structural --owner <path> --json exposes parser-owned POO forms as custom/generic/method owner facts with role,supers,slots,options,specializers,specializerTypes,dispatchArity; query owner facts before editing POO object/type/method forms"
+                              lines)))
+           => #t)))
 
 ;; : (-> SourceText Needle Boolean )
 (def (source-contains? source needle)

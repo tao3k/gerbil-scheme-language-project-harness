@@ -321,6 +321,9 @@
           (for-each emit-compare-line facts))
         (displayln "next=" next)))
     0))
+;;; Boundary:
+;;; - Compare facts are flattened into stable field lines at this command edge.
+;;; - Keeping left/right projection here avoids leaking output protocol into search evidence builders.
 ;; : (-> CompareFact Unit )
 (def (emit-compare-line fact)
   (let ((left (hash-get fact 'left))

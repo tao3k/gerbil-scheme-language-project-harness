@@ -16,7 +16,7 @@
 ;;; Boundary:
 ;;; - type-status composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> (List XX) Status )
+;; : (-> (List TypeFinding) Status )
 (def (type-status findings)
   (if (ormap non-info-finding? findings) "fail" "pass"))
 ;; : (-> TypeFinding Boolean )

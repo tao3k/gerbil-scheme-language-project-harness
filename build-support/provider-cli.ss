@@ -5,6 +5,9 @@
 ;;; - Provider dispatch is generated as a native C executable by build.ss.
 ;;; - Fast routes are native-only; missing artifacts are build failures, not alternate runtime paths.
 
+;;; Boundary:
+;;; - Build materializers own parent-directory creation.
+;;; - Returning the path keeps build.ss declarative and chainable.
 ;; : (-> Path String Path )
 (def (write-file! path contents)
   (create-directory* (path-directory path))
@@ -12,6 +15,9 @@
     (cut write-string contents <>))
   path)
 
+;;; Boundary:
+;;; - Datum files are the Scheme-facing side channel for generated wrappers.
+;;; - A trailing newline keeps generated config diffs and diagnostics stable.
 ;; : (-> Path Datum Path )
 (def (write-datum-file! path datum)
   (create-directory* (path-directory path))
@@ -21,11 +27,14 @@
       (newline out)))
   path)
 
-;; : (-> Alist Symbol Any )
+;; : (-> Alist Symbol (Maybe Value) )
 (def (config-ref config key)
   (let (entry (assoc key config))
     (and entry (cdr entry))))
 
+;;; Boundary:
+;;; - This manifest is the only place that binds generated wrapper artifacts.
+;;; - The C dispatcher receives expanded paths and performs no repo discovery fallback.
 ;; : (-> Path Path Config )
 (def (provider-cli-config binary harness-root)
   `((harness-root . ,harness-root)
@@ -66,6 +75,10 @@
              output-dir])
     output-dir))
 
+;;; Boundary:
+;;; - C source emission owns string escaping at the generator edge.
+;;; - Callers pass semantic values, never pre-escaped C fragments.
+;; : (-> String String )
 (def (c-string value)
   (call-with-output-string ""
     (lambda (out)
@@ -80,29 +93,42 @@
        (string->list value))
       (write-char #\" out))))
 
+;;; Boundary:
+;;; - Writer procedures build generated source through one output-port protocol.
+;;; - The generated C assembly stays composable instead of scattered string joins.
+;; : (-> (-> OutputPort Unit) String )
 (def (source-text write!)
   (call-with-output-string "" write!))
 
+;; : (-> OutputPort String Unit )
 (def (source-line! out text)
   (write-string text out)
   (newline out))
 
+;; : (-> OutputPort Unit )
 (def (source-blank! out)
   (newline out))
 
+;;; Boundary:
+;;; - Generated source blocks stay line-vector driven.
+;;; - Newline policy is centralized here rather than repeated at each C fragment.
+;; : (-> OutputPort (List String) Unit )
 (def (source-lines! out lines)
   (for-each
    (lambda (line)
      (source-line! out line))
    lines))
 
+;; : (-> OutputPort (List String) Unit )
 (def (source-block! out lines)
   (source-lines! out lines)
   (source-blank! out))
 
+;; : (-> OutputPort String Unit )
 (def (write-c-include! out header)
   (source-line! out (string-append "#include <" header ">")))
 
+;; : (-> OutputPort String String Unit )
 (def (write-c-string-const! out name value)
   (source-line! out
                 (string-append "static const char *"
@@ -111,9 +137,11 @@
                                (c-string value)
                                ";")))
 
+;; : (List String )
 (def +dispatcher-headers+
   ["errno.h" "stdio.h" "stdlib.h" "string.h" "unistd.h"])
 
+;; : (List (Pair String Symbol) )
 (def +dispatcher-config-constants+
   [(cons "harness_root" 'harness-root)
    (cons "fast_extension" 'fast-extension)
@@ -127,6 +155,10 @@
    (cons "search_runtime" 'search-runtime)
    (cons "harness_runtime" 'harness-runtime)])
 
+;;; Boundary:
+;;; - These C helper blocks are embedded runtime policy for the native dispatcher.
+;;; - Keeping them data-shaped lets Scheme own assembly order without shell scripts.
+;; : (List (List String) )
 (def +dispatcher-helper-blocks+
   [["static int streq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }"]
    ["static int has_arg(int argc, char **argv, const char *needle) {"
@@ -306,6 +338,10 @@
     "  exec_gerbil_runtime(harness_runtime, argc, argv, 1);"
     "}"]])
 
+;;; Boundary:
+;;; - Include emission owns the generated C prelude and native owner-items hook.
+;;; - Later sections can assume declarations are already present.
+;; : (-> OutputPort Unit )
 (def (write-dispatcher-includes! out)
   (for-each
    (lambda (header)
@@ -315,6 +351,10 @@
   (source-line! out "int owner_items_native_main(int argc, char **argv);")
   (source-blank! out))
 
+;;; Boundary:
+;;; - Dispatcher config constants are copied from the Scheme manifest.
+;;; - Missing config keys should fail in Scheme before C source is compiled.
+;; : (-> OutputPort Config Unit )
 (def (write-dispatcher-config! out config)
   (for-each
    (lambda (entry)
@@ -324,12 +364,20 @@
    +dispatcher-config-constants+)
   (source-blank! out))
 
+;;; Boundary:
+;;; - Helper block emission preserves the route order encoded in data.
+;;; - The generator controls composition; C strings only carry runtime mechanics.
+;; : (-> OutputPort Unit )
 (def (write-dispatcher-helpers! out)
   (for-each
    (lambda (block)
      (source-block! out block))
    +dispatcher-helper-blocks+))
 
+;;; Boundary:
+;;; - Native dispatcher source is assembled from prelude, manifest, and helper blocks.
+;;; - The build step writes one coherent C translation unit for the provider binary.
+;; : (-> Config String )
 (def (native-dispatcher-source-text config)
   (source-text
    (lambda (out)

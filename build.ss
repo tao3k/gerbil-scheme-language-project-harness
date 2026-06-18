@@ -47,6 +47,14 @@
       (member "native-link" args)
       (member "native-diagnose" args)))
 
+;;; Boundary:
+;;; - Package dependency preparation is owned by gerbil.pkg/gxpkg.
+;;; - Test runs import POO-backed guide modules, so they need the same package store as compile runs.
+;; : (-> (List String) Boolean )
+(def (package-dependency-command? args)
+  (or (compile-command? args)
+      (member "test" args)))
+
 (def (native-command? args)
   (or (member "native" args)
       (member "native-link" args)
@@ -498,11 +506,12 @@
 (def (main . args)
   (ensure-gerbil-gsc!)
   (ensure-source-load-path!)
-  (if (compile-command? args)
+  (if (package-dependency-command? args)
     (with-provider-build-lock!
      (lambda ()
        (ensure-package-dependencies!)
-       (when (full-command? args)
+       (when (and (compile-command? args)
+                  (full-command? args))
          (clean-compiled-provider-artifacts!))
        (run-build! args)))
     (run-build! args)))

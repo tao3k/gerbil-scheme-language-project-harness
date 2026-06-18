@@ -19,6 +19,9 @@
 ;; (List String)
 (def +typed-combinator-style-higher-order-roles+
   '("partial-application" "function-curry" "function-composition"
+    "pipeline-composition" "higher-order-combinator"
+    "anonymous-function" "named-lambda-abstraction"
+    "multi-arity-function" "autocurry-semantics"
     "sequence-map" "sequence-filter" "sequence-filter-map"
     "sequence-append-map" "sequence-predicate" "sequence-search"
     "sequence-fold" "loop-fold" "list-builder"))
@@ -33,6 +36,13 @@
 (def +poo-declarative-definition-kinds+
   '(".def" "define-type" "defclass" ".defclass" "defmethod" ".defmethod"
     "defgeneric" ".defgeneric" "defprotocol" ".defprotocol"))
+;; (List Role)
+(def +typed-combinator-style-doc-required-roles+
+  '("macro-helper" "protocol-method" "poo-protocol-boundary" "driver"))
+;; (List QualityFacet)
+(def +typed-combinator-style-doc-required-facets+
+  '("macro-runtime-source-witness" "poo-protocol-evidence"
+    "loop-driver-classified"))
 ;;; Entry boundary: emit at most one typed-combinator finding per owner so repair stays file-scoped.
 ;; : (-> ProjectIndex (List TypeFinding) )
 (def (typed-combinator-style-findings index)
@@ -110,7 +120,6 @@
                       (> invalid-typed-comment-count 0)
                       missing-implementation-evidence?
                       implementation-coverage-insufficient?
-                      typed-doc-missing?
                       quality-repair-triggered?])
               (make-type-finding
                (policy-rule-id +agent-typed-combinator-style-rule+)
@@ -159,8 +168,8 @@
         (expectedCommentPrefix ";;")
         (expectedCommentShape "adjacent Scheme-native typed block such as ;; : (forall (a) (-> (-> a a Order) (List a) (List a) Order))")
         (signatureShape "adjacent Scheme-native signature block using ;; : (forall (a) (-> Input Output)), optional ;; | type aliases, U unions, Values, and Refine predicates")
-        (expectedDocShape "full form for exported helpers, macros, and policy-sensitive helpers: leading name matching the definition, ;;   : signature, optional ;;   | type/contract/requires/warning/rationale fields, and ;;   | doc m% with # Examples fenced Scheme input/result")
-        (typedDocRequiredWhen "exported arity-bearing helper, macro, src/policy helper, or policy-sensitive helper")
+        (expectedDocShape "full form for role/facet risk boundaries: leading name matching the definition, ;;   : signature, optional ;;   | type/contract/requires/warning/rationale fields, and ;;   | doc m% with # Examples fenced Scheme input/result")
+        (typedDocRequiredWhen "arity-bearing macro/protocol/driver roles, or exported helpers that also carry parser-owned risk facets such as macro-runtime-source-witness, poo-protocol-evidence, or loop-driver-classified")
         (typedCommentMetadataFields
          ["leadingName" "signatureType" "localTypes" "runtimeContracts"
           "runtimeContractsDetailed" "requires" "requiresDetailed"
@@ -292,8 +301,9 @@
    (source-file-comment-quality-facts file)))
 
 ;;; Boundary:
-;;; - Full-form documentation is required for public and policy-sensitive helpers.
-;;; - Ordinary private helpers may keep the short `;; :` form.
+;;; - Full-form documentation is required when parser facts show semantic risk.
+;;; - Exported status alone is not enough; it must combine with role or facet evidence.
+;;; - Ordinary public constructors and accessors may keep the short `;; :` form.
 ;; : (-> SourceFile (List String) )
 (def (typed-combinator-style-missing-doc-targets file)
   (unique-strings
@@ -312,8 +322,20 @@
 ;; : (-> FunctionQualityProfile Boolean )
 (def (typed-combinator-style-profile-requires-doc? profile)
   (and (> (function-quality-profile-arity profile) 0)
-       (or (function-quality-profile-exported profile)
-           (string-prefix? "src/policy/" (function-quality-profile-path profile)))))
+       (or (member (function-quality-profile-role profile)
+                   +typed-combinator-style-doc-required-roles+)
+           (and (function-quality-profile-exported profile)
+                (typed-combinator-style-profile-doc-required-facet? profile)))))
+
+;;; Boundary:
+;;; - Facet-driven doc requirements come from parser-owned quality evidence.
+;;; - This keeps R013 extensible without hard-coding path-specific policy exceptions.
+;; : (-> FunctionQualityProfile Boolean)
+(def (typed-combinator-style-profile-doc-required-facet? profile)
+  (ormap (lambda (facet)
+           (member facet
+                   (function-quality-profile-quality-facets profile)))
+         +typed-combinator-style-doc-required-facets+))
 
 ;; : (-> SourceFile FunctionQualityProfile Boolean )
 (def (typed-combinator-style-profile-has-doc? file profile)
@@ -493,6 +515,8 @@
                 "prefer cut/curry/rcurry/compose helper composition when arity evidence already matches")
            (and (member "lambda-local-abstraction" quality-facets)
                 "prefer small local lambda/function-factory helpers when the behavior is a reusable transform")
+           (and (member "named-lambda-helper" quality-facets)
+                "use gerbil-utils/base.ss style fun helpers when a local named lambda makes the transform reusable without recursive self-reference")
            (and (member "parameterized-transform" quality-facets)
                 "keep lambda parameters meaningful and push repeated destructuring into named helpers")
            (and (member "case-lambda-optimization-boundary" quality-facets)

@@ -24,7 +24,7 @@
 (def (repairable-findings findings)
   (filter repairable-finding? findings))
 
-;; : (-> (List XX) Json )
+;; : (-> (List TypeFinding) Json )
 (def (agent-repair-report-json findings)
   (let* ((repairable (repairable-findings findings))
          (warnings (count-finding-severity repairable "warning"))

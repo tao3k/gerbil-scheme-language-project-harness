@@ -305,6 +305,9 @@
    (number->string (projection-burst-fact-emitter-count fact))
    " output calls; split selectors, line builders, and traversal before adding more hash-get/display scaffolding"))
 
+;;; Boundary:
+;;; - Detail packets expose the multiple-detection evidence behind R016.
+;;; - Agent-facing repair guidance must stay tied to parser-owned projection facts.
 ;; : (-> ProjectionBurstFact DetectionResult PolicyDetails )
 (def (emitter-projection-burst-details fact detection)
   (let (details (detection-result-details detection))

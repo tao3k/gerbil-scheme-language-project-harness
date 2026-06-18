@@ -1,20 +1,26 @@
 ;;; -*- Gerbil -*-
-;;; Object-backed guide sections for compact agent-facing help output.
+;;; Local-data guide sections for compact agent-facing help output.
 ;;; Boundary:
 ;;; - Keep default guide output small.
 ;;; - Heavy policy, extension, POO, and exemplar rows require explicit flags.
 
-(import (only-in :clan/poo/object .@ .def)
-        :policy/catalog
+(import :policy/catalog
         :support/list)
 
 (export guide-section-lines-for)
 
+;; : (-> String (List String) GuideSection)
+(def (make-guide-section id rows)
+  (list id rows))
+
+;;; Boundary:
+;;; - The basic section is the compact default guide surface.
+;;; - Keep it command-first so agents can act without loading policy-heavy rows.
 ;; GuideSection
-(.def +guide-basic-section+
-  id: "basic"
-  rows:
-  ["gerbil-scheme-harness guide"
+(def +guide-basic-section+
+  (make-guide-section
+   "basic"
+   ["gerbil-scheme-harness guide"
    "|cmd guide-code=gerbil-scheme-harness guide --code [--topic <topic>|--rule <rule>|--intent <intent>|--more|--level advanced]"
    "|cmd prime=gerbil-scheme-harness search prime --workspace . --view seeds"
    "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --workspace . --view seeds"
@@ -36,37 +42,40 @@
    "|cmd evidence-analyze=gerbil-scheme-harness evidence analyze --json ."
    "|cmd info=gerbil-scheme-harness info --json ."
    "|cmd check=gerbil-scheme-harness check --changed ."
-   "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 2000 --max-interface-ms 50 ."
-   "|more guide-detail=gerbil-scheme-harness guide --downstream | --policy | --extensions | --poo | --exemplars | --all"])
+    "|cmd bench=gerbil-scheme-harness bench --json --iterations 1 --max-total-ms 2000 --max-interface-ms 50 ."
+    "|more guide-detail=gerbil-scheme-harness guide --downstream | --policy | --extensions | --poo | --exemplars | --all"]))
 
 ;; GuideSection
-(.def +guide-downstream-section+
-  id: "downstream"
-  rows:
-  ["|cmd downstream-install=from harness checkout run: gxpkg build"
+(def +guide-downstream-section+
+  (make-guide-section
+   "downstream"
+   ["|cmd downstream-install=from harness checkout run: gxpkg build"
    "|downstream gerbil.pkg-depend=(depend: (\"github.com/tao3k/gerbil-scheme-language-project-harness\"))"
    "|downstream gxtest-import=(import :policy/gxtest)"
    "|downstream gxtest-fixture=(def project-policy-test (make-project-policy-test \".\"))"
    "|cmd downstream-test=gxtest t/project-policy-test.ss"
    "|cmd downstream-policy-check=gerbil-scheme-harness check --full ."
    "|policy downstream-state-boundary=gxpkg package state belongs under ~/.gerbil; do not create, depend on, or commit repository-local .gerbil"
-   "|policy downstream-policy-ownership=gerbil.pkg owns source-scope, runtime-roots, modularity config, and agent-policy overrides; gxtest should call the harness, not duplicate policy rules"
-   "|policy downstream-reporting=make-project-policy-test prints gerbil-gxtest compact findings plus agent repair lines on failure; use project-policy-report when custom tests need structured status/files/definitions/findings"])
+    "|policy downstream-policy-ownership=gerbil.pkg owns source-scope, runtime-roots, modularity config, and agent-policy overrides; gxtest should call the harness, not duplicate policy rules"
+    "|policy downstream-reporting=make-project-policy-test prints gerbil-gxtest compact findings plus agent repair lines on failure; use project-policy-report when custom tests need structured status/files/definitions/findings"]))
 
 ;; GuideSection
-(.def +guide-extension-section+
-  id: "extensions"
-  rows:
-  ["|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds"
+(def +guide-extension-section+
+  (make-guide-section
+   "extensions"
+   ["|cmd extension=gerbil-scheme-harness search extension <extension> [term ...] --view seeds"
    "|cmd dependency-frontier=gerbil-scheme-harness search extension <package-or-extension> [term ...] --view seeds"
-   "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds"
-   "|policy dependency-search-frontier=Gerbil currently exposes dependency evidence through package/import/extension/runtime-source facts, not a dedicated dependency view; keep manifest/package evidence before repository fallback"])
+    "|cmd pattern=gerbil-scheme-harness search pattern <feature-or-extension> [term ...] --view seeds"
+    "|policy dependency-search-frontier=Gerbil currently exposes dependency evidence through package/import/extension/runtime-source facts, not a dedicated dependency view; keep manifest/package evidence before repository fallback"]))
 
+;;; Boundary:
+;;; - The policy section is explicit opt-in guide payload.
+;;; - Large rule text stays here so default guide output remains small.
 ;; GuideSection
-(.def +guide-policy-section+
-  id: "policy"
-  rows:
-  (append
+(def +guide-policy-section+
+  (make-guide-section
+   "policy"
+   (append
    ["|policy structural-json-boundary=search structural --json emits a lightweight ASP-owned index interface; use --owner <path> for owner-bounded native facts and --artifact only for explicit validation"
     "|policy structural-index-owner=ASP Rust owns workspace structural index, graph topology, caching, and heavy ranking; Gerbil Scheme emits millisecond-level manifest and owner facts"
     "|policy configurable-interface=downstream gerbil.pkg policy may declare source-scope roots/runtime-roots/exclude-directories and agent-policy enabled-rules/disabled-rules; without explicit source-scope, build.ss defbuild-script targets provide runtime-root evidence"
@@ -91,13 +100,13 @@
     "|policy guide-code-default-topic=guide --code defaults to typed-combinator-style so agents first see transform signatures plus compact expression-level helper functions"
     "|policy guide-code-progressive=guide --code defaults to one source-backed excerpt; --more adds one adjacent exemplar; --level advanced includes the macro runtime-source witness path"
     "|policy guide-code-routing=--rule/--finding route known policy ids to source-backed exemplars before agent repair; --intent witness routes to macro runtime-source evidence"
-    "|policy guide-workspace=guide does not require a positional .; use --workspace . only when project-local exemplar selection needs context"]))
+    "|policy guide-workspace=guide does not require a positional .; use --workspace . only when project-local exemplar selection needs context"])))
 
 ;; GuideSection
-(.def +guide-poo-section+
-  id: "poo"
-  rows:
-  ["|cmd pattern-poo=gerbil-scheme-harness search pattern poo [term ...] --view seeds"
+(def +guide-poo-section+
+  (make-guide-section
+   "poo"
+   ["|cmd pattern-poo=gerbil-scheme-harness search pattern poo [term ...] --view seeds"
    "|cmd guide-code-poo-repair=gerbil-scheme-harness guide --code --topic poo-policy --intent repair"
    "|policy gerbil-feature-use=when POO/protocol capability is active, prefer parser-owned defclass/defgeneric/defmethod evidence over raw hash/alist object constructors; cite search pattern poo class when intentionally staying raw"
    "|policy poo-thin-macro-bridge=POO syntax macros such as brace/@method should stay thin syntax bridges; semantic behavior belongs in object, MOP, protocol, or method-family slots"
@@ -105,14 +114,14 @@
    "|policy poo-serialization-method-family=json<-/<-json, marshal/unmarshal, bytes<-/<-bytes, and string<-/<-string should be modeled as method/type slots, not scattered helper functions"
    "|policy poo-protocol-conversion-fixtures=protocol conversion fixtures should expose methods.string<-json and methods.bytes<-marshal as define-type adapters with derived string/bytes slots before adding style warnings"
    "|policy poo-representation-invariant-fixtures=table/trie/type fixtures should expose required-slot protocols, role translation adapters, representation invariants, and nested type descriptor composition through structural owner facts"
-   "|policy poo-structural-facts=search structural --owner <path> --json exposes parser-owned POO forms as custom/generic/method owner facts with role,supers,slots,options,specializers,specializerTypes,dispatchArity; query owner facts before editing POO object/type/method forms"
-   "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed"])
+    "|policy poo-structural-facts=search structural --owner <path> --json exposes parser-owned POO forms as custom/generic/method owner facts with role,supers,slots,options,specializers,specializerTypes,dispatchArity; query owner facts before editing POO object/type/method forms"
+    "|policy poo-io-runtime-source=POO :wr/writeenv changes should cite search runtime-source writeenv printer hook; hook guidance remains soft until real-project noise is reviewed"]))
 
 ;; GuideSection
-(.def +guide-exemplar-section+
-  id: "exemplars"
-  rows:
-  ["|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-R009 level=normal locator=parser-definition owner=src/checker/arity.ss symbols=call-arity-finding/known-signature,run-arity-checks comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control\" moreCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --more\" advancedCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --level advanced\""
+(def +guide-exemplar-section+
+  (make-guide-section
+   "exemplars"
+   ["|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-R009 level=normal locator=parser-definition owner=src/checker/arity.ss symbols=call-arity-finding/known-signature,run-arity-checks comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control\" moreCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --more\" advancedCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --level advanced\""
    "|guideExemplar id=gerbil.functional-data-transform.filter-map topic=functional-data-transform intent=repair rule=GERBIL-SCHEME-AGENT-R009 level=normal locator=parser-definition owner=src/checker/arity.ss symbols=call-arity-finding/known-signature,run-arity-checks comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair\""
    "|guideExemplar id=gerbil.typed-combinator-style.policy-coverage topic=typed-combinator-style intent=style rule=GERBIL-SCHEME-AGENT-R013 level=normal locator=parser-definition owner=src/policy/agent-style.ss symbols=typed-combinator-style-findings,typed-combinator-style-function-definitions,typed-combinator-style-evidence-callers comments=leading nextCommand=\"gerbil-scheme-harness guide --code --topic typed-combinator-style --intent style\" moreCommand=\"gerbil-scheme-harness guide --code --topic typed-combinator-style --intent style --more\""
    "|guideExemplar id=gerbil.typed-combinator-style.policy-filter-map topic=typed-combinator-style intent=style rule=GERBIL-SCHEME-AGENT-R013 level=more locator=parser-definition owner=src/policy/agent.ss symbols=functional-idiom-advice-findings comments=leading nextCommand=\"gerbil-scheme-harness guide --code --topic typed-combinator-style --intent style --more\""
@@ -126,17 +135,17 @@
    "|guideExemplar id=gerbil.engineering-comment-quality.contract-boundary topic=engineering-comment-quality intent=style rule=GERBIL-SCHEME-AGENT-R015 level=normal locator=parser-definition owner=src/policy/agent-comment.ss symbols=comment-quality-details,comment-quality-fact-summary,weak-required-comment-quality-fact? comments=leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style\""
    "|guideExemplar id=gerbil.predicate-family-combinator.native-facts topic=predicate-family-combinator intent=style rule=GERBIL-SCHEME-AGENT-R016 level=normal locator=parser-definition owner=src/parser/quality-shape.ss symbols=predicate-family-facts-from-source,field-access-pattern-facts-from-source comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style\""
    "|guideExemplar id=gerbil.dependency-protocol-adapter.rationaldict-shape topic=dependency-protocol-adapter intent=repair rule=GERBIL-SCHEME-AGENT-R017 level=normal locator=runtime-source owner=gerbil-poo/rationaldict.ss symbols=RationalDict.,RationalSet comments=file-purpose+leading repairAction=inspect-code-shape guideCodeFlag=--code nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair\" moreCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair --more\""
-   "|guideExemplar id=gerbil.explicit-precise-import.policy-shape topic=explicit-precise-import intent=repair rule=GERBIL-SCHEME-AGENT-R018 level=normal locator=parser-definition owner=src/policy/agent-import.ss symbols=explicit-precise-import-finding,imprecise-runtime-import?,explicit-precise-import-details comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair\""])
+    "|guideExemplar id=gerbil.explicit-precise-import.policy-shape topic=explicit-precise-import intent=repair rule=GERBIL-SCHEME-AGENT-R018 level=normal locator=parser-definition owner=src/policy/agent-import.ss symbols=explicit-precise-import-finding,imprecise-runtime-import?,explicit-precise-import-details comments=file-purpose+leading nextCommand=\"gerbil-scheme-harness guide --code --rule GERBIL-SCHEME-AGENT-R018 --intent repair\""]))
 
 ;;; Boundary: section flags are local to guide rendering, not global CLI parsing.
 ;; : (-> (List String) Flag Boolean )
 (def (guide-section-flag? args flag)
   (and (member flag args) #t))
 
-;;; Boundary: GuideSection rows stay object-backed; callers receive plain strings.
+;;; Boundary: GuideSection rows stay local data; callers receive plain strings.
 ;; : (-> GuideSection (List String) )
 (def (guide-section-rows section)
-  (.@ section rows))
+  (cadr section))
 
 ;;; Boundary:
 ;;; - Select only the guide section objects requested by explicit flags.

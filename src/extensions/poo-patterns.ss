@@ -4,7 +4,7 @@
 ;;; - Owns source-backed pattern families and selector/schema payloads.
 ;;; - Keeps :extensions/poo focused on activation and origin dispatch.
 
-(import (only-in :clan/poo/object .@ .def)
+(import (only-in :std/sugar hash-get)
         :support/list)
 
 (export poo-pattern-id
@@ -21,9 +21,8 @@
         poo-pattern-missing
         poo-pattern-next)
 
-;;; Pattern specs are Gerbil POO objects: specialized pattern families are
-;;; prototype extensions over the object-system packet shape, while renderers
-;;; keep the same hash/list protocol for search consumers.
+;;; Pattern specs are static POO prototype objects. They keep extension metadata
+;;; slot-oriented so overrides and inheritance mirror the gerbil-poo model.
 ;; : (-> Role Symbol Selector SourceSelector )
 (def (poo-selector role symbol selector)
   (hash (role role)
@@ -48,8 +47,56 @@
         (correctiveAction corrective-action)
         (selectors selectors)))
 
+;;; Boundary:
+;;; - Pattern inheritance keeps slot-level POO override semantics.
+;;; - Base specs are static hashes so search import does not need the POO runtime.
+;; : (-> PatternSpec Symbol Value Value Value )
+(def (poo-pattern-inherit base slot override default)
+  (if override
+    override
+    (if base
+      (let (inherited (hash-get base slot))
+        (if inherited inherited default))
+      default)))
+
+;;; Boundary:
+;;; - This factory materializes one POO-backed pattern prototype.
+;;; - Slot defaults and base overrides stay centralized so pattern sections remain declarative.
+;; : (-> PatternSpec ... PatternSpec )
+(def (make-poo-pattern-spec base: (base #f)
+                            id: (id #f)
+                            defaultFocus: (defaultFocus #f)
+                            sourceOwners: (sourceOwners #f)
+                            agentScenario: (agentScenario #f)
+                            agentSteering: (agentSteering #f)
+                            intent: (intent #f)
+                            selectors: (selectors #f)
+                            minimalForms: (minimalForms #f)
+                            failureCases: (failureCases #f)
+                            qualitySignals: (qualitySignals #f)
+                            witness: (witness #f)
+                            missing: (missing #f)
+                            next: (next #f))
+  (hash (id (poo-pattern-inherit base 'id id #f))
+        (defaultFocus (poo-pattern-inherit base 'defaultFocus defaultFocus #f))
+        (sourceOwners (poo-pattern-inherit base 'sourceOwners sourceOwners []))
+        (agentScenario (poo-pattern-inherit base 'agentScenario agentScenario #f))
+        (agentSteering (poo-pattern-inherit base 'agentSteering agentSteering #f))
+        (intent (poo-pattern-inherit base 'intent intent #f))
+        (selectors (poo-pattern-inherit base 'selectors selectors []))
+        (minimalForms (poo-pattern-inherit base 'minimalForms minimalForms []))
+        (failureCases (poo-pattern-inherit base 'failureCases failureCases []))
+        (qualitySignals (poo-pattern-inherit base 'qualitySignals qualitySignals []))
+        (witness (poo-pattern-inherit base 'witness witness #f))
+        (missing (poo-pattern-inherit base 'missing missing []))
+        (next (poo-pattern-inherit base 'next next #f))))
+
+;;; Boundary:
+;;; - Object-system is the base prototype for all POO pattern families.
+;;; - Shared source owners and failure cases must stay inherited unless a family overrides them.
 ;; PatternSpec
-(.def +poo-object-system-pattern-spec+
+(def +poo-object-system-pattern-spec+
+  (make-poo-pattern-spec
   id: "poo-object-system"
   defaultFocus: "object-system"
   sourceOwners: ["object.ss"
@@ -269,10 +316,14 @@
                    "failure-cases"]
   witness: "dependency-backed-poo-mapping"
   missing: []
-  next: "search extension poo syntax")
+  next: "search extension poo syntax"))
 
+;;; Boundary:
+;;; - Dependency adapter guidance is the high-risk bridge from raw package primitives to POO protocols.
+;;; - Keep these selectors tied to rationaldict/table/type source witnesses.
 ;; PatternSpec
-(.def (+poo-dependency-protocol-adapter-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-dependency-protocol-adapter-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-rationaldict-adapter"
   defaultFocus: "rationaldict dependency protocol adapter"
   sourceOwners: ["rationaldict.ss" "table.ss" "type.ss"]
@@ -390,10 +441,14 @@
                    "serialization-method-family"
                    "poo-prototype-object-extension"]
   witness: "gerbil-poo-rationaldict-adapter-source-shape"
-  next: "search pattern poo rationaldict adapter")
+  next: "search pattern poo rationaldict adapter"))
 
+;;; Boundary:
+;;; - Prototype composition depends on source order and runtime instantiation witnesses.
+;;; - Agents must query proto composition evidence before changing object extension order.
 ;; PatternSpec
-(.def (+poo-prototype-composition-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-prototype-composition-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-prototype-composition"
   defaultFocus: "prototype composition"
   sourceOwners: ["proto.ss"]
@@ -445,10 +500,14 @@
                    "poo-prototype-object-extension"]
   witness: "runtime-prototype-composition-witness"
   missing: []
-  next: "search pattern poo prototype composition witness")
+  next: "search pattern poo prototype composition witness"))
 
+;;; Boundary:
+;;; - Trace/debug guidance preserves computed-slot and superfun behavior.
+;;; - The pattern prevents instrumentation from bypassing POO method dispatch.
 ;; PatternSpec
-(.def (+poo-trace-debug-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-trace-debug-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-trace-debug"
   defaultFocus: "trace debug computed slot"
   sourceOwners: ["debug.ss" "object.ss"]
@@ -514,10 +573,14 @@
                    "computed-slot-source" "superfun-chain-source"
                    "trace-wrapper-source" "runtime-trace-poo-witness"]
   witness: "runtime-trace-poo-witness"
-  next: "search pattern poo trace runtime witness")
+  next: "search pattern poo trace runtime witness"))
 
+;;; Boundary:
+;;; - Slot-cache guidance covers computed slot materialization and cached reads.
+;;; - It keeps cache semantics anchored to object.ss and mop.ss witnesses.
 ;; PatternSpec
-(.def (+poo-slot-cache-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-slot-cache-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-slot-cache-computed"
   defaultFocus: "slot cache computed slot"
   sourceOwners: ["object.ss" "mop.ss"]
@@ -593,10 +656,14 @@
                    "ref-cache-source" "real-project-slot-cache-test"
                    "superfun-witness"]
   witness: "real-project-slot-cache-witness"
-  next: "search pattern poo slot cache computed")
+  next: "search pattern poo slot cache computed"))
 
+;;; Boundary:
+;;; - IO fallback guidance owns JSON, print, and writeenv repair evidence.
+;;; - Serialization overrides must preserve gerbil-poo fallback behavior.
 ;; PatternSpec
-(.def (+poo-io-json-fallback-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-io-json-fallback-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-io-json-fallback"
   defaultFocus: "io json print fallback"
   sourceOwners: ["io.ss" "mop.ss" "object.ss"]
@@ -707,10 +774,14 @@
                    "writeenv-roundtrip-witness-required"]
   witness: "runtime-json-print-writeenv-method-source-backed-io-fallback"
   missing: ["writeenv-roundtrip-witness"]
-  next: "search runtime-source writeenv printer hook")
+  next: "search runtime-source writeenv printer hook"))
 
+;;; Boundary:
+;;; - Lens guidance is the functional slot-update path for POO objects.
+;;; - Keep slot-lens and composition examples tied to real mop tests.
 ;; PatternSpec
-(.def (+poo-lens-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-lens-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-lens-slot"
   defaultFocus: "lens slot-lens"
   sourceOwners: ["mop.ss" "t/mop-test.ss"]
@@ -760,10 +831,14 @@
                    "slot-lens-source" "real-project-lens-test"
                    "functional-update-witness"]
   witness: "real-project-lens-witness"
-  next: "search pattern poo lens slot-lens")
+  next: "search pattern poo lens slot-lens"))
 
+;;; Boundary:
+;;; - Type-validation guidance covers sealed classes and validate witnesses.
+;;; - It prevents agent edits from treating POO classes as untyped records.
 ;; PatternSpec
-(.def (+poo-type-validation-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-type-validation-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-type-validation-sealed"
   defaultFocus: "sealed type validation"
   sourceOwners: ["mop.ss" "t/mop-test.ss"]
@@ -824,10 +899,11 @@
                    "function-validator-source" "real-project-mop-test"
                    "sealed-type-witness" "validation-negative-witness"]
   witness: "real-project-sealed-type-validation-witness"
-  next: "search pattern poo sealed validate")
+  next: "search pattern poo sealed validate"))
 
 ;; PatternSpec
-(.def (+poo-c3-mro-pattern-spec+ @ +poo-object-system-pattern-spec+)
+(def +poo-c3-mro-pattern-spec+
+  (make-poo-pattern-spec base: +poo-object-system-pattern-spec+
   id: "poo-c3-mro-regression"
   defaultFocus: "c3 mro slot order"
   sourceOwners: ["object.ss" ":gerbil/runtime/c3" "src/gerbil/test/c3-test.ss"]
@@ -837,7 +913,7 @@
                    "real-project-c3-test" "mro-linearization-witness"
                    "slot-order-witness" "failure-cases"]
   witness: "real-project-c3-and-slot-order-witness"
-  next: "search extension poo pattern c3")
+  next: "search extension poo pattern c3"))
 
 ;; PatternSpecRegistry
 (def +poo-pattern-spec-registry+
@@ -856,24 +932,18 @@
   (let (entry (assq kind +poo-pattern-spec-registry+))
     (and entry (cdr entry))))
 
+;;; Boundary:
+;;; - Public accessors stay stable while storage is hash-backed static data.
+;;; - Unknown slots return #f instead of exposing storage details to packet builders.
 ;; : (-> Kind Slot Value )
 (def (poo-pattern-spec-slot kind slot)
   (let (spec (poo-pattern-spec kind))
     (and spec
          (case slot
-           ((id) (.@ spec id))
-           ((defaultFocus) (.@ spec defaultFocus))
-           ((sourceOwners) (.@ spec sourceOwners))
-           ((agentScenario) (.@ spec agentScenario))
-           ((agentSteering) (.@ spec agentSteering))
-           ((intent) (.@ spec intent))
-           ((selectors) (.@ spec selectors))
-           ((minimalForms) (.@ spec minimalForms))
-           ((failureCases) (.@ spec failureCases))
-           ((qualitySignals) (.@ spec qualitySignals))
-           ((witness) (.@ spec witness))
-           ((missing) (.@ spec missing))
-           ((next) (.@ spec next))
+           ((id defaultFocus sourceOwners agentScenario agentSteering intent
+                selectors minimalForms failureCases qualitySignals witness
+                missing next)
+            (hash-get spec slot))
            (else #f)))))
 
 ;; : (-> String (List PooFormFact) PooPatternFocus )

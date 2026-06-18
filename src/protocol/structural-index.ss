@@ -428,7 +428,7 @@
         (sourceLocator (string-append (source-file-path file) ":1:1"))
         (queryKeys (dedupe [module-ref (source-file-path file) source]))))
 
-;; : (-> (-> XX YY ) (List XX) Integer )
+;; : (forall (a b) (-> (-> a (List b)) (List a) (List b)) )
 (def (append-map* proc xs)
   (if (null? xs)
     '()

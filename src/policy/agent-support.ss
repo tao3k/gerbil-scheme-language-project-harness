@@ -123,6 +123,6 @@
 ;;; Invariant:
 ;;; - join-missing owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.
-;; : (-> (List XX) JoinMissing )
+;; : (-> (List String) String )
 (def (join-missing items)
   (join items ","))

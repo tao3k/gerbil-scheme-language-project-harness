@@ -3,6 +3,7 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :extensions/facade
+        :extensions/poo-patterns
         :parser/facade
         :snapshot/facade
         :std/test)
@@ -30,6 +31,12 @@
              (snapshot (search-prime-snapshot index))
              (expected (snapshot-load "t/snapshots/poo-search-prime-packet.ss")))
         (check snapshot => expected)))
+    (test-case "poo pattern specs are static keyword records"
+      (check (poo-pattern-id 'object-system) => "poo-object-system")
+      (check (poo-pattern-id 'prototype-composition)
+             => "poo-prototype-composition")
+      (check (poo-pattern-agent-steering 'prototype-composition)
+             => "follow the emitted selectors and minimal forms before writing Gerbil POO code; avoid Racket class or generic Scheme object guesses"))
     (test-case "poo dependency aliases activate extension"
       (let* ((root ".run/extensions-poo-alias")
              (_ (write-extension-project root "sample/app" ["clan/poo"]))

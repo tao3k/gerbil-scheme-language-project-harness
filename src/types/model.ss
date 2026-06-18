@@ -300,7 +300,7 @@
                  " "
                  (type->string (cdr field))
                  ")"))
-;; : (-> Head (List XX) Boolean )
+;; : (-> Head (List TypeName) Boolean )
 (def (type-head? head names)
   (member (normalize-type-name head) names))
 ;; : (-> Type FirstParamOrUnknown )
@@ -313,7 +313,7 @@
     (if (and (pair? params) (pair? (cdr params)))
       (cadr params)
       (make-type-unknown))))
-;; : (-> (-> XX Boolean ) (List XX) Boolean )
+;; : (forall (a) (-> (-> a Boolean) (List a) Boolean) )
 (def (all? predicate items)
   (cond
    ((null? items) #t)

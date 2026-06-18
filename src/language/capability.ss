@@ -12,7 +12,7 @@
 ;;; Boundary:
 ;;; - matching-capability-posture-facts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> ProjectIndex (List XX) (List Fact) )
+;; : (-> ProjectIndex (List SearchTerm) (List Fact) )
 (def (matching-capability-posture-facts index terms)
   (filter (cut capability-posture-matches-terms? <> terms)
           (capability-posture-facts index)))
@@ -140,7 +140,7 @@
       ["policy-covered" "guide-covered" "snapshot-covered" "bench-covered" "check-covered" "self-apply-covered" "source-class-covered"]
       "agent-assesses-gerbil-project-quality-before-editing"
       "query-capability-posture-and-run-closure-commands-before-claiming-quality")]))
-;; : (-> String Capability Status Summary Witness Next (List XX) Counts PolicyRules QualitySignals AgentScenario String Fact )
+;; : (-> String Capability Status Summary Witness Next (List SearchTerm) Counts PolicyRules QualitySignals AgentScenario String Fact )
 (def (capability-posture-fact id capability status summary witness next terms counts
                               policy-rules quality-signals agent-scenario intent)
   (evidence-fact
@@ -176,7 +176,7 @@
 ;;; Boundary:
 ;;; - append-map composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
-;; : (-> (-> XX YY ) (List XX) Integer )
+;; : (forall (a b) (-> (-> a (List b)) (List a) (List b)) )
 (def (append-map proc xs)
   (apply append (map proc xs)))
 ;;; Boundary:
