@@ -9,6 +9,7 @@
         evidence-fact
         active-runtime-facts
         runtime-source-facts
+        compiler-evidence-facts
         language-rule-facts
         standard-library-facts
         capability-posture-facts

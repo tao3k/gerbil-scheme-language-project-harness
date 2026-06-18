@@ -8,7 +8,19 @@
         :extensions/poo-patterns
         (only-in :std/srfi/1 append-map)
         (only-in :std/srfi/13 string-contains string-prefix?)
-        (only-in :std/sugar filter hash))
+        (only-in :std/sugar filter hash ormap))
+
+;;; Selector URI prefixes are protocol vocabulary, not free-form string checks.
+;;; Keeping the whitelist as data lets new extension namespaces land without
+;;; growing the URI predicate.
+;; (List SelectorUriPrefix)
+(def +poo-pattern-selector-uri-prefixes+
+  '("gerbil-poo://"
+    "gerbil-poo-test://"
+    "gerbil-poo-witness://"
+    "gerbil-runtime://"
+    "gerbil-runtime-test://"
+    "gerbil-utils://"))
 
 (export poo-pattern-structural-validation)
 
@@ -104,13 +116,16 @@
 ;; : (-> SelectorUri Boolean )
 (def (poo-pattern-selector-uri? uri)
   (and (string? uri)
-       (or (string-prefix? "gerbil-poo://" uri)
-           (string-prefix? "gerbil-poo-test://" uri)
-           (string-prefix? "gerbil-poo-witness://" uri)
-           (string-prefix? "gerbil-runtime://" uri)
-           (string-prefix? "gerbil-runtime-test://" uri)
-           (string-prefix? "gerbil-utils://" uri))
+       (poo-pattern-selector-uri-prefix? uri)
        (string-contains uri "#")))
+
+;;; URI prefix validation is a bounded whitelist match; the caller still owns
+;;; the fragment check so malformed anchors remain visible in diagnostics.
+;; : (-> SelectorUri Boolean )
+(def (poo-pattern-selector-uri-prefix? uri)
+  (ormap (lambda (prefix)
+           (string-prefix? prefix uri))
+         +poo-pattern-selector-uri-prefixes+))
 
 ;;; SourceRef validation keeps package-manager evidence distinct from repository fallback.
 ;;; POO evidence must expose both local probe and repository fallback metadata.

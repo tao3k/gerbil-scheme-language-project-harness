@@ -4,6 +4,7 @@
 (import :policy/catalog
         (only-in :std/misc/list unique)
         (only-in :std/srfi/1 take)
+        (only-in :std/srfi/13 string-join)
         :types/findings)
 
 (export repairable-finding?
@@ -32,14 +33,18 @@
          (errors (count-finding-severity repairable "error"))
          (count (length repairable)))
     (hash (status (if (zero? count) "none" "active"))
-         (repairableFindings count)
-         (repairableWarnings warnings)
-         (repairableErrors errors)
-         (trigger (repair-trigger warnings errors))
+          (audience "agent")
+          (feedbackKind "policy-diagnostic")
+          (diagnosticSchema "gerbil-policy-diagnostic-v1")
+          (diagnosticUnit "findingGroup")
+          (repairableFindings count)
+          (repairableWarnings warnings)
+          (repairableErrors errors)
+          (trigger (repair-trigger warnings errors))
           (findingGroups (finding-groups-json repairable))
-	         (repairPlan (repair-plan-json repairable))
-         (instruction
-           "policy findings are repair triggers; follow the primary findingGroup.repairPlan.nextCommand for code-shape evidence, edit the owner, then rerun check"))))
+          (repairPlan (repair-plan-json repairable))
+          (instruction
+           "read each diagnostic location/problem/evidence/fixIntent; edit the selector owner, preserve constraints, then rerun check"))))
 
 ;; : (-> (List TypeFinding) (List RepairSummaryPart) )
 (def (agent-repair-summary-parts findings)
@@ -50,25 +55,62 @@
     (if (zero? count)
       []
       [(string-append "status=active")
+       "audience=agent"
+       "feedbackKind=policy-diagnostic"
+       "diagnosticSchema=gerbil-policy-diagnostic-v1"
+       "diagnosticUnit=findingGroup"
        (string-append "repairableFindings=" (number->string count))
        (string-append "repairableWarnings=" (number->string warnings))
        (string-append "repairableErrors=" (number->string errors))
        (string-append "trigger=" (repair-trigger warnings errors))
-	       (string-append "repairGroups="
-	                      (number->string (length (finding-groups repairable))))
-       "next=follow-primary-findingGroup-repairPlan-nextCommand"
-       "action=apply-policy-triggered-repair"])))
+       (string-append "repairGroups="
+                      (number->string (length (finding-groups repairable))))
+       "focus=findingGroups[].diagnostic.location/problem/evidence/fixIntent"
+       "verify=asp-gerbil-scheme-check-findings-zero"])))
 
 ;; : (-> (List TypeFinding) Json )
 (def (repair-plan-json findings)
   (let (groups (finding-groups-json findings))
     (hash (status (if (null? groups) "none" "active"))
+          (audience "agent")
+          (feedbackKind "policy-diagnostic")
+          (diagnosticSchema "gerbil-policy-diagnostic-v1")
           (groupCount (length groups))
           (primaryGroups (take groups (min 4 (length groups))))
+          (verification (agent-repair-success-criteria))
+          (antiPatterns (agent-repair-anti-patterns))
           (strategy "repair once per owner/function selector; structural/style repairs run before comment rationale repairs")
           (requires ["parser-owned functionQualityProfiles when available"
                      "findingGroup primary rule guide"
                      "check/self-apply/bench after grouped repair"]))))
+
+;; : (-> (List TypeFinding) String )
+(def (primary-repair-next-command findings)
+  (let (groups (finding-groups-json findings))
+    (if (pair? groups)
+      (hash-get (hash-get (car groups) 'repairPlan) 'nextCommand)
+      "")))
+
+;; : (-> (List String) )
+(def (agent-repair-workflow)
+  ["read primary findingGroup"
+   "run repairPlan.nextCommand for guide code evidence"
+   "edit only the owner or selector named by the group"
+   "preserve requiredWitnesses"
+   "rerun check and targeted tests"])
+
+;; : (-> (List String) )
+(def (agent-repair-success-criteria)
+  ["asp gerbil-scheme check --workspace . reports findings=0"
+   "targeted harness tests still pass"
+   "no unrelated source rewrites"])
+
+;; : (-> (List String) )
+(def (agent-repair-anti-patterns)
+  ["treating repeated findings as separate edits"
+   "editing without guide code evidence"
+   "dropping parser-owned witnesses"
+   "papering over warnings with comments only"])
 
 ;;; Finding groups are the agent-facing repair unit.
 ;;; Mapping after grouping prevents repeated warnings from becoming repeated
@@ -119,9 +161,9 @@
          (repair-order (repair-order-rules rules primary suppressed))
          (strategy (repair-strategy rules suppressed))
          (phases (repair-phases repair-order suppressed))
-         (next (or (agent-rule-guide-next-command
-                    (type-finding-rule-id primary))
-                   "")))
+         (guide-command (or (agent-rule-guide-next-command
+                             (type-finding-rule-id primary))
+                            "")))
     (hash (ownerPath (type-finding-path primary))
           (selector (or (type-finding-selector primary) ""))
           (definitionName (finding-group-definition-name findings))
@@ -136,19 +178,90 @@
           (suppressedRules suppressed)
           (requiredWitnesses (finding-group-required-witnesses rules))
           (repairOrder repair-order)
-          (repairPlan
-	          (hash (nextCommand next)
-	                (triggerSource (string-append "policy-" (finding-group-severity findings)))
-	                (action "apply-policy-triggered-repair")
-	                (guideCodeFlag "--code")
-                  (strategy strategy)
+          (diagnostic
+           (finding-group-diagnostic-json
+            primary findings rules strategy phases guide-command))
+          (repairHints (finding-group-agent-checklist primary rules))
+          (verification (agent-repair-success-criteria))
+          (repairIntent
+	          (hash (strategy strategy)
+                  (fixIntent (finding-group-fix-intent primary rules strategy))
+                  (constraints (finding-group-repair-constraints rules))
                   (repairPhases phases)
-	                (instruction
-	                  "treat this policy finding group as the edit trigger: run the primary guide --code command for code-shape evidence, apply one grouped repair, preserve listed witnesses, then rerun check")
+                  (guideCommand guide-command)
+                  (guideRole "evidence-only")
 	                (commentRepairOrder
 	                  "comment-quality repairs run after structural/style repairs when both hit the same group")))
           (agentInstruction
-           "treat this group as one function-level repair boundary, not independent warning spam"))))
+           "treat this diagnostic group as one function-level edit boundary, not independent warning spam"))))
+
+;; : (-> TypeFinding (List Rule) (List String) )
+(def (finding-group-agent-checklist primary rules)
+  [(string-append "edit selector=" (or (type-finding-selector primary) ""))
+   (string-append "preserve requiredWitnesses="
+                  (string-join (finding-group-required-witnesses rules) ","))
+   "apply one grouped structural repair when rules share the selector"
+   "rerun check after edit"])
+
+;;; Diagnostic JSON is a bounded projection over one grouped repair decision.
+;;; The `map` preserves each raw finding evidence item while group-level fix
+;;; intent and constraints are computed once for the selector boundary.
+;; : (-> TypeFinding (List TypeFinding) (List Rule) String RepairPhases String Json )
+(def (finding-group-diagnostic-json primary findings rules strategy phases guide-command)
+  (hash (schema "gerbil-policy-diagnostic-v1")
+        (kind "policy")
+        (unit "findingGroup")
+        (ruleId (type-finding-rule-id primary))
+        (severity (finding-group-severity findings))
+        (location (finding-location-json primary))
+        (problem (finding-group-problem primary rules))
+        (evidence (map finding-diagnostic-evidence-json findings))
+        (fixIntent (finding-group-fix-intent primary rules strategy))
+        (constraints (finding-group-repair-constraints rules))
+        (guideCommand guide-command)
+        (guideRole "evidence-only")
+        (repairPhases phases)))
+
+;; : (-> TypeFinding Json )
+(def (finding-location-json finding)
+  (hash (path (type-finding-path finding))
+        (selector (or (type-finding-selector finding) ""))
+        (definitionName (finding-definition-name finding))))
+
+;; : (-> TypeFinding Json )
+(def (finding-diagnostic-evidence-json finding)
+  (hash (ruleId (type-finding-rule-id finding))
+        (severity (type-finding-severity finding))
+        (message (type-finding-message finding))
+        (details (type-finding-details finding))))
+
+;; : (-> TypeFinding (List Rule) String )
+(def (finding-group-problem primary rules)
+  (if (repair-multi-policy-group? rules)
+    (string-append
+     "multiple policy signals converge at this selector; repair the underlying code shape behind "
+     (type-finding-rule-id primary))
+    (type-finding-message primary)))
+
+;; : (-> TypeFinding (List Rule) String String )
+(def (finding-group-fix-intent primary rules strategy)
+  (if (repair-multi-policy-group? rules)
+    (string-append
+     "apply one " strategy " change at the selector so primary and dependent rules disappear together")
+    (string-append
+     "repair the code shape described by " (type-finding-rule-id primary)
+     " without silencing the policy")))
+
+;;; Repair constraints combine fixed guardrails with parser-required witnesses.
+;;; Mapping witness names to imperative strings keeps the witness list
+;;; first-class until the final agent-facing diagnostic packet.
+;; : (-> (List Rule) (List String) )
+(def (finding-group-repair-constraints rules)
+  (append ["do not suppress the finding with unrelated comments"
+           "do not edit outside the reported owner selector unless required by the same diagnostic"]
+          (map (lambda (witness)
+                 (string-append "preserve witness " witness))
+               (finding-group-required-witnesses rules))))
 
 ;;; Primary finding selects the strongest repair class in a group.
 ;;; Lower numeric priority wins so structural drift controls comment-only noise.
@@ -329,14 +442,34 @@
                (repairable #t)
                (trigger (type-finding-severity finding))
                (reason "policy-finding")
+               (schema "gerbil-policy-diagnostic-v1")
                (ruleId (type-finding-rule-id finding))
                (severity (type-finding-severity finding))
+               (diagnostic (finding-diagnostic-json finding route))
 	               (guideTopic (car route))
 	               (guideIntent (cadr route))
-	               (action "apply-policy-triggered-repair")
-	               (guideCodeFlag "--code")
-	               (nextCommand (caddr route))
-	               (instruction "policy-finding-triggers-edit-with-guide-code-evidence")))))
+	               (guideCommand (caddr route))
+	               (guideRole "evidence-only")
+	               (instruction "diagnostic-first: fix the reported selector problem; use guideCommand only as supporting evidence")))))
+
+;; : (-> TypeFinding GuideRoute Json )
+(def (finding-diagnostic-json finding route)
+  (hash (schema "gerbil-policy-diagnostic-v1")
+        (kind "policy")
+        (unit "finding")
+        (ruleId (type-finding-rule-id finding))
+        (severity (type-finding-severity finding))
+        (location (finding-location-json finding))
+        (problem (type-finding-message finding))
+        (evidence (finding-diagnostic-evidence-json finding))
+        (fixIntent
+         (string-append
+          "repair the selector so " (type-finding-rule-id finding)
+          " no longer matches; keep the implementation idiomatic Gerbil Scheme"))
+        (constraints ["do not suppress the finding"
+                      "do not make unrelated style rewrites"])
+        (guideCommand (caddr route))
+        (guideRole "evidence-only")))
 
 ;; : (-> TypeFinding FindingAgentRepairParts )
 (def (finding-agent-repair-parts finding)
@@ -346,13 +479,13 @@
        (string-append "severity=" (hash-get repair 'severity))
        "repairable=true"
        "active=true"
+       (string-append "schema=" (hash-get repair 'schema))
        (string-append "trigger=" (hash-get repair 'trigger))
 	       (string-append "reason=" (hash-get repair 'reason))
 	       (string-append "guideTopic=" (hash-get repair 'guideTopic))
 	       (string-append "guideIntent=" (hash-get repair 'guideIntent))
-	       (string-append "action=" (hash-get repair 'action))
-	       (string-append "guideCodeFlag=" (hash-get repair 'guideCodeFlag))
-	       (string-append "nextCommand=" (hash-get repair 'nextCommand))
+	       (string-append "guideCommand=" (hash-get repair 'guideCommand))
+	       (string-append "guideRole=" (hash-get repair 'guideRole))
 	       (string-append "instruction=" (hash-get repair 'instruction))]
       [])))
 
@@ -362,9 +495,8 @@
     (if repair
 	      [(string-append "guideTopic=" (hash-get repair 'guideTopic))
 	       (string-append "guideIntent=" (hash-get repair 'guideIntent))
-	       (string-append "action=" (hash-get repair 'action))
-	       (string-append "guideCodeFlag=" (hash-get repair 'guideCodeFlag))
-	       (string-append "nextCommand=" (hash-get repair 'nextCommand))]
+	       (string-append "guideCommand=" (hash-get repair 'guideCommand))
+	       (string-append "guideRole=" (hash-get repair 'guideRole))]
       [])))
 
 ;;; Boundary:

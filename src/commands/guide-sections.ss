@@ -30,6 +30,8 @@
    "|cmd query-code=gerbil-scheme-harness query --selector <path:start-end> --workspace . --code"
    "|cmd env=gerbil-scheme-harness search env [term ...] --workspace . --view seeds"
    "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --workspace . --view seeds"
+   "|cmd compiler-evidence=gerbil-scheme-harness search compiler-evidence optimizer subtype assertion --workspace . --view seeds"
+   "|cmd proof=gerbil-scheme-harness search proof subtype record alias --workspace . --view seeds"
    "|cmd lang=gerbil-scheme-harness search lang [term ...] --workspace . --view seeds"
    "|cmd std=gerbil-scheme-harness search std [term ...] --workspace . --view seeds"
    "|cmd cache-source-index-refresh=asp cache source-index refresh --root ."
@@ -87,7 +89,7 @@
     "|policy cli-option-composition=keep src/cli.ss as a thin dispatcher with precise only-in imports; when command option surfaces grow, compose option objects instead of expanding dispatcher parsing logic"
     "|policy package-module-style=Gerbil package modules should preserve package:/namespace:/import/export style instead of flattening into generic Scheme files"]
    (agent-rule-policy-lines)
-   ["|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source output before editing"
+   ["|policy namespace-receipt=macro/module/type/poo edits should cite search env/lang/std/pattern/runtime-source/proof/compiler-evidence output before editing"
     "|policy runtime-source-code-comments=runtime-source results should expose selectorResolver/sourceExample/sourceComment lines before selector code reads"
     "|policy typed-combinator-style-criteria=three criteria are required: adjacent Gerbil contract projection block, compact expression-level composition, and optimization-boundary comments for specialized branches"
     "|policy typed-combinator-style-signature=ordinary helpers use ;; : (forall (a) (-> Input Output)) as a Gerbil contract/signature projection; exported helpers/macros/policy helpers use full form with matching leading name, | type/contract/requires/warning/rationale metadata when needed, | doc m% with # Examples fenced scheme input/result comments, and parser-owned typedComment.signatureType/docs.hasResultExamples diagnostics"
@@ -104,6 +106,7 @@
     "|policy guide-code-default-topic=guide --code defaults to typed-combinator-style so agents first see transform signatures plus compact expression-level helper functions"
     "|policy guide-code-progressive=guide --code defaults to one source-backed excerpt; --more adds one adjacent exemplar; --level advanced includes the macro runtime-source witness path"
     "|policy guide-code-routing=--rule/--finding route known policy ids to source-backed exemplars before agent repair; --intent witness routes to macro runtime-source evidence"
+    "|policy compiler-evidence-boundary=type/proof repairs must cite search proof subtype record alias plus search compiler-evidence optimizer subtype assertion and remain medium-weight; do not claim full type theory without a dedicated typed core"
     "|policy guide-workspace=guide does not require a positional .; use --workspace . only when project-local exemplar selection needs context"])))
 
 ;; GuideSection

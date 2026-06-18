@@ -5,7 +5,8 @@
         :parser/facade
         :policy/catalog
         (only-in :std/srfi/1 append-map take)
-        (only-in :std/srfi/13 string-contains))
+        (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar cut filter ormap))
 
 (export capability-posture-facts
         matching-capability-posture-facts)
@@ -176,11 +177,24 @@
 (def (capability-posture-matches-terms? fact terms)
   (or (null? terms)
       (ormap (lambda (term)
-               (or (string-contains (hash-get fact 'id) term)
-                   (string-contains (hash-get (hash-get fact 'details) 'capability) term)
-                   (ormap (cut string-contains <> term)
-                          (hash-get fact 'terms))))
+               (capability-posture-matches-term? fact term))
              terms)))
+
+;;; One term is matched against a projected value set so capability facts can
+;;; add fields without expanding the public search predicate.
+;; : (-> CapabilityPosture SearchTerm Boolean )
+(def (capability-posture-matches-term? fact term)
+  (ormap (cut string-contains <> term)
+         (capability-posture-search-values fact)))
+
+;;; Boundary: capability search fields are projected as data before matching so
+;;; adding a field does not grow the public predicate.
+;; : (-> CapabilityPosture (List String) )
+(def (capability-posture-search-values fact)
+  (filter string?
+          (append [(hash-get fact 'id)
+                   (hash-get (hash-get fact 'details) 'capability)]
+                  (hash-get fact 'terms))))
 ;;; Boundary:
 ;;; - dependency-contains? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

@@ -6,7 +6,8 @@
         :parser/support
         :parser/syntax
         (only-in :std/misc/list unique)
-        (only-in :std/srfi/1 drop))
+        (only-in :std/srfi/1 drop)
+        (only-in :std/sugar ormap))
 
 (export control-flow-facts-from-form
         control-flow-quality-facets)
@@ -42,6 +43,20 @@
 (def +coroutine-control-heads+
   '(yield cothread continue in-coroutine in-cothread in-cothread/peekable
     generating<-for-each generating<-cothread))
+;;; Head groups are the control-flow taxonomy in data form. Role-specific lists
+;;; stay distinct for reporting, while membership checks can remain one
+;;; expression-level combinator.
+;; ConfigConstant
+(def (control-flow-head-groups)
+  [+protected-control-heads+
+   +protected-handler-heads+
+   +cleanup-control-heads+
+   +continuation-control-heads+
+   +resource-scope-heads+
+   +parameter-control-heads+
+   +builder-control-heads+
+   +actor-control-heads+
+   +coroutine-control-heads+])
 ;; : (-> Relpath Form Datum (List ControlFlowFact) )
 (def (control-flow-facts-from-form relpath form datum)
   (control-flow-facts-from-stx relpath form (form-caller-name datum)))
@@ -155,17 +170,16 @@
                             caller
                             (length bindings)
                             (length body))))
+;;; Control-flow heads are grouped by syntactic role, so membership stays
+;;; table-driven and auditable.  The `ormap` form is the boundary between raw
+;;; symbols and parser-owned control-flow classification.
+;;; Membership detection consumes the role taxonomy above as data. This keeps
+;;; the parser fact boundary stable while allowing new runtime/control heads to
+;;; land in the appropriate group.
 ;; : (-> Head Boolean )
 (def (control-flow-head? head)
-  (or (member head +protected-control-heads+)
-      (member head +protected-handler-heads+)
-      (member head +cleanup-control-heads+)
-      (member head +continuation-control-heads+)
-      (member head +resource-scope-heads+)
-      (member head +parameter-control-heads+)
-      (member head +builder-control-heads+)
-      (member head +actor-control-heads+)
-      (member head +coroutine-control-heads+)))
+  (ormap (lambda (heads) (member head heads))
+         (control-flow-head-groups)))
 ;;; Role taxonomy:
 ;;; - Existing roles stay stable for policy compatibility; new roles expose finer runtime boundaries.
 ;;; - Control-flow facets below carry the cross-cutting guidance terms used by search and comments.

@@ -154,10 +154,82 @@
 (def (path-matches-ignored-directory? relpath ignored)
   (let (ignored* (normalize-relative-rule-path ignored))
     (or (path-under-scan-root? relpath ignored*)
-        (and (not (string-contains ignored* "/"))
-             (or (string-prefix? (string-append ignored* "/") relpath)
-                 (string-contains relpath (string-append "/" ignored* "/"))
-                 (string-suffix? (string-append "/" ignored*) relpath))))))
+        (and (path-segment-rule? ignored*)
+             (path-has-directory-segment? relpath ignored*)))))
+
+;; : (-> String Boolean )
+(def (path-segment-rule? rule)
+  (not (string-contains rule "/")))
+
+;;; Boundary: segment matching has three independent path-boundary cases.
+;;; Keep the cases as data plus one arity-specialized matcher factory so
+;;; ignore-rule repair can extend one case without stacking wrapper lambdas.
+;; PathBoundaryCases
+(def +path-directory-segment-boundaries+ '(prefix middle suffix))
+
+;; path-directory-segment-boundary-match?
+;;   : (-> Symbol String Path Boolean)
+;;   | doc m%
+;;       `path-directory-segment-boundary-match? boundary segment relpath`
+;;       applies one directory-segment boundary rule.
+;;     %
+(def (path-directory-segment-boundary-match? boundary segment relpath)
+  (case boundary
+    ((prefix)
+     (string-prefix? (string-append segment "/") relpath))
+    ((middle)
+     (string-contains relpath (string-append "/" segment "/")))
+    ((suffix)
+     (string-suffix? (string-append "/" segment) relpath))
+    (else #f)))
+
+;;; Boundary: `case-lambda` owns the useful factory arities:
+;;; one boundary -> reusable binary matcher, boundary+segment -> unary matcher,
+;;; and boundary+segment+path -> direct predicate.
+;; path-directory-segment-boundary-matcher
+;;   : (-> Symbol String (-> Path Boolean))
+;;   | type Boundary = (U 'prefix 'middle 'suffix)
+;;   | doc m%
+;;       `path-directory-segment-boundary-matcher boundary segment` returns a
+;;       predicate for one segment-boundary case.
+;;     %
+(def path-directory-segment-boundary-matcher
+  (case-lambda
+    ((boundary)
+     (lambda (segment relpath)
+       (path-directory-segment-boundary-match? boundary segment relpath)))
+    ((boundary segment)
+     (lambda (relpath)
+       (path-directory-segment-boundary-match? boundary segment relpath)))
+    ((boundary segment relpath)
+     (path-directory-segment-boundary-match? boundary segment relpath))))
+
+;;; Boundary: expose segment matchers as first-class predicates for the public
+;;; ignore-rule predicate while delegating arity variants to the factory above.
+;; path-directory-segment-matchers
+;;   : (-> String (List (-> Path Boolean)))
+;;   | doc m%
+;;       `path-directory-segment-matchers segment` returns the boundary matchers
+;;       for a directory segment in a relative source path.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (ormap (lambda (matcher) (matcher "src/cache/db.ss"))
+;;              (path-directory-segment-matchers "cache"))
+;;       ;; => #t
+;;       ```
+;;     %
+(def (path-directory-segment-matchers segment)
+  (map (cut path-directory-segment-boundary-matcher <> segment)
+       +path-directory-segment-boundaries+))
+
+;;; Boundary: apply segment matchers through `ormap` to preserve short-circuit
+;;; behavior while keeping the individual path cases first-class.
+;; : (-> Path String Boolean )
+(def (path-has-directory-segment? relpath segment)
+  (ormap (lambda (matcher) (matcher relpath))
+         (path-directory-segment-matchers segment)))
 
 ;;; Package source-scope rules are relative to the workspace. `path-normalize`
 ;;; expands them to absolute paths, which breaks comparison with parser relpaths.

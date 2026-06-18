@@ -23,6 +23,8 @@
   '("partial-application" "function-curry" "function-composition"
     "pipeline-composition" "higher-order-combinator"
     "anonymous-function" "named-lambda-abstraction"
+    "eta-wrapper-lambda"
+    "lambda-match-opportunity" "pattern-matching-function"
     "multi-arity-function" "autocurry-semantics"
     "sequence-map" "sequence-filter" "sequence-filter-map"
     "sequence-append-map" "sequence-predicate" "sequence-search"
@@ -394,13 +396,31 @@
 ;; : (-> TypedContractFact String Boolean)
 (def (typed-combinator-style-typed-comment-has-full-doc? fact expected-name)
   (let (typed-comment (typed-contract-fact-typed-comment fact))
-    (and typed-comment
-         (hash-get typed-comment 'fullForm)
-         (equal? (hash-get typed-comment 'leadingName) expected-name)
-         (typed-combinator-style-docs-have-body?
-          (or (hash-get typed-comment 'docs) []))
-         (typed-combinator-style-docs-have-result-example?
-          (or (hash-get typed-comment 'docs) [])))))
+    (and (typed-combinator-style-typed-comment-owned? typed-comment expected-name)
+         (typed-combinator-style-docs-complete
+          (typed-combinator-style-typed-comment-docs typed-comment)))))
+
+;;; Ownership checks stay separate from documentation content so policy can
+;;; explain whether a full-form block is missing or merely incomplete.
+;; : (-> TypedCommentMetadata String Boolean)
+(def (typed-combinator-style-typed-comment-owned? typed-comment expected-name)
+  (and typed-comment
+       (hash-get typed-comment 'fullForm)
+       (equal? (hash-get typed-comment 'leadingName) expected-name)))
+
+;;; Typed-comment docs are projected once from parser metadata; downstream
+;;; body/example predicates consume the list without reaching back into hashes.
+;; : (-> TypedCommentMetadata (List Json))
+(def (typed-combinator-style-typed-comment-docs typed-comment)
+  (or (hash-get typed-comment 'docs) []))
+
+;;; Completeness is an aggregator over the two public doc evidence predicates.
+;;; It is deliberately not a `?` helper so R016 does not treat it as another
+;;; predicate-family member over `docs`.
+;; : (-> (List Json) Boolean)
+(def (typed-combinator-style-docs-complete docs)
+  (and (typed-combinator-style-docs-have-body? docs)
+       (typed-combinator-style-docs-have-result-example? docs)))
 
 ;;; Boundary:
 ;;; - Documentation body evidence comes from typed-comment metadata.
@@ -517,6 +537,9 @@
                      "arity-specialized-function-factory"
                      "wrapper-lambda-drift"
                      "function-specialization-opportunity"
+                     "eta-wrapper-drift"
+                     "lambda-match-destructuring"
+                     "lambda-match-rewrite-opportunity"
                      "method-table-combinator-body"
                      "method-table-lambda-drift"
                      "method-table-low-level-body"]))
@@ -539,6 +562,10 @@
                 "prefer cut/curry/rcurry/compose helper composition when arity evidence already matches")
            (and (member "lambda-local-abstraction" quality-facets)
                 "prefer small local lambda/function-factory helpers when the behavior is a reusable transform")
+           (and (member "lambda-match-rewrite-opportunity" quality-facets)
+                "replace unary lambdas whose whole body matches the same argument with gerbil-utils/base.ss lambda-match or lambda-ematch")
+           (and (member "lambda-match-destructuring" quality-facets)
+                "keep pattern destructuring at the function boundary instead of hiding it behind anonymous wrapper lambdas")
            (and (member "named-lambda-helper" quality-facets)
                 "use gerbil-utils/base.ss style fun helpers when a local named lambda makes the transform reusable without recursive self-reference")
            (and (member "parameterized-transform" quality-facets)
@@ -549,6 +576,8 @@
                 "use case-lambda when a helper has real arity variants instead of branching on raw argument lists")
            (and (member "function-specialization-abstraction" quality-facets)
                 "use cut/curry/rcurry for first-class specialization instead of repeated wrapper lambdas")
+           (and (member "eta-wrapper-drift" quality-facets)
+                "replace eta-wrapper lambdas with the direct function, cut, curry/rcurry, or compose/rcompose according to argument shape")
            (and (member "function-pipeline-abstraction" quality-facets)
                 "use compose/rcompose/!>/!!> when the data flow is a reusable function pipeline")
            (and (member "base-style-combinator-composition" quality-facets)
@@ -558,7 +587,7 @@
            (and (member "arity-specialized-function-factory" quality-facets)
                 "use nested case-lambda only for real arity specialization and keep the optimization boundary explicit")
            (and (member "wrapper-lambda-drift" quality-facets)
-                "extract repeated wrapper lambdas into a named factory, curry/rcurry specializer, or compose/rcompose pipeline")
+                "extract repeated wrapper lambdas into a named factory, case-lambda function factory, curry/rcurry specializer, or compose/rcompose pipeline")
            (and (member "function-specialization-opportunity" quality-facets)
                 "repair anonymous specialization by introducing one first-class helper boundary before changing call sites")
            (and (member "boolean-normalization-drift" quality-facets)

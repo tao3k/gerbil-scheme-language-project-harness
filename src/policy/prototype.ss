@@ -161,9 +161,7 @@
 ;; : (-> SlotPrototype SlotPrototype ... SlotPrototype )
 (def (slot-prototype-extend base . overlays)
   (slot-prototype-compose
-   (fold (lambda (overlay ordered) (cons overlay ordered))
-         [base]
-         overlays)))
+   (fold cons [base] overlays)))
 
 ;;; Boundary:
 ;;; - Single-overlay override stays explicit for callers replacing one profile.
@@ -242,9 +240,7 @@
 (def (slot-profile-extend base . overlays)
   (slot-profile-compose
    (string-append (c3-slot-profile-name base) "-extension")
-   (fold (lambda (overlay ordered) (cons overlay ordered))
-         [base]
-         overlays)))
+   (fold cons [base] overlays)))
 
 ;;; Override boundary:
 ;;; - Single replacement remains a two-super C3 graph.

@@ -23,6 +23,10 @@
         type-proof-premises
         type-proof-detail
         type-proof-rules
+        type-proof-depth
+        type-proof-node-count
+        type-proof-json
+        type-proof-profile-json
         make-type-validation-diagnostic
         type-validation-diagnostic-code
         type-validation-diagnostic-path

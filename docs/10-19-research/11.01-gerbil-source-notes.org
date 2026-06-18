@@ -76,3 +76,39 @@ composition, but it must not claim complete type-theory soundness.  If we need
 stronger guarantees later, the next step is a separate typed core plus
 counterexample diagnostics, not stretching Gerbil compiler optimizer facts into
 a theorem prover.
+
+** 11.01.5 Medium-Weight Compiler Evidence Landing
+
+The harness now exposes this upstream compiler boundary through an explicit
+=compiler-evidence= search namespace:
+
+#+begin_src sh
+gerbil-scheme-harness search compiler-evidence optimizer subtype assertion --workspace . --view seeds
+gerbil-scheme-harness search proof subtype record alias --workspace . --view seeds
+#+end_src
+
+The =compiler-evidence= packet is intentionally ordinary language evidence,
+not a =runtime-source-acquisition= packet.  It points agents at the versioned
+runtime source selectors that justify a local derivation:
+
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!signature~
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!class~
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!predicate~
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!type-subtype?~
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!class-subclass?~
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#fold-assert-type~
+- ~gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type~
+
+Agent-facing rule: type/proof repairs may cite =compiler-evidence= only as
+medium-weight evidence.  Valid claims are normalized contract parsing,
+metadata-backed subtype checks, local assertion environment facts, and source
+selector witnesses.  Invalid claims remain full type theory, quantifier
+reasoning, proof-term calculus, principal inference, and global theorem proving
+over module imports.
+
+The =proof= namespace is the stable medium-weight proof system surface.  It
+serializes TypeSpec proof trees from =src/types/subtyping.ss= with root rule,
+recursive premises, depth, node count, preorder rule chain, and compiler
+evidence linkage.  It is mature enough for agent repair gates because the
+packet is schema-backed and generated from the actual proof engine, but it
+remains intentionally below a complete theorem prover.

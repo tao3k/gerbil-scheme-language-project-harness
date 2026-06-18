@@ -2,6 +2,7 @@
 ;;; Conservative TypeSpec subtyping proof engine.
 
 (import :gerbil/gambit
+        (only-in :std/sugar hash)
         :types/model)
 
 (export make-type-proof
@@ -11,6 +12,10 @@
         type-proof-premises
         type-proof-detail
         type-proof-rules
+        type-proof-depth
+        type-proof-node-count
+        type-proof-json
+        type-proof-profile-json
         relation-proof
         type-open?
         type-subtype-proof*
@@ -28,6 +33,63 @@
 (def (type-proof-rules proof)
   (cons (type-proof-rule proof)
         (apply append (map type-proof-rules (type-proof-premises proof)))))
+
+;; type-proof-depth
+;;   : (-> TypeProof PositiveInteger)
+;;   | doc m%
+;;       `type-proof-depth proof` measures the derivation tree depth so command
+;;       packets can expose proof cost without knowing the tree layout.
+;;     %
+(def (type-proof-depth proof)
+  (let (premises (type-proof-premises proof))
+    (if (null? premises)
+      1
+      (+ 1 (foldl max 0 (map type-proof-depth premises))))))
+
+;; type-proof-node-count
+;;   : (-> TypeProof PositiveInteger)
+;;   | doc m%
+;;       `type-proof-node-count proof` counts derivation nodes for stable
+;;       medium-weight proof budgeting and packet validation.
+;;     %
+(def (type-proof-node-count proof)
+  (+ 1 (foldl + 0 (map type-proof-node-count
+                       (type-proof-premises proof)))))
+
+;; type-proof-json
+;;   : (-> TypeProof Json)
+;;   | doc m%
+;;       `type-proof-json proof` is the stable recursive projection of a
+;;       TypeProof.  It is evidence serialization, not a separate prover.
+;;     %
+(def (type-proof-json proof)
+  (hash (rule (type-proof-rule proof))
+        (conclusion (type-proof-conclusion proof))
+        (detail (type-proof-detail-json (type-proof-detail proof)))
+        (premises (map type-proof-json (type-proof-premises proof)))))
+
+;;; Detail projection is an order-preserving map from internal alist evidence
+;;; to schema nodes.  Validation already happened at proof construction, so this
+;;; layer only serializes keys and values without mutating the witness.
+;; : (-> TypeProofDetail Json)
+(def (type-proof-detail-json detail)
+  (map (lambda (entry)
+         (hash (key (car entry))
+               (value (cdr entry))))
+       detail))
+
+;; type-proof-profile-json
+;;   : (-> TypeProof Json)
+;;   | doc m%
+;;       `type-proof-profile-json proof` exposes root rule, depth, node count,
+;;       and preorder rule chain for policy/search consumers.
+;;     %
+(def (type-proof-profile-json proof)
+  (hash (rootRule (type-proof-rule proof))
+        (conclusion (type-proof-conclusion proof))
+        (depth (type-proof-depth proof))
+        (nodeCount (type-proof-node-count proof))
+        (rules (type-proof-rules proof))))
 
 ;; : (-> TypeRelation TypeSpec TypeSpec TypeProofConclusion)
 (def (proof-conclusion relation actual expected)

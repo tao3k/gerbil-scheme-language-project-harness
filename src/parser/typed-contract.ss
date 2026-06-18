@@ -22,6 +22,13 @@
 (export typed-contract-facts-from-definitions
         typed-contract-facts-from-lines)
 
+;;; Known domain tokens are split by role so signature validation can explain
+;;; whether a name is a container or scalar without growing token predicates.
+;; (List SignatureToken)
+(def +typed-contract-container-tokens+ '("List" "Maybe" "NonEmptyList" "Vector" "Hash"))
+;; (List SignatureToken)
+(def +typed-contract-scalar-tokens+ '("Boolean" "String" "Integer" "Number" "Unit" "Character"))
+
 ;;; Boundary:
 ;;; - typed-contract-facts-from-definitions composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -639,8 +646,16 @@
 ;; : (-> SignatureToken Boolean )
 (def (typed-contract-domain-token? token)
   (and (not (typed-contract-generic-token? token))
-       (not (member token ["List" "Maybe" "NonEmptyList" "Vector" "Hash"]))
-       (not (member token ["Boolean" "String" "Integer" "Number" "Unit" "Character"]))))
+       (not (typed-contract-known-domain-token? token))))
+
+;;; Known-domain lookup is table driven so adding a built-in type does not make
+;;; unknown-token classification harder to audit.
+;; : (-> SignatureToken Boolean )
+(def (typed-contract-known-domain-token? token)
+  (ormap (lambda (tokens)
+           (member token tokens))
+         [+typed-contract-container-tokens+
+          +typed-contract-scalar-tokens+]))
 
 ;; : (-> SignatureToken Boolean )
 (def (typed-contract-generic-token? token)

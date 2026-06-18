@@ -9,6 +9,7 @@
         :commands/search-evidence
         :commands/search-extension
         :commands/search-owner-items
+        :commands/search-proof
         :commands/search-structural
         :commands/search-workspace-scope
         :extensions/facade
@@ -50,6 +51,7 @@
               (json? (flag? "--json" args)))
          (cond
           ((equal? view "compare") (emit-compare-search args json?))
+          ((equal? view "proof") (emit-type-proof-search args json?))
           ((language-evidence-index-free-view? view)
            (emit-language-evidence-search root view args json?))
           ((poo-pattern-package-only-search? view args)
@@ -79,6 +81,7 @@
               ((equal? view "extension") (emit-extension-search index args json?))
               ((equal? view "pattern") (emit-pattern-search index args json?))
               ((equal? view "compare") (emit-compare-search args json?))
+              ((equal? view "proof") (emit-type-proof-search args json?))
               ((language-evidence-view? view)
                (emit-language-evidence-search index view args json?))
               ((or (equal? view "fzf") (equal? view "pipe"))

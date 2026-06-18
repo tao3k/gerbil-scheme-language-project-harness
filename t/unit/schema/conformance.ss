@@ -10,7 +10,9 @@
         :std/text/json)
 
 (export check-info-json-schema-conformance
+        check-language-evidence-json-schema-conformance
         check-runtime-source-json-schema-conformance
+        check-type-proof-json-schema-conformance
         check-extension-pattern-json-schema-conformance
         check-compare-json-schema-conformance
         check-structural-index-json-schema-conformance)
@@ -68,6 +70,23 @@
     (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-R011") => #t)
     (check (json-get commands "check")
            => "gerbil-scheme-harness check .")))
+
+;; Json
+(def (check-language-evidence-json-schema-conformance)
+  (let* ((packet (search-json ["compiler-evidence" "assert-type" "--json" "."]))
+         (facts (json-get packet "facts"))
+         (fact (car facts))
+         (details (json-get fact "details")))
+    (check-packet-conforms-to-schema!
+     packet
+     "semantic-language-evidence.v1.schema.json")
+    (check (json-get packet "namespace") => "compiler-evidence")
+    (check (json-get packet "quality") => "verified")
+    (check (json-get packet "missing") => [])
+    (check (json-get fact "id")
+           => "gerbil-compiler-medium-weight-evidence")
+    (check (json-get details "proofBoundary")
+           => "medium-weight-compiler-evidence")))
 ;; : (-> Packet Schema MissingRequiredFields )
 (def (missing-required-fields packet schema)
   (filter (lambda (key)
@@ -108,6 +127,26 @@
     (check (not (null? (json-get fact "selectors"))) => #t)
     (check (not (null? (json-get packet "failureCases"))) => #t)
     (check (not (null? (json-get packet "qualitySignals"))) => #t)))
+
+;; Json
+(def (check-type-proof-json-schema-conformance)
+  (let* ((packet (search-json ["proof" "record" "--json" "."]))
+         (proof-system (json-get packet "proofSystem"))
+         (proofs (json-get packet "proofs"))
+         (proof (car proofs))
+         (profile (json-get proof "profile"))
+         (proof-tree (json-get proof "proof")))
+    (check-packet-conforms-to-schema!
+     packet
+     "semantic-type-proof.v1.schema.json")
+    (check (json-get packet "namespace") => "proof")
+    (check (json-get packet "quality") => "verified")
+    (check (json-get proof-system "level") => "medium-weight")
+    (check (json-get proof-system "model") => "TypeSpec")
+    (check (json-get proof "id") => "record-width-subtype")
+    (check (json-get profile "depth") => 4)
+    (check (json-get profile "nodeCount") => 4)
+    (check (json-get proof-tree "rule") => "record")))
 ;; Json
 (def (check-extension-pattern-json-schema-conformance)
   (let* ((packet (search-json ["pattern" "poo" "json" "fallback" "--json" "."]))

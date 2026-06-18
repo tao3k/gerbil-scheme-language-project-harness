@@ -26,16 +26,20 @@
 
 ;; : (-> View Boolean )
 (def (language-evidence-view? view)
-  (and (member view ["extension" "env" "runtime-source" "lang" "std" "pattern" "capability"]) #t))
+  (and (member view ["extension" "env" "runtime-source" "compiler-evidence"
+                     "lang" "std" "pattern" "capability"])
+       #t))
 ;; : (-> View Boolean )
 (def (language-evidence-index-free-view? view)
-  (and (member view ["env" "runtime-source" "lang" "std"]) #t))
+  (and (member view ["env" "runtime-source" "compiler-evidence" "lang" "std"])
+       #t))
 ;; : (-> Namespace String )
 (def (language-evidence-authority namespace)
   (cond
    ((equal? namespace "extension") "ecosystem-extension")
    ((equal? namespace "env") "active-runtime")
    ((equal? namespace "runtime-source") "runtime-version-source")
+   ((equal? namespace "compiler-evidence") "compiler-metadata-source")
    ((equal? namespace "lang") "language-rules")
    ((equal? namespace "std") "standard-library")
    ((equal? namespace "pattern") "executable-pattern")
@@ -45,11 +49,37 @@
 (def (language-evidence-next namespace query)
   (string-append "search " namespace " " query))
 ;; String
+(def +semantic-language-evidence-schema-id+
+  "agent.semantic-protocols.semantic-language-evidence")
+;; String
 (def +semantic-runtime-source-acquisition-schema-id+
   "agent.semantic-protocols.semantic-runtime-source-acquisition")
 ;; String
 (def +semantic-compare-packet-schema-id+
   "agent.semantic-protocols.semantic-compare-packet")
+;; language-evidence-packet-json
+;;   : (-> String String String String (List LanguageEvidenceFact) String JsonPacket)
+;;   | doc m%
+;;       `language-evidence-packet-json namespace authority grade query facts
+;;       next` builds the generic schema-backed language evidence packet.
+;;     %
+(def (language-evidence-packet-json namespace authority grade query facts next)
+  (let (fact (and (pair? facts) (car facts)))
+    (hash (schemaId +semantic-language-evidence-schema-id+)
+          (schemaVersion "1")
+          (protocolId "agent.semantic-protocols.semantic-language")
+          (protocolVersion "1")
+          (languageId +language-id+)
+          (providerId +provider-id+)
+          (namespace namespace)
+          (authority authority)
+          (evidenceGrade grade)
+          (quality (if fact "verified" "insufficient"))
+          (query query)
+          (facts facts)
+          (missing (if fact [] ["language-evidence-fact"]))
+          (witness (if fact (hash-get fact 'witness) "pending"))
+          (next next))))
 ;; runtime-source-acquisition-packet-json
 ;;   : (-> String String String String (List LanguageEvidenceFact) String JsonPacket)
 ;;   | doc m%
@@ -390,6 +420,7 @@
                " indexOwner=" (hash-get index-hint 'owner)
                " indexBackend=" (hash-get index-hint 'backend)
                " indexPackageManager=" (hash-get index-hint 'packageManager))))
+
 ;;; Boundary:
 ;;; - emit-language-evidence-search coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
@@ -409,14 +440,8 @@
          (runtime-source-acquisition-packet-json
           namespace authority grade query facts next))
         (write-json-line
-         (hash (languageId +language-id+)
-               (providerId +provider-id+)
-               (namespace namespace)
-               (authority authority)
-               (evidenceGrade grade)
-               (query query)
-               (facts facts)
-               (next next))))
+         (language-evidence-packet-json
+          namespace authority grade query facts next)))
       (begin
         (displayln "[gerbil-search-" namespace "] query=" query
                    " evidenceGrade=" grade " authority=" authority)
@@ -442,6 +467,7 @@
 ;; : (-> Namespace Boolean )
 (def (runtime-source-index-namespace? namespace)
   (or (equal? namespace "std")
+      (equal? namespace "compiler-evidence")
       (equal? namespace "runtime-source")))
 
 ;; : (-> ProjectRoot (U #f Path) )
@@ -571,6 +597,7 @@
         (cond
          ((equal? namespace "env") (active-runtime-facts))
          ((equal? namespace "runtime-source") (runtime-source-facts))
+         ((equal? namespace "compiler-evidence") (compiler-evidence-facts))
          ((equal? namespace "lang") (language-rule-facts))
          ((equal? namespace "std") (standard-library-facts))
          ((equal? namespace "capability") (capability-posture-facts index))

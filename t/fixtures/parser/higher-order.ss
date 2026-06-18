@@ -5,7 +5,8 @@
 (import :std/sugar
         :std/srfi/1
         (rename-in :std/misc/list (foldl fold-left)))
-(export select names positives positive-names any-positive? first-positive total bump counted
+(export select names positives positive-names matched-tags
+        any-positive? first-positive total bump counted
         specialized-label wrapper-label)
 ;; : (-> Item (List Item) )
 (def select
@@ -24,6 +25,13 @@
                 (and (slot-ref widget 'positive?)
                      (slot-ref widget 'name)))
               widgets))
+;; : (-> TaggedItems (List Value) )
+(def (matched-tags items)
+  (filter-map (lambda (item)
+                (match item
+                  ((cons 'tag value) value)
+                  (else #f)))
+              items))
 ;; : (-> (List Number) Boolean )
 (def (any-positive? xs)
   (ormap (lambda (n) (> n 0)) xs))

@@ -113,6 +113,21 @@
           (check (source-path-class "t/snapshots/policy-functional-idiom.ss")
                  => "snapshot-output")
           (check (source-path-class "src/main.ss") => "runtime-source"))
+    (test-case "boolean condition facts include multi-arity path predicates"
+          (let* ((root (path-normalize "."))
+                 (file (parse-source-file root "t/fixtures/parser/boolean-condition.ss"))
+                 (fact
+                  (find-boolean-condition
+                   (source-file-boolean-condition-facts file)
+                   "path-matches-token?"))
+                 (callees (boolean-condition-fact-condition-callees fact)))
+            (check (source-file-parse-error file) => #f)
+            (check (boolean-condition-fact-formals fact) => ["relpath" "token"])
+            (check (boolean-condition-fact-condition-count fact) => 6)
+            (check (if (member "string-prefix?" callees) #t #f) => #t)
+            (check (if (member "string-suffix?" callees) #t #f) => #t)
+            (check (if (member "string-contains" callees) #t #f) => #t)
+            (check (if (member "not" callees) #t #f) => #t)))
     (test-case "scheme typed contracts validate type constructor applications"
           (let* ((list-expr
                   (scheme-type-expression-text-json "(List TypeFinding)"))
@@ -252,7 +267,27 @@
                  (wrapper-profile
                   (find-function-quality-profile
                    (source-file-function-quality-profiles file)
-                   "wrapper-label")))
+                   "wrapper-label"))
+                 (match-profile
+                  (find-function-quality-profile
+                   (source-file-function-quality-profiles file)
+                   "matched-tags"))
+                 (eta-profile
+                  (find-function-quality-profile
+                   (source-file-function-quality-profiles file)
+                   "total"))
+                 (match-fact
+                  (find-higher-order
+                   (source-file-higher-order-forms file)
+                   "lambda"
+                   "lambda-match-opportunity"
+                   "matched-tags"))
+                 (eta-fact
+                  (find-higher-order
+                   (source-file-higher-order-forms file)
+                   "lambda"
+                   "eta-wrapper-lambda"
+                   "total")))
             (check (not (not (member "higher-order-constructor-abstraction"
                                       (function-quality-profile-quality-facets
                                        specialized-profile))))
@@ -279,6 +314,23 @@
             (check (not (not (string-contains
                               (function-quality-profile-advice wrapper-profile)
                               "curry/rcurry")))
+                   => #t)
+            (check (not match-fact) => #f)
+            (check (not (not (member "lambda-match-rewrite-opportunity"
+                                      (function-quality-profile-quality-facets
+                                       match-profile))))
+                   => #t)
+            (check (function-quality-profile-suggested-repair-class
+                    match-profile)
+                   => "typed-combinator-style")
+            (check (not (not (string-contains
+                              (function-quality-profile-advice match-profile)
+                              "lambda-match")))
+                   => #t)
+            (check (not eta-fact) => #f)
+            (check (not (not (member "eta-wrapper-drift"
+                                      (function-quality-profile-quality-facets
+                                       eta-profile))))
                    => #t)))
     (test-case "parser exposes boolean normalization scaffold facts"
           (let* ((root (path-normalize ".run/parser-boolean-normalization"))

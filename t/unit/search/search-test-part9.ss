@@ -89,6 +89,95 @@
               "|qualitySignal id=snapshot-covered"
               "|qualitySignal id=bench-covered"
               "|failureCase id=basic-scheme-fallback"])))
+    (test-case "compiler evidence search exposes medium-weight proof boundary"
+          (let (output (search-output ["compiler-evidence" "optimizer" "subtype"
+                                        "assertion" "."]))
+            (check-output-contains
+             output
+             ["[gerbil-search-compiler-evidence] query=optimizer subtype assertion"
+              "authority=compiler-metadata-source"
+              "|fact id=gerbil-compiler-medium-weight-evidence"
+              "runtime-source-compiler-optimizer-metadata-and-local-assertion-env"
+              "|sourceRef kind=runtime-version-source"
+              "|selectorResolver scheme=gerbil-runtime-source"
+              "|sourceExample id=compiler-signature-metadata role=optimizer-metadata symbol=!signature selector=gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!signature"
+              "|sourceExample id=compiler-subtype-relation role=subtype-relation symbol=!type-subtype? selector=gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!type-subtype?"
+              "|sourceExample id=compiler-local-assertion-env role=local-assertion-env symbol=fold-assert-type selector=gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#fold-assert-type"
+              "|sourceExample id=compiler-assert-type role=assertion-check symbol=assert-type selector=gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type"
+              "|selector role=optimizer-class symbol=!class selector=gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!class"
+              "|selector role=local-assertion-check symbol=assert-type selector=gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type"
+              "|failureCase id=full-proof-system-claim"
+              "|failureCase id=pseudo-type-comment"
+              "|qualitySignal id=medium-weight-only"
+              "|qualitySignal id=no-full-proof-claim"
+              "next=search compiler-evidence optimizer subtype assertion"])))
+    (test-case "compiler evidence json remains generic language evidence packet"
+          (let* ((output (search-output ["compiler-evidence" "assert-type"
+                                          "--json" "."]))
+                 (packet (call-with-input-string output read-json))
+                 (facts (json-get packet "facts"))
+                 (fact (car facts))
+                 (details (json-get fact "details"))
+                 (model (json-get details "model"))
+                 (rejected (json-get model "rejectedClaims"))
+                 (selectors (json-get fact "selectors"))
+                 (assert-selector (list-ref selectors 6)))
+            (check (json-get packet "schemaId")
+                   => "agent.semantic-protocols.semantic-language-evidence")
+            (check (json-get packet "namespace") => "compiler-evidence")
+            (check (json-get packet "authority") => "compiler-metadata-source")
+            (check (json-get packet "evidenceGrade") => "fact")
+            (check (json-get packet "quality") => "verified")
+            (check (json-get fact "id")
+                   => "gerbil-compiler-medium-weight-evidence")
+            (check (json-get details "proofBoundary")
+                   => "medium-weight-compiler-evidence")
+            (check (member "proof-term-calculus" rejected) => #t)
+            (check (json-get assert-selector "symbol") => "assert-type")
+            (check (json-get assert-selector "selector")
+                   => "gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type")
+            (check (json-get packet "next")
+                   => "search compiler-evidence optimizer subtype assertion")))
+    (test-case "proof search exposes medium-weight TypeSpec proof system"
+          (let (output (search-output ["proof" "record" "."]))
+            (check-output-contains
+             output
+             ["[gerbil-search-proof] query=record"
+              "authority=medium-weight-type-proof"
+              "|proofSystem id=gerbil-medium-weight-type-proof level=medium-weight engine=src/types/subtyping.ss model=TypeSpec claim=positive-derivation-witness"
+              "|proof id=record-width-subtype relation=subtype rootRule=record depth=4 nodeCount=4"
+              "rules=record,record-field,refine-base,type-equal"
+              "|compilerEvidence namespace=compiler-evidence authority=compiler-metadata-source nextCommand=search compiler-evidence optimizer subtype assertion"
+              "|failureCase id=proof-without-typespec-validation"
+              "|qualitySignal id=schema-backed-proof-packet"
+              "|qualitySignal id=compiler-evidence-linked"
+              "next=search compiler-evidence optimizer subtype assertion"])))
+    (test-case "proof json carries recursive proof tree and compiler boundary"
+          (let* ((output (search-output ["proof" "record" "--json" "."]))
+                 (packet (call-with-input-string output read-json))
+                 (system (json-get packet "proofSystem"))
+                 (compiler-evidence (json-get packet "compilerEvidence"))
+                 (proofs (json-get packet "proofs"))
+                 (proof (car proofs))
+                 (profile (json-get proof "profile"))
+                 (proof-tree (json-get proof "proof"))
+                 (first-premise (car (json-get proof-tree "premises"))))
+            (check (json-get packet "schemaId")
+                   => "agent.semantic-protocols.semantic-type-proof")
+            (check (json-get packet "namespace") => "proof")
+            (check (json-get packet "quality") => "verified")
+            (check (json-get system "level") => "medium-weight")
+            (check (member "cross-module-theorem-prover"
+                           (json-get system "notA"))
+                   => #t)
+            (check (json-get compiler-evidence "namespace")
+                   => "compiler-evidence")
+            (check (json-get proof "id") => "record-width-subtype")
+            (check (json-get profile "rootRule") => "record")
+            (check (json-get profile "depth") => 4)
+            (check (json-get profile "nodeCount") => 4)
+            (check (json-get proof-tree "rule") => "record")
+            (check (json-get first-premise "rule") => "record-field")))
     (test-case "env search exposes active runtime witness"
           (let (output (search-output ["env" "gxi" "."]))
             (check (contains? output "evidenceGrade=fact") => #t)

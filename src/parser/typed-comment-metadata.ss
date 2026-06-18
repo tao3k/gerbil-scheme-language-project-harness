@@ -21,6 +21,14 @@
         typed-comment-strip-signature-marker
         join-nonblank-with-space)
 
+;;; Leading-name blockers encode full-form typed doc grammar. Prefix blockers
+;;; identify metadata lines, while fragment blockers keep prose and signatures
+;;; from being misread as a definition name.
+;; (List String)
+(def +typed-comment-leading-name-blocked-prefixes+ '(":" "|"))
+;; (List String)
+(def +typed-comment-leading-name-blocked-fragments+ '(" " "\t" "("))
+
 ;; typed-comment-empty-metadata
 ;;   : (-> BlockStyle SignatureContract TypedCommentMetadata)
 ;;   | doc m%
@@ -165,11 +173,24 @@
 (def (typed-comment-leading-name? text)
   (let (trimmed (string-trim text))
     (and (not (equal? trimmed ""))
-         (not (string-prefix? ":" trimmed))
-         (not (string-prefix? "|" trimmed))
-         (not (string-contains trimmed " "))
-         (not (string-contains trimmed "\t"))
-         (not (string-contains trimmed "(")))))
+         (not (typed-comment-leading-name-blocked-prefix? trimmed))
+         (not (typed-comment-leading-name-blocked-fragment? trimmed)))))
+
+;;; Prefix blockers are intentionally separate from fragment blockers so `|`
+;;; metadata lines and `:` signatures stay grammar-level cases.
+;; : (-> TypedCommentText Boolean)
+(def (typed-comment-leading-name-blocked-prefix? text)
+  (ormap (lambda (prefix)
+           (string-prefix? prefix text))
+         +typed-comment-leading-name-blocked-prefixes+))
+
+;;; Fragment blockers reject prose-like candidates after trimming without
+;;; coupling this parser to a specific doc sentence shape.
+;; : (-> TypedCommentText Boolean)
+(def (typed-comment-leading-name-blocked-fragment? text)
+  (ormap (lambda (fragment)
+           (string-contains text fragment))
+         +typed-comment-leading-name-blocked-fragments+))
 
 ;;; Boundary:
 ;;; - Section grouping is a small fold over source-order comment lines.

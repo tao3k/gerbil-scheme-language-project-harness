@@ -2,18 +2,26 @@
 ;;; Gerbil language/runtime/std evidence facts for agent-facing search.
 
 (import (only-in :std/srfi/13 string-contains string-index)
-        (only-in :std/sugar filter))
+        (only-in :std/sugar filter ormap))
 
 (export runtime-bin
         evidence-fact
         active-runtime-facts
         runtime-source-facts
+        compiler-evidence-facts
         language-rule-facts
         standard-library-facts
         hygienic-macro-pattern-evidence
         hygienic-macro-pattern-query?
         hygienic-macro-minimal-forms
         hygienic-macro-failure-cases)
+
+;;; Hygienic macro search terms are a query vocabulary, not a parser fact.
+;;; Keeping them data-shaped avoids widening the macro evidence predicate with
+;;; every synonym we want the agent search path to understand.
+;; (List SearchTerm)
+(def +hygienic-macro-query-terms+
+  '("hygienic-macro" "hygienic" "macro" "defsyntax" "syntax-case"))
 ;; : (-> String RuntimeBin )
 (def (runtime-bin name)
   (let ((default-bin (path-expand (string-append "bin/" name) (gerbil-home)))
@@ -295,6 +303,145 @@
        (hash (id "raw-runtime-source-search")
              (risk "agent-clones-gerbil-source-but-searches-it-with-raw-grep")
              (correction "use-asp-managed-runtime-source-index-before-agent-facing-search"))])]))
+;;; Boundary:
+;;; - compiler-evidence-facts records upstream optimizer facts as medium-weight evidence.
+;;; - It must not promote optimizer metadata into a complete type theory or proof system.
+;; (List Fact)
+(def (compiler-evidence-facts)
+  (let* ((version-string (gerbil-system-version-string))
+         (tag (or (gerbil-runtime-tag version-string) "unknown-runtime-tag"))
+         (compiler-resolver
+          (hash (scheme "gerbil-runtime-source")
+                (owner "asp")
+                (stateNamespace "runtime-source/gerbil-scheme")
+                (versionKey tag)
+                (selectorFormat "gerbil-runtime-source://<source-path>#<symbol>")
+                (output "code-with-comments")
+                (indexOwner "asp-structural-index"))))
+    [(evidence-fact
+      "gerbil-compiler-medium-weight-evidence"
+      "Gerbil compiler optimizer metadata supports medium-weight derivation witnesses, not a complete proof system."
+      "fact"
+      "runtime-source-compiler-optimizer-metadata-and-local-assertion-env"
+      "search compiler-evidence optimizer subtype assertion"
+      ["compiler-evidence" "compiler" "medium-weight" "proof" "proof-boundary"
+       "optimizer" "metadata" "!signature" "!class" "!predicate"
+       "!type-subtype?" "subtype" "!class-subclass?" "assertion" "assert-type"
+       "fold-assert-type" "env-type" "predicate-type" "module-context"
+       "import-module" "local-assertion" "type-derivation" "type-proof"
+       "runtime-source" tag version-string]
+      (hash (proofBoundary "medium-weight-compiler-evidence")
+            (runtime (hash (systemVersion version-string)
+                           (tag tag)))
+            (sourceRef (hash (kind "runtime-version-source")
+                             (manager "git")
+                             (repository "https://git.cons.io/mighty-gerbils/gerbil")
+                             (checkout tag)
+                             (checkoutPolicy "exact-tag-from-active-runtime")
+                             (statePathPolicy "asp-state-managed")
+                             (selectorScheme "runtime-source-owner-selector")))
+            (acquisition (hash (owner "asp")
+                               (operation "clone-or-fetch-checkout-index")
+                               (stateNamespace "runtime-source/gerbil-scheme")
+                               (versionKey tag)
+                               (indexOwner "asp-structural-index")))
+            (selectorResolver compiler-resolver)
+            (sourceExamples
+             [(hash (id "compiler-signature-metadata")
+                    (role "optimizer-metadata")
+                    (symbol "!signature")
+                    (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!signature")
+                    (form (hash (head "defclass")
+                                (operands ["!signature" "(return effect arguments unchecked origin)"])
+                                (keywords ["final:" "equal:" "print:"])))
+                    (commentMode "owner-window-with-neighbor-comments"))
+              (hash (id "compiler-subtype-relation")
+                    (role "subtype-relation")
+                    (symbol "!type-subtype?")
+                    (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!type-subtype?")
+                    (form (hash (head "def")
+                                (operands ["(!type-subtype? type-a type-b)" "metadata-level-relation"])
+                                (keywords [])))
+                    (commentMode "owner-window-with-neighbor-comments"))
+              (hash (id "compiler-local-assertion-env")
+                    (role "local-assertion-env")
+                    (symbol "fold-assert-type")
+                    (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#fold-assert-type")
+                    (form (hash (head "def")
+                                (operands ["(fold-assert-type expr val env)" "env-type"])
+                                (keywords [])))
+                    (commentMode "owner-window-with-neighbor-comments"))
+              (hash (id "compiler-assert-type")
+                    (role "assertion-check")
+                    (symbol "assert-type")
+                    (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type")
+                    (form (hash (head "def")
+                                (operands ["(assert-type id t)" "local-env-type"])
+                                (keywords [])))
+                    (commentMode "owner-window-with-neighbor-comments"))])
+            (sourceComments
+             [(hash (id "compiler-subtype-boundary")
+                    (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!type-subtype?")
+                    (extractor "owner-window-with-neighbor-line-comments")
+                    (summary "subtype evidence is equality, top type, procedure shape, and class precedence checks")
+                    (fallback "comment-missing-is-signal"))
+              (hash (id "compiler-assert-type-boundary")
+                    (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type")
+                    (extractor "owner-window-with-neighbor-line-comments")
+                    (summary "positive assertions are accepted only when class metadata proves a subtype relation")
+                    (fallback "comment-missing-is-signal"))])
+            (model (hash (acceptedEvidence ["optimizer-type-metadata"
+                                            "class-precedence-subtype"
+                                            "local-assertion-env"
+                                            "runtime-source-selector"])
+                         (rejectedClaims ["general-constraint-solver"
+                                          "quantifier-reasoning"
+                                          "principal-type-inference"
+                                          "proof-term-calculus"
+                                          "cross-module-theorem-prover"])))
+            (agentContract
+             (hash (claim "emit-derived-type-witnesses-only-when-source-backed")
+                   (repairLoop "parser-contract-annotation-to-normalized-typespec-to-compiler-evidence-witness")
+                   (qualityGate "no-full-proof-claim-without-dedicated-typed-core")))
+            (nextSearch "search compiler-evidence optimizer subtype assertion"))
+      [(hash (role "optimizer-signature")
+             (symbol "!signature")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!signature"))
+       (hash (role "optimizer-class")
+             (symbol "!class")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!class"))
+       (hash (role "optimizer-predicate")
+             (symbol "!predicate")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!predicate"))
+       (hash (role "subtype-relation")
+             (symbol "!type-subtype?")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!type-subtype?"))
+       (hash (role "class-subtype-relation")
+             (symbol "!class-subclass?")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-base.ss#!class-subclass?"))
+       (hash (role "local-assertion-fold")
+             (symbol "fold-assert-type")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#fold-assert-type"))
+       (hash (role "local-assertion-check")
+             (symbol "assert-type")
+             (selector "gerbil-runtime-source://src/gerbil/compiler/optimize-ann.ss#assert-type"))]
+      "agent-needs-versioned-compiler-evidence-before-type-proof-claims"
+      "use-medium-weight-compiler-evidence-and-source-selectors-before-agent-type-repair"
+      ["medium-weight-only" "runtime-source-backed-compiler-selectors"
+       "optimizer-metadata-boundary" "local-assertion-env"
+       "no-full-proof-claim" "agent-repair-contract"]
+      [(hash (id "full-proof-system-claim")
+             (risk "agent-claims-complete-type-theory-soundness-from-optimizer-metadata")
+             (correction "limit-claims-to-source-backed-medium-weight-derivation-witnesses"))
+       (hash (id "training-memory-compiler-rule")
+             (risk "agent-generates-type-contract-repair-from-memory-without-versioned-compiler-source")
+             (correction "query-compiler-evidence-and-runtime-source-selectors-before-repair"))
+       (hash (id "pseudo-type-comment")
+             (risk "agent-keeps-invalid-comment-contracts-as-if-they-were-verified-types")
+             (correction "normalize-comment-contracts-and-reject-unsupported-forms-before-claiming-evidence"))
+       (hash (id "cross-module-theorem-prover-assumption")
+             (risk "agent-assumes-import-module-or-module-context-provides-global-proof-search")
+             (correction "treat-module-context-as-acquisition-context-not-a-theorem-prover"))])]))
 ;;; Boundary:
 ;;; - language-rule-facts coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
@@ -585,11 +732,15 @@
    (hash (id "racket-macro-assumption")
          (risk "agent-copies-racket-syntax-case-shape-into-gerbil-code")
          (correction "query-gerbil-lang-and-pattern-before-editing-macro-code"))])
+;;; Query classification is intentionally vocabulary-only: macro facts remain
+;;; parser-owned, while this helper decides whether search terms should request
+;;; hygienic macro guidance.
+;;; Macro-pattern lookup is an existential tag match over a fixed query table.
+;;; Keeping this as `ormap` preserves the no-ranking invariant for search
+;;; evidence and avoids a second parser path for macro guidance.
 ;; : (-> (List MacroFact) Boolean )
 (def (hygienic-macro-pattern-query? terms)
   (and (pair? terms)
-       (or (member "hygienic-macro" terms)
-           (member "hygienic" terms)
-           (member "macro" terms)
-           (member "defsyntax" terms)
-           (member "syntax-case" terms))))
+       (ormap (lambda (term)
+                (member term terms))
+              +hygienic-macro-query-terms+)))

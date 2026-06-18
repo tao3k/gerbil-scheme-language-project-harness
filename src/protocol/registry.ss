@@ -27,6 +27,7 @@
       (packageRoots [root])
       (methods ["search/prime" "search/owner" "search/fzf" "search/ingest"
                 "search/pattern" "search/runtime-source" "search/compare"
+                "search/proof" "search/compiler-evidence"
                 "index/structural" "index/native-syntax-owner-facts"
                 "query/direct-source-read" "check/changed" "guide" "info"
                 "evidence/graph" "evidence/analyze"])
@@ -39,6 +40,12 @@
                 (hash (schemaId "agent.semantic-protocols.semantic-runtime-source-acquisition")
                       (schemaVersion "1")
                       (path "schemas/semantic-runtime-source-acquisition.v1.schema.json"))
+                (hash (schemaId "agent.semantic-protocols.semantic-language-evidence")
+                      (schemaVersion "1")
+                      (path "schemas/semantic-language-evidence.v1.schema.json"))
+                (hash (schemaId "agent.semantic-protocols.semantic-type-proof")
+                      (schemaVersion "1")
+                      (path "schemas/semantic-type-proof.v1.schema.json"))
                 (hash (schemaId "agent.semantic-protocols.semantic-compare-packet")
                       (schemaVersion "1")
                       (path "schemas/semantic-compare-packet.v1.schema.json"))
@@ -67,6 +74,14 @@
               (command "search runtime-source")
               (summary "Emit active-runtime-to-source acquisition facts before answering version-sensitive language or runtime-boundary questions.")
               (outputSchemaIds ["agent.semantic-protocols.semantic-runtime-source-acquisition"]))
+        (hash (method "search/compiler-evidence")
+              (command "search compiler-evidence")
+              (summary "Emit schema-backed Gerbil compiler evidence facts that bound medium-weight proof claims.")
+              (outputSchemaIds ["agent.semantic-protocols.semantic-language-evidence"]))
+        (hash (method "search/proof")
+              (command "search proof")
+              (summary "Emit medium-weight TypeSpec proof witnesses with recursive proof trees and compiler-evidence boundary links.")
+              (outputSchemaIds ["agent.semantic-protocols.semantic-type-proof"]))
         (hash (method "search/compare")
               (command "search compare")
               (summary "Compare active runtime facts with documented or remembered claims before version-sensitive guidance.")

@@ -182,13 +182,19 @@
 ;; : (-> SyntaxFact String Boolean )
 (def (syntax-fact-matches-term? fact term)
   (ormap (cut string-contains <> term)
-         (filter string?
-                 (append [(hash-get fact 'kind)
-                          (hash-get fact 'name)
-                          (hash-get fact 'languageKind)
-                          (hash-get fact 'ownerPath)]
-                         (hash-get fact 'queryKeys)
-                         (syntax-fact-field-values fact)))))
+         (syntax-fact-search-values fact)))
+
+;;; Boundary: syntax fact term search is a value projection followed by one
+;;; matcher, not an expanding boolean predicate over individual fields.
+;; : (-> SyntaxFact (List String) )
+(def (syntax-fact-search-values fact)
+  (filter string?
+          (append [(hash-get fact 'kind)
+                   (hash-get fact 'name)
+                   (hash-get fact 'languageKind)
+                   (hash-get fact 'ownerPath)]
+                  (hash-get fact 'queryKeys)
+                  (syntax-fact-field-values fact))))
 
 ;;; Boundary:
 ;;; - Flatten selected structured fields into string search keys.

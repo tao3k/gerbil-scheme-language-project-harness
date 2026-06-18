@@ -24,6 +24,8 @@
 (def +projection-burst-min-field-count+ 4)
 ;; Integer
 (def +projection-burst-min-emitter-count+ 2)
+;; Integer
+(def +boolean-condition-combinator-min-condition-count+ 5)
 
 ;;; Branch-shape entrypoint:
 ;;; - Emit findings only after parser-owned control-flow facts group repeated shapes.
@@ -53,7 +55,9 @@
      (filter-map (cut field-access-helper-finding file <>)
                  (source-file-field-access-pattern-facts file))
      (filter-map (cut emitter-projection-burst-finding file <>)
-                 (source-file-projection-burst-facts file)))
+                 (source-file-projection-burst-facts file))
+     (filter-map (cut boolean-condition-combinator-finding file <>)
+                 (source-file-boolean-condition-facts file)))
     '()))
 
 ;; : (-> SourceFile PredicateFamilyFact TypeFinding )
@@ -231,6 +235,72 @@
            (take callers (min 8 (length callers)))))
         (selector (field-access-pattern-fact-selector fact))
         (advice (field-access-pattern-fact-advice fact))))
+
+;; : (-> SourceFile BooleanConditionFact TypeFinding )
+(def (boolean-condition-combinator-finding file fact)
+  (and (boolean-condition-combinator-actionable? fact)
+       (make-type-finding
+        (policy-rule-id +agent-predicate-family-combinator-rule+)
+        (policy-rule-severity +agent-predicate-family-combinator-rule+)
+        (source-file-path file)
+        (boolean-condition-combinator-message fact)
+        (boolean-condition-fact-selector fact)
+        (boolean-condition-combinator-details fact))))
+
+;;; Boolean predicate warnings are parser-owned and count-based: this catches
+;;; generated nested `and`/`or` predicate scaffolds without matching names or
+;;; rendered source text.
+;; : (-> BooleanConditionFact Boolean )
+(def (boolean-condition-combinator-actionable? fact)
+  (and (equal? (boolean-condition-fact-role fact) "predicate-condition")
+       (>= (boolean-condition-fact-condition-count fact)
+           +boolean-condition-combinator-min-condition-count+)))
+
+;; : (-> BooleanConditionFact Message )
+(def (boolean-condition-combinator-message fact)
+  (string-append
+   "boolean predicate "
+   (boolean-condition-fact-caller fact)
+   " carries "
+   (number->string (boolean-condition-fact-condition-count fact))
+   " inline condition calls; extract small predicate helpers or compose matchers before extending nested and/or branches"))
+
+;;; Details keep the repair target narrow: agents may choose helper names and
+;;; composition shape, but the proof must stay on the parser-owned predicate
+;;; span and preserve behavior.
+;; : (-> BooleanConditionFact PolicyDetails )
+(def (boolean-condition-combinator-details fact)
+  (hash (styleGuide "predicate-family-combinator")
+        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+        (qualityReference "gerbil-utils")
+        (gerbilUtilsSource
+         (gerbil-utils-source-details 'predicate-combinator))
+        (evidenceSource "parser-owned booleanConditionFacts")
+        (caller (boolean-condition-fact-caller fact))
+        (formals (boolean-condition-fact-formals fact))
+        (conditionCallees (boolean-condition-fact-condition-callees fact))
+        (fieldKeys (boolean-condition-fact-field-keys fact))
+        (conditionCount (boolean-condition-fact-condition-count fact))
+        (qualityFacets (boolean-condition-fact-quality-facets fact))
+        (booleanCondition (boolean-condition-repair-evidence fact))
+        (agentRepairStandard
+         "replace nested boolean scaffolds with named expression-returning predicates or a bounded higher-order matcher list; keep short-circuit behavior explicit and do not hide IO/runtime boundaries")
+        (agentRepairEnvelope
+         (hash (flexibility "agent may choose local predicate names, lambda/cut matchers, or a compact helper table")
+               (constraints ["preserve predicate truth table"
+                             "keep the repair inside the owning source file unless exports demand a facade change"
+                             "use parser-owned boolean evidence rather than string suffix or name matching"])))
+        (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+
+;; : (-> BooleanConditionFact RepairEvidence )
+(def (boolean-condition-repair-evidence fact)
+  (hash (caller (boolean-condition-fact-caller fact))
+        (selector (boolean-condition-fact-selector fact))
+        (conditionCallees (boolean-condition-fact-condition-callees fact))
+        (fieldKeys (boolean-condition-fact-field-keys fact))
+        (conditionCount (boolean-condition-fact-condition-count fact))
+        (qualityFacets (boolean-condition-fact-quality-facets fact))
+        (advice (boolean-condition-fact-advice fact))))
 
 ;; : (-> SourceFile ProjectionBurstFact TypeFinding )
 (def (emitter-projection-burst-finding file fact)

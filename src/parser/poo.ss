@@ -573,8 +573,7 @@
 ;; : (-> Datum (List String) )
 (def (keyword-like-symbols datum)
   (unique
-   (filter-map (lambda (item)
-                 (poo-option-key-name item))
+   (filter-map poo-option-key-name
                (flatten datum))))
 ;; : (-> Datum MaybeString )
 (def (poo-option-key-name item)

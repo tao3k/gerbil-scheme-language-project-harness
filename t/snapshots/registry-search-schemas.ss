@@ -10,6 +10,8 @@
            "search/pattern"
            "search/runtime-source"
            "search/compare"
+           "search/proof"
+           "search/compiler-evidence"
            "index/structural"
            "index/native-syntax-owner-facts"
            "query/direct-source-read"
@@ -31,6 +33,14 @@
     (schemaId "agent.semantic-protocols.semantic-runtime-source-acquisition")
     (schemaVersion "1")
     (path "schemas/semantic-runtime-source-acquisition.v1.schema.json"))
+   (schema
+    (schemaId "agent.semantic-protocols.semantic-language-evidence")
+    (schemaVersion "1")
+    (path "schemas/semantic-language-evidence.v1.schema.json"))
+   (schema
+    (schemaId "agent.semantic-protocols.semantic-type-proof")
+    (schemaVersion "1")
+    (path "schemas/semantic-type-proof.v1.schema.json"))
    (schema
     (schemaId "agent.semantic-protocols.semantic-compare-packet")
     (schemaVersion "1")
@@ -64,6 +74,14 @@
     (method "search/runtime-source")
     (command "search runtime-source")
     (outputSchemaIds ("agent.semantic-protocols.semantic-runtime-source-acquisition")))
+   (methodDescriptor
+    (method "search/compiler-evidence")
+    (command "search compiler-evidence")
+    (outputSchemaIds ("agent.semantic-protocols.semantic-language-evidence")))
+   (methodDescriptor
+    (method "search/proof")
+    (command "search proof")
+    (outputSchemaIds ("agent.semantic-protocols.semantic-type-proof")))
    (methodDescriptor
     (method "search/compare")
     (command "search compare")

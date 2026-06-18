@@ -8,6 +8,8 @@
                "|cmd query-code=gerbil-scheme-harness query --selector <path:start-end> --workspace . --code"
                "|cmd env=gerbil-scheme-harness search env [term ...] --workspace . --view seeds"
                "|cmd runtime-source=gerbil-scheme-harness search runtime-source [term ...] --workspace . --view seeds"
+               "|cmd compiler-evidence=gerbil-scheme-harness search compiler-evidence optimizer subtype assertion --workspace . --view seeds"
+               "|cmd proof=gerbil-scheme-harness search proof subtype record alias --workspace . --view seeds"
                "|cmd lang=gerbil-scheme-harness search lang [term ...] --workspace . --view seeds"
                "|cmd std=gerbil-scheme-harness search std [term ...] --workspace . --view seeds"
                "|cmd cache-source-index-refresh=asp cache source-index refresh --root ."

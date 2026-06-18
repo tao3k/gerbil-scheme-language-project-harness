@@ -18,6 +18,7 @@
         typeclass-algebra-policy-snapshot
         controlled-branch-shape-policy-snapshot
         typed-combinator-style-policy-snapshot
+        case-lambda-function-factory-policy-snapshot
         comment-quality-policy-snapshot
         harness-dependency-policy-application-policy-snapshot
         harness-dependency-policy-disable-requires-explanation-policy-snapshot
@@ -133,6 +134,12 @@
   (typed-combinator-style-scenario-policy-snapshot
    "typed-combinator-style"
    "t/scenarios/policy/typed-combinator-style"))
+
+;; Snapshot
+(def (case-lambda-function-factory-policy-snapshot)
+  (typed-combinator-style-scenario-policy-snapshot
+   "case-lambda-function-factory"
+   "t/scenarios/policy/case-lambda-function-factory"))
 
 ;; Snapshot
 (def (generator-combinator-policy-snapshot)
@@ -659,6 +666,9 @@
   (check (typed-combinator-style-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-typed-combinator-style.ss"))
+  (check (case-lambda-function-factory-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-case-lambda-function-factory.ss"))
   (check (generator-combinator-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-generator-combinator.ss"))

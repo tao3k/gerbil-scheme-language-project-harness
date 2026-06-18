@@ -16,6 +16,7 @@
 ;; (List HigherOrderFact)
 (def +higher-order-heads+
   '(lambda case-lambda
+    lambda-match λ-match lambda-ematch λ-ematch
     cut cute
     curry rcurry compose compose1 rcompose !> !!>
     funcall constantly iterate-function iterated-function
@@ -125,7 +126,7 @@
                             relpath
                             (source-start-line loc)
                             (source-end-line loc)
-                            (higher-order-role head)
+                            (higher-order-role head datum)
                             (higher-order-operand-count head datum)
                             (higher-order-arities head datum)
                             (higher-order-formal-names head datum)
@@ -133,9 +134,17 @@
 ;;; Role taxonomy:
 ;;; - Roles are the stable agent-facing vocabulary for advanced composition and syntax-helper evidence.
 ;;; - Add new runtime or utils idioms here before policy consumes them.
-;; : (-> Head String )
-(def (higher-order-role head)
+;; : (-> Head Datum String )
+(def (higher-order-role head datum)
   (cond
+   ((and (eq? head 'lambda)
+         (lambda-match-opportunity? datum))
+    "lambda-match-opportunity")
+   ((and (eq? head 'lambda)
+         (eta-wrapper-lambda? datum))
+    "eta-wrapper-lambda")
+   ((member head '(lambda-match λ-match lambda-ematch λ-ematch))
+    "pattern-matching-function")
    ((eq? head 'lambda) "anonymous-function")
    ((eq? head 'case-lambda) "multi-arity-function")
    ((member head '(cut cute)) "partial-application")
@@ -196,6 +205,17 @@
                  "lambda-local-abstraction")
             (and (equal? (higher-order-fact-role fact) "named-lambda-abstraction")
                  "named-lambda-helper")
+            (and (member (higher-order-fact-role fact)
+                         '("lambda-match-opportunity"
+                           "pattern-matching-function"))
+                 "lambda-match-destructuring")
+            (and (equal? (higher-order-fact-role fact)
+                         "lambda-match-opportunity")
+                 "lambda-match-rewrite-opportunity")
+            (and (equal? (higher-order-fact-role fact) "eta-wrapper-lambda")
+                 "eta-wrapper-drift")
+            (and (equal? (higher-order-fact-role fact) "eta-wrapper-lambda")
+                 "function-specialization-opportunity")
             (and (and (equal? (higher-order-fact-role fact) "anonymous-function")
                       (> (higher-order-fact-operand-count fact) 0))
                  "parameterized-transform")
@@ -231,6 +251,39 @@
    ((eq? head 'lambda) (length (lambda-formal-datums datum)))
    ((eq? head 'case-lambda) (length (case-lambda-clause-datums datum)))
    (else (length (safe-cdr datum)))))
+
+;;; Gerbil-utils/base.ss provides `lambda-match` for the common case where an
+;;; anonymous unary function immediately destructures its argument with `match`.
+;;; Keeping this shape parser-owned prevents policy from guessing by text.
+;; : (-> Datum Boolean )
+(def (lambda-match-opportunity? datum)
+  (let* ((formals (lambda-formal-datums datum))
+         (body (safe-cddr datum))
+         (body-expr (and (= (length body) 1) (car body)))
+         (body-items (and body-expr (datum-list-items body-expr))))
+    (and (= (length formals) 1)
+         (pair? body-items)
+         (eq? (car body-items) 'match)
+         (equal? (safe-cadr body-items) (car formals)))))
+
+;;; Eta-wrapper lambdas hide a reusable function value behind boilerplate.
+;;; The check is deliberately strict: one body expression, symbolic callee, and
+;;; arguments exactly matching the lambda formals in order.
+;; : (-> Datum Boolean )
+(def (eta-wrapper-lambda? datum)
+  (let* ((formals (lambda-formal-datums datum))
+         (body (safe-cddr datum))
+         (body-expr (and (= (length body) 1) (car body)))
+         (body-items (and body-expr (datum-list-items body-expr)))
+         (callee (and (pair? body-items) (car body-items)))
+         (args (and (pair? body-items) (cdr body-items))))
+    (and (pair? formals)
+         (symbol? callee)
+         (not (member callee '(quote quasiquote syntax quote-syntax
+                               if begin begin0 lambda case-lambda
+                               let let* letrec let-values let*-values
+                               cond case and or when unless match)))
+         (equal? args formals))))
 ;;; Boundary:
 ;;; - higher-order-arities composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

@@ -25,7 +25,7 @@
 ;; Integer
 (def +projection-burst-native-min-access-count+ 3)
 ;; (List String)
-(def +condition-callees+ '("member" "equal?" "not" ">" "<" ">=" "<=" "string=?" "string-contains"))
+(def +condition-callees+ '("member" "equal?" "not" ">" "<" ">=" "<=" "string=?" "string-contains" "string-prefix?" "string-suffix?"))
 ;; (List String)
 (def +reader-driver-callees+ '("read" "read-line" "read-syntax"))
 
@@ -65,6 +65,14 @@
 ;; : (-> Definition Boolean )
 (def (predicate-definition? definition)
   (and (= (definition-arity definition) 1)
+       (string-suffix? "?" (definition-name definition))
+       (pair? (definition-formals definition))))
+
+;;; Boolean condition facts are predicate-shaped but not family-shaped: multi-
+;;; argument helpers such as path matching still need parser-owned evidence.
+;; : (-> Definition Boolean )
+(def (boolean-condition-definition? definition)
+  (and (>= (definition-arity definition) 1)
        (string-suffix? "?" (definition-name definition))
        (pair? (definition-formals definition))))
 
@@ -367,7 +375,7 @@
 (def (boolean-condition-facts-from-source relpath definitions calls form-datums)
   (append
    (filter-map (cut boolean-condition-fact-from-definition relpath calls <>)
-               (filter predicate-definition? definitions))
+               (filter boolean-condition-definition? definitions))
    (boolean-normalization-facts-from-source relpath definitions form-datums)))
 
 ;;; Boolean normalization facts catch generated scaffold such as nested negation.
