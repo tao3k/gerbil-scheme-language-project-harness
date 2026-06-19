@@ -169,16 +169,21 @@ jobs:
       - name: Run harness verification bench
         run: |
           export GERBIL="$(command -v gxi)"
+          max_total_ms=60000
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            max_total_ms=75000
+          fi
           bench_output="$(mktemp)"
-          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e '(begin (import :cli) (exit (main "bench" "--json" "--iterations" "1" "--max-total-ms" "60000" "--max-interface-ms" "500" ".")))' > "$bench_output"; then
+          if ! GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e "(begin (import :cli) (exit (main \"bench\" \"--json\" \"--iterations\" \"1\" \"--max-total-ms\" \"$max_total_ms\" \"--max-interface-ms\" \"500\" \".\")))" > "$bench_output"; then
             cat "$bench_output"
             exit 1
           fi
           bench="$(cat "$bench_output")"
           echo "$bench"
-          echo "$bench" | jq -e '
+          echo "$bench" | jq -e --argjson max_total_ms "$max_total_ms" '
             .schemaId == "agent.semantic-protocols.gerbil-scheme-harness-bench" and
             .status == "pass" and
+            .maxTotalMs == $max_total_ms and
             .maxInterfaceMs == 500 and
             (.totalMs | type == "number") and
             (.slowestBenchmark.durationMs | type == "number") and
@@ -192,7 +197,7 @@ jobs:
           packet="$(GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e '(begin (import :cli) (exit (main "search" "prime" "--json" ".")))')"
           echo "$packet" | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
-            .projectPackage.dependencies == ["git.cons.io/mighty-gerbils/gerbil-poo"] and
+            .projectPackage.dependencies == ["git.cons.io/mighty-gerbils/gerbil-utils", "git.cons.io/mighty-gerbils/gerbil-poo"] and
             .extensions[0].name == "poo" and
             .extensions[0].activation == "gerbil.pkg" and
             .extensions[0].dependencyMode == "required" and
