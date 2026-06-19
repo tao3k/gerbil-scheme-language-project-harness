@@ -4,26 +4,29 @@
   (finding
    ("GERBIL-SCHEME-AGENT-R025"
     "build.ss"
-    "build.ss:7-7"
-    "package-level build.ss is not using the native Gerbil build-script/make shape; use (only-in :std/build-script defbuild-script) with defbuild-script for simple packages, or :std/make make/make-clean over an explicit build spec for intermediate scripts"))
+    "build.ss:9-9"
+    "package-level build.ss is not using the canonical clan/building shape; import :clan/building, define spec with all-gerbil-modules, call init-build-environment!, and do not hand-write srcdir or GERBIL_LOADPATH"))
   (buildShape
    ((kind "package-build-canonical-shape")
     (nativeBuildImport #f)
     (nativeBuildImportModifier #f)
+    (legacyBuildImport ":std/make")
     (buildSpecEntrypoint #f)
+    (moduleEnumerator #f)
+    (nativeBuildDefinition #f)
     (providerBuildInclude #f)
+    (manualEnvironmentSetup "make")
     (manualCompilerDispatch "invoke")
     (handWrittenMain "main")
-    (allowedShape "simple build.ss: (only-in :std/build-script defbuild-script) plus defbuild-script; intermediate build.ss: :std/make make/make-clean over an explicit build spec plus a small stage table for provider-specific commands")
-    (compositionalBuildShape "use named stage descriptors for compile/full/native/test commands; each stage should delegate wrapper/runtime materialization to build-support or src owners")
-    (downstreamRepairPattern "keep build.ss as the package build control plane, route compilation through defbuild-script or :std/make, and move command/runtime behavior into composable stage helpers")
-    (disallowedShape "hand-written compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces defbuild-script, make build specs, or stage descriptors")
+    (allowedShape "canonical build.ss: import :clan/building, define spec with all-gerbil-modules, include reusable t/unit helpers in spec when tests import them, and call init-build-environment!")
+    (compositionalBuildShape "use clan/building for source discovery/load path and named stage descriptors only for provider-specific compile/full/native/test commands")
+    (downstreamRepairPattern "keep build.ss as the package build control plane, route package compilation through init-build-environment!, and move command/runtime behavior into composable stage helpers")
+    (disallowedShape "hand-written srcdir/loadpath setup, manual compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces clan/building")
     (sourceEvidence
-     (".data/gerbil/doc/reference/dev/build.md:20-60"
-      ".data/gerbil/doc/reference/std/make.md:32-52"
-      ".data/gerbil/src/std/build-script.ss:1-35"
-      ".data/gerbil/src/lang/build.ss:1-20"))
+     (".data/gerbil-utils/building.ss:1-120"
+      ".data/gerbil-poo/build.ss:1-18"
+      ".data/gerbil/doc/reference/std/make.md:32-52"))
     (nativeFactSource "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
-    (next "replace manual compiler dispatch with defbuild-script or :std/make make/make-clean; for provider builds add a small stage table and keep wrapper/runtime generation delegated to build-support"))))
+    (next "replace manual compiler/loadpath/srcdir setup with :clan/building, all-gerbil-modules, and init-build-environment!; for provider builds keep wrapper/runtime generation delegated to build-support"))))
  (after
   (r025Findings ())))

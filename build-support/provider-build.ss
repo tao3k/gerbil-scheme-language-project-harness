@@ -56,7 +56,7 @@
         (display binary)
         (newline)
         (create-directory* (path-directory binary))
-        (set-provider-compile-env!)
+        (set-provider-runtime-env!)
         (remove-native-executable-temp-artifacts! tmp-binary)
         (invoke "gxc" ["-exe" "-o" tmp-binary source])
         (invoke "mv" [tmp-binary binary])
@@ -72,7 +72,7 @@
     (display binary)
     (newline)
     (create-directory* (path-directory binary))
-    (set-provider-compile-env!)
+    (set-provider-runtime-env!)
     (remove-native-executable-temp-artifacts! tmp-binary)
     (invoke (compile-build-support-executable!
              "gerbil-native-link"
@@ -85,9 +85,11 @@
 (def (compile-native-fast-binary! name source . maybe-dependencies)
   (let* ((binary (path-expand name (provider-bin-dir)))
          (tmp-binary (string-append binary ".native-tmp"))
-         (dependencies (if (pair? maybe-dependencies)
-                         (car maybe-dependencies)
-                         [source])))
+         (dependencies (append
+                        (if (pair? maybe-dependencies)
+                          (car maybe-dependencies)
+                          [source])
+                        ["build-support/native-wrapper-runtime.ss"])))
     (if (native-binary-current? binary dependencies)
       (begin
         (display "... native fast current ")
@@ -98,10 +100,12 @@
         (display binary)
         (newline)
         (create-directory* (path-directory binary))
-        (set-provider-compile-env!)
+        (set-provider-runtime-env!)
         (remove-native-executable-temp-artifacts! tmp-binary)
-        (invoke "gxc" ["-exe" "-o" tmp-binary source])
-        (invoke "mv" [tmp-binary binary])
+        (invoke (compile-build-support-executable!
+                 "gerbil-native-link"
+                 "build-support/native-wrapper-runtime.ss")
+                [tmp-binary binary source])
         (remove-native-executable-temp-artifacts! tmp-binary)
         (invoke "chmod" ["+x" binary])))
     binary))
@@ -127,6 +131,20 @@
         (invoke "chmod" ["+x" binary])))
     binary))
 
+;;; Boundary:
+;;; - `gerbil-scheme-check` used to be a Gerbil native fast target, but that
+;;;   shape forces the full check command graph through gxc -exe.
+;;; - Compile now routes check through the native dispatcher harness runtime,
+;;;   so stale generated artifacts are removed instead of silently surviving.
+;; : (-> Unit)
+(def (remove-retired-native-check-binary!)
+  (let (binary (path-expand "gerbil-scheme-check" (provider-bin-dir)))
+    (when (file-exists? binary)
+      (display "... remove retired native check ")
+      (display binary)
+      (newline)
+      (delete-file binary))))
+
 (def +native-fast-static-sources+
   ["src/parser/model.ss"
    "src/parser/support.ss"
@@ -140,106 +158,11 @@
    "src/commands/search-owner-items.ss"
    "src/commands/guide-sections.ss"])
 
-(def +native-check-static-sources+
-  ["src/check-fast/gerbil-scheme-check.ss"
-   "src/commands/check.ss"
-   "src/constants.ss"
-   "src/checker/arity.ss"
-   "src/checker/core.ss"
-   "src/checker/facade.ss"
-   "src/checker/forms.ss"
-   "src/checker/model.ss"
-   "src/checker/types.ss"
-   "src/checker/whitelist.ss"
-   "src/parser/comment-quality.ss"
-   "src/parser/control-flow.ss"
-   "src/parser/core.ss"
-   "src/parser/dependency-adapter-quality.ss"
-   "src/parser/exports.ss"
-   "src/parser/facade.ss"
-   "src/parser/formals.ss"
-   "src/parser/function-quality.ss"
-   "src/parser/higher-order.ss"
-   "src/parser/imports.ss"
-   "src/parser/model.ss"
-   "src/parser/owner-items.ss"
-   "src/parser/package.ss"
-   "src/parser/poo.ss"
-   "src/parser/quality-shape.ss"
-   "src/parser/query.ss"
-   "src/parser/selectors.ss"
-   "src/parser/source-scope.ss"
-   "src/parser/source-class.ss"
-   "src/parser/support.ss"
-   "src/parser/syntax.ss"
-   "src/parser/typed-contract-scheme.ss"
-   "src/parser/runtime-contract.ss"
-   "src/parser/typed-comment-metadata.ss"
-   "src/parser/typed-contract.ss"
-   "src/package-manager/core.ss"
-   "src/package-manager/facade.ss"
-   "src/extensions/model.ss"
-   "src/extensions/poo-pattern-support.ss"
-   "src/extensions/poo-patterns.ss"
-   "src/extensions/poo-validation.ss"
-   "src/extensions/poo-inheritance.ss"
-   "src/extensions/poo.ss"
-   "src/extensions/core.ss"
-   "src/extensions/facade.ss"
-   "src/policy/model.ss"
-   "src/policy/catalog.ss"
-   "src/policy/prototype.ss"
-   "src/policy/dependency-adapter-profile.ss"
-   "src/policy/agent-support.ss"
-   "src/policy/agent-style-shape.ss"
-   "src/policy/agent-style-gerbil-signals.ss"
-   "src/policy/agent-style.ss"
-   "src/policy/agent-import.ss"
-   "src/policy/agent-comment.ss"
-   "src/policy/agent-source-scope.ss"
-   "src/policy/agent-poo.ss"
-   "src/policy/agent-dependency-adapter.ss"
-   "src/policy/agent-build-support.ss"
-   "src/policy/agent-build.ss"
-   "src/policy/agent-alist-access.ss"
-   "src/policy/agent-anonymous-pair.ss"
-   "src/policy/gerbil-utils-source.ss"
-   "src/policy/poo-source.ss"
-   "src/policy/detection.ss"
-   "src/policy/modularity.ss"
-   "src/policy/agent.ss"
-   "src/policy/repair.ss"
-   "src/policy/core.ss"
-   "src/policy/facade.ss"
-   "src/protocol/support.ss"
-   "src/protocol/function-quality-facts.ss"
-   "src/protocol/quality-shape-facts.ss"
-   "src/protocol/structural-facts.ss"
-   "src/protocol/structural-index.ss"
-   "src/protocol/json.ss"
-   "src/support/args.ss"
-   "src/support/io.ss"
-   "src/types/core.ss"
-   "src/types/env.ss"
-   "src/types/facade.ss"
-   "src/types/findings.ss"
-   "src/types/model.ss"
-   "src/types/signatures.ss"
-   "src/types/subtyping.ss"
-   "src/types/validation.ss"])
-
 (def (refresh-native-fast-static-artifacts!)
   (display "... refresh native fast static artifacts\n")
-  (set-provider-compile-env!)
+  (set-provider-runtime-env!)
   (for-each compile-static-provider-source!
             +native-fast-static-sources+))
-
-(def (refresh-native-check-static-artifacts!)
-  (display "... refresh native check static artifacts\n")
-  (set-provider-compile-env!)
-  (for-each compile-static-provider-source!
-            (append +native-fast-static-sources+
-                    +native-check-static-sources+)))
 
 (def (script-executable? path)
   (with-catch
@@ -270,7 +193,7 @@
     (display binary)
     (newline)
     (create-directory* (path-directory binary))
-    (set-provider-compile-env!)
+    (set-provider-runtime-env!)
     (write-provider-cli-config! binary harness-root)
     (write-provider-native-dispatcher-source! dispatcher-source config)
     (invoke "rm" ["-f" tmp-binary])
@@ -284,18 +207,14 @@
     binary))
 
 (def (compile-native-fast-cli!)
-  (refresh-native-check-static-artifacts!)
+  (refresh-native-fast-static-artifacts!)
+  (remove-retired-native-check-binary!)
   (compile-native-fast-binary!
    "gerbil-scheme-search-extension"
    "src/search-fast/gerbil-scheme-search-extension.ss")
   (compile-native-fast-binary!
    "gerbil-scheme-search-pattern"
    "src/search-fast/gerbil-scheme-search-pattern.ss")
-  (compile-native-fast-binary!
-   "gerbil-scheme-check"
-   "src/check-fast/gerbil-scheme-check.ss"
-   (append +native-fast-static-sources+
-           +native-check-static-sources+))
   (compile-native-owner-items-binary!)
   (compile-native-provider-dispatcher!))
 
@@ -307,7 +226,7 @@
     (display tmp-binary)
     (newline)
     (create-directory* diagnose-dir)
-    (set-provider-compile-env!)
+    (set-provider-runtime-env!)
     (unless (static-provider-artifacts-present?)
       (error "native diagnose requires static provider artifacts; run `gxi build.ss full` or `gxi build.ss native` first"))
     (invoke (compile-build-support-executable!
@@ -316,12 +235,8 @@
             [tmp-binary])
     tmp-binary))
 
-(def (provider-build-module? module)
-  (string-prefix? "src/" module))
-
 (def (provider-build-spec)
-  (filter provider-build-module?
-          (static-provider-source-files)))
+  (spec))
 
 (def (build-keys)
   [libdir: (path-expand "lib" (build-prefix))
@@ -344,28 +259,34 @@
 (def (make-provider! options)
   (apply make
          (provider-build-spec)
-         srcdir: (current-directory)
          (append options (build-keys))))
 
 (def (clean-provider!)
   (apply make-clean
          (provider-build-spec)
-         srcdir: (current-directory)
          (build-keys)))
 
-(def (set-provider-compile-env!)
+;;; Runtime load path boundary:
+;;; - Gerbil's gxc -exe imports source modules through the runtime load path.
+;;; - Provider-owned short imports such as :commands/check therefore need the
+;;;   package source root here, not in each shell invocation.
+;; : (-> (List Path) String)
+(def (provider-runtime-loadpath extra-roots)
+  (let* ((owned-roots
+          (map (lambda (root)
+                 (path-expand root (current-directory)))
+               (append ["src"] extra-roots)))
+         (existing (getenv "GERBIL_LOADPATH" #f)))
+    (string-join
+     (if (and existing (not (string-empty? existing)))
+       (append owned-roots [existing])
+       owned-roots)
+     ":")))
+
+;; : (-> Path ... Unit)
+(def (set-provider-runtime-env! . extra-roots)
   (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
-  (setenv "GERBIL_LOADPATH"
-          (string-join
-           (absolute-package-roots
-            (package-source-scope-roots '(roots: source-roots: source-root:)))
-           ":")))
-
-(def (build-source-directory? path)
-  (eq? (file-type path) 'directory))
-
-(def (static-provider-source-file? path)
-  (equal? (path-extension path) ".ss"))
+  (setenv "GERBIL_LOADPATH" (provider-runtime-loadpath extra-roots)))
 
 (def (top-level-test-file? entry)
   (and (string-suffix? "-test.ss" entry)
@@ -377,18 +298,8 @@
                (sort (directory-files "t") string<?))))
 
 (def (static-provider-source-files)
-  (def (walk dir acc)
-    (for/fold (result acc) (entry (sort (directory-files dir) string<?))
-      (if (member entry '("." ".."))
-        result
-        (let (path (path-expand entry dir))
-          (cond
-           ((build-source-directory? path)
-            (walk path result))
-           ((static-provider-source-file? path)
-            (cons path result))
-           (else result))))))
-  (reverse (walk "src" '())))
+  (filter provider-build-module?
+          (all-gerbil-modules)))
 
 (def (file-mtime-seconds path)
   (and (file-exists? path)
@@ -453,17 +364,12 @@
 
 (def (refresh-static-provider-artifacts!)
   (display "... refresh static provider artifacts\n")
-  (set-provider-compile-env!)
+  (set-provider-runtime-env!)
   (for-each compile-static-provider-source!
             (static-provider-source-files)))
 
 (def (run-provider-tests!)
-  (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
-  (setenv "GERBIL_LOADPATH"
-          (string-join
-           (absolute-package-roots
-            (package-source-scope-roots '(runtime-roots: runtime-root: roots:)))
-           ":"))
+  (set-provider-runtime-env! "t")
   (let (tests (top-level-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")

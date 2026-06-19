@@ -2,6 +2,7 @@
 ;;; Agent repair metadata derived from policy findings.
 
 (import :policy/catalog
+        (only-in :clan/poo/object .@ object<-alist)
         (only-in :std/misc/list unique)
         (only-in :std/srfi/1 take)
         (only-in :std/srfi/13 string-join)
@@ -15,6 +16,8 @@
         finding-agent-repair-parts
         finding-guide-detail-parts)
 
+;;; Repairability is protocol-driven: a finding opts in by exposing an
+;;; agent-repair projection, not by matching rule names here.
 ;; : (-> TypeFinding Boolean )
 (def (repairable-finding? finding)
   (and (finding-agent-repair-json finding) #t))
@@ -26,6 +29,155 @@
 (def (repairable-findings findings)
   (filter repairable-finding? findings))
 
+;;; Schema names are wire-level compatibility boundaries for repair clients.
+(def +policy-diagnostic-schema+ "gerbil-policy-diagnostic-v1")
+
+;;; POO projection boundary:
+;;; - Diagnostic helpers build object slots first, then project through .json<-.
+;;; - This keeps rule evidence, location, and repair intent composable before
+;;;   agent-facing JSON is materialized.
+;; : (-> PolicyDiagnosticObject Json )
+(def (policy-diagnostic-json<- diagnostic)
+  ((.@ diagnostic .json<-) diagnostic))
+
+;;; Diagnostic object protocol:
+;;; - location/evidence/intent are POO objects before they are JSON.
+;;; - repair projection code composes these objects instead of hand-building
+;;;   the full packet shape at each policy site.
+;; : (-> Path Selector DefinitionName PolicyDiagnosticLocation )
+(def (make-policy-diagnostic-location path selector definition-name)
+  (object<-alist
+   [(cons 'path path)
+    (cons 'selector selector)
+    (cons 'definitionName definition-name)
+    (cons '.json<- policy-diagnostic-location-json<-)]))
+
+;;; Location JSON keeps parser selectors stable across text and JSON output.
+;; : (-> PolicyDiagnosticLocation Json )
+(def (policy-diagnostic-location-json<- location)
+  (hash (path (.@ location path))
+        (selector (.@ location selector))
+        (definitionName (.@ location definitionName))))
+
+;;; Evidence objects preserve the original policy signal without forcing agents
+;;; to reverse-engineer rule details from prose.
+;; : (-> Rule Severity Message Details PolicyDiagnosticEvidence )
+(def (make-policy-diagnostic-evidence rule-id severity message details)
+  (object<-alist
+   [(cons 'ruleId rule-id)
+    (cons 'severity severity)
+    (cons 'message message)
+    (cons 'details details)
+    (cons '.json<- policy-diagnostic-evidence-json<-)]))
+
+;;; Evidence JSON is intentionally shallow; nested repair context belongs in
+;;; details, not in ad hoc top-level fields.
+;; : (-> PolicyDiagnosticEvidence Json )
+(def (policy-diagnostic-evidence-json<- evidence)
+  (hash (ruleId (.@ evidence ruleId))
+        (severity (.@ evidence severity))
+        (message (.@ evidence message))
+        (details (.@ evidence details))))
+
+;;; Repair intent is separate from evidence so guide commands stay supporting
+;;; context instead of becoming the diagnostic itself.
+;; : (-> Strategy FixIntent Constraints RepairPhases GuideCommand GuideRole CommentRepairOrder PolicyRepairIntent )
+(def (make-policy-repair-intent strategy: strategy
+                                fixIntent: fix-intent
+                                constraints: constraints
+                                repairPhases: repair-phases
+                                guideCommand: guide-command
+                                guideRole: guide-role
+                                commentRepairOrder: comment-repair-order)
+  (object<-alist
+   [(cons 'strategy strategy)
+    (cons 'fixIntent fix-intent)
+    (cons 'constraints constraints)
+    (cons 'repairPhases repair-phases)
+    (cons 'guideCommand guide-command)
+    (cons 'guideRole guide-role)
+    (cons 'commentRepairOrder comment-repair-order)
+    (cons '.json<- policy-repair-intent-json<-)]))
+
+;;; Repair-intent JSON mirrors the object slots so agents can replay the same
+;;; strategy without parsing human prose.
+;; : (-> PolicyRepairIntent Json )
+(def (policy-repair-intent-json<- intent)
+  (hash (strategy (.@ intent strategy))
+        (fixIntent (.@ intent fixIntent))
+        (constraints (.@ intent constraints))
+        (repairPhases (.@ intent repairPhases))
+        (guideCommand (.@ intent guideCommand))
+        (guideRole (.@ intent guideRole))
+        (commentRepairOrder (.@ intent commentRepairOrder))))
+
+;;; Packet boundary:
+;;; - The diagnostic object owns the schema-level fields for both group and
+;;;   single-finding warnings.
+;;; - Callers supply domain objects; this layer alone decides the JSON packet
+;;;   layout exposed to agents.
+;; : (-> PolicyDiagnostic )
+(def (make-policy-diagnostic kind: kind
+                             unit: unit
+                             ruleId: rule-id
+                             severity: severity
+                             location: location
+                             problem: problem
+                             evidence: evidence
+                             fixIntent: fix-intent
+                             constraints: constraints
+                             guideCommand: guide-command
+                             guideRole: guide-role
+                             repairPhases: repair-phases)
+  (object<-alist
+   [(cons 'schema +policy-diagnostic-schema+)
+    (cons 'kind kind)
+    (cons 'unit unit)
+    (cons 'ruleId rule-id)
+    (cons 'severity severity)
+    (cons 'location location)
+    (cons 'problem problem)
+    (cons 'evidence evidence)
+    (cons 'fixIntent fix-intent)
+    (cons 'constraints constraints)
+    (cons 'guideCommand guide-command)
+    (cons 'guideRole guide-role)
+    (cons 'repairPhases repair-phases)
+    (cons '.json<- policy-diagnostic-json-projection)]))
+
+;;; The projection is the durable agent-facing packet; keep every public slot
+;;; explicit so schema drift is visible in review.
+;; : (-> PolicyDiagnostic Json )
+(def (policy-diagnostic-json-projection diagnostic)
+  (hash (schema (.@ diagnostic schema))
+        (kind (.@ diagnostic kind))
+        (unit (.@ diagnostic unit))
+        (ruleId (.@ diagnostic ruleId))
+        (severity (.@ diagnostic severity))
+        (location (policy-diagnostic-json<- (.@ diagnostic location)))
+        (problem (.@ diagnostic problem))
+        (evidence (policy-diagnostic-evidence-json (.@ diagnostic evidence)))
+        (fixIntent (.@ diagnostic fixIntent))
+        (constraints (.@ diagnostic constraints))
+        (guideCommand (.@ diagnostic guideCommand))
+        (guideRole (.@ diagnostic guideRole))
+        (repairPhases (.@ diagnostic repairPhases))))
+
+;;; Evidence projection:
+;;; - Group diagnostics pass a list of evidence objects; finding diagnostics
+;;;   pass one object.
+;;; - The map branch preserves the object protocol for each item instead of
+;;;   exposing callers to list-specific JSON construction.
+;;; Evidence payloads can be grouped; normalize both singleton and list forms
+;;; through the same object projection path.
+;; : (-> PolicyDiagnosticEvidenceOrList JsonOrList )
+(def (policy-diagnostic-evidence-json evidence)
+  (if (list? evidence)
+    (map policy-diagnostic-json<- evidence)
+    (policy-diagnostic-json<- evidence)))
+
+;;; Report JSON summarizes repair scope before expensive per-group projections
+;;; so clients can decide whether to render or skip repair guidance.
 ;; : (-> (List TypeFinding) Json )
 (def (agent-repair-report-json findings)
   (let* ((repairable (repairable-findings findings))
@@ -184,14 +336,16 @@
           (repairHints (finding-group-agent-checklist primary rules))
           (verification (agent-repair-success-criteria))
           (repairIntent
-	          (hash (strategy strategy)
-                  (fixIntent (finding-group-fix-intent primary rules strategy))
-                  (constraints (finding-group-repair-constraints rules))
-                  (repairPhases phases)
-                  (guideCommand guide-command)
-                  (guideRole "evidence-only")
-	                (commentRepairOrder
-	                  "comment-quality repairs run after structural/style repairs when both hit the same group")))
+           (policy-diagnostic-json<-
+            (make-policy-repair-intent
+             strategy: strategy
+             fixIntent: (finding-group-fix-intent primary rules strategy)
+             constraints: (finding-group-repair-constraints rules)
+             repairPhases: phases
+             guideCommand: guide-command
+             guideRole: "evidence-only"
+             commentRepairOrder:
+             "comment-quality repairs run after structural/style repairs when both hit the same group")))
           (agentInstruction
            "treat this diagnostic group as one function-level edit boundary, not independent warning spam"))))
 
@@ -208,32 +362,35 @@
 ;;; intent and constraints are computed once for the selector boundary.
 ;; : (-> TypeFinding (List TypeFinding) (List Rule) String RepairPhases String Json )
 (def (finding-group-diagnostic-json primary findings rules strategy phases guide-command)
-  (hash (schema "gerbil-policy-diagnostic-v1")
-        (kind "policy")
-        (unit "findingGroup")
-        (ruleId (type-finding-rule-id primary))
-        (severity (finding-group-severity findings))
-        (location (finding-location-json primary))
-        (problem (finding-group-problem primary rules))
-        (evidence (map finding-diagnostic-evidence-json findings))
-        (fixIntent (finding-group-fix-intent primary rules strategy))
-        (constraints (finding-group-repair-constraints rules))
-        (guideCommand guide-command)
-        (guideRole "evidence-only")
-        (repairPhases phases)))
+  (policy-diagnostic-json<-
+   (make-policy-diagnostic
+    kind: "policy"
+    unit: "findingGroup"
+    ruleId: (type-finding-rule-id primary)
+    severity: (finding-group-severity findings)
+    location: (finding-location primary)
+    problem: (finding-group-problem primary rules)
+    evidence: (map finding-diagnostic-evidence findings)
+    fixIntent: (finding-group-fix-intent primary rules strategy)
+    constraints: (finding-group-repair-constraints rules)
+    guideCommand: guide-command
+    guideRole: "evidence-only"
+    repairPhases: phases)))
 
-;; : (-> TypeFinding Json )
-(def (finding-location-json finding)
-  (hash (path (type-finding-path finding))
-        (selector (or (type-finding-selector finding) ""))
-        (definitionName (finding-definition-name finding))))
+;; : (-> TypeFinding PolicyDiagnosticLocation )
+(def (finding-location finding)
+  (make-policy-diagnostic-location
+   (type-finding-path finding)
+   (or (type-finding-selector finding) "")
+   (finding-definition-name finding)))
 
-;; : (-> TypeFinding Json )
-(def (finding-diagnostic-evidence-json finding)
-  (hash (ruleId (type-finding-rule-id finding))
-        (severity (type-finding-severity finding))
-        (message (type-finding-message finding))
-        (details (type-finding-details finding))))
+;; : (-> TypeFinding PolicyDiagnosticEvidence )
+(def (finding-diagnostic-evidence finding)
+  (make-policy-diagnostic-evidence
+   (type-finding-rule-id finding)
+   (type-finding-severity finding)
+   (type-finding-message finding)
+   (type-finding-details finding)))
 
 ;; : (-> TypeFinding (List Rule) String )
 (def (finding-group-problem primary rules)
@@ -454,22 +611,24 @@
 
 ;; : (-> TypeFinding GuideRoute Json )
 (def (finding-diagnostic-json finding route)
-  (hash (schema "gerbil-policy-diagnostic-v1")
-        (kind "policy")
-        (unit "finding")
-        (ruleId (type-finding-rule-id finding))
-        (severity (type-finding-severity finding))
-        (location (finding-location-json finding))
-        (problem (type-finding-message finding))
-        (evidence (finding-diagnostic-evidence-json finding))
-        (fixIntent
-         (string-append
-          "repair the selector so " (type-finding-rule-id finding)
-          " no longer matches; keep the implementation idiomatic Gerbil Scheme"))
-        (constraints ["do not suppress the finding"
-                      "do not make unrelated style rewrites"])
-        (guideCommand (caddr route))
-        (guideRole "evidence-only")))
+  (policy-diagnostic-json<-
+   (make-policy-diagnostic
+    kind: "policy"
+    unit: "finding"
+    ruleId: (type-finding-rule-id finding)
+    severity: (type-finding-severity finding)
+    location: (finding-location finding)
+    problem: (type-finding-message finding)
+    evidence: (finding-diagnostic-evidence finding)
+    fixIntent:
+    (string-append
+     "repair the selector so " (type-finding-rule-id finding)
+     " no longer matches; keep the implementation idiomatic Gerbil Scheme")
+    constraints: ["do not suppress the finding"
+                  "do not make unrelated style rewrites"]
+    guideCommand: (caddr route)
+    guideRole: "evidence-only"
+    repairPhases: [])))
 
 ;; : (-> TypeFinding FindingAgentRepairParts )
 (def (finding-agent-repair-parts finding)

@@ -1,7 +1,8 @@
 #!/usr/bin/env gxi
 ;; -*- Gerbil -*-
 (import :std/make
-        (only-in :std/iter for/fold)
+        :clan/base
+        :clan/building
         (only-in :std/misc/path directory-files)
         :std/misc/ports
         :std/misc/process
@@ -42,63 +43,42 @@
                 "build-support/provider-cli.ss"])))))
 
 ;;; Boundary:
-;;; - gerbil.pkg owns source/runtime roots; build.ss only materializes them for subprocesses.
-;;; - The harness keeps src/ layout imports, so package roots must become local module roots.
-;; : (-> Path MaybeDatum )
-(def (read-package-form path)
-  (and (file-exists? path)
-       (call-with-input-file path read)))
+;;; - clan/building owns build source discovery and the build load path.
+;;; - Provider modules stay under src/; selected t/unit helpers are compiled
+;;;   because tests import them as reusable modules.
+;; : (List String)
+(def +provider-test-helper-modules+
+  ["t/unit/evidence-graph"
+   "t/unit/policy/poo-scenarios"
+   "t/unit/poo/runtime-witness"
+   "t/unit/schema/bundle"
+   "t/unit/schema/conformance"
+   "t/unit/search/owner-items"
+   "t/unit/search/prime-packet"
+   "t/unit/search/structural-index"
+   "t/unit/snapshot/parser"])
+
+;; : (-> String Boolean)
+(def (provider-build-module? module)
+  (string-prefix? "src/" module))
+
+;; : (-> (List String))
+(def (spec)
+  (!> (all-gerbil-modules)
+      (cut filter provider-build-module? <>)
+      (cut append <> +provider-test-helper-modules+)))
+
+(init-build-environment!
+ name: "gerbil-scheme-language-project-harness"
+ deps: '("clan" "gerbil-poo")
+ spec: spec)
 
 ;; : (-> Datum Symbol MaybeDatum )
-(def (package-field-value datum field)
+(def (datum-field-value datum field)
   (let (items (and (list? datum) (memq field datum)))
     (and items
          (pair? (cdr items))
          (cadr items))))
-
-;; : (-> Datum Boolean )
-(def (source-scope-form? datum)
-  (and (pair? datum)
-       (member (car datum) '(source-scope source-policy project-scope))))
-
-;; : (-> Datum MaybeDatum )
-(def (package-source-scope-form package)
-  (let (policy (package-field-value package 'policy:))
-    (cond
-     ((source-scope-form? policy) policy)
-     ((list? policy) (find source-scope-form? policy))
-     (else #f))))
-
-;; : (-> Datum Symbol (List String) )
-(def (policy-string-list-field datum field)
-  (let (value (package-field-value datum field))
-    (cond
-     ((string? value) [value])
-     ((list? value) (filter string? value))
-     (else '()))))
-
-;; : (-> (List Symbol) (List String) )
-(def (package-source-scope-roots fields)
-  (let* ((package (read-package-form "gerbil.pkg"))
-         (scope (and package (package-source-scope-form package))))
-    (or (and scope
-             (let (field
-                   (find (lambda (field)
-                           (pair? (policy-string-list-field scope field)))
-                         fields))
-               (and field
-                    (policy-string-list-field scope field))))
-        '("src"))))
-
-;; : (-> (List String) (List Path) )
-(def (absolute-package-roots roots)
-  (map (cut path-expand <> (current-directory)) roots))
-
-;; : (-> Void )
-(def (ensure-source-load-path!)
-  (for-each add-load-path!
-            (absolute-package-roots
-             (package-source-scope-roots '(roots: source-roots: source-root:)))))
 
 (def (compile-command? args)
   (or (member "compile" args)
@@ -149,7 +129,7 @@
             (call-with-input-file owner-path read))))))
 
 (def (provider-build-lock-owner-pid lock-dir)
-  (let (pid (package-field-value
+  (let (pid (datum-field-value
              (read-provider-build-lock-owner lock-dir)
              'pid:))
     (and (integer? pid) pid)))
@@ -305,7 +285,6 @@
 
 (def (main . args)
   (ensure-gerbil-gsc!)
-  (ensure-source-load-path!)
   (if (package-dependency-command? args)
     (with-provider-build-lock!
      (lambda ()

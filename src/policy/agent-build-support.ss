@@ -20,6 +20,12 @@
 ;; Integer
 (def +build-runtime-min-shell-control-markers+ 2)
 
+;; (List GroupName)
+(def +build-runtime-native-compile-required-groups+
+  '("native-provider-compile-owner"
+    "direct-native-exe-dispatch"
+    "missing-native-link-wrapper"))
+
 ;; (List String)
 (def +shell-helper-definition-markers+
   '("shell-" "-shell-" "sh-"))
@@ -50,29 +56,100 @@
 (def +shell-dispatch-callees+
   '("invoke" "run-process" "open-process"))
 
+;; (List String)
+(def +native-provider-compile-owner-prefixes+
+  '("compile-native-" "compile-full-native-" "run-native-"))
+
+;; String
+(def +native-wrapper-runtime-source+ "build-support/native-wrapper-runtime.ss")
+
+;; String
+(def +native-wrapper-binary-prefix+ "gerbil-native-")
+
+;; (List ModuleNamePrefix)
+(def +native-fast-disallowed-import-prefixes+
+  '(":commands/"))
+
 ;;; Boundary:
 ;;; - Quality findings are composite gates over parser-owned definitions and
 ;;;   call arguments.
 ;;; - A single string marker is advisory evidence only.
 ;; : (-> ProjectIndex (List TypeFinding) )
 (def (build-runtime-quality-findings index)
-  (filter-map build-runtime-quality-finding
-              (project-index-files index)))
+  (let (batches (map build-runtime-quality-findings/file
+                     (project-index-files index)))
+    (if (pair? batches)
+      (apply append batches)
+      '())))
+
+;;; Data flow:
+;;; - Each detection result is mapped to one finding with the same file owner.
+;;; - `map` keeps result order stable so shell-template and native-safety
+;;;   warnings stay deterministic when both detectors fire.
+;;; Invariant:
+;;; - This stays a projection over parser-owned detection results, not a manual
+;;;   loop that could merge independent policy evidence.
+;; : (-> SourceFile (List TypeFinding) )
+(def (build-runtime-quality-findings/file file)
+  (map (cut build-runtime-quality-finding<- file <>)
+       (build-runtime-quality-detections file)))
 
 ;;; Finding contract:
 ;;; - The detection combinator owns the multi-evidence decision.
 ;;; - This rule owns the agent-facing repair message and build-support scope.
 ;; : (-> SourceFile MaybeTypeFinding )
 (def (build-runtime-quality-finding file)
-  (let (result (build-runtime-quality-detection file))
-    (and result
-         (make-type-finding
-          (policy-rule-id +agent-build-runtime-quality-rule+)
-          (policy-rule-severity +agent-build-runtime-quality-rule+)
-          (source-file-path file)
-          "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers"
-          (detection-result-selector result (source-file-path file))
-          (runtime-quality-details result)))))
+  (let (results (build-runtime-quality-detections file))
+    (and (pair? results)
+         (build-runtime-quality-finding<- file (car results)))))
+
+;; : (-> SourceFile DetectionResult TypeFinding )
+(def (build-runtime-quality-finding<- file result)
+  (make-type-finding
+   (policy-rule-id +agent-build-runtime-quality-rule+)
+   (policy-rule-severity +agent-build-runtime-quality-rule+)
+   (source-file-path file)
+   (runtime-quality-message result)
+   (detection-result-selector result (source-file-path file))
+   (runtime-quality-details result)))
+
+;; : (-> DetectionResult String )
+(def (runtime-quality-message result)
+  (cond
+   ((runtime-native-compile-safety-result? result)
+    "build/runtime support compiles provider native executables through a direct gxc -exe path; route provider executables through the timeout-safe native wrapper so existing binaries survive compiler hangs")
+   ((runtime-native-fast-command-adapter-result? result)
+    "native fast source imports a full command adapter; keep native-fast entrypoints dependency-light or route the command through the provider dispatcher runtime path")
+   (else
+    "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers")))
+
+;;; Compatibility helper for callers that expect one finding per source file.
+;; : (-> SourceFile MaybeDetectionResult )
+(def (build-runtime-quality-detection file)
+  (let (results (build-runtime-quality-detections file))
+    (and (pair? results) (car results))))
+
+;;; Dispatch boundary:
+;;; - A build-support owner may trip several independent runtime-quality
+;;;   detectors.
+;;; - Each detector stays prototype/combinator backed, not branch-hardcoded.
+;; : (-> SourceFile (List DetectionResult) )
+(def (build-runtime-quality-detections file)
+  (filter-map
+   (cut run-detection-prototype file <>)
+   (build-runtime-quality-detection-prototypes file)))
+
+;; : (-> SourceFile (List DetectionPrototype) )
+(def (build-runtime-quality-detection-prototypes file)
+  (cond
+   ((build-support-source-file? file)
+    [(build-support-shell-template-detection-prototype)
+     (build-support-native-compile-safety-detection-prototype)])
+   ((native-fast-runtime-source-file? file)
+    [(native-fast-command-adapter-detection-prototype)])
+   ((package-build-file? file)
+    [(package-build-shell-pipeline-detection-prototype)])
+   (else '())))
 
 ;;; Intentional raw data record:
 ;;; - Details stay JSON-shaped for command output because TypeFinding receipts
@@ -81,7 +158,7 @@
 ;; : (-> DetectionResult PolicyDetails )
 (def (runtime-quality-details result)
   (let (details (detection-result-details result))
-    (hash (kind "build-runtime-quality")
+    (hash (kind (runtime-quality-kind result))
         (detectionCombiner (hash-get details 'detectionCombiner))
         (detectionPrototype (hash-get details 'detectionPrototype))
         (detectionCombinerKind (hash-get details 'detectionCombinerKind))
@@ -96,26 +173,66 @@
         (evidenceGroups (hash-get details 'evidenceGroups))
         (evidenceCounts (hash-get details 'evidenceCounts))
         (evidenceSelectors (hash-get details 'evidenceSelectors))
-        (requiredEvidence "at least two independent parser-owned groups")
-        (allowedShape "Gerbil runtime wrapper source plus list command arguments")
-        (disallowedShape "generated shell templates or sh -c pipelines")
-        (next "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers"))))
+        (requiredEvidence (runtime-quality-required-evidence result))
+        (allowedShape (runtime-quality-allowed-shape result))
+        (disallowedShape (runtime-quality-disallowed-shape result))
+        (next (runtime-quality-next-action result)))))
 
-;;; Dispatch boundary keeps build-support and package build checks separate:
-;;; launcher files are allowed to write executables, while build.ss is only
-;;; checked for shell pipeline orchestration.
-;; : (-> SourceFile MaybeDetectionResult )
-(def (build-runtime-quality-detection file)
+;; : (-> DetectionResult String )
+(def (runtime-quality-kind result)
   (cond
-   ((build-support-source-file? file)
-    (run-detection-prototype
-     file
-     (build-support-shell-template-detection-prototype)))
-   ((package-build-file? file)
-    (run-detection-prototype
-     file
-     (package-build-shell-pipeline-detection-prototype)))
-   (else #f)))
+   ((runtime-native-compile-safety-result? result)
+    "build-runtime-native-compile-safety")
+   ((runtime-native-fast-command-adapter-result? result)
+    "build-runtime-native-fast-command-adapter")
+   (else "build-runtime-quality")))
+
+;; : (-> DetectionResult String )
+(def (runtime-quality-required-evidence result)
+  (cond
+   ((runtime-native-compile-safety-result? result)
+    "native provider compile owner, direct gxc -exe dispatch, and missing native-wrapper delegation")
+   ((runtime-native-fast-command-adapter-result? result)
+    "native-fast source class plus parser-owned module import of a full command adapter")
+   (else "at least two independent parser-owned groups")))
+
+;; : (-> DetectionResult String )
+(def (runtime-quality-allowed-shape result)
+  (cond
+   ((runtime-native-compile-safety-result? result)
+    "provider native binaries are compiled through build-support/native-wrapper-runtime.ss via gerbil-native-link or gerbil-native-diagnose")
+   ((runtime-native-fast-command-adapter-result? result)
+    "native-fast sources import only dependency-light modules; full commands run through harness_runtime in the native dispatcher")
+   (else "Gerbil runtime wrapper source plus list command arguments")))
+
+;; : (-> DetectionResult String )
+(def (runtime-quality-disallowed-shape result)
+  (cond
+   ((runtime-native-compile-safety-result? result)
+    "direct gxc -exe invocation inside provider native compile owners without native wrapper timeout and atomic replacement")
+   ((runtime-native-fast-command-adapter-result? result)
+    "src/*-fast entrypoints importing :commands/* adapters and forcing full command graphs through native link")
+   (else "generated shell templates or sh -c pipelines")))
+
+;; : (-> DetectionResult String )
+(def (runtime-quality-next-action result)
+  (cond
+   ((runtime-native-compile-safety-result? result)
+    "replace direct gxc -exe provider builds with compile-build-support-executable! for gerbil-native-link/gerbil-native-diagnose and pass tmp/final/source as argv")
+   ((runtime-native-fast-command-adapter-result? result)
+    "delete the native-fast wrapper or split a real dependency-light fast implementation; route full command behavior through the dispatcher harness_runtime path")
+   (else
+    "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers")))
+
+;; : (-> DetectionResult Boolean )
+(def (runtime-native-compile-safety-result? result)
+  (equal? (detection-result-prototype result)
+          "build-support-native-compile-safety-all-of"))
+
+;; : (-> DetectionResult Boolean )
+(def (runtime-native-fast-command-adapter-result? result)
+  (equal? (detection-result-prototype result)
+          "native-fast-command-adapter-all-of"))
 
 ;;; Launcher quality is declared as a prototype: the threshold base owns the
 ;;; combiner shape, while this overlay owns build-support evidence slots.
@@ -133,6 +250,41 @@
     +build-runtime-min-evidence-groups+
     '()
     "build-support shell-template drift requires multiple parser-owned evidence groups")))
+
+;;; Native compile safety is stricter than shell-template drift:
+;;; all three signals must align before warning, which keeps the bootstrap
+;;; compile of gerbil-native-link itself outside the provider executable rule.
+;; : (-> DetectionPrototype )
+(def (build-support-native-compile-safety-detection-prototype)
+  (detection-prototype-extend
+   +all-of-detection-prototype+
+   (poo-source-pattern-detection-overlay 'prototype-composition)
+   (detection-prototype
+    "build-support-native-compile-safety-all-of"
+    'all-of
+    [native-provider-compile-owner-evidence
+     direct-native-exe-dispatch-evidence
+     missing-native-link-wrapper-evidence]
+    0
+    +build-runtime-native-compile-required-groups+
+    "native provider executable compilation requires timeout-safe wrapper delegation")))
+
+;;; Native-fast sources should be small compiled entrypoints.  Importing a full
+;;; command adapter is a graph-shape violation because it pushes parser, policy,
+;;; repair, and protocol modules through native link.
+;; : (-> DetectionPrototype )
+(def (native-fast-command-adapter-detection-prototype)
+  (detection-prototype-extend
+   +all-of-detection-prototype+
+   (poo-source-pattern-detection-overlay 'prototype-composition)
+   (detection-prototype
+    "native-fast-command-adapter-all-of"
+    'all-of
+    [native-fast-runtime-source-evidence
+     native-fast-command-adapter-import-evidence]
+    0
+    ["native-fast-source" "full-command-adapter-import"]
+    "native-fast entrypoints must not import full command adapters")))
 
 ;;; Package build quality is a stricter prototype: the all-of base owns the
 ;;; required-group semantics, and the overlay names the build.ss evidence.
@@ -263,6 +415,70 @@
           (length calls)
           (call-fact-selector (car calls))))))
 
+;;; Provider native compile owners are data-shaped by parser definition names.
+;;; This signal is harmless alone; the all-of detector needs unsafe dispatch and
+;;; missing wrapper delegation before emitting a warning.
+;; : (-> SourceFile MaybeEvidenceGroup )
+(def (native-provider-compile-owner-evidence file)
+  (let (definitions (filter native-provider-compile-definition?
+                            (source-file-definitions file)))
+    (and (pair? definitions)
+         (evidence-group
+          "native-provider-compile-owner"
+          (length definitions)
+          (definition-selector (car definitions))))))
+
+;;; Direct gxc -exe dispatch is only actionable inside provider native compile
+;;; owners. Bootstrap compilation of the wrapper runtime itself remains outside
+;;; this group.
+;; : (-> SourceFile MaybeEvidenceGroup )
+(def (direct-native-exe-dispatch-evidence file)
+  (let (calls (filter direct-native-exe-dispatch-call?
+                      (source-file-calls file)))
+    (and (pair? calls)
+         (evidence-group
+          "direct-native-exe-dispatch"
+          (length calls)
+          (call-fact-selector (car calls))))))
+
+;;; Absence is made explainable by anchoring the selector on the unsafe direct
+;;; compile call whose caller lacks a native-wrapper delegation call.
+;; : (-> SourceFile MaybeEvidenceGroup )
+(def (missing-native-link-wrapper-evidence file)
+  (let (calls (filter (lambda (call)
+                        (and (direct-native-exe-dispatch-call? call)
+                             (not (native-wrapper-delegation-for-caller?
+                                   file
+                                   (call-fact-caller call)))))
+                      (source-file-calls file)))
+    (and (pair? calls)
+         (evidence-group
+          "missing-native-link-wrapper"
+          (length calls)
+          (call-fact-selector (car calls))))))
+
+;;; Parser-owned source class is the scope signal.  Policy does not repeat the
+;;; path classifier; it only consumes the language vocabulary.
+;; : (-> SourceFile MaybeEvidenceGroup )
+(def (native-fast-runtime-source-evidence file)
+  (and (native-fast-runtime-source-file? file)
+       (evidence-group
+        "native-fast-source"
+        1
+        (string-append (source-file-path file) ":1-1"))))
+
+;;; Module imports carry the real dependency boundary.  A full command adapter
+;;; inside a native-fast source means native link will traverse the command graph.
+;; : (-> SourceFile MaybeEvidenceGroup )
+(def (native-fast-command-adapter-import-evidence file)
+  (let (imports (filter native-fast-command-adapter-import?
+                        (source-file-module-imports file)))
+    (and (pair? imports)
+         (evidence-group
+          "full-command-adapter-import"
+          (length imports)
+          (module-import-selector (car imports))))))
+
 ;;; Scope guard: build-support files intentionally emit launcher/runtime
 ;;; wrappers, so they need a dedicated evidence profile.
 ;; : (-> SourceFile Boolean )
@@ -276,6 +492,11 @@
 (def (package-build-file? file)
   (equal? (source-path-class (source-file-path file))
           "package-build"))
+
+;; : (-> SourceFile Boolean )
+(def (native-fast-runtime-source-file? file)
+  (equal? (source-path-class (source-file-path file))
+          "native-fast-runtime"))
 
 ;;; Naming markers catch helper families before they become an unbounded shell
 ;;; wrapper subsystem.
@@ -328,6 +549,68 @@
                      (ormap (cut string-contains argument <>)
                             +shell-pipeline-literal-markers+)))
               (call-fact-arguments call))))
+
+;; : (-> DefinitionFact Boolean )
+(def (native-provider-compile-definition? definition)
+  (native-provider-compile-owner-name? (definition-name definition)))
+
+;; : (-> CallFact Boolean )
+(def (direct-native-exe-dispatch-call? call)
+  (and (native-provider-compile-owner-name? (call-fact-caller call))
+       (member (call-fact-callee call) +shell-dispatch-callees+)
+       (call-arguments-contain? call "gxc")
+       (call-arguments-contain? call "-exe")))
+
+;;; Data flow:
+;;; - Caller equality scopes wrapper proof to the same native compile owner as
+;;;   the unsafe dispatch candidate.
+;;; - `ormap` is intentional existential evidence: one matching wrapper call is
+;;;   enough to prove timeout/atomic replacement delegation.
+;;; Hidden invariant:
+;;; - A file-wide wrapper hit must not bless a different direct compiler caller.
+;; : (-> SourceFile MaybeCaller Boolean )
+(def (native-wrapper-delegation-for-caller? file caller)
+  (and (string? caller)
+       (ormap (lambda (call)
+                (and (equal? (call-fact-caller call) caller)
+                     (native-wrapper-delegation-call? call)))
+              (source-file-calls file))))
+
+;; : (-> CallFact Boolean )
+(def (native-wrapper-delegation-call? call)
+  (and (equal? (call-fact-callee call) "compile-build-support-executable!")
+       (call-arguments-contain? call +native-wrapper-binary-prefix+)
+       (call-arguments-contain? call +native-wrapper-runtime-source+)))
+
+;;; Data flow:
+;;; - Module import facts provide the adapter name; the prefix table owns the
+;;;   disallowed command-adapter vocabulary.
+;;; - `ormap` keeps this an open policy surface: new full-command prefixes add
+;;;   data, not branches through individual fast source files.
+;; : (-> ModuleImportFact Boolean )
+(def (native-fast-command-adapter-import? fact)
+  (ormap (cut string-prefix? <> (module-import-fact-module fact))
+         +native-fast-disallowed-import-prefixes+))
+
+;; : (-> ModuleImportFact Selector )
+(def (module-import-selector fact)
+  (string-append (module-import-fact-path fact)
+                 ":"
+                 (number->string (module-import-fact-start fact))
+                 "-"
+                 (number->string (module-import-fact-end fact))))
+
+;;; Data flow:
+;;; - Owner prefixes are data, and `cut` specializes the prefix predicate over
+;;;   the candidate parser-owned definition/caller name.
+;;; Invariant:
+;;; - Adding another native compile owner extends the prefix table instead of
+;;;   branching through source paths or concrete function bodies.
+;; : (-> MaybeString Boolean )
+(def (native-provider-compile-owner-name? name)
+  (and (string? name)
+       (ormap (cut string-prefix? <> name)
+              +native-provider-compile-owner-prefixes+)))
 
 ;;; Argument containment stays string-only so parser facts, not shell parsing,
 ;;; own the evidence boundary.

@@ -142,15 +142,15 @@
         (thread-sleep! 1)
         (wait (+ elapsed 1)))))))
 
-;; : (-> NativeTempPrefix Command)
-(def (native-compile-command tmp)
+;; : (-> NativeTempPrefix SourcePath Command)
+(def (native-compile-command tmp source)
   (if (native-debug?)
-    ["gxc" "-V" "-exe" "-o" tmp "src/cli.ss"]
-    ["gxc" "-exe" "-o" tmp "src/cli.ss"]))
+    ["gxc" "-V" "-exe" "-o" tmp source]
+    ["gxc" "-exe" "-o" tmp source]))
 
-;; : (-> NativeTempPrefix Command)
-(def (native-diagnose-command tmp)
-  ["gxc" "-S" "-V" "-exe" "-o" tmp "src/cli.ss"])
+;; : (-> NativeTempPrefix SourcePath Command)
+(def (native-diagnose-command tmp source)
+  ["gxc" "-S" "-V" "-exe" "-o" tmp source])
 
 ;;; Boundary:
 ;;; - A successful native link leaves only the final provider executable.
@@ -177,10 +177,10 @@
 ;;; Boundary:
 ;;; - Link mode owns atomic replacement of the provider executable.
 ;;; - Existing binaries remain untouched on timeout or compiler failure.
-;; : (-> NativeTempPrefix FinalExecutable NeverReturns)
-(def (native-link-main tmp final)
+;; : (-> NativeTempPrefix FinalExecutable SourcePath NeverReturns)
+(def (native-link-main tmp final source)
   (let* ((log (string-append tmp ".log"))
-         (result (run-native-command (native-compile-command tmp)))
+         (result (run-native-command (native-compile-command tmp source)))
          (status (list-ref result 0))
          (output (list-ref result 1))
          (reason (list-ref result 2)))
@@ -212,10 +212,10 @@
 ;;; Boundary:
 ;;; - Diagnose mode records compiler output without replacing executables.
 ;;; - The log/artifact prefix is the contract returned to CI and local repair.
-;; : (-> NativeTempPrefix NeverReturns)
-(def (native-diagnose-main tmp)
+;; : (-> NativeTempPrefix SourcePath NeverReturns)
+(def (native-diagnose-main tmp source)
   (let* ((log (string-append tmp ".log"))
-         (result (run-native-command (native-diagnose-command tmp)))
+         (result (run-native-command (native-diagnose-command tmp source)))
          (status (list-ref result 0))
          (output (list-ref result 1))
          (reason (list-ref result 2)))
@@ -238,12 +238,15 @@
 
 ;;; Boundary:
 ;;; - build.ss chooses link vs diagnose by generated launcher arity.
+;;; - Fast native helpers pass their source entrypoint explicitly; the full
+;;;   provider binary keeps src/cli.ss as the backward-compatible default.
 ;;; - This runtime keeps the mode split explicit and exits with sysexits-style 64.
 ;; main
 ;;   : (-> (List String) NeverReturns)
 ;;   | doc m%
 ;;       `main args ...` dispatches the native build runtime: two arguments link
 ;;       a final provider executable, one argument writes diagnose artifacts.
+;;       A final source argument may override the default `src/cli.ss`.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -253,12 +256,14 @@
 ;;     %
 (def (main . args)
   (cond
+   ((= (length args) 3)
+    (native-link-main (car args) (cadr args) (caddr args)))
    ((= (length args) 2)
-    (native-link-main (car args) (cadr args)))
+    (native-link-main (car args) (cadr args) "src/cli.ss"))
    ((= (length args) 1)
-    (native-diagnose-main (car args)))
+    (native-diagnose-main (car args) "src/cli.ss"))
    (else
-    (emit-error-line! ["usage: gerbil-native-link <tmp> <final>"])
+    (emit-error-line! ["usage: gerbil-native-link <tmp> <final> [source]"])
     (emit-error-line! ["       gerbil-native-diagnose <tmp>"])
     (exit 64))))
 

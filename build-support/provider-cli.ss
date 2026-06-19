@@ -42,8 +42,6 @@
                                     (path-directory binary)))
     (fast-owner-items . ,(path-expand "gerbil-scheme-search-owner-items"
                                       (path-directory binary)))
-    (fast-check . ,(path-expand "gerbil-scheme-check"
-                                (path-directory binary)))
     (guide-static-file . ,(path-expand "gerbil-scheme-guide-basic.txt"
                                        (path-directory binary)))
     (guide-static-all-file . ,(path-expand "gerbil-scheme-guide-all.txt"
@@ -147,7 +145,6 @@
 (def +dispatcher-config-constants+
   [(cons "harness_root" 'harness-root)
    (cons "fast_extension" 'fast-extension)
-   (cons "fast_check" 'fast-check)
    (cons "guide_static_file" 'guide-static-file)
    (cons "guide_static_all_file" 'guide-static-all-file)
    (cons "guide_static_policy_file" 'guide-static-policy-file)
@@ -381,10 +378,9 @@
     "  if (argc > 2 && streq(argv[1], \"query\")) {"
     "    route_query_selector_or_continue(argc, argv, 2);"
     "    route_query_owner_items_or_continue(argc, argv);"
-    "  }"
-    "  if (argc > 1 && streq(argv[1], \"check\")) {"
-    "    if (!executable_exists(fast_check)) fail_missing_build_artifact(\"native check\", fast_check);"
-    "    exec_forward(fast_check, argc, argv, 2);"
+   "  }"
+   "  if (argc > 1 && streq(argv[1], \"check\")) {"
+    "    exec_gerbil_runtime(harness_runtime, argc, argv, 1);"
     "  }"
     "  if (argc > 1 && streq(argv[1], \"search\")) exec_gerbil_runtime(search_runtime, argc, argv, 2);"
     "  exec_gerbil_runtime(harness_runtime, argc, argv, 1);"
