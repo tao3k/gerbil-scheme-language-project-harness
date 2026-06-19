@@ -37,7 +37,15 @@
         modularity-policy-config-path
         modularity-policy-explanation
         agent-policy-disabled-rules
-        agent-policy-explanation)
+        agent-policy-explanation
+        read-package-forms
+        package-form?
+        package-dependencies
+        package-test-directory-policy
+        package-macro-governance-policy
+        package-source-scope-policy
+        package-modularity-policy
+        package-agent-policy)
 ;; TestDirectoryPolicyStruct
 (defstruct test-directory-policy (allowed-directories explanation))
 ;; MacroGovernancePolicyStruct

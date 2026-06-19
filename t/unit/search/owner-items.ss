@@ -9,12 +9,14 @@
         :parser/owner-items
         (only-in :std/misc/ports read-all-as-string)
         :std/misc/process
+        (only-in :std/srfi/1 find)
         (only-in :std/srfi/13 string-contains string-index string-prefix?)
         :std/test)
 
 (include "../../../build-support/provider-cli.ss")
 
 (export check-owner-items-limit-budget
+        check-owner-items-gerbil-package-facts
         check-provider-launcher-native-fast-route
         check-owner-items-fast-entrypoint-stays-light
         check-guide-sections-static-data-loads
@@ -33,6 +35,27 @@
     (check (length limited) => 3)
     (check (owner-item-query-terms "projection|chain receipt")
            => ["projection" "chain" "receipt"])))
+
+;;; Regression: gerbil.pkg is a package owner, not an empty config blob.
+;;; Owner-items should expose package metadata through parser-owned facts so
+;;; agents can query dependencies and policy without raw file reads.
+;; : (-> () Unit )
+(def (check-owner-items-gerbil-package-facts)
+  (let* ((file (parse-owner-items-source-file "." "gerbil.pkg"))
+         (facts (matching-owner-syntax-facts file ["gerbil.pkg"] 10 "."))
+         (package-fact
+          (find (lambda (fact)
+                  (equal? (hash-get fact 'kind) "package"))
+                facts)))
+    (check (not (not package-fact)) => #t)
+    (check (hash-get package-fact 'name)
+           => "gerbil-scheme-language-project-harness")
+    (check (not (not (member "git.cons.io/mighty-gerbils/gerbil-poo"
+                              (hash-get package-fact 'queryKeys))))
+           => #t)
+    (check (not (not (member "source-scope"
+                              (hash-get package-fact 'queryKeys))))
+           => #t)))
 
 ;; : (-> () Unit )
 (def (check-provider-launcher-native-fast-route)

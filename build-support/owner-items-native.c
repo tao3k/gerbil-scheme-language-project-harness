@@ -7,6 +7,7 @@ typedef struct {
   char *kind;
   char *name;
   int line;
+  int package_item;
 } item_t;
 
 static int streq(const char *a, const char *b) {
@@ -53,6 +54,40 @@ static char *join_path(const char *root, const char *path) {
   return out;
 }
 
+static const char *base_name(const char *path) {
+  const char *slash = path ? strrchr(path, '/') : NULL;
+  return slash ? slash + 1 : path;
+}
+
+static int basename_eq(const char *path, const char *name) {
+  const char *base = base_name(path);
+  return base && streq(base, name);
+}
+
+static char *read_file_text(const char *path) {
+  FILE *file = fopen(path, "rb");
+  if (!file) return NULL;
+  if (fseek(file, 0, SEEK_END) != 0) {
+    fclose(file);
+    return NULL;
+  }
+  long size = ftell(file);
+  if (size < 0) {
+    fclose(file);
+    return NULL;
+  }
+  rewind(file);
+  char *text = malloc((size_t)size + 1);
+  if (!text) {
+    fclose(file);
+    return NULL;
+  }
+  size_t read = fread(text, 1, (size_t)size, file);
+  text[read] = 0;
+  fclose(file);
+  return text;
+}
+
 static char *trim_left(char *line) {
   while (*line && isspace((unsigned char)*line)) line++;
   return line;
@@ -71,6 +106,36 @@ static char *copy_symbol(const char *start) {
   memcpy(out, start, n);
   out[n] = 0;
   return out;
+}
+
+static char *copy_string_token(const char *start) {
+  const char *end = start;
+  while (*end && *end != '"') end++;
+  size_t n = (size_t)(end - start);
+  char *out = malloc(n + 1);
+  memcpy(out, start, n);
+  out[n] = 0;
+  return out;
+}
+
+static char *package_name_from_text(const char *text) {
+  const char *package = text ? strstr(text, "(package:") : NULL;
+  if (!package) return NULL;
+  const char *cursor = package + strlen("(package:");
+  while (*cursor && isspace((unsigned char)*cursor)) cursor++;
+  if (*cursor == '"') return copy_string_token(cursor + 1);
+  if (symbol_char((unsigned char)*cursor)) return copy_symbol(cursor);
+  return NULL;
+}
+
+static int package_line_from_text(const char *text) {
+  const char *package = text ? strstr(text, "(package:") : NULL;
+  if (!package) return 1;
+  int line = 1;
+  for (const char *cursor = text; cursor < package; cursor++) {
+    if (*cursor == '\n') line++;
+  }
+  return line;
 }
 
 static int def_head(const char *line, const char **kind_out, const char **after_out) {
@@ -106,10 +171,21 @@ static char *definition_name(const char *after) {
 
 static int term_match(const char *value, char **terms, int term_count) {
   if (term_count == 0) return 1;
+  if (!value) return 0;
   for (int i = 0; i < term_count; i++) {
     if (terms[i] && strstr(value, terms[i])) return 1;
   }
   return 0;
+}
+
+static int package_match(const char *owner, const char *name, const char *content,
+                         char **terms, int term_count) {
+  return term_match(owner, terms, term_count) ||
+         term_match("gerbil.pkg", terms, term_count) ||
+         term_match("package", terms, term_count) ||
+         term_match("package:", terms, term_count) ||
+         term_match(name, terms, term_count) ||
+         term_match(content, terms, term_count);
 }
 
 static char **split_terms(const char *query, int *out_count) {
@@ -158,6 +234,24 @@ int owner_items_native_main(int argc, char **argv) {
 
   item_t *items = calloc(1024, sizeof(item_t));
   int count = 0;
+  if (basename_eq(owner, "gerbil.pkg") && count < 1024) {
+    char *content = read_file_text(path);
+    if (content) {
+      char *name = package_name_from_text(content);
+      if (!name) name = strdup("package");
+      if (package_match(owner, name, content, terms, term_count)) {
+        items[count].kind = strdup("package");
+        items[count].name = name;
+        items[count].line = package_line_from_text(content);
+        items[count].package_item = 1;
+        count++;
+      } else {
+        free(name);
+      }
+      free(content);
+    }
+  }
+
   char *line = NULL;
   size_t cap = 0;
   int line_no = 0;
@@ -176,6 +270,7 @@ int owner_items_native_main(int argc, char **argv) {
       items[count].kind = strdup(kind);
       items[count].name = name;
       items[count].line = line_no;
+      items[count].package_item = 0;
       count++;
     } else {
       free(name);
@@ -190,8 +285,13 @@ int owner_items_native_main(int argc, char **argv) {
     if (names_only) {
       printf("%s\n", items[i].name);
     } else {
-      printf("|item kind=%s name=%s selector=%s:%d-%d\n",
-             items[i].kind, items[i].name, owner, items[i].line, items[i].line);
+      if (items[i].package_item) {
+        printf("|item kind=%s name=%s selector=%s:%d-%d source=native-parser languageKind=package-form role=package\n",
+               items[i].kind, items[i].name, owner, items[i].line, items[i].line);
+      } else {
+        printf("|item kind=%s name=%s selector=%s:%d-%d\n",
+               items[i].kind, items[i].name, owner, items[i].line, items[i].line);
+      }
     }
   }
   return 0;

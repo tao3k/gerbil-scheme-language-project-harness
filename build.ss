@@ -95,6 +95,11 @@
   (or (compile-command? args)
       (member "test" args)))
 
+(def (provider-build-runtime-command? args)
+  (or (null? args)
+      (compile-command? args)
+      (member "test" args)))
+
 (def (native-command? args)
   (or (member "native" args)
       (member "native-link" args)
@@ -284,7 +289,8 @@
 (include "build-support/provider-build.ss")
 
 (def (main . args)
-  (ensure-gerbil-gsc!)
+  (when (provider-build-runtime-command? args)
+    (ensure-gerbil-gsc!))
   (if (package-dependency-command? args)
     (with-provider-build-lock!
      (lambda ()

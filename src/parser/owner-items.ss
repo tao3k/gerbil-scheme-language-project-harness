@@ -5,13 +5,26 @@
         :gerbil/gambit
         :parser/exports
         :parser/model
+        (only-in :parser/package
+                 agent-policy-disabled-rules
+                 package-agent-policy
+                 package-dependencies
+                 package-form?
+                 package-macro-governance-policy
+                 package-source-scope-policy
+                 package-test-directory-policy
+                 read-package-forms
+                 source-scope-policy-exclude-directories
+                 source-scope-policy-roots
+                 source-scope-policy-runtime-roots
+                 test-directory-policy-allowed-directories)
         :parser/selectors
         :parser/support
         :parser/syntax
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports open-output-string read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/srfi/1 take)
+        (only-in :std/srfi/1 find take)
         (only-in :std/srfi/13
                  string-contains
                  string-join
@@ -146,13 +159,146 @@
 ;;; - Owner-items exposes imports, exports, calls, and top forms in one stream.
 ;;; - Stable sorting below keeps agent-visible output deterministic.
 ;; : (-> SourceFile (List SyntaxFactJson) )
-(def (owner-items-syntax-fact-json file)
+(def (owner-items-syntax-fact-json file . maybe-root)
   (stable-owner-items-syntax-facts
    (append
+    (owner-package-fact-jsons file maybe-root)
     (map owner-module-import-fact-json (source-file-module-imports file))
     (map owner-module-export-fact-json (source-file-module-exports file))
     (map owner-call-fact-json (source-file-calls file))
     (map owner-top-form-fact-json (source-file-forms file)))))
+
+;;; Package config boundary:
+;;; - gerbil.pkg is not a Gerbil module, but it is an owner with package facts.
+;;; - Use parser/package helpers so owner-items does not invent a second
+;;;   package metadata parser.
+;; : (-> SourceFile (List Root) (List SyntaxFactJson) )
+(def (owner-package-fact-jsons file maybe-root)
+  (let (root (and (pair? maybe-root) (car maybe-root)))
+    (if (and root
+             (equal? (path-strip-directory (source-file-path file))
+                     "gerbil.pkg"))
+      (with-catch
+       (lambda (_) '())
+       (lambda ()
+         (let* ((package-path (path-expand (source-file-path file) root))
+                (form (find package-form? (read-package-forms package-path))))
+           (if form
+             [(owner-package-fact-json file form)]
+             '()))))
+      '())))
+
+;;; Package item projection:
+;;; - One package item is enough for owner browsing and query routing.
+;;; - Field-level values stay in queryKeys/fields so future renderers can split
+;;;   them without changing parser ownership.
+;; : (-> SourceFile PackageForm SyntaxFactJson )
+(def (owner-package-fact-json file form)
+  (let* ((path (source-file-path file))
+         (name (or (source-file-package file)
+                   (owner-package-form-name form)
+                   "package"))
+         (dependencies (package-dependencies form))
+         (query-keys
+          (unique
+           (filter string?
+                   (append [path
+                            "gerbil.pkg"
+                            "package"
+                            "package:"
+                            name
+                            "depend:"
+                            "policy:"]
+                           dependencies
+                           (owner-package-policy-query-keys form))))))
+    (hash (id (owner-syntax-fact-id "package" path name 1))
+          (kind "package")
+          (source "native-parser")
+          (languageKind "package-form")
+          (name name)
+          (ownerPath path)
+          (location (owner-fact-location-json path 1 1))
+          (queryKeys query-keys)
+          (fields (hash (role "package")
+                        (dependencies (string-join dependencies ","))
+                        (sourceRoots
+                         (string-join
+                          (owner-package-source-roots form) ","))
+                        (runtimeRoots
+                         (string-join
+                          (owner-package-runtime-roots form) ","))
+                        (excludeDirectories
+                         (string-join
+                          (owner-package-exclude-directories form) ","))
+                        (agentDisabledRules
+                         (string-join
+                          (owner-package-agent-disabled-rules form) ",")))))))
+
+;; : (-> PackageForm (List String) )
+(def (owner-package-policy-query-keys form)
+  (append
+   (if (package-test-directory-policy form)
+     ["test-directory" "test-directories"
+      "allowed-test-directories"]
+     '())
+   (if (package-macro-governance-policy form)
+     ["macro-governance" "allow-generated"]
+     '())
+   (if (package-source-scope-policy form)
+     ["source-scope" "source-roots" "runtime-roots"
+      "exclude-directories"]
+     '())
+   (if (package-agent-policy form)
+     ["agent-policy" "disabled-rules"]
+     '())
+   (owner-package-test-directories form)
+   (owner-package-source-roots form)
+   (owner-package-runtime-roots form)
+   (owner-package-exclude-directories form)
+   (owner-package-agent-disabled-rules form)))
+
+;; : (-> PackageForm MaybeString )
+(def (owner-package-form-name form)
+  (let (name (and (pair? (cdr form)) (cadr form)))
+    (cond
+     ((symbol? name) (symbol->string name))
+     ((string? name) name)
+     (else #f))))
+
+;; : (-> PackageForm (List String) )
+(def (owner-package-test-directories form)
+  (let (policy (package-test-directory-policy form))
+    (if policy
+      (test-directory-policy-allowed-directories policy)
+      '())))
+
+;; : (-> PackageForm (List String) )
+(def (owner-package-source-roots form)
+  (let (policy (package-source-scope-policy form))
+    (if policy
+      (source-scope-policy-roots policy)
+      '())))
+
+;; : (-> PackageForm (List String) )
+(def (owner-package-runtime-roots form)
+  (let (policy (package-source-scope-policy form))
+    (if policy
+      (source-scope-policy-runtime-roots policy)
+      '())))
+
+;; : (-> PackageForm (List String) )
+(def (owner-package-exclude-directories form)
+  (let (policy (package-source-scope-policy form))
+    (if policy
+      (source-scope-policy-exclude-directories policy)
+      '())))
+
+;; : (-> PackageForm (List String) )
+(def (owner-package-agent-disabled-rules form)
+  (let (policy (package-agent-policy form))
+    (if policy
+      (agent-policy-disabled-rules policy)
+      '())))
 
 ;;; Stability boundary:
 ;;; - Syntax facts may be gathered from several parser surfaces.

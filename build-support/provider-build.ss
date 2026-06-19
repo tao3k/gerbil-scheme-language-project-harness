@@ -383,10 +383,14 @@
 ;; : (-> CommandName BuildStageAction ProviderBuildStage )
 (defstruct provider-build-stage (name action))
 
+(def +provider-cli-stage-names+
+  ["search" "query" "check" "bench" "evidence" "agent" "guide" "info"])
+
 ;; (List BuildCommand)
 (def +provider-build-command-names+
-  ["spec" "compile" "full" "native" "native-link"
-   "native-full" "native-full-link" "native-diagnose" "clean" "test"])
+  (append ["spec" "compile" "full" "native" "native-link"
+           "native-full" "native-full-link" "native-diagnose" "clean" "test"]
+          +provider-cli-stage-names+))
 
 ;; : (-> BuildArgs Unit )
 (def (run-provider-spec-stage! args)
@@ -429,6 +433,20 @@
 (def (run-provider-test-stage! args)
   (run-provider-tests!))
 
+;; : (-> CommandName BuildArgs Unit )
+(def (run-provider-cli-stage! name args)
+  (set-provider-runtime-env!)
+  (invoke (gerbil-bin "gxi")
+          (cons "build-support/provider-cli-runner.ss" (cons name args))
+          stdout-redirection: #f))
+
+;; : (-> CommandName ProviderBuildStage )
+(def (make-provider-cli-stage name)
+  (make-provider-build-stage
+   name
+   (lambda (args)
+     (run-provider-cli-stage! name args))))
+
 ;;; Stage table:
 ;;; - Adding a downstream provider command should add one descriptor here.
 ;;; - Command actions receive only their trailing arguments, which keeps option
@@ -446,7 +464,8 @@
                               run-provider-native-full-link-stage!)
    (make-provider-build-stage "native-diagnose"
                               run-provider-native-diagnose-stage!)
-   (make-provider-build-stage "test" run-provider-test-stage!)])
+   (make-provider-build-stage "test" run-provider-test-stage!)
+   (map make-provider-cli-stage +provider-cli-stage-names+) ...])
 
 ;; : (-> CommandName MaybeProviderBuildStage )
 (def (provider-build-stage-ref name)

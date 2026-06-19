@@ -43,7 +43,7 @@
               (matching-definitions (source-file-definitions file) terms))
              (syntax-limit (max 0 (- limit (length definition-matches))))
              (syntax-matches
-              (matching-owner-syntax-facts file terms syntax-limit)))
+              (matching-owner-syntax-facts file terms syntax-limit root)))
         (if (flag? "--names-only" args)
           (begin
             (for-each (lambda (defn) (displayln (definition-name defn)))
@@ -150,10 +150,15 @@
 ;;; - Match against structural fields/queryKeys, not raw source text.
 ;;; - Preserve parser-owned fact provenance while filtering owner items.
 ;; : (-> SourceFile (List String) (List SyntaxFact) )
-(def (matching-owner-syntax-facts file terms . maybe-limit)
-  (let (facts (owner-items-syntax-fact-json file))
-    (if (and (pair? maybe-limit) (car maybe-limit))
-      (matching-owner-syntax-facts/limit facts terms (car maybe-limit) [])
+(def (matching-owner-syntax-facts file terms . maybe-limit/root)
+  (let* ((limit (and (pair? maybe-limit/root)
+                     (car maybe-limit/root)))
+         (root (and (pair? maybe-limit/root)
+                    (pair? (cdr maybe-limit/root))
+                    (cadr maybe-limit/root)))
+         (facts (owner-items-syntax-fact-json file root)))
+    (if limit
+      (matching-owner-syntax-facts/limit facts terms limit [])
       (filter (cut syntax-fact-matches-any-term? <> terms) facts))))
 
 ;; : (-> (List SyntaxFact) (List String) Integer (List SyntaxFact) (List SyntaxFact) )
