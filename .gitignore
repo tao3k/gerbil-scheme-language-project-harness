@@ -10,3 +10,5 @@ dist/
 .build/
 build
 bin
+manifest.ss
+.bin
