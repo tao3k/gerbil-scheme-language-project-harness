@@ -239,8 +239,9 @@
   (spec))
 
 (def (build-keys)
-  [libdir: (path-expand "lib" (build-prefix))
+  [libdir: (path-expand ".gerbil/lib" (current-directory))
    bindir: (path-expand "bin" (build-prefix))
+   srcdir: (current-directory)
    debug: #f])
 
 (def (parse-build-options args)
@@ -257,6 +258,7 @@
      (else (error "Unexpected " rest)))))
 
 (def (make-provider! options)
+  (set-provider-runtime-env!)
   (apply make
          (provider-build-spec)
          (append options (build-keys))))
@@ -285,6 +287,10 @@
 
 ;; : (-> Path ... Unit)
 (def (set-provider-runtime-env! . extra-roots)
+  (for-each
+   (lambda (root)
+     (add-load-path! (path-expand root (current-directory))))
+   (append ["src"] extra-roots))
   (setenv "GERBIL_PATH" (path-expand ".gerbil" (current-directory)))
   (setenv "GERBIL_LOADPATH" (provider-runtime-loadpath extra-roots)))
 
@@ -401,13 +407,20 @@
   (clean-provider!))
 
 ;; : (-> BuildArgs Unit )
+(def (run-provider-compile-stage! args)
+  (let (options (parse-build-options args))
+    (make-provider! options)
+    (compile-native-fast-cli!)))
+
+;; : (-> BuildArgs Unit )
 (def (run-provider-native-stage! args)
   (parse-build-options args)
   (compile-native-fast-cli!))
 
 ;; : (-> BuildArgs Unit )
 (def (run-provider-full-stage! args)
-  (parse-build-options args)
+  (let (options (parse-build-options args))
+    (make-provider! options))
   (refresh-static-provider-artifacts!)
   (compile-native-fast-cli!))
 
@@ -455,7 +468,7 @@
 (def (provider-build-stages)
   [(make-provider-build-stage "spec" run-provider-spec-stage!)
    (make-provider-build-stage "clean" run-provider-clean-stage!)
-   (make-provider-build-stage "compile" run-provider-native-stage!)
+   (make-provider-build-stage "compile" run-provider-compile-stage!)
    (make-provider-build-stage "native" run-provider-native-stage!)
    (make-provider-build-stage "full" run-provider-full-stage!)
    (make-provider-build-stage "native-link" run-provider-native-link-stage!)
