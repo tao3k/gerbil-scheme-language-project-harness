@@ -159,7 +159,7 @@ jobs:
           key: gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-${{ hashFiles('gerbil.pkg') }}
 
       - name: Run Gerbil test suites
-        run: ./build.ss test
+        run: gxpkg env ./build.ss test
 
       - name: Run harness check
         run: |
