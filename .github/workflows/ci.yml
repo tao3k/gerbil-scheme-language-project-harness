@@ -197,7 +197,7 @@ jobs:
           packet="$(GERBIL_LOADPATH="$PWD/src" gxpkg env gxi -e '(begin (import :cli) (exit (main "search" "prime" "--json" ".")))')"
           echo "$packet" | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
-            .projectPackage.dependencies == ["git.cons.io/mighty-gerbils/gerbil-utils", "git.cons.io/mighty-gerbils/gerbil-poo"] and
+            .projectPackage.dependencies == ["git.cons.io/mighty-gerbils/gerbil-poo"] and
             .extensions[0].name == "poo" and
             .extensions[0].activation == "gerbil.pkg" and
             .extensions[0].dependencyMode == "required" and
