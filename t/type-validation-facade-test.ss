@@ -8,6 +8,37 @@
 
 (def type-validation-facade-test
   (test-suite "type validation facade"
+    (test-case "exports all TypeSpec shapes downstream"
+      (let* ((number-type (make-type-base "Number"))
+             (string-type (make-type-base "String"))
+             (type-shapes
+              [(make-type-any)
+               number-type
+               (make-type-variable "a")
+               (make-type-pair string-type number-type)
+               (make-type-list number-type)
+               (make-type-vector string-type)
+               (make-type-maybe number-type)
+               (make-type-hash string-type number-type)
+               (make-type-values [string-type number-type])
+               (make-type-refine number-type "natural?")
+               (make-type-application "NonEmptyList" [number-type])
+               (make-type-literal-symbol 'ready)
+               (make-type-function [number-type] string-type)
+               (make-type-keyword-parameter "timeout" number-type)
+               (make-type-function-variadic number-type string-type 1)
+               (make-type-union [string-type number-type])
+               (make-type-record (list (cons "value" number-type))
+                                 ["value"])]))
+        (check (map type-kind type-shapes)
+               => (list 'any 'base 'variable 'pair 'list 'vector 'maybe 'hash
+                        'values 'refine 'application 'literal-symbol 'function
+                        'keyword-parameter 'function-variadic 'union 'record))
+        (check (map type-spec-valid? type-shapes)
+               => [#t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t])
+        (check (type-validation-diagnostics (make-type-unknown))
+               => ["unknown-type"])))
+
     (test-case "exports existing structured diagnostic APIs downstream"
       (let* ((bad-hash (parse-type-contract "(Hash String)"))
              (diagnostics (type-validation-diagnostics bad-hash))

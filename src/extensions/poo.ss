@@ -29,7 +29,8 @@
         poo-pattern-kind
         poo-pattern-selectors
         poo-pattern-minimal-forms
-        poo-pattern-failure-cases)
+        poo-pattern-failure-cases
+        poo-pattern-structural-validation)
 ;; ConfigConstant
 (def +poo-extension-name+ "poo")
 ;; ConfigConstant

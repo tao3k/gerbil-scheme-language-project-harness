@@ -147,6 +147,7 @@ jobs:
           mkdir -p "$HOME/.gerbil/pkg"
           gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
           gxpkg deps --install
+          gxpkg link gerbil-scheme-language-project-harness .
           gxpkg list
 
       - name: Save Gerbil package dependency cache
@@ -163,7 +164,7 @@ jobs:
 
       - name: Run harness check
         run: |
-          gxpkg env gxi -e '(begin (import :gerbil-scheme-language-project-harness/src/cli) (exit (main "check" "--full" ".")))'
+          gxpkg env gxi :gerbil-scheme-language-project-harness/src/cli check --full .
 
       - name: Run harness verification bench
         run: |
@@ -172,7 +173,7 @@ jobs:
             max_total_ms=75000
           fi
           bench_output="$(mktemp)"
-          if ! gxpkg env gxi -e "(begin (import :gerbil-scheme-language-project-harness/src/cli) (exit (main \"bench\" \"--json\" \"--iterations\" \"1\" \"--max-total-ms\" \"$max_total_ms\" \"--max-interface-ms\" \"500\" \".\")))" > "$bench_output"; then
+          if ! gxpkg env gxi :gerbil-scheme-language-project-harness/src/cli bench --json --iterations 1 --max-total-ms "$max_total_ms" --max-interface-ms 500 . > "$bench_output"; then
             cat "$bench_output"
             exit 1
           fi
@@ -192,7 +193,7 @@ jobs:
       - name: Verify package extension packet
         run: |
           set -o pipefail
-          gxpkg env gxi -e '(begin (import :gerbil-scheme-language-project-harness/src/cli) (exit (main "search" "prime" "--json" ".")))' \
+          gxpkg env gxi :gerbil-scheme-language-project-harness/src/cli search prime --json . \
             | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
             .extensions[0].name == "poo" and

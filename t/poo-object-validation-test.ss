@@ -37,6 +37,17 @@
 
 (def poo-object-validation-test
   (test-suite "poo object contract validation facade"
+    (test-case "exports poo pattern structural validation downstream"
+      (let (validation
+            (poo-pattern-structural-validation 'type-validation source-ref))
+        (check-equal? (receipt-ref validation 'kind)
+                      "poo-pattern-structural-validation")
+        (check-equal? (receipt-ref validation 'schema)
+                      "poo-pattern-evidence/v1")
+        (check-equal? (receipt-ref validation 'patternKind)
+                      "type-validation")
+        (check-equal? (receipt-ref validation 'valid) #t)))
+
     (test-case "validates a downstream field contract"
       (let* ((validation
               (poo-object-field-contract-validation

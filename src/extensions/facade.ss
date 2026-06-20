@@ -37,6 +37,7 @@
         poo-pattern-selectors
         poo-pattern-minimal-forms
         poo-pattern-failure-cases
+        poo-pattern-structural-validation
         poo-object-type-spec-validation
         poo-object-field-contract-validation
         poo-object-field-contracts-validation
