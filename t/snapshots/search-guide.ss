@@ -1,5 +1,8 @@
 (guide (lines ("gerbil-scheme-harness guide"
                "|cmd guide-code=gerbil-scheme-harness guide --code [--topic <topic>|--rule <rule>|--intent <intent>|--more|--level advanced]"
+               "|flow search-triage=exact owner/selector/symbol/dependency -> query/owner/fzf/dependency; unknown topology -> prime; ambiguous multi-axis frontier -> pipe; no hit -> compact noOutput receipt"
+               "|flow prime=not mandatory; run once per language/root only when the owner map or active surface is unknown"
+               "|flow pipe=not mandatory; run after a prior frontier shows ambiguity or query-set refinement need"
                "|cmd prime=gerbil-scheme-harness search prime --workspace . --view seeds"
                "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --workspace . --view seeds"
                "|cmd fzf=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"
