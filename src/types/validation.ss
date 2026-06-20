@@ -5,7 +5,7 @@
 ;;; diagnostics, alias arity checks, and conservative compatibility.
 
 (import :gerbil/gambit
-        (only-in :std/sugar cut hash)
+        (only-in :std/sugar cut)
         :types/model
         :types/subtyping)
 
@@ -33,12 +33,8 @@
         type-validation-diagnostic-category
         type-validation-diagnostic-message
         type-validation-diagnostic-facts
-        type-validation-diagnostic-json
         type-validation-diagnostics
         type-spec-valid?
-        type-spec-structural-validation
-        type-contract-structural-validation
-        type-sexpr-structural-validation
         simplify-union
         type-subtype-proof
         type-subtype?
@@ -47,9 +43,6 @@
 
 ;; TypeValidationDiagnostic
 (defstruct type-validation-diagnostic (code path category message))
-
-(def +type-contract-structural-validation-schema+
-  "type-contract-structural-validation/v1")
 
 ;; make-type-alias-env
 ;;   : (-> TypeAliasEnv)
@@ -168,19 +161,6 @@
 (def (type-validation-diagnostic-facts type . maybe-env)
   (type-validation-diagnostic-facts* type (optional-alias-env maybe-env)))
 
-;; type-validation-diagnostic-json
-;;   : (-> TypeValidationDiagnostic Json)
-;;   | doc m%
-;;       `type-validation-diagnostic-json diagnostic` projects a diagnostic fact
-;;       into a stable hash packet for downstream tools that should not depend
-;;       on the concrete Gerbil struct representation.
-;;     %
-(def (type-validation-diagnostic-json diagnostic)
-  (hash (code (type-validation-diagnostic-code diagnostic))
-        (path (type-validation-diagnostic-path diagnostic))
-        (category (type-validation-diagnostic-category diagnostic))
-        (message (type-validation-diagnostic-message diagnostic))))
-
 ;; type-spec-valid?
 ;;   : (-> TypeSpec ValidationResult)
 ;;   | type ValidationResult = Boolean
@@ -190,53 +170,6 @@
 ;;     %
 (def (type-spec-valid? type . maybe-env)
   (null? (type-validation-diagnostic-facts* type (optional-alias-env maybe-env))))
-
-;; type-spec-structural-validation
-;;   : (-> TypeSpec (Maybe TypeAliasEnv) Json)
-;;   | doc m%
-;;       `type-spec-structural-validation type [env]` returns a stable
-;;       validation packet for a parsed TypeSpec.  This is the generic
-;;       downstream-facing API that POO object validation composes with.
-;;     %
-(def (type-spec-structural-validation type . maybe-env)
-  (type-structural-validation-packet
-   "type-spec-structural-validation"
-   "typespec"
-   (type->string type)
-   type
-   (optional-alias-env maybe-env)))
-
-;; type-contract-structural-validation
-;;   : (-> SignatureContract (Maybe TypeAliasEnv) Json)
-;;   | doc m%
-;;       `type-contract-structural-validation contract [env]` parses a contract
-;;       string and returns the same stable validation packet shape as parsed
-;;       TypeSpec validation.
-;;     %
-(def (type-contract-structural-validation contract . maybe-env)
-  (let (type (parse-type-contract contract))
-    (type-structural-validation-packet
-     "type-contract-structural-validation"
-     "contract"
-     contract
-     type
-     (optional-alias-env maybe-env))))
-
-;; type-sexpr-structural-validation
-;;   : (-> Sexpr (Maybe TypeAliasEnv) Json)
-;;   | doc m%
-;;       `type-sexpr-structural-validation sexpr [env]` validates a
-;;       Scheme-native contract datum without requiring callers to allocate
-;;       their own TypeSpec receipt wrapper.
-;;     %
-(def (type-sexpr-structural-validation sexpr . maybe-env)
-  (let (type (parse-type-sexpr sexpr))
-    (type-structural-validation-packet
-     "type-sexpr-structural-validation"
-     "sexpr"
-     (validation-value->string sexpr)
-     type
-     (optional-alias-env maybe-env))))
 
 ;; simplify-union
 ;;   : (-> UnionMembers TypeSpec)
@@ -369,38 +302,6 @@
 ;;     %
 (def (optional-alias-env maybe-env)
   (if (pair? maybe-env) (car maybe-env) (make-type-alias-env)))
-
-;;; Packet boundary: all public structural validation entrypoints project into
-;;; this one JSON shape. Keep parser input kind, display text, normalized type,
-;;; and diagnostic facts separate so callers can compare receipts without
-;;; depending on the concrete TypeSpec constructors.
-;; : (-> String String String TypeSpec TypeAliasEnv Json)
-(def (type-structural-validation-packet kind input-kind input type env)
-  (let* ((facts (type-validation-diagnostic-facts* type env))
-         (diagnostics (map type-validation-diagnostic-message facts)))
-    (hash (kind kind)
-          (schema +type-contract-structural-validation-schema+)
-          (inputKind input-kind)
-          (input input)
-          (typeDisplay (type->string type))
-          (valid (null? facts))
-          (diagnostics diagnostics)
-          (diagnosticFacts (map type-validation-diagnostic-json facts))
-          (checkedSignals
-           ["typespec-normalized-shape"
-            "alias-arity"
-            "child-type-contracts"
-            "record-field-contracts"
-            "function-contracts"]))))
-
-;;; Boundary: structural validation packets need readable evidence for arbitrary
-;;; Scheme datums, but this helper must not evaluate or normalize the input.
-;;; `write` preserves enough shape for diagnostics while staying side-effect
-;;; free.
-;; : (-> Dyn String)
-(def (validation-value->string value)
-  (call-with-output-string ""
-    (lambda (out) (write value out))))
 
 ;;; Validation dispatcher boundary: every TypeSpec variant delegates to the
 ;;; smallest helper that owns that shape's invariant.
