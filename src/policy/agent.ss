@@ -19,7 +19,11 @@
         :policy/modularity
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/1 take)
-        (only-in :std/srfi/13 string-contains string-prefix? string-trim)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-prefix?
+                 string-suffix?
+                 string-trim)
         (only-in :std/sugar cut filter filter-map find hash ormap while with-catch)
         :types/findings)
 
@@ -255,15 +259,28 @@
               (project-index-files index))))
 ;; : (-> ProjectIndex SourceFile CallFact Boolean )
 (def (top-level-executable-call? index file call)
+  (and (top-level-runtime-call? index call)
+       (not (top-level-entrypoint-exempt-call? file call))))
+
+;; : (-> ProjectIndex CallFact Boolean )
+(def (top-level-runtime-call? index call)
   (and (not (call-fact-caller call))
-       (index-source-runtime-file-path? index (call-fact-path call))
-       (not (explicit-runtime-entrypoint-path? (call-fact-path call)))
-       (not (explicit-main-entrypoint-call? file call))
-       (not (declarative-top-level-call? file call))))
+       (index-source-runtime-file-path? index (call-fact-path call))))
+
+;; : (-> SourceFile CallFact Boolean )
+(def (top-level-entrypoint-exempt-call? file call)
+  (or (explicit-runtime-entrypoint-path? (call-fact-path call))
+      (explicit-main-entrypoint-call? file call)
+      (explicit-test-entrypoint-call? file call)
+      (declarative-top-level-call? file call)))
 
 ;; (List TopFormHead)
 (def +explicit-main-entrypoint-heads+
   '("main" "apply" "exit"))
+
+;; (List TopFormHead)
+(def +explicit-test-entrypoint-heads+
+  '("run-tests!"))
 
 ;;; Boundary:
 ;;; - Explicit entrypoints are language-level contracts, not path hacks.
@@ -278,6 +295,25 @@
                              +explicit-main-entrypoint-heads+)
                      (call-within-top-form-range? call form)))
               (source-file-forms file))))
+
+;;; Boundary:
+;;; - Test harness entrypoints are explicit execution boundaries.
+;;; - Keep this shape-based: only test owners with a run-tests! top form are
+;;;   exempt, not every arbitrary call in t/.
+;; : (-> SourceFile CallFact Boolean )
+(def (explicit-test-entrypoint-call? file call)
+  (and (test-owner-path? (source-file-path file))
+       (ormap (lambda (form)
+                (and (member (top-form-head form)
+                             +explicit-test-entrypoint-heads+)
+                     (call-within-top-form-range? call form)))
+              (source-file-forms file))))
+
+;; : (-> Path Boolean )
+(def (test-owner-path? path)
+  (or (string-prefix? "t/" path)
+      (string-contains path "/t/")
+      (string-suffix? "-test.ss" path)))
 
 ;; : (-> SourceFile CallFact Boolean )
 (def (declarative-top-level-call? file call)

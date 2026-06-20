@@ -113,8 +113,9 @@
              (project-index-files index))))
 
 ;;; Finding contract:
-;;; - Import evidence comes from moduleImportFacts.
-;;; - Entrypoint and module enumeration evidence come from callFacts.
+;;; - Canonical witnesses explain repair direction, but they do not trigger R025.
+;;; - R025 fires only on forbidden build-control evidence: handwritten load path
+;;;   or srcdir control, manual compiler dispatch, or legacy defbuild-script use.
 ;;; - The rule does not read build.ss text or infer from file names.
 ;; : (-> PackageBuildFile MaybePackageBuildFinding )
 (def (package-build-canonical-shape-finding file)
@@ -136,6 +137,9 @@
          (manual-call
           (find package-build-manual-compiler-dispatch-call?
                 (source-file-calls file)))
+         (legacy-script-call
+          (find package-build-legacy-build-script-call?
+                (source-file-calls file)))
          (native-build-definition
           (find package-build-native-build-definition?
                 (source-file-definitions file)))
@@ -145,15 +149,14 @@
          (main-definition
           (find package-build-main-definition?
                 (source-file-definitions file))))
-    (and (not (and native-import
-                   build-call
-                   (or module-enumerator-call native-build-definition)
-                   (not manual-environment-call)))
+    (and (or manual-environment-call
+             manual-call
+             legacy-script-call)
          (make-type-finding
           (policy-rule-id +agent-package-build-canonical-shape-rule+)
           (policy-rule-severity +agent-package-build-canonical-shape-rule+)
           (source-file-path file)
-          "package-level build.ss is not using the canonical clan/building shape; import :clan/building, define spec with all-gerbil-modules, initialize the clan/building environment, and do not hand-write compiler dispatch or GERBIL_LOADPATH"
+          "package-level build.ss contains forbidden build control; do not hand-write GERBIL_LOADPATH/srcdir setup, manual compiler dispatch, defbuild-script package scripts, or runtime routing in build.ss"
           (package-build-canonical-shape-selector
            file native-import legacy-import build-call module-enumerator-call manual-environment-call manual-call native-build-definition provider-build-include main-definition)
           (package-build-canonical-shape-details
@@ -187,6 +190,12 @@
 ;; : (-> CallFact Boolean )
 (def (package-build-module-enumerator-call? call)
   (equal? (call-fact-callee call) "all-gerbil-modules"))
+
+;;; Legacy build-script package forms are a disallowed build owner shape.
+;;; A plain :std/make import is allowed when clan/building owns the environment.
+;; : (-> CallFact Boolean )
+(def (package-build-legacy-build-script-call? call)
+  (equal? (call-fact-callee call) "defbuild-script"))
 
 ;;; Definition surface:
 ;;; - Some build owners expose `make` through a helper rather than a top-level call fact.
@@ -304,7 +313,7 @@
         (handWrittenMain
          (and main-definition (definition-name main-definition)))
         (allowedShape
-         "canonical build.ss: import :clan/building, define spec with all-gerbil-modules, and initialize the clan/building environment; src/ source-root packages may use %set-build-environment!")
+         "canonical build.ss: let clan/building own source discovery and load path setup; direct or only-in :clan/building imports are both valid, and top-level init-build-environment! is the package entrypoint")
         (compositionalBuildShape
          "use clan/building for source discovery/load path, keep package tests on Gerbil's gxtest runner, and call provider CLI commands through the compiled package module")
         (downstreamRepairPattern
@@ -318,7 +327,7 @@
         (nativeFactSource
          "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
         (next
-         "replace manual compiler/loadpath/srcdir setup with :clan/building, all-gerbil-modules, and clan/building environment initialization; run provider commands through the compiled package CLI module")))
+         "remove manual compiler/loadpath/srcdir or defbuild-script control from build.ss; keep package build initialization on clan/building and route runtime commands through compiled package modules")))
 
 ;;; Finding contract:
 ;;; - Evidence comes from parser-owned call arguments, not raw grep.

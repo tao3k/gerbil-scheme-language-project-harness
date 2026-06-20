@@ -113,12 +113,30 @@
 
 ;; : (-> Root FullPath Path )
 (def (relative-path root path)
-  (let* ((root* (path-normalize root))
+  (let* ((root* (normalized-root-prefix root))
          (path* (path-normalize path))
          (prefix (string-append root* "/")))
     (if (string-prefix? prefix path*)
       (substring path* (string-length prefix) (string-length path*))
       path*)))
+
+;; : (-> Root Path )
+(def (normalized-root-prefix root)
+  (strip-trailing-path-separator (path-normalize root)))
+
+;;; Boundary: normalized directory roots may end in `/`; changed-file matching
+;;; must compare against one stable root prefix so hidden workspace segments such
+;;; as `.run` do not leak into relative paths and trip ignored-directory rules.
+;; : (-> Path Path )
+(def (strip-trailing-path-separator path)
+  (let (last-path-char
+        (string-index-right path
+                            (lambda (char)
+                              (not (char=? char #\/)))))
+    (if (and last-path-char
+             (< (fx1+ last-path-char) (string-length path)))
+      (substring path 0 (fx1+ last-path-char))
+      path)))
 
 ;; : (-> Root (List String) IgnoredDirs ProjectFiles Path Boolean )
 (def (changed-source-file? root scan-roots ignored-dirs config-files path)

@@ -113,6 +113,23 @@
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
               (check matching => []))))
+    (test-case "agent policy accepts explicit test harness entrypoints"
+      (let* ((root ".run/policy-test-harness-entrypoint")
+             (test-root (string-append root "/t")))
+        (reset-fixture-root root)
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir test-root)
+        (write-text
+         (string-append root "/gerbil.pkg")
+         "(package: sample/test-harness-entrypoint)\n")
+        (write-text
+         (string-append test-root "/sample-test.ss")
+         ";;; -*- Gerbil -*-\n(import :std/test)\n(def (subject) 1)\n(run-tests!\n (test-suite \"sample\"\n   (test-case \"works\"\n     (check (subject) => 1))))\n")
+        (let* ((index (collect-project root))
+               (findings (run-agent-policy index))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+          (check matching => []))))
     (test-case "agent policy treats FFI declare body as declarative range"
           (let* ((root ".run/policy-ffi-declare-declarative")
                  (_ (write-ffi-declare-project root))
@@ -132,7 +149,7 @@
                  (_ (write-check-changed-project root))
                  (_ (initialize-git-fixture root))
                  (_ (write-text (string-append root "/src/changed/core.ss")
-                                ";;; -*- Gerbil -*-\n(package: sample/changed)\n(def (changed-value x) x)\n"))
+                                ";;; -*- Gerbil -*-\n(package: sample/changed)\n(def (process x) x)\n"))
              (result (policy-check-output ["--changed" root]))
                  (output (cdr result)))
             (check (car result) => 1)

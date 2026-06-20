@@ -152,6 +152,7 @@
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir (string-append root "/src"))
             (ensure-dir fast)
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/native-fast-command-adapter)\n")
@@ -183,6 +184,7 @@
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir (string-append root "/src"))
             (ensure-dir fast)
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/native-fast-lightweight)\n")
@@ -206,11 +208,18 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
-                   (finding (car matching))
+                   (shell-matching
+                    (filter
+                     (lambda (finding)
+                       (equal? (hash-get (type-finding-details finding)
+                                         'detectionCombiner)
+                               "package-build-shell-pipeline-all-of"))
+                     matching))
+                   (finding (car shell-matching))
                    (details (type-finding-details finding))
                    (groups (hash-get (type-finding-details finding)
                                      'evidenceGroups)))
-              (check (length matching) => 1)
+              (check (length shell-matching) => 1)
               (check (type-finding-path finding) => "build.ss")
               (check (hash-get details 'detectionCombiner)
                      => "package-build-shell-pipeline-all-of")
@@ -281,9 +290,9 @@
               (check (hash-get details 'manualEnvironmentSetup) => "make")
               (check (hash-get details 'manualCompilerDispatch) => "invoke")
               (check (hash-get details 'compositionalBuildShape)
-                     => "use clan/building for source discovery/load path and named stage descriptors only for provider-specific compile/full/native/test commands")
+                     => "use clan/building for source discovery/load path, keep package tests on Gerbil's gxtest runner, and call provider CLI commands through the compiled package module")
               (check (hash-get details 'downstreamRepairPattern)
-                     => "keep build.ss as the package build control plane, route package compilation through init-build-environment!, and move command/runtime behavior into composable stage helpers"))))
+                     => "keep build.ss as the package build control plane, route package compilation through clan/building, and keep command/runtime behavior in src/cli and src/commands"))))
     (test-case "agent policy rejects legacy defbuild-script package build"
           (let ((root ".run/policy-package-build-canonical-defbuild"))
             (reset-fixture-root root)
@@ -331,6 +340,24 @@
             (write-text
              (string-append root "/build.ss")
              ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
+            (let* ((index (collect-project root))
+                   (findings (run-agent-policy index))
+                   (canonical-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (runtime-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+              (check canonical-matching => [])
+              (check runtime-matching => []))))
+    (test-case "agent policy accepts only-in clan/building package build"
+          (let ((root ".run/policy-package-build-canonical-only-in-clan-building"))
+            (reset-fixture-root root)
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/build-canonical-only-in-clan-building)\n")
+            (write-text
+             (string-append root "/build.ss")
+             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        (only-in :clan/building init-build-environment! all-gerbil-modules))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching
