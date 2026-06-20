@@ -37,13 +37,13 @@
 ;;; compile/spec entrypoints.
 ;; (List ModuleName)
 (def +package-build-native-build-modules+
-  '(":clan/building"))
+  '(":clan/building" ":std/build-script" ":std/make"))
 
-;;; Older native build modules are parser evidence for migration, not an
-;;; accepted final shape for agent-authored package builds.
+;;; Legacy module evidence remains available for future migrations, but the
+;;; current canonical set accepts clan/building, std/build-script, and std/make.
 ;; (List ModuleName)
 (def +package-build-legacy-build-modules+
-  '(":std/build-script" ":std/make"))
+  '())
 
 ;;; Provider include evidence:
 ;;; - build.ss may include reusable stage descriptors.
@@ -60,11 +60,11 @@
 ;;; - Keeping the callees data-driven prevents one-off build.ss exemptions.
 ;; (List CalleeName)
 (def +package-build-spec-callees+
-  '("init-build-environment!" "%set-build-environment!"))
+  '("init-build-environment!" "%set-build-environment!" "defbuild-script" "make"))
 
 ;; (List CalleeName)
 (def +package-build-manual-environment-callees+
-  '("add-load-path!" "make" "make-clean" "apply" "setenv"))
+  '("add-load-path!" "apply" "setenv"))
 
 ;; (List CalleeName)
 (def +package-build-manual-dispatch-callees+
@@ -154,9 +154,9 @@
              legacy-script-call)
          (make-type-finding
           (policy-rule-id +agent-package-build-canonical-shape-rule+)
-          (policy-rule-severity +agent-package-build-canonical-shape-rule+)
-          (source-file-path file)
-          "package-level build.ss contains forbidden build control; do not hand-write GERBIL_LOADPATH/srcdir setup, manual compiler dispatch, defbuild-script package scripts, or runtime routing in build.ss"
+         (policy-rule-severity +agent-package-build-canonical-shape-rule+)
+         (source-file-path file)
+          "package-level build.ss contains forbidden build control; use clan/building, std/build-script, or std/make build-spec, and do not hand-write GERBIL_LOADPATH/srcdir setup, manual compiler dispatch, or runtime routing in build.ss"
           (package-build-canonical-shape-selector
            file native-import legacy-import build-call module-enumerator-call manual-environment-call manual-call native-build-definition provider-build-include main-definition)
           (package-build-canonical-shape-details
@@ -178,8 +178,10 @@
 ;;; - Gerbil records macro-like build forms as ordinary call facts.
 ;;; - clan/building owns both the public init macro and the lower-level
 ;;;   source-root initializer used by src/ packages.
-;;; - `make` and `defbuild-script` are now migration evidence, not the target
-;;;   shape.
+;;; - `defbuild-script` is the std/build-script package entrypoint used by
+;;;   gxpkg templates.
+;;; - `make` is canonical when paired with a std/make build-spec, including
+;;;   `(ssi:)`/FFI build forms that clan/building does not express.
 ;; : (-> CallFact Boolean )
 (def (package-build-init-environment-call? call)
   (member (call-fact-callee call)
@@ -191,19 +193,19 @@
 (def (package-build-module-enumerator-call? call)
   (equal? (call-fact-callee call) "all-gerbil-modules"))
 
-;;; Legacy build-script package forms are a disallowed build owner shape.
-;;; A plain :std/make import is allowed when clan/building owns the environment.
+;;; A std/build-script package form is not a finding by itself. Manual
+;;; environment or compiler/process dispatch evidence owns the warning.
 ;; : (-> CallFact Boolean )
 (def (package-build-legacy-build-script-call? call)
-  (equal? (call-fact-callee call) "defbuild-script"))
+  #f)
 
 ;;; Definition surface:
-;;; - Some build owners expose `make` through a helper rather than a top-level call fact.
+;;; - std/make owners may expose `spec` or `build-spec` and pass it to make.
 ;;; - Parser definition facts still prove the native build-spec boundary exists.
 ;;; - Keep the accepted names narrow so this does not bless arbitrary build helpers.
 ;; : (-> DefinitionFact Boolean )
 (def (package-build-native-build-definition? definition)
-  (equal? (definition-name definition) "spec"))
+  (member (definition-name definition) '("spec" "build-spec" "buildspec")))
 
 ;; : (-> IncludePath Boolean )
 (def (package-build-provider-build-include? include)
@@ -313,21 +315,26 @@
         (handWrittenMain
          (and main-definition (definition-name main-definition)))
         (allowedShape
-         "canonical build.ss: let clan/building own source discovery and load path setup; direct or only-in :clan/building imports are both valid, and top-level init-build-environment! is the package entrypoint")
+         "canonical build.ss: use clan/building for src-root source discovery, std/build-script defbuild-script for the official gxpkg package template, or std/make build-spec when the package needs ssi:/gsc:/FFI build forms")
         (compositionalBuildShape
-         "use clan/building for source discovery/load path, keep package tests on Gerbil's gxtest runner, and call provider CLI commands through the compiled package module")
+         "use clan/building for harness source discovery/load path, std/build-script for simple gxpkg packages, or std/make for build-spec features such as ssi:/gsc:; keep package tests on Gerbil's gxtest runner and runtime commands in compiled modules")
         (downstreamRepairPattern
-         "keep build.ss as the package build control plane, route package compilation through clan/building, and keep command/runtime behavior in src/cli and src/commands")
+         "keep build.ss as the package build control plane, route package compilation through clan/building, std/build-script, or std/make build-spec, and keep command/runtime behavior in src/cli and src/commands")
         (disallowedShape
-         "hand-written srcdir/loadpath setup, manual compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces clan/building")
+         "hand-written srcdir/loadpath setup, manual compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces Gerbil's package build entrypoints")
         (sourceEvidence
-         [".data/gerbil-utils/building.ss:1-120"
+         [".data/gerbil/src/tools/gxpkg.ss:1224-1234"
+          ".data/gerbil/src/std/build-script.ss:9-43"
+          ".data/gerbil/src/std/build-spec.ss:150-220"
+          ".data/gerbil/src/std/make.ss:150-190"
+          ".data/gerbil/src/std/make.ss:559-579"
+          ".data/gerbil-utils/building.ss:1-120"
           ".data/gerbil-poo/build.ss:1-18"
           ".data/gerbil/doc/reference/std/make.md:32-52"])
         (nativeFactSource
          "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
         (next
-         "remove manual compiler/loadpath/srcdir or defbuild-script control from build.ss; keep package build initialization on clan/building and route runtime commands through compiled package modules")))
+         "remove manual compiler/loadpath/srcdir control from build.ss; keep package build initialization on clan/building, std/build-script, or std/make build-spec and route runtime commands through compiled package modules")))
 
 ;;; Finding contract:
 ;;; - Evidence comes from parser-owned call arguments, not raw grep.

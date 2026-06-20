@@ -14,16 +14,40 @@
 ;; (List GroupName)
 (def +package-build-custom-system-required-groups+
   '("package-build-file"
-    "missing-clan-build-environment"
+    "missing-native-build-surface"
     "manual-build-orchestration"))
 
 ;; (List ModuleName)
 (def +package-build-canonical-modules+
   '(":clan/building"))
 
+;; (List ModuleName)
+(def +package-build-std-build-script-modules+
+  '(":std/build-script"))
+
+;; (List ModuleName)
+(def +package-build-std-make-modules+
+  '(":std/make"))
+
 ;; (List CalleeName)
 (def +package-build-canonical-environment-callees+
   '("init-build-environment!" "%set-build-environment!"))
+
+;; (List CalleeName)
+(def +package-build-std-build-script-callees+
+  '("defbuild-script"))
+
+;; (List CalleeName)
+(def +package-build-std-make-callees+
+  '("make"))
+
+;; (List DefinitionName)
+(def +package-build-std-make-spec-definitions+
+  '("spec" "build-spec" "buildspec"))
+
+;; (List IncludePath)
+(def +package-build-std-make-spec-includes+
+  '("build-spec.ss"))
 
 ;; (List CalleeName)
 (def +package-build-canonical-enumerator-callees+
@@ -33,8 +57,6 @@
 (def +package-build-manual-orchestration-callees+
   '("add-load-path!"
     "invoke"
-    "make"
-    "make-clean"
     "open-process"
     "run-process"
     "setenv"
@@ -76,7 +98,7 @@
 ;;; Package build custom-system detection is deliberately all-of:
 ;;; missing canonical shape alone is R025, and manual orchestration alone can be
 ;;; a fixture.  Together they identify a downstream agent replacing gxpkg and
-;;; clan/building with a local build control plane.
+;;; canonical Gerbil build entrypoints with a local build control plane.
 ;; : (-> DetectionPrototype)
 (def (package-build-custom-system-detection-prototype)
   (detection-prototype-extend
@@ -86,11 +108,11 @@
     "package-build-custom-system-all-of"
     'all-of
     [package-build-source-evidence
-     package-build-missing-clan-environment-evidence
+     package-build-missing-native-surface-evidence
      package-build-manual-orchestration-evidence]
     0
     +package-build-custom-system-required-groups+
-    "package build custom-system drift requires scope, missing canonical environment, and manual orchestration evidence")))
+    "package build custom-system drift requires scope, missing native build surface, and manual orchestration evidence")))
 
 ;;; Shell pipeline detection stays separate from the broader custom-system
 ;;; detector so sh -c pipeline repair remains precise.
@@ -126,11 +148,11 @@
 ;;; Negative evidence is explainable only because the all-of detector pairs it
 ;;; with positive manual orchestration evidence.
 ;; : (-> SourceFile MaybeEvidenceGroup)
-(def (package-build-missing-clan-environment-evidence file)
+(def (package-build-missing-native-surface-evidence file)
   (and (package-build-file? file)
-       (not (package-build-canonical-clan-shape? file))
+       (not (package-build-canonical-build-shape? file))
        (evidence-group
-        "missing-clan-build-environment"
+        "missing-native-build-surface"
         1
         (source-file-root-selector file))))
 
@@ -174,6 +196,13 @@
 ;;; clan/building is present, calls prove environment initialization, and either
 ;;; calls or definitions prove delegated source discovery.
 ;; : (-> SourceFile Boolean)
+;; : (-> SourceFile Boolean)
+(def (package-build-canonical-build-shape? file)
+  (or (package-build-canonical-clan-shape? file)
+      (package-build-std-build-script-shape? file)
+      (package-build-std-make-buildspec-shape? file)))
+
+;; : (-> SourceFile Boolean)
 (def (package-build-canonical-clan-shape? file)
   (and (ormap package-build-canonical-module-import?
               (source-file-module-imports file))
@@ -184,15 +213,53 @@
            (ormap package-build-spec-definition?
                   (source-file-definitions file)))))
 
+;; : (-> SourceFile Boolean)
+(def (package-build-std-build-script-shape? file)
+  (and (ormap package-build-std-build-script-module-import?
+              (source-file-module-imports file))
+       (ormap package-build-std-build-script-call?
+              (source-file-calls file))))
+
+;; : (-> SourceFile Boolean)
+(def (package-build-std-make-buildspec-shape? file)
+  (and (ormap package-build-std-make-module-import?
+              (source-file-module-imports file))
+       (ormap package-build-std-make-call?
+              (source-file-calls file))
+       (or (ormap package-build-std-make-spec-definition?
+                  (source-file-definitions file))
+           (ormap package-build-std-make-spec-include?
+                  (source-file-includes file)))))
+
 ;; : (-> ModuleImportFact Boolean)
 (def (package-build-canonical-module-import? fact)
   (member (module-import-fact-module fact)
           +package-build-canonical-modules+))
 
+;; : (-> ModuleImportFact Boolean)
+(def (package-build-std-build-script-module-import? fact)
+  (member (module-import-fact-module fact)
+          +package-build-std-build-script-modules+))
+
+;; : (-> ModuleImportFact Boolean)
+(def (package-build-std-make-module-import? fact)
+  (member (module-import-fact-module fact)
+          +package-build-std-make-modules+))
+
 ;; : (-> CallFact Boolean)
 (def (package-build-canonical-environment-call? call)
   (member (call-fact-callee call)
           +package-build-canonical-environment-callees+))
+
+;; : (-> CallFact Boolean)
+(def (package-build-std-build-script-call? call)
+  (member (call-fact-callee call)
+          +package-build-std-build-script-callees+))
+
+;; : (-> CallFact Boolean)
+(def (package-build-std-make-call? call)
+  (member (call-fact-callee call)
+          +package-build-std-make-callees+))
 
 ;; : (-> CallFact Boolean)
 (def (package-build-canonical-enumerator-call? call)
@@ -202,6 +269,15 @@
 ;; : (-> DefinitionFact Boolean)
 (def (package-build-spec-definition? definition)
   (equal? (definition-name definition) "spec"))
+
+;; : (-> DefinitionFact Boolean)
+(def (package-build-std-make-spec-definition? definition)
+  (member (definition-name definition)
+          +package-build-std-make-spec-definitions+))
+
+;; : (-> IncludePath Boolean)
+(def (package-build-std-make-spec-include? include)
+  (member include +package-build-std-make-spec-includes+))
 
 ;;; Manual orchestration needs a build-owned callee or compiler/env marker.
 ;;; The marker table is policy data, so extending it does not add branch logic.

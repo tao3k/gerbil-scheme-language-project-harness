@@ -141,8 +141,8 @@
          (topic "package-build-canonical-shape")
          (guideTopic "package-build-canonical-shape")
          (guideIntent "repair")
-         (nextCommand "asp gerbil-scheme search pattern clan/building build.ss --workspace . --view seeds")
-         (requires "package-level build.ss should use the native Gerbil package build surface: :clan/building, all-gerbil-modules, and clan/building environment initialization; provider commands should run through the compiled package CLI module, not build.ss stages"))])
+         (nextCommand "asp gerbil-scheme search pattern clan/building std/build-script std/make defbuild-script ssi: build.ss --workspace . --view seeds")
+         (requires "package-level build.ss should use a native Gerbil package build surface: :clan/building with all-gerbil-modules for src-root packages, :std/build-script defbuild-script for standard gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; provider commands should run through the compiled package CLI module, not build.ss stages"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

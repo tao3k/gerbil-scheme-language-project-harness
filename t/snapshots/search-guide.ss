@@ -3,6 +3,7 @@
                "|flow search-triage=exact owner/selector/symbol/dependency -> query/owner/fzf/dependency; unknown topology -> prime; ambiguous multi-axis frontier -> pipe; no hit -> compact noOutput receipt"
                "|flow prime=not mandatory; run once per language/root only when the owner map or active surface is unknown"
                "|flow pipe=not mandatory; run after a prior frontier shows ambiguity or query-set refinement need"
+               "|flow build-ss=choose a native lane by package need: clan/building for src-root all-gerbil-modules packages, std/build-script for simple gxpkg packages, std/make build-spec for ssi:/gsc:/FFI; do not hand-write loadpath/srcdir/compiler/runtime routing"
                "|cmd prime=gerbil-scheme-harness search prime --workspace . --view seeds"
                "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --workspace . --view seeds"
                "|cmd fzf=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"

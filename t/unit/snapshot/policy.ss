@@ -26,6 +26,8 @@
         build-support-shell-template-policy-snapshot
         package-build-shell-pipeline-policy-snapshot
         package-build-canonical-shape-policy-snapshot
+        package-build-std-build-script-policy-snapshot
+        package-build-std-make-ssi-policy-snapshot
         dependency-protocol-adapter-policy-snapshot
         dependency-manual-object-adapter-policy-snapshot
         check-policy-snapshot-fixtures)
@@ -518,6 +520,58 @@
                 (list 'r025Findings
                       (map finding-snapshot after-findings))))))
 
+;; Snapshot
+(def (package-build-std-build-script-policy-snapshot)
+  (let* ((scenario
+          (make-policy-scenario
+           "package-build-std-build-script"
+           "t/scenarios/policy/package-build-std-build-script"))
+         (result (policy-scenario-run scenario))
+         (before-findings
+          (policy-scenario-findings
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R025"))
+         (after-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R025")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'r025Findings
+                      (map finding-snapshot before-findings)))
+          (list 'after
+                (list 'r025Findings
+                      (map finding-snapshot after-findings))))))
+
+;; Snapshot
+(def (package-build-std-make-ssi-policy-snapshot)
+  (let* ((scenario
+          (make-policy-scenario
+           "package-build-std-make-ssi"
+           "t/scenarios/policy/package-build-std-make-ssi"))
+         (result (policy-scenario-run scenario))
+         (before-findings
+          (policy-scenario-findings
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R025"))
+         (after-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R025")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'r025Findings
+                      (map finding-snapshot before-findings)))
+          (list 'after
+                (list 'r025Findings
+                      (map finding-snapshot after-findings))))))
+
 ;; : (-> PolicyDetails BuildShapeSnapshot )
 (def (package-build-canonical-shape-snapshot details)
   (list (list 'kind (hash-get details 'kind))
@@ -700,6 +754,12 @@
   (check (package-build-canonical-shape-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-package-build-canonical-shape.ss"))
+  (check (package-build-std-build-script-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-package-build-std-build-script.ss"))
+  (check (package-build-std-make-ssi-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-package-build-std-make-ssi.ss"))
   (check (dependency-manual-object-adapter-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-dependency-manual-object-adapter.ss"))

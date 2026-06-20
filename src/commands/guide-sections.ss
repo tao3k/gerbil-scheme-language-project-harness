@@ -25,6 +25,7 @@
    "|flow search-triage=exact owner/selector/symbol/dependency -> query/owner/fzf/dependency; unknown topology -> prime; ambiguous multi-axis frontier -> pipe; no hit -> compact noOutput receipt"
    "|flow prime=not mandatory; run once per language/root only when the owner map or active surface is unknown"
    "|flow pipe=not mandatory; run after a prior frontier shows ambiguity or query-set refinement need"
+   "|flow build-ss=choose a native lane by package need: clan/building for src-root all-gerbil-modules packages, std/build-script for simple gxpkg packages, std/make build-spec for ssi:/gsc:/FFI; do not hand-write loadpath/srcdir/compiler/runtime routing"
    "|cmd prime=gerbil-scheme-harness search prime --workspace . --view seeds"
    "|cmd pipe=gerbil-scheme-harness search pipe '<term>' --workspace . --view seeds"
    "|cmd fzf=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"
@@ -88,7 +89,8 @@
    ["|policy structural-json-boundary=search structural --json emits a lightweight ASP-owned index interface; use --owner <path> for owner-bounded native facts and --artifact only for explicit validation"
     "|policy structural-index-owner=ASP Rust owns workspace structural index, graph topology, caching, and heavy ranking; Gerbil Scheme emits millisecond-level manifest and owner facts"
     "|policy configurable-interface=downstream gerbil.pkg policy may declare source-scope roots/runtime-roots/exclude-directories and agent-policy enabled-rules/disabled-rules; without explicit source-scope, build.ss defbuild-script targets provide runtime-root evidence"
-    "|policy gerbil-build-discovery=prefer :std/make + :clan/base + :clan/building all-gerbil-modules discovery for Gerbil packages; filter non-module policy/config files before compiling harness provider sources"
+    "|policy package-build-canonical-lanes=build.ss has three native Gerbil lanes: :clan/building plus all-gerbil-modules for src-root package discovery, :std/build-script defbuild-script for simple gxpkg package templates, and :std/make build-spec for ssi:/gsc:/FFI/static/native build forms"
+    "|policy package-build-forbidden-control=R025 should target handwritten GERBIL_LOADPATH/srcdir setup, manual compiler/process dispatch, shell pipelines, and runtime/CLI routing in build.ss; do not canonicalize valid std/make ssi:/gsc:/FFI builds into clan/building"
     "|policy cli-option-composition=keep src/cli.ss as a thin dispatcher with precise only-in imports; when command option surfaces grow, compose option objects instead of expanding dispatcher parsing logic"
     "|policy package-module-style=Gerbil package modules should preserve package:/namespace:/import/export style instead of flattening into generic Scheme files"]
    (agent-rule-policy-lines)

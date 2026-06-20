@@ -118,7 +118,7 @@
    ((runtime-native-fast-command-adapter-result? result)
     "native fast source imports a full command adapter; keep native-fast entrypoints dependency-light or route the command through the provider dispatcher runtime path")
    ((package-build-custom-system-result? result)
-    "package-level build.ss is drifting into a hand-written build system; keep build.ss on gxpkg plus clan/building and move command/runtime behavior into package modules")
+    "package-level build.ss is drifting into a hand-written build system; keep build.ss on gxpkg plus clan/building, std/build-script, or std/make build-spec and move command/runtime behavior into package modules")
    (else
     "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers")))
 
@@ -196,7 +196,7 @@
    ((runtime-native-fast-command-adapter-result? result)
     "native-fast source class plus parser-owned module import of a full command adapter")
    ((package-build-custom-system-result? result)
-    "package build file, missing clan/building environment, and manual build orchestration")
+    "package build file, missing native Gerbil build surface, and manual build orchestration")
    (else "at least two independent parser-owned groups")))
 
 ;; : (-> DetectionResult String )
@@ -207,7 +207,7 @@
    ((runtime-native-fast-command-adapter-result? result)
     "native-fast sources import only dependency-light modules; full commands run through harness_runtime in the native dispatcher")
    ((package-build-custom-system-result? result)
-    "package build delegates source discovery and environment setup to gxpkg plus :clan/building")
+    "package build delegates to a native Gerbil surface: gxpkg plus :clan/building for src-root discovery, :std/build-script for simple package templates, or :std/make build-spec for ssi:/gsc:/FFI/native build forms")
    (else "Gerbil runtime wrapper source plus list command arguments")))
 
 ;; : (-> DetectionResult String )
@@ -229,7 +229,7 @@
    ((runtime-native-fast-command-adapter-result? result)
     "delete the native-fast wrapper or split a real dependency-light fast implementation; route full command behavior through the dispatcher harness_runtime path")
    ((package-build-custom-system-result? result)
-    "replace the local build system with :clan/building, all-gerbil-modules, and init-build-environment!/%set-build-environment!; keep CLI commands in src/cli or src/commands")
+    "replace the local build system with :clan/building plus all-gerbil-modules for src-root packages, :std/build-script defbuild-script for simple gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; keep CLI commands in src/cli or src/commands")
    (else
     "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers")))
 

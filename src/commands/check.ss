@@ -52,9 +52,10 @@
          (all-findings (append
                         (run-type-checks/whitelist index '() whitelist)
                         (run-policy-checks index)))
-         (findings (if (equal? scope "changed")
-                     (filter-changed-findings all-findings changed-paths)
-                     all-findings))
+         (findings (deduplicate-findings
+                    (if (equal? scope "changed")
+                      (filter-changed-findings all-findings changed-paths)
+                      all-findings)))
          (status (type-status findings)))
     (if json?
       (write-json-line
@@ -140,6 +141,30 @@
   (filter (lambda (finding)
             (changed-path? (type-finding-path finding) changed-paths))
           findings))
+
+;; deduplicate-findings
+;;   : (-> (List TypeFinding) (List TypeFinding))
+;;   | doc m%
+;;       `deduplicate-findings findings` keeps the first finding for each
+;;       rule/path/selector/message key while preserving report order.
+;;     %
+(def (deduplicate-findings findings)
+  (let lp ((rest findings) (seen []) (out []))
+    (match rest
+      ([] (reverse out))
+      ([finding . rest]
+       (let (key (finding-dedup-key finding))
+         (if (member key seen)
+           (lp rest seen out)
+           (lp rest (cons key seen) (cons finding out))))))))
+
+;; : (-> TypeFinding (List String))
+(def (finding-dedup-key finding)
+  [(type-finding-rule-id finding)
+   (type-finding-path finding)
+   (type-finding-selector finding)
+   (type-finding-message finding)])
+
 ;; changed-path?
 ;;   : (-> String ChangedPaths Boolean)
 ;;   | doc m%
