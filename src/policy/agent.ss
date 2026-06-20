@@ -282,6 +282,20 @@
 (def +explicit-test-entrypoint-heads+
   '("run-tests!"))
 
+;; (List TopFormHead)
+(def +agent-declarative-top-level-heads+
+  '("load!"
+    "use-module"
+    "use-live-case"
+    "modularity-policy"
+    "poo-flow-module-object"
+    "poo-flow-module-field-contract"))
+
+;; (List Callee)
+(def +agent-declarative-list-member-callees+
+  '("poo-flow-module-object"
+    "poo-flow-module-field-contract"))
+
 ;;; Boundary:
 ;;; - Explicit entrypoints are language-level contracts, not path hacks.
 ;;; - Exported main plus a top-level main/apply/exit form is treated as the
@@ -318,6 +332,7 @@
 ;; : (-> SourceFile CallFact Boolean )
 (def (declarative-top-level-call? file call)
   (or (poo-declarative-call? file call)
+      (agent-declarative-call? file call)
       (ffi-declarative-call? file call)))
 
 ;;; Boundary: FFI top forms run at expansion time, so nested call facts are declarations.
@@ -331,6 +346,30 @@
 (def (call-within-top-form-range? call form)
   (and (<= (top-form-start form) (call-fact-start call))
        (>= (top-form-end form) (call-fact-end call))))
+;;; Boundary:
+;;; - Agent configuration and module-object fragments are declarative data.
+;;; - The list exemption is narrow: it only applies when the list top form owns
+;;;   an embedded known declarative object constructor.
+;; : (-> SourceFile CallFact Boolean )
+(def (agent-declarative-call? file call)
+  (ormap (lambda (form)
+           (and (agent-declarative-top-form? file form)
+                (call-within-top-form-range? call form)))
+         (source-file-forms file)))
+
+;; : (-> SourceFile TopForm Boolean )
+(def (agent-declarative-top-form? file form)
+  (or (member (top-form-head form) +agent-declarative-top-level-heads+)
+      (and (equal? (top-form-head form) "list")
+           (agent-declarative-list-top-form? file form))))
+
+;; : (-> SourceFile TopForm Boolean )
+(def (agent-declarative-list-top-form? file form)
+  (ormap (lambda (candidate)
+           (and (member (call-fact-callee candidate)
+                        +agent-declarative-list-member-callees+)
+                (call-within-top-form-range? candidate form)))
+         (source-file-calls file)))
 ;;; Boundary:
 ;;; - poo-declarative-call? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

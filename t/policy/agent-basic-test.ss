@@ -144,6 +144,28 @@
                  (findings (run-agent-policy index))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
             (check matching => [])))
+    (test-case "agent policy treats user config and module object fragments as declarative"
+      (let* ((root ".run/policy-agent-declarative-config")
+             (src (string-append root "/src"))
+             (owner (string-append src "/custom")))
+        (reset-fixture-root root)
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir src)
+        (ensure-dir owner)
+        (write-text
+         (string-append root "/gerbil.pkg")
+         "(package: sample/agent-declarative-config)\n")
+        (write-text
+         (string-append owner "/config.ss")
+         ";;; -*- Gerbil -*-\n(load! \"profiles/session\")\n(use-module nono-sandbox)\n")
+        (write-text
+         (string-append owner "/object1.ss")
+         ";;; -*- Gerbil -*-\n(list\n (poo-flow-module-object\n  'demo\n  (list (poo-flow-module-field-contract 'name 'symbol))))\n")
+        (let* ((index (collect-project root))
+               (findings (run-agent-policy index))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+          (check matching => []))))
     (test-case "check changed scope reports only changed-file policy findings"
           (let* ((root ".run/policy-check-changed-scope")
                  (_ (write-check-changed-project root))
