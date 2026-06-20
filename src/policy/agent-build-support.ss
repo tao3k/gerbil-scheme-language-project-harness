@@ -2,6 +2,7 @@
 ;;; Agent-facing build/runtime support quality policy.
 
 (import :parser/facade
+        :policy/agent-package-build-system
         :policy/detection
         :policy/model
         :policy/poo-source
@@ -47,10 +48,6 @@
     "exec "
     "|"
     "xargs"))
-
-;; (List String)
-(def +shell-pipeline-literal-markers+
-  '("|" "xargs" "find src" "sort |" " -P "))
 
 ;; (List String)
 (def +shell-dispatch-callees+
@@ -120,6 +117,8 @@
     "build/runtime support compiles provider native executables through a direct gxc -exe path; route provider executables through the timeout-safe native wrapper so existing binaries survive compiler hangs")
    ((runtime-native-fast-command-adapter-result? result)
     "native fast source imports a full command adapter; keep native-fast entrypoints dependency-light or route the command through the provider dispatcher runtime path")
+   ((package-build-custom-system-result? result)
+    "package-level build.ss is drifting into a hand-written build system; keep build.ss on gxpkg plus clan/building and move command/runtime behavior into package modules")
    (else
     "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers")))
 
@@ -148,7 +147,7 @@
    ((native-fast-runtime-source-file? file)
     [(native-fast-command-adapter-detection-prototype)])
    ((package-build-file? file)
-    [(package-build-shell-pipeline-detection-prototype)])
+    (package-build-quality-detection-prototypes))
    (else '())))
 
 ;;; Intentional raw data record:
@@ -185,6 +184,8 @@
     "build-runtime-native-compile-safety")
    ((runtime-native-fast-command-adapter-result? result)
     "build-runtime-native-fast-command-adapter")
+   ((package-build-custom-system-result? result)
+    "package-build-custom-system")
    (else "build-runtime-quality")))
 
 ;; : (-> DetectionResult String )
@@ -194,6 +195,8 @@
     "native provider compile owner, direct gxc -exe dispatch, and missing native-wrapper delegation")
    ((runtime-native-fast-command-adapter-result? result)
     "native-fast source class plus parser-owned module import of a full command adapter")
+   ((package-build-custom-system-result? result)
+    "package build file, missing clan/building environment, and manual build orchestration")
    (else "at least two independent parser-owned groups")))
 
 ;; : (-> DetectionResult String )
@@ -203,6 +206,8 @@
     "provider native binaries are compiled through build-support/native-wrapper-runtime.ss via gerbil-native-link or gerbil-native-diagnose")
    ((runtime-native-fast-command-adapter-result? result)
     "native-fast sources import only dependency-light modules; full commands run through harness_runtime in the native dispatcher")
+   ((package-build-custom-system-result? result)
+    "package build delegates source discovery and environment setup to gxpkg plus :clan/building")
    (else "Gerbil runtime wrapper source plus list command arguments")))
 
 ;; : (-> DetectionResult String )
@@ -212,6 +217,8 @@
     "direct gxc -exe invocation inside provider native compile owners without native wrapper timeout and atomic replacement")
    ((runtime-native-fast-command-adapter-result? result)
     "src/*-fast entrypoints importing :commands/* adapters and forcing full command graphs through native link")
+   ((package-build-custom-system-result? result)
+    "hand-written compiler dispatch, GERBIL_LOADPATH/source-root management, or local mini build orchestration inside build.ss")
    (else "generated shell templates or sh -c pipelines")))
 
 ;; : (-> DetectionResult String )
@@ -221,6 +228,8 @@
     "replace direct gxc -exe provider builds with compile-build-support-executable! for gerbil-native-link/gerbil-native-diagnose and pass tmp/final/source as argv")
    ((runtime-native-fast-command-adapter-result? result)
     "delete the native-fast wrapper or split a real dependency-light fast implementation; route full command behavior through the dispatcher harness_runtime path")
+   ((package-build-custom-system-result? result)
+    "replace the local build system with :clan/building, all-gerbil-modules, and init-build-environment!/%set-build-environment!; keep CLI commands in src/cli or src/commands")
    (else
     "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers")))
 
@@ -285,22 +294,6 @@
     0
     ["native-fast-source" "full-command-adapter-import"]
     "native-fast entrypoints must not import full command adapters")))
-
-;;; Package build quality is a stricter prototype: the all-of base owns the
-;;; required-group semantics, and the overlay names the build.ss evidence.
-;; : (-> DetectionPrototype )
-(def (package-build-shell-pipeline-detection-prototype)
-  (detection-prototype-extend
-   +all-of-detection-prototype+
-   (poo-source-pattern-detection-overlay 'prototype-composition)
-   (detection-prototype
-    "package-build-shell-pipeline-all-of"
-    'all-of
-    [shell-dispatch-call-evidence
-     shell-pipeline-literal-evidence]
-    0
-    ["shell-dispatch-call" "shell-pipeline-literal"]
-    "package build shell-pipeline drift requires dispatch and payload evidence")))
 
 ;;; Data flow:
 ;;; The source file provides parser-owned DefinitionFact values.
@@ -378,43 +371,6 @@
           (length calls)
           (call-fact-selector (car calls))))))
 
-;;; Boundary:
-;;; - sh -c collapses typed argv into shell text.
-;;; - list argv process calls remain the preferred runtime boundary.
-;;; - This group is paired with payload evidence before a finding exists.
-;;; Data flow:
-;;; - filter extracts process calls that cross the sh -c boundary while leaving
-;;;   argv-list calls outside the group.
-;;; Arity evidence:
-;;; - shell-dispatch-call? consumes one CallFact and returns a boolean.
-;;; - The filter result keeps the source order used by call-fact-selector.
-;;; Invariant:
-;;; - The predicate is arity-stable over CallFact.
-;;; - Selector order stays tied to
-;;;   parser order.
-;;; Hidden invariant:
-;;; - A loop that stops on the first process call would miss later sh -c
-;;;   evidence and under-report build pipeline drift.
-;; : (-> SourceFile MaybeEvidenceGroup )
-(def (shell-dispatch-call-evidence file)
-  (let (calls (filter shell-dispatch-call? (source-file-calls file)))
-    (and (pair? calls)
-         (evidence-group
-          "shell-dispatch-call"
-          (length calls)
-          (call-fact-selector (car calls))))))
-
-;;; Pipeline literals refine sh -c evidence so build.ss warnings focus on
-;;; pipeline orchestration instead of every shell invocation.
-;; : (-> SourceFile MaybeEvidenceGroup )
-(def (shell-pipeline-literal-evidence file)
-  (let (calls (filter shell-pipeline-literal-call? (source-file-calls file)))
-    (and (pair? calls)
-         (evidence-group
-          "shell-pipeline-literal"
-          (length calls)
-          (call-fact-selector (car calls))))))
-
 ;;; Provider native compile owners are data-shaped by parser definition names.
 ;;; This signal is harmless alone; the all-of detector needs unsafe dispatch and
 ;;; missing wrapper delegation before emitting a warning.
@@ -486,13 +442,6 @@
   (equal? (source-path-class (source-file-path file))
           "build-support-runtime"))
 
-;;; Scope guard: package build logic is checked for shell pipelines, not for
-;;; launcher template text.
-;; : (-> SourceFile Boolean )
-(def (package-build-file? file)
-  (equal? (source-path-class (source-file-path file))
-          "package-build"))
-
 ;; : (-> SourceFile Boolean )
 (def (native-fast-runtime-source-file? file)
   (equal? (source-path-class (source-file-path file))
@@ -531,24 +480,6 @@
 (def (shell-writer-call? call)
   (and (member (call-fact-callee call) '("display" "write-string"))
        (call-has-shell-control-literal? call)))
-
-;;; sh -c is the risk boundary because it collapses typed argv into shell text.
-;; : (-> CallFact Boolean )
-(def (shell-dispatch-call? call)
-  (and (member (call-fact-callee call) +shell-dispatch-callees+)
-       (call-arguments-contain? call "sh")
-       (call-arguments-contain? call "-c")))
-
-;;; Pipeline literals separate incidental shell dispatch from build-pipeline
-;;; orchestration.
-;; : (-> CallFact Boolean )
-(def (shell-pipeline-literal-call? call)
-  (and (shell-dispatch-call? call)
-       (ormap (lambda (argument)
-                (and (string? argument)
-                     (ormap (cut string-contains argument <>)
-                            +shell-pipeline-literal-markers+)))
-              (call-fact-arguments call))))
 
 ;; : (-> DefinitionFact Boolean )
 (def (native-provider-compile-definition? definition)

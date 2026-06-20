@@ -222,6 +222,38 @@
                      => #t)
               (check (not (not (member "shell-pipeline-literal" groups)))
                      => #t))))
+    (test-case "agent policy rejects package build custom build systems"
+          (let ((root ".run/policy-package-build-custom-system"))
+            (reset-fixture-root root)
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/build-custom-system)\n")
+            (write-text
+             (string-append root "/build.ss")
+             ";;; -*- Gerbil -*-\n(import (only-in :std/misc/process run-process))\n(def (compile-all!)\n  (run-process [\"gxc\" \"-static\" \"src/main.ss\"])\n  (run-process [\"gsc\" \"-exe\" \"src/main.scm\"]))\n(def (main . args)\n  (compile-all!))\n")
+            (let* ((index (collect-project root))
+                   (findings (run-agent-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (finding (car matching))
+                   (details (type-finding-details finding))
+                   (groups (hash-get details 'evidenceGroups)))
+              (check (length matching) => 1)
+              (check (type-finding-path finding) => "build.ss")
+              (check (hash-get details 'kind)
+                     => "package-build-custom-system")
+              (check (hash-get details 'detectionCombiner)
+                     => "package-build-custom-system-all-of")
+              (check (hash-get details 'requiredGroups)
+                     => ["package-build-file"
+                         "missing-clan-build-environment"
+                         "manual-build-orchestration"])
+              (check (not (not (member "package-build-file" groups)))
+                     => #t)
+              (check (not (not (member "missing-clan-build-environment" groups)))
+                     => #t)
+              (check (not (not (member "manual-build-orchestration" groups)))
+                     => #t))))
     (test-case "agent policy rejects package build without clan/building surface"
           (let ((root ".run/policy-package-build-canonical-shape"))
             (reset-fixture-root root)
@@ -301,8 +333,12 @@
              ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R025" findings)))
-              (check matching => []))))
+                   (canonical-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (runtime-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+              (check canonical-matching => [])
+              (check runtime-matching => []))))
     (test-case "agent policy accepts compositional provider build stages"
           (let ((root ".run/policy-package-build-canonical-stage-table"))
             (reset-fixture-root root)
