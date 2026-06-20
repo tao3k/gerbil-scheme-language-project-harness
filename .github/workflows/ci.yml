@@ -163,18 +163,16 @@ jobs:
 
       - name: Run harness check
         run: |
-          export GERBIL="$(command -v gxi)"
-          gxpkg env ./build.ss check --full .
+          gxpkg env gxi -e '(begin (import :gerbil-scheme-language-project-harness/src/cli) (exit (main "check" "--full" ".")))'
 
       - name: Run harness verification bench
         run: |
-          export GERBIL="$(command -v gxi)"
           max_total_ms=60000
           if [ "$RUNNER_OS" = "macOS" ]; then
             max_total_ms=75000
           fi
           bench_output="$(mktemp)"
-          if ! gxpkg env ./build.ss bench --json --iterations 1 --max-total-ms "$max_total_ms" --max-interface-ms 500 . > "$bench_output"; then
+          if ! gxpkg env gxi -e "(begin (import :gerbil-scheme-language-project-harness/src/cli) (exit (main \"bench\" \"--json\" \"--iterations\" \"1\" \"--max-total-ms\" \"$max_total_ms\" \"--max-interface-ms\" \"500\" \".\")))" > "$bench_output"; then
             cat "$bench_output"
             exit 1
           fi
@@ -194,8 +192,7 @@ jobs:
       - name: Verify package extension packet
         run: |
           set -o pipefail
-          export GERBIL="$(command -v gxi)"
-          gxpkg env ./build.ss search prime --json . \
+          gxpkg env gxi -e '(begin (import :gerbil-scheme-language-project-harness/src/cli) (exit (main "search" "prime" "--json" ".")))' \
             | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
             .extensions[0].name == "poo" and

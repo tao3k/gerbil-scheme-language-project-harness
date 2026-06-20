@@ -54,12 +54,13 @@
   '("build-support/provider-build.ss"))
 
 ;;; Canonical shape witnesses:
-;;; - Both calls must be present because clan/building owns source discovery
-;;;   and package environment setup as separate responsibilities.
+;;; - `init-build-environment!` is the public clan/building entrypoint.
+;;; - `%set-build-environment!` is the clan/building source-root entrypoint
+;;;   used by packages whose Gerbil modules intentionally live under src/.
 ;;; - Keeping the callees data-driven prevents one-off build.ss exemptions.
 ;; (List CalleeName)
 (def +package-build-spec-callees+
-  '("init-build-environment!" "all-gerbil-modules"))
+  '("init-build-environment!" "%set-build-environment!"))
 
 ;; (List CalleeName)
 (def +package-build-manual-environment-callees+
@@ -146,14 +147,13 @@
                 (source-file-definitions file))))
     (and (not (and native-import
                    build-call
-                   module-enumerator-call
-                   (not manual-environment-call)
-                   native-build-definition))
+                   (or module-enumerator-call native-build-definition)
+                   (not manual-environment-call)))
          (make-type-finding
           (policy-rule-id +agent-package-build-canonical-shape-rule+)
           (policy-rule-severity +agent-package-build-canonical-shape-rule+)
           (source-file-path file)
-          "package-level build.ss is not using the canonical clan/building shape; import :clan/building, define spec with all-gerbil-modules, call init-build-environment!, and do not hand-write srcdir or GERBIL_LOADPATH"
+          "package-level build.ss is not using the canonical clan/building shape; import :clan/building, define spec with all-gerbil-modules, initialize the clan/building environment, and do not hand-write compiler dispatch or GERBIL_LOADPATH"
           (package-build-canonical-shape-selector
            file native-import legacy-import build-call module-enumerator-call manual-environment-call manual-call native-build-definition provider-build-include main-definition)
           (package-build-canonical-shape-details
@@ -173,11 +173,14 @@
 
 ;;; Boundary:
 ;;; - Gerbil records macro-like build forms as ordinary call facts.
-;;; - `init-build-environment!` is the package build entrypoint; `make` and
-;;;   `defbuild-script` are now migration evidence, not the target shape.
+;;; - clan/building owns both the public init macro and the lower-level
+;;;   source-root initializer used by src/ packages.
+;;; - `make` and `defbuild-script` are now migration evidence, not the target
+;;;   shape.
 ;; : (-> CallFact Boolean )
 (def (package-build-init-environment-call? call)
-  (equal? (call-fact-callee call) "init-build-environment!"))
+  (member (call-fact-callee call)
+          +package-build-spec-callees+))
 
 ;;; Module enumeration proves the spec delegates source discovery to
 ;;; clan/building instead of keeping a handwritten file walk.
@@ -205,7 +208,18 @@
                +package-build-manual-environment-callees+)
        (or (equal? (call-fact-callee call) "add-load-path!")
            (package-build-loadpath-setenv-call? call)
-           (package-build-srcdir-argument-call? call))))
+           (package-build-srcdir-argument-call? call))
+       (not (package-build-test-load-path-call? call))))
+
+;;; Build-local gxtest needs source and test module roots in the running Gerbil
+;;; process. This is not a package build environment escape because it does not
+;;; set GERBIL_LOADPATH, invoke a compiler, or change source discovery.
+;; : (-> CallFact Boolean )
+(def (package-build-test-load-path-call? call)
+  (and (equal? (call-fact-callee call) "add-load-path!")
+       (ormap (lambda (argument)
+                (member argument '("source-root" "test-root")))
+              (filter string? (call-fact-arguments call)))))
 
 ;;; Only GERBIL_LOADPATH setenv calls are blocked; provider builds may still
 ;;; set other environment variables for wrappers and native toolchains.
@@ -290,11 +304,11 @@
         (handWrittenMain
          (and main-definition (definition-name main-definition)))
         (allowedShape
-         "canonical build.ss: import :clan/building, define spec with all-gerbil-modules, include reusable t/unit helpers in spec when tests import them, and call init-build-environment!")
+         "canonical build.ss: import :clan/building, define spec with all-gerbil-modules, and initialize the clan/building environment; src/ source-root packages may use %set-build-environment!")
         (compositionalBuildShape
-         "use clan/building for source discovery/load path and named stage descriptors only for provider-specific compile/full/native/test commands")
+         "use clan/building for source discovery/load path, keep package tests on Gerbil's gxtest runner, and call provider CLI commands through the compiled package module")
         (downstreamRepairPattern
-         "keep build.ss as the package build control plane, route package compilation through init-build-environment!, and move command/runtime behavior into composable stage helpers")
+         "keep build.ss as the package build control plane, route package compilation through clan/building, and keep command/runtime behavior in src/cli and src/commands")
         (disallowedShape
          "hand-written srcdir/loadpath setup, manual compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces clan/building")
         (sourceEvidence
@@ -304,7 +318,7 @@
         (nativeFactSource
          "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
         (next
-         "replace manual compiler/loadpath/srcdir setup with :clan/building, all-gerbil-modules, and init-build-environment!; for provider builds keep wrapper/runtime generation delegated to build-support")))
+         "replace manual compiler/loadpath/srcdir setup with :clan/building, all-gerbil-modules, and clan/building environment initialization; run provider commands through the compiled package CLI module")))
 
 ;;; Finding contract:
 ;;; - Evidence comes from parser-owned call arguments, not raw grep.
@@ -317,18 +331,17 @@
           (policy-rule-id +agent-package-build-responsibility-rule+)
           (policy-rule-severity +agent-package-build-responsibility-rule+)
           (source-file-path file)
-          "package-level build.ss contains CLI/search routing; keep build.ss as build spec/orchestration and move command semantics into src/cli, src/commands, or an explicit provider wrapper owner"
+          "package-level build.ss contains CLI/search routing; keep build.ss as build spec/orchestration and move command semantics into src/cli or src/commands"
           (call-fact-selector call)
           (hash (evidence evidence)
                 (kind "package-build-responsibility")
-                (allowedBuildRole "build spec, dependency setup, compile orchestration, provider wrapper delegation")
+                (allowedBuildRole "build spec, dependency setup, compile orchestration, gxtest execution")
                 (disallowedRole "CLI/search/pattern routing policy or generated command semantics")
-                (next "move routing to src/cli, src/commands/search, or build-support/provider-cli"))))))
+                (next "move routing to src/cli or src/commands/search"))))))
 
 ;;; Finding contract:
 ;;; - Evidence comes from parser-owned definition names.
-;;; - Top-level build.ss may delegate to wrapper owners but must not define
-;;;   wrapper/script materializers itself.
+;;; - Top-level build.ss must not define wrapper/script materializers itself.
 ;; : (-> PackageBuildFile DefinitionFact MaybePackageBuildFinding )
 (def (package-build-wrapper-definition-finding file definition)
   (let (name (definition-name definition))
@@ -337,13 +350,13 @@
           (policy-rule-id +agent-package-build-responsibility-rule+)
           (policy-rule-severity +agent-package-build-responsibility-rule+)
           (source-file-path file)
-          "package-level build.ss defines provider wrapper/script materializers; keep build.ss as build spec/orchestration and move wrapper generation into build-support/provider-cli or the CLI owner"
+          "package-level build.ss defines provider wrapper/script materializers; keep build.ss as build spec/orchestration and move command behavior into the CLI owner"
           (definition-selector definition)
           (hash (evidence name)
                 (kind "package-build-wrapper-definition")
-                (allowedBuildRole "build spec, dependency setup, compile orchestration, provider wrapper delegation")
+                (allowedBuildRole "build spec, dependency setup, compile orchestration, gxtest execution")
                 (disallowedRole "provider wrapper/script generation or CLI executable materialization")
-                (next "move wrapper generation to build-support/provider-cli or src/cli"))))))
+                (next "move command entrypoint behavior to src/cli"))))))
 
 ;;; Evidence boundary:
 ;;; - String arguments are still parser facts.

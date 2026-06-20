@@ -12,3 +12,4 @@ build
 bin
 manifest.ss
 .bin
+version.ss

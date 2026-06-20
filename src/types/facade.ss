@@ -76,8 +76,12 @@
         type-validation-diagnostic-category
         type-validation-diagnostic-message
         type-validation-diagnostic-facts
+        type-validation-diagnostic-json
         type-validation-diagnostics
         type-spec-valid?
+        type-spec-structural-validation
+        type-contract-structural-validation
+        type-sexpr-structural-validation
         simplify-union
         type-subtype-proof
         type-subtype?

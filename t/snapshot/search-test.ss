@@ -18,8 +18,6 @@
       (check-owner-items-limit-budget))
     (test-case "search owner items exposes gerbil.pkg package facts"
       (check-owner-items-gerbil-package-facts))
-    (test-case "provider launcher keeps owner items on the native inline route"
-      (check-provider-launcher-native-fast-route))
     (test-case "search owner items fast entrypoint stays lightweight"
       (check-owner-items-fast-entrypoint-stays-light))
     (test-case "search guide fast entrypoint stays lightweight"

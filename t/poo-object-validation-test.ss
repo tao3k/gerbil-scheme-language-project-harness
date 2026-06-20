@@ -3,7 +3,7 @@
 
 (import :std/test
         (only-in :std/sugar hash)
-        :gerbil-scheme-language-project-harness/src/extensions/poo-object-validation)
+        :gslph/src/extensions/facade)
 
 (export poo-object-validation-test)
 

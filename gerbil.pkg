@@ -1,11 +1,11 @@
-(package: gerbil-scheme-language-project-harness
+(package: gslph
  depend: ("git.cons.io/mighty-gerbils/gerbil-poo")
  policy: ((macro-governance
            allow-generated: #t
            explanation: "Harness macro edits must cite runtime-source and macro-expansion evidence before changing transformers."
           witness: "search runtime-source macro sugar module-sugar")
           (source-scope
-           roots: ("src" "build-support")
+           roots: ("src")
            runtime-roots: ("src" "t")
            explanation: "Self-apply and package policy scan runtime harness source; scenario, fixture, and snapshot tests are validated by their own gxtest owners.")
           (test-directory-policy

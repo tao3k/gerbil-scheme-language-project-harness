@@ -3,7 +3,8 @@
 
 (import :extensions/core
         :extensions/model
-        :extensions/poo)
+        :extensions/poo
+        :extensions/poo-object-validation)
 
 (export extension-fact
         make-extension-fact
@@ -35,4 +36,9 @@
         poo-pattern-focus
         poo-pattern-selectors
         poo-pattern-minimal-forms
-        poo-pattern-failure-cases)
+        poo-pattern-failure-cases
+        poo-object-type-spec-validation
+        poo-object-field-contract-validation
+        poo-object-field-contracts-validation
+        poo-object-contract-validation
+        poo-object-validation-valid?)
