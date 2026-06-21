@@ -40,6 +40,12 @@
       "dist",
       "src/gambit",
       "tree-sitter"
+    ],
+    "defaultProjectMarkers": [
+      "gerbil.pkg"
+    ],
+    "defaultDependencyMarkers": [
+      "gerbil.pkg"
     ]
   },
   "policy": {
