@@ -124,3 +124,57 @@ The scenario owner is
 =t/scenarios/policy/poo-prototype-fixed-point/=. Its =input= side demonstrates
 the projection burst. Its =expected= side demonstrates the repair shape while
 preserving a valid =order-id= boundary read.
+
+** 51.02.6 Coverage Matrix
+
+The harness should treat POO as a language design surface, not as one syntax
+warning. Current source evidence spans these layers:
+
+| POO layer | Reference evidence | Harness coverage target |
+| Syntax bridge | =brace.ss:1-20= maps ={...}= through =@method= into =.o/.o/ctx=. | Guide agents to use brace syntax as a thin surface over object construction, not as a separate semantics layer. |
+| Fixed point object core | =object.ss:84-161= computes defaults, slot functions, cached =.ref= values, and =.mix= object construction. | R026 and the scenario suite must preserve legitimate boundary reads while moving repeated constructor projection into prototype-local slot computations. |
+| Slot specification DSL | =object.ss:337-351= maps constant, self, computed, =>=, =>.+=, and inherited-computation forms into slot specs. | Positive examples must include defaults, transforms, nested prototype merge, and inherited computation rather than only constant slots. |
+| Query/update boundary | =object.ss:414-424= defines =.get=, =.@=, and setter aliases as accessors. | Policy text must explicitly say these APIs are allowed for boundary accessors, adapters, tests, and diagnostics. |
+| MOP and type descriptors | =mop.ss:271-424= defines slot check/define generics, =Class.=, =Slot=, serialization slots, and tuple/list conversion slots. | Parser/type-validation coverage should keep POO type descriptors visible as structural facts, not collapse them into raw hash/alist patterns. |
+| Typeclass/algebra layer | =fun.ss:11-74= defines =Category.=, =Functor.=, =ParametricFunctor.=, =Wrapper.=, and =Wrap.=. | Guidance should push reusable algebra into protocol/type slots before adding scattered helper functions. |
+| Serialization method families | =io.ss:111-184= defines json/string/bytes/marshal method families and reusable method adapters. | R007/R008-style guidance should prefer method-family slots and source-backed runtime evidence over ad hoc serialization helpers. |
+| Numeric descriptors | =number.ss:23-77= and =number.ss:129-160= define =Number=, =Real=, =Integer=, and modular arithmetic descriptors. | Agents should model numeric behavior as descriptor slots with validation, conversion, comparison, and arithmetic methods. |
+| Algebraic reuse | =number.ss:219-249= defines exponentiation from multiplication/inversion slots. | New rules should look for reusable descriptor composition before hand-written duplicate algorithms. |
+| Domain algebra | =polynomial.ss:19-138= implements polynomial operations over a configurable =.Ring=. | Higher-order POO guidance should preserve parameterized domain descriptors rather than specializing everything into one concrete representation. |
+| Dependency adapters | =rationaldict.ss:20-50= wraps durable dictionary/set primitives with POO table/set slots. | R017 and dependency-adapter scenarios cover this shape; agents should wrap durable library primitives instead of inventing loose alists. |
+| Object tests | =t/object-test.ss:140-205= covers =.mix=, =.putslot!=, =>=, =>.+=, inherited computation, lexical slots, =?= defaults, and inheritance. | The scenario corpus should reuse these idioms as positive examples. |
+| MOP tests | =t/mop-test.ss:1-60= covers typed slots, defaults, sealed classes, =.new=, validation, and lenses. | Type-validation fixtures should keep class/slot/default evidence round-trippable. |
+| Algebra tests | =t/number-test.ss:14-36= and =t/rationaldict-test.ss:9-14= cover modular arithmetic and generic table contract tests. | Downstream policy tests should prefer reusable contract tests over copied assertion suites. |
+
+** 51.02.7 Scenario Corpus
+
+The fixed-point constructor path remains the only R026 warning. The broader POO
+layers are now covered as a soft guidance corpus under
+=t/scenarios/policy/poo-*= and =t/snapshots/policy-poo-guidance-corpus.ss=.
+Those scenarios deliberately record parser-owned facts and target findings
+without adding new hard policy rules.
+
+The corpus covers these repair and false-positive boundaries:
+
+1. =poo-type-descriptor= starts from raw slot validation code and repairs to a
+   =Class.= descriptor with =Slot= method slots. Parser facts must expose
+   =descriptor:mop= and =descriptor:class-slot=.
+2. =poo-method-family-serialization= starts from scattered json/string/bytes
+   helpers and repairs to =methods.string<-json= / =methods.bytes<-marshal=
+   slots. Parser facts must expose =methodFamily:serialization=.
+3. =poo-algebra-wrapper= starts from local map/wrap/bind helpers and repairs to
+   =Functor.= and =Wrapper.= descriptors. Existing R013/typeclass guidance owns
+   style warnings; this corpus only asserts POO facts and no POO target
+   findings.
+4. =poo-domain-algebra= starts from one-off polynomial helpers and repairs to a
+   parameterized =Polynomial.= descriptor over a ring slot. Parser facts must
+   expose =domainAlgebra:polynomial-ring= and
+   =domainDescriptor:parameterized-ring=.
+5. =poo-boundary-accessors= keeps =.ref=, =.@=, and =.get= boundary reads legal,
+   including =build-*= and =new-*= helpers with a single projection. This guards
+   against turning R026 into a hard ban on POO access APIs.
+
+Future rules must first pass this corpus as soft guidance evidence. A new
+warning is acceptable only when parser-owned facts identify the shape precisely
+enough to avoid rejecting valid POO use. The goal is better POO, not narrower
+POO.

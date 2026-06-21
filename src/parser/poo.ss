@@ -56,6 +56,19 @@
 (def +poo-wrapper-algebra-tokens+
   '("Wrapper." "Wrap." "Wrap^." ".wrap" ".unwrap" ".bind" ".map/wrap"))
 
+;; ConfigConstant
+(def +poo-mop-descriptor-tokens+
+  '("Class." "Slot" ".validate" ".new"))
+
+;; ConfigConstant
+(def +poo-domain-algebra-tokens+
+  '("Polynomial." ".Ring"))
+
+;; ConfigConstant
+(def +poo-serialization-method-slots+
+  '(".string<-json" ".bytes<-marshal" ".marshal<-bytes"
+    ".marshal<-string" ".json<-" ".<-json" ".<-bytes" ".<-string"))
+
 ;;; Boundary:
 ;;; - poo-form-facts-from-form composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -331,25 +344,34 @@
 ;; : (-> MethodSlot MethodBodyShape (List String) )
 (def (poo-method-body-quality-options slot shape)
   (let (slot-token (string-append "methodBodyQuality:" slot ":"))
-    (cond
-     ((equal? slot ".validate")
-      [(string-append slot-token "validation-boundary")
-       "methodTableBody:validation-boundary"])
-     ((member shape '("partial-application" "function-curry"
-                      "function-composition" "pipeline-composition"
-                      "function-constructor" "poo-selector-call"
-                      "case-lambda"))
-      [(string-append slot-token "combinator")
-       "methodTableBody:combinator"])
-     ((equal? shape "lambda")
-      [(string-append slot-token "lambda-drift")
-       "methodTableBody:lambda-drift"])
-     ((or (and (string-prefix? "call:" shape)
-               (not (equal? shape "call:@list")))
-          (equal? shape "compound"))
-      [(string-append slot-token "low-level")
-       "methodTableBody:low-level"])
-     (else '()))))
+    (append
+     (cond
+      ((equal? slot ".validate")
+       [(string-append slot-token "validation-boundary")
+        "methodTableBody:validation-boundary"])
+      ((member shape '("partial-application" "function-curry"
+                       "function-composition" "pipeline-composition"
+                       "function-constructor" "poo-selector-call"
+                       "case-lambda"))
+       [(string-append slot-token "combinator")
+        "methodTableBody:combinator"])
+      ((equal? shape "lambda")
+       [(string-append slot-token "lambda-drift")
+        "methodTableBody:lambda-drift"])
+      ((or (and (string-prefix? "call:" shape)
+                (not (equal? shape "call:@list")))
+           (equal? shape "compound"))
+       [(string-append slot-token "low-level")
+        "methodTableBody:low-level"])
+      (else '()))
+     (poo-method-family-options slot))))
+
+;; : (-> MethodSlot (List String) )
+(def (poo-method-family-options slot)
+  (if (member slot +poo-serialization-method-slots+)
+    ["methodFamily:serialization"
+     (string-append "serializationSlot:" slot)]
+    '()))
 
 ;; : (-> Datum MaybeString )
 (def (poo-method-slot-name item)
@@ -402,7 +424,15 @@
              (and (poo-any-token? +poo-wrapper-algebra-tokens+ tokens)
                   "typeclass:wrapper")
              (and (poo-any-token? +poo-wrapper-algebra-tokens+ tokens)
-                  "wrapperAlgebra:wrap-unwrap-bind-map")])))
+                  "wrapperAlgebra:wrap-unwrap-bind-map")
+             (and (poo-any-token? +poo-mop-descriptor-tokens+ tokens)
+                  "descriptor:mop")
+             (and (poo-any-token? +poo-mop-descriptor-tokens+ tokens)
+                  "descriptor:class-slot")
+             (and (poo-any-token? +poo-domain-algebra-tokens+ tokens)
+                  "domainAlgebra:polynomial-ring")
+             (and (poo-any-token? +poo-domain-algebra-tokens+ tokens)
+                  "domainDescriptor:parameterized-ring")])))
 
 ;;; Boundary:
 ;;; - define-type token extraction normalizes nested algebra declarations.

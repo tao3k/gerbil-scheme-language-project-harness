@@ -29,6 +29,7 @@
         package-build-std-build-script-policy-snapshot
         package-build-std-make-ssi-policy-snapshot
         poo-prototype-fixed-point-policy-snapshot
+        poo-guidance-corpus-policy-snapshot
         dependency-protocol-adapter-policy-snapshot
         dependency-manual-object-adapter-policy-snapshot
         check-policy-snapshot-fixtures)
@@ -75,6 +76,81 @@
           (list 'after
                 (list 'r026Findings
                       (map finding-snapshot-copy after-findings))))))
+
+(def +poo-guidance-corpus-scenarios+
+  '(("poo-type-descriptor" . "t/scenarios/policy/poo-type-descriptor")
+    ("poo-method-family-serialization" . "t/scenarios/policy/poo-method-family-serialization")
+    ("poo-algebra-wrapper" . "t/scenarios/policy/poo-algebra-wrapper")
+    ("poo-domain-algebra" . "t/scenarios/policy/poo-domain-algebra")
+    ("poo-boundary-accessors" . "t/scenarios/policy/poo-boundary-accessors")))
+
+(def +poo-guidance-target-rule-ids+
+  ["GERBIL-SCHEME-AGENT-R006"
+   "GERBIL-SCHEME-AGENT-R007"
+   "GERBIL-SCHEME-AGENT-R008"
+   "GERBIL-SCHEME-AGENT-R010"
+   "GERBIL-SCHEME-AGENT-R017"
+   "GERBIL-SCHEME-AGENT-R026"])
+
+;; Snapshot
+(def (poo-guidance-corpus-policy-snapshot)
+  (list 'policyScenarioCorpus
+        (list 'id "poo-guidance-corpus")
+        (list 'mode "soft-guidance")
+        (list 'contract
+              "scenario corpus records POO parser facts and target findings without adding hard policy rules")
+        (list 'scenarios
+              (map (lambda (entry)
+                     (poo-guidance-scenario-policy-snapshot
+                      (car entry)
+                      (cdr entry)))
+                   +poo-guidance-corpus-scenarios+))))
+
+;; : (-> ScenarioId ScenarioRoot Snapshot )
+(def (poo-guidance-scenario-policy-snapshot id root)
+  (let* ((scenario (make-policy-scenario id root))
+         (result (policy-scenario-run scenario)))
+    (list 'scenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (poo-guidance-phase-snapshot result 'before))
+          (list 'after
+                (poo-guidance-phase-snapshot result 'after)))))
+
+;; : (-> PolicyScenarioResult ScenarioPhase Snapshot )
+(def (poo-guidance-phase-snapshot result phase)
+  (let (index (policy-scenario-index result phase))
+    (list 'phase
+          (list 'targetFindings
+                (map finding-snapshot-copy
+                     (poo-guidance-target-findings index)))
+          (list 'pooForms
+                (poo-guidance-poo-form-snapshots index)))))
+
+;; : (-> ProjectIndex (List TypeFinding) )
+(def (poo-guidance-target-findings index)
+  (filter (lambda (finding)
+            (member (type-finding-rule-id finding)
+                    +poo-guidance-target-rule-ids+))
+          (run-agent-policy index)))
+
+;; : (-> ProjectIndex (List Snapshot) )
+(def (poo-guidance-poo-form-snapshots index)
+  (apply append
+         (map (lambda (file)
+                (map poo-guidance-poo-form-snapshot
+                     (source-file-poo-forms file)))
+              (project-index-files index))))
+
+;; : (-> PooFormFact Snapshot )
+(def (poo-guidance-poo-form-snapshot fact)
+  (list 'pooForm
+        (list 'name (poo-form-fact-name fact))
+        (list 'role (poo-form-fact-role fact))
+        (list 'supers (poo-form-fact-supers fact))
+        (list 'slots (poo-form-fact-slots fact))
+        (list 'options (poo-form-fact-options fact))
+        (list 'selector (poo-form-fact-selector fact))))
 
 ;; Snapshot
 (def (functional-idiom-policy-snapshot)
@@ -799,6 +875,9 @@
   (check (poo-prototype-fixed-point-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-poo-prototype-fixed-point.ss"))
+  (check (poo-guidance-corpus-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-poo-guidance-corpus.ss"))
   (check (dependency-manual-object-adapter-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-dependency-manual-object-adapter.ss"))
