@@ -144,19 +144,28 @@
 
 ;; deduplicate-findings
 ;;   : (-> (List TypeFinding) (List TypeFinding))
+;;   | result first occurrence for each rule/path/selector/message key
 ;;   | doc m%
 ;;       `deduplicate-findings findings` keeps the first finding for each
 ;;       rule/path/selector/message key while preserving report order.
+;;
+;;       The reducer state is `[seen-keys reversed-output]`; reversing at the
+;;       end preserves the input order without a handwritten recursive loop.
 ;;     %
 (def (deduplicate-findings findings)
-  (let lp ((rest findings) (seen []) (out []))
-    (match rest
-      ([] (reverse out))
-      ([finding . rest]
-       (let (key (finding-dedup-key finding))
-         (if (member key seen)
-           (lp rest seen out)
-           (lp rest (cons key seen) (cons finding out))))))))
+  (match (foldl deduplicate-finding-state [[] []] findings)
+    ([seen out] (reverse out))))
+
+;;; State invariant: the reducer carries parser-owned dedup keys separately
+;;; from the reversed output so duplicate suppression stays a pure transform.
+;; : (-> TypeFinding DedupState DedupState)
+(def (deduplicate-finding-state finding state)
+  (match state
+    ([seen out]
+     (let (key (finding-dedup-key finding))
+       (if (member key seen)
+         state
+         [(cons key seen) (cons finding out)])))))
 
 ;; : (-> TypeFinding (List String))
 (def (finding-dedup-key finding)
@@ -245,7 +254,8 @@
     repairAction guideCodeFlag searchExampleCommand repairCodeCommand codeShapeExemplar
     adapterRepairShape agentRepairStandard
     qualityFacets qualityFacetSteering requiredWitness rewriteScope
-    evidence kind name selector))
+    evidence kind name selector
+    declaredFileName actualFileName declaredNamespace))
 ;; display-finding-details
 ;;   : (-> TypeFinding Unit)
 ;;   | doc m%

@@ -100,6 +100,27 @@
             (check (type-finding-rule-id finding)
                    => "GERBIL-SCHEME-MOD-R004")
             (check (type-finding-path finding) => "src/foo/foo.ss")))
+    (test-case "modularity policy rejects declared file name mismatch"
+          (let* ((root ".run/policy-file-name-mismatch")
+                 (src (string-append root "/src"))
+                 (owner (string-append src "/search"))
+                 (path (string-append owner "/query.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir owner)
+            (write-text path
+                        ";;; -*- Gerbil -*-\n(namespace: search/token)\n(export run-query)\n(def (run-query) 'ok)\n")
+            (let* ((index (collect-project root))
+                   (findings (run-modularity-policy index))
+                   (matching (filter-rule "GERBIL-SCHEME-MOD-R008" findings))
+                   (finding (car matching))
+                   (details (type-finding-details finding)))
+              (check (length matching) => 1)
+              (check (type-finding-path finding) => "src/search/query.ss")
+              (check (hash-get details 'declaredFileName) => "token")
+              (check (hash-get details 'actualFileName) => "query")
+              (check (hash-get details 'declaredNamespace) => "search/token"))))
     (test-case "modularity policy rejects bin entrypoint implementation"
           (let* ((root ".run/policy-bin-entrypoint")
                  (_ (write-bin-entrypoint-project

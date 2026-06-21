@@ -1,13 +1,16 @@
 ;;; -*- Gerbil -*-
-;;; Provider constants shared by command and protocol modules.
+;;; Project constants shared by command and protocol modules.
 
 (export +language-id+
+        +cli-id+
         +provider-id+
         +semantic-extension-pattern-mapping-schema-id+
         +display-name+
         +help+)
 ;; String
 (def +language-id+ "gerbil-scheme")
+;; String
+(def +cli-id+ "gslph")
 ;; String
 (def +provider-id+ "gerbil-scheme-harness")
 ;; String
@@ -17,18 +20,18 @@
 (def +display-name+ "Gerbil Scheme Harness")
 ;; ConfigConstant
 (def +help+
-  "gerbil-scheme-harness - Gerbil Scheme semantic search and project harness
+  "gslph - Gerbil Scheme semantic search and project harness
 
 Usage:
-  gerbil-scheme-harness search <view> ... [--json] [--code] [PROJECT_ROOT]
-  gerbil-scheme-harness search workspace-scope [--json] [PROJECT_ROOT]
-  gerbil-scheme-harness query <owner-path> --term <symbol> [--term <symbol>] [--workspace PROJECT_ROOT] [--names-only | --code]
-  gerbil-scheme-harness query --from-hook direct-source-read --selector <workspace-path:start-end> --workspace PROJECT_ROOT --code
-  gerbil-scheme-harness check [--changed | --full] [--json] [--whitelist PATH] [PROJECT_ROOT]
-  gerbil-scheme-harness bench [--json] [--iterations N] [--max-total-ms N] [--max-interface-ms N] [--whitelist PATH] [PROJECT_ROOT]
-  gerbil-scheme-harness evidence graph [--json] [PROJECT_ROOT]
-  gerbil-scheme-harness evidence analyze [--json] [PROJECT_ROOT]
-  gerbil-scheme-harness agent doctor [--json] [PROJECT_ROOT]
-  gerbil-scheme-harness agent guide [PROJECT_ROOT]
-  gerbil-scheme-harness info [--json] [PROJECT_ROOT]
+  gslph search <view> ... [--json] [--code] [PROJECT_ROOT]
+  gslph search workspace-scope [--json] [PROJECT_ROOT]
+  gslph query <owner-path> --term <symbol> [--term <symbol>] [--workspace PROJECT_ROOT] [--names-only | --code]
+  gslph query --from-hook direct-source-read --selector <workspace-path:start-end> --workspace PROJECT_ROOT --code
+  gslph check [--changed | --full] [--json] [--whitelist PATH] [PROJECT_ROOT]
+  gslph bench [--json] [--iterations N] [--max-total-ms N] [--max-interface-ms N] [--whitelist PATH] [PROJECT_ROOT]
+  gslph evidence graph [--json] [PROJECT_ROOT]
+  gslph evidence analyze [--json] [PROJECT_ROOT]
+  gslph agent doctor [--json] [PROJECT_ROOT]
+  gslph agent guide [PROJECT_ROOT]
+  gslph info [--json] [PROJECT_ROOT]
 ")

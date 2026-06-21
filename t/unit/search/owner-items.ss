@@ -14,6 +14,7 @@
 (export check-owner-items-limit-budget
         check-owner-items-gerbil-package-facts
         check-owner-items-fast-entrypoint-stays-light
+        check-owner-items-omits-empty-role-field
         check-guide-sections-static-data-loads
         check-search-guide-fast-entrypoint-stays-light)
 
@@ -65,6 +66,20 @@
     (check (source-contains? source ":commands/search ") => #f)
     (check (source-contains? source ":commands/search)") => #f)
     (check (source-contains? source ":cli") => #f)))
+
+;; : (-> () Unit )
+(def (check-owner-items-omits-empty-role-field)
+  (let* ((file (parse-owner-items-source-file
+                (path-expand +owner-items-fixture+)))
+         (facts (matching-owner-syntax-facts file ["call"] 4))
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (emit-owner-items file [] facts 4))))))
+    (check (> (length facts) 0) => #t)
+    (check (source-contains? output " languageKind=call") => #t)
+    (check (source-contains? output " role=") => #f)))
 
 ;; : (-> () Unit )
 (def (check-search-guide-fast-entrypoint-stays-light)

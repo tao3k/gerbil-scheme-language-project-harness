@@ -363,6 +363,9 @@
       (and (equal? (top-form-head form) "list")
            (agent-declarative-list-top-form? file form))))
 
+;;; List top forms are executable-looking syntax, so this exemption requires a
+;;; nested parser-owned call to a known declarative constructor inside the same
+;;; top-form range before suppressing the top-level executable warning.
 ;; : (-> SourceFile TopForm Boolean )
 (def (agent-declarative-list-top-form? file form)
   (ormap (lambda (candidate)

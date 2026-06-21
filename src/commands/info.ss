@@ -54,8 +54,8 @@
 ;; Json
 (def (closure-commands-json)
   (hash (selfApply "gxi build.ss test")
-        (check "gerbil-scheme-harness check .")
-        (bench "gerbil-scheme-harness bench --iterations 1 --max-interface-ms 50 .")))
+        (check (string-append +cli-id+ " check ."))
+        (bench (string-append +cli-id+ " bench --iterations 1 --max-interface-ms 50 ."))))
 ;;; Boundary:
 ;;; - The info command emits line protocol and keeps packet field selection here.
 ;;; - Callers provide the already-built packet so command routing stays projection-free.

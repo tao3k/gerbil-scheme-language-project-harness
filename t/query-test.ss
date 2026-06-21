@@ -284,8 +284,7 @@
 
 ;; : (-> (List XX) NativeQueryOutput )
 (def (native-query-output args)
-  (let* ((command (cons (native-provider-binary)
-                       (cons "query" args)))
+  (let* ((command (cons (native-query-binary) args))
          (start (monotonic-ms))
          (result
           (run-process command
@@ -301,20 +300,36 @@
      (cadr result)
      (duration-ms start (monotonic-ms))]))
 
+;;; Native binary fixture boundary:
+;;; - Tests default to the package-local `.bin` produced by build-native.ss.
+;;; - ASP_PROVIDER_BIN_DIR remains an explicit override for installed-provider
+;;;   smoke tests, but root workspace wrappers are not implicit fallbacks here.
+;; : (-> Path )
+(def (native-provider-bin-dir)
+  (let (override (getenv "ASP_PROVIDER_BIN_DIR" #f))
+    (if (and override (not (equal? override "")))
+      override
+      (path-expand ".bin" (current-directory)))))
+
+;;; Provider launcher path:
+;;; - `gslph` is still required so tests verify the public installed command
+;;;   exists beside any fast-path sibling.
 ;; : (-> Path )
 (def (native-provider-binary)
-  (let (override (getenv "ASP_PROVIDER_BIN_DIR" #f))
-    (cond
-     ((and override (not (equal? override "")))
-      (path-expand "gerbil-scheme-harness" override))
-     ((file-exists? (path-expand "../../asp.toml" (current-directory)))
-      (path-expand "../../.bin/gerbil-scheme-harness" (current-directory)))
-     (else
-      (path-expand ".bin/gerbil-scheme-harness" (current-directory))))))
+  (path-expand "gslph" (native-provider-bin-dir)))
+
+;;; Query fast-path path:
+;;; - Performance assertions run only when the dedicated query sibling exists.
+;;; - This prevents a source fallback from satisfying availability while still
+;;;   measuring as native fast path.
+;; : (-> Path )
+(def (native-query-binary)
+  (path-expand "gslph-query" (native-provider-bin-dir)))
 
 ;; : (-> Boolean )
 (def (native-provider-binary-available?)
-  (file-exists? (native-provider-binary)))
+  (and (file-exists? (native-provider-binary))
+       (file-exists? (native-query-binary))))
 
 ;; : (-> Port String )
 (def (read-port-as-string port)

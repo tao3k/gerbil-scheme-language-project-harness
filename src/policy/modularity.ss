@@ -28,7 +28,8 @@
         repeated-owner-entry-finding
         bin-entrypoint-implementation-finding
         source-leaf-bloat-finding
-        test-leaf-bloat-finding)
+        test-leaf-bloat-finding
+        file-name-mismatch-finding)
 ;; Integer
 (def +max-source-line-count+ 650)
 ;; Integer
@@ -95,6 +96,22 @@
    (lambda (file)
      (and (repeated-owner-entry-path? index (source-file-path file))
           (repeated-owner-entry-finding file)))
+   (project-index-files index)))
+;;; Boundary:
+;;; - file-name-mismatch-findings uses parser-owned namespace facts.
+;;; - Only explicit declarations are checked; implicit Gerbil path modules stay
+;;;   owned by the filesystem and existing owner-entry rules.
+;; : (-> ProjectIndex (List TypeFinding) )
+(def (file-name-mismatch-findings index)
+  (filter-map
+   (lambda (file)
+     (let ((declared-name (source-file-declared-file-name file))
+           (actual-name (source-file-path-file-name file)))
+       (and declared-name
+            (project-gerbil-source-path? index (source-file-path file))
+            (not (project-gerbil-test-path? (source-file-path file)))
+            (not (equal? declared-name actual-name))
+            (file-name-mismatch-finding file declared-name actual-name))))
    (project-index-files index)))
 ;;; Boundary:
 ;;; - bin-entrypoint-implementation-findings composes first-class procedures.
@@ -165,6 +182,24 @@
 ;; : (-> ProjectIndex String Boolean )
 (def (owner-entry-path? index path)
   (repeated-owner-entry-path? index path))
+;; : (-> SourceFile MaybeFileName )
+(def (source-file-declared-file-name file)
+  (let (namespace (source-file-namespace file))
+    (and namespace
+         (not (string-empty? namespace))
+         (declared-module-leaf-name namespace))))
+;; : (-> Namespace FileName )
+(def (declared-module-leaf-name namespace)
+  (strip-leading-module-prefix (path-strip-directory namespace)))
+;; : (-> FileName FileName )
+(def (strip-leading-module-prefix name)
+  (if (string-prefix? ":" name)
+    (substring name 1 (string-length name))
+    name))
+;; : (-> SourceFile FileName )
+(def (source-file-path-file-name file)
+  (path-strip-directory
+   (path-strip-extension (source-file-path file))))
 ;;; Boundary:
 ;;; - project-gerbil-source-path? composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -274,6 +309,25 @@
      path
      (hash (owner owner)
            (replacement "facade.ss")))))
+;; : (-> SourceFile DeclaredFileName ActualFileName TypeFinding )
+(def (file-name-mismatch-finding file declared-name actual-name)
+  (let ((namespace (source-file-namespace file))
+        (path (source-file-path file)))
+    (make-type-finding
+     (policy-rule-id +modularity-file-name-rule+)
+     (policy-rule-severity +modularity-file-name-rule+)
+     path
+     (string-append path
+                    " declares file.name "
+                    declared-name
+                    " through namespace "
+                    namespace
+                    " but the physical file name is "
+                    actual-name)
+     path
+     (hash (declaredFileName declared-name)
+           (actualFileName actual-name)
+           (declaredNamespace namespace)))))
 ;; : (-> SourceFile TypeFinding )
 (def (bin-entrypoint-implementation-finding file)
   (let* ((definition (car (source-file-definitions file)))
@@ -452,6 +506,7 @@
        (append
         (sibling-file-dir-owner-collision-findings index)
         (repeated-owner-entry-findings index)
+        (file-name-mismatch-findings index)
         (bin-entrypoint-implementation-findings index)
         (facade-implementation-findings index)
         (test-directory-layout-findings index)

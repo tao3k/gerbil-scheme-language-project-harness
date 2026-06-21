@@ -196,12 +196,14 @@
 ;;; clan/building is present, calls prove environment initialization, and either
 ;;; calls or definitions prove delegated source discovery.
 ;; : (-> SourceFile Boolean)
-;; : (-> SourceFile Boolean)
 (def (package-build-canonical-build-shape? file)
   (or (package-build-canonical-clan-shape? file)
       (package-build-std-build-script-shape? file)
       (package-build-std-make-buildspec-shape? file)))
 
+;;; Clan/building shape is the preferred package boundary: the import provides
+;;; build semantics, init call owns environment setup, and enumerator/spec
+;;; evidence proves source discovery is delegated instead of handwritten.
 ;; : (-> SourceFile Boolean)
 (def (package-build-canonical-clan-shape? file)
   (and (ormap package-build-canonical-module-import?
@@ -213,6 +215,9 @@
            (ormap package-build-spec-definition?
                   (source-file-definitions file)))))
 
+;;; std/build-script is accepted as a legacy structural witness only when the
+;;; import and defbuild-script call appear together, keeping migration evidence
+;;; distinct from arbitrary package-level compiler orchestration.
 ;; : (-> SourceFile Boolean)
 (def (package-build-std-build-script-shape? file)
   (and (ormap package-build-std-build-script-module-import?
@@ -220,6 +225,9 @@
        (ormap package-build-std-build-script-call?
               (source-file-calls file))))
 
+;;; std/make compatibility requires both the make import and make call plus a
+;;; parser-visible spec definition/include, so a loose make invocation does not
+;;; become an accepted custom build system.
 ;; : (-> SourceFile Boolean)
 (def (package-build-std-make-buildspec-shape? file)
   (and (ormap package-build-std-make-module-import?

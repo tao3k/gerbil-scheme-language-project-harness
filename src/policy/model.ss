@@ -14,6 +14,7 @@
         +modularity-bin-entrypoint-rule+
         +modularity-test-directory-rule+
         +modularity-test-leaf-rule+
+        +modularity-file-name-rule+
         +agent-intent-rule+
         +agent-generic-owner-rule+
         +agent-export-conflict-rule+
@@ -61,6 +62,9 @@
 ;; Integer
 (def +modularity-test-leaf-rule+
   (make-policy-rule "GERBIL-SCHEME-MOD-R007" "warning"))
+;; Integer
+(def +modularity-file-name-rule+
+  (make-policy-rule "GERBIL-SCHEME-MOD-R008" "warning"))
 ;; ConfigConstant
 (def +agent-intent-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R001" "warning"))

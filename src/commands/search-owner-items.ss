@@ -144,7 +144,14 @@
              ":" (hash-get (hash-get fact 'location) 'lineRange)
              " source=" (hash-get fact 'source)
              " languageKind=" (hash-get fact 'languageKind)
-             " role=" (syntax-fact-field-string fact 'role)))
+             (owner-syntax-role-segment fact)))
+
+;; : (-> SyntaxFact String )
+(def (owner-syntax-role-segment fact)
+  (let (role (syntax-fact-field-string fact 'role))
+    (if (string-empty? role)
+      ""
+      (string-append " role=" role))))
 
 ;;; Boundary:
 ;;; - Match against structural fields/queryKeys, not raw source text.

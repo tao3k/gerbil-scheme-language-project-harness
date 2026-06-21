@@ -69,7 +69,7 @@
     (check (not (not (member "macroFacts" (json-get steering "facts")))) => #t)
     (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-R011") => #t)
     (check (json-get commands "check")
-           => "gerbil-scheme-harness check .")))
+           => "gslph check .")))
 
 ;; Json
 (def (check-language-evidence-json-schema-conformance)
