@@ -31,7 +31,7 @@
          (displayln "[gerbil-agent-doctor] status=ok language=" +language-id+
                     " provider=" +provider-id+))
        0))
-    (["guide" . _]
-     (print-guide)
+    (["guide" . rest]
+     (print-guide rest)
      0)
     (else (error "agent requires doctor or guide"))))

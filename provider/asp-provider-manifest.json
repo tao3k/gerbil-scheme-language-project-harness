@@ -8,7 +8,7 @@
   "languageId": "gerbil-scheme",
   "providerId": "gerbil-scheme-harness",
   "namespace": "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness",
-  "binary": "gerbil-scheme-harness",
+  "binary": "gslph",
   "execution": "external-process",
   "source": {
     "defaultExtensions": [
@@ -54,7 +54,7 @@
   "routes": {
     "guide": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "agent",
         "guide",
         "."
@@ -62,7 +62,7 @@
     },
     "prime": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "search",
         "prime",
         "--workspace",
@@ -73,7 +73,7 @@
     },
     "owner": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "search",
         "owner",
         "{path}",
@@ -85,7 +85,7 @@
     },
     "query": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "query",
         "{path}",
         "--term",
@@ -97,7 +97,7 @@
     },
     "fzf": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "search",
         "fzf",
         "{query}",
@@ -111,7 +111,7 @@
     },
     "ingest": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "search",
         "ingest",
         "owner",
@@ -125,7 +125,7 @@
     },
     "checkChanged": {
       "argv": [
-        "gerbil-scheme-harness",
+        "gslph",
         "check",
         "--changed",
         "."

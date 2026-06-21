@@ -42,6 +42,7 @@
         +agent-alist-access-rule+
         +agent-anonymous-pair-access-rule+
         +agent-package-build-canonical-shape-rule+
+        +agent-poo-prototype-fixed-point-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -73,6 +74,7 @@
         poo-io-runtime-witness-finding
         poo-object-model-finding
         poo-method-shape-finding
+        poo-prototype-fixed-point-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
         typed-combinator-style-finding

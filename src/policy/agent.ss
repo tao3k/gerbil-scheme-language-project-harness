@@ -38,6 +38,7 @@
         poo-io-runtime-witness-finding
         poo-object-model-finding
         poo-method-shape-finding
+        poo-prototype-fixed-point-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
         typed-combinator-style-finding
@@ -131,6 +132,7 @@
    (poo-io-runtime-witness-findings index)
    (poo-object-model-findings index)
    (poo-method-shape-findings index)
+   (poo-prototype-fixed-point-findings index)
    (macro-runtime-source-witness-findings index)
    (protocol-evidence-findings index)
    (typed-combinator-style-findings index)

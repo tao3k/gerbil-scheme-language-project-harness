@@ -30,7 +30,7 @@ jobs:
           - os: ubuntu-latest
             target: aarch64-apple-darwin
     env:
-      BINARY: gerbil-scheme-harness
+      BINARY: gslph
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
       TARGET: ${{ matrix.target }}
@@ -53,13 +53,17 @@ jobs:
             git push origin "refs/tags/${RELEASE_TAG}"
           fi
 
+      - name: Build native binary
+        shell: bash
+        run: ./build-native.ss
+
       - name: Package provider binary
         shell: bash
         run: |
           set -euo pipefail
           rm -rf package
           mkdir -p package/bin package/src
-          cp bin/gerbil-scheme-harness package/bin/gerbil-scheme-harness
+          cp .bin/gslph package/bin/gslph
           cp -R src/. package/src/
           cp gerbil.pkg package/gerbil.pkg
           chmod +x "package/bin/${BINARY}"

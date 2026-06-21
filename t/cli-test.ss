@@ -1,8 +1,11 @@
 ;;; -*- Gerbil -*-
 ;;; gerbil scheme harness CLI dispatcher policy.
 
-(import :std/test
-        (only-in :cli provider-command-line-args))
+(import :gerbil/gambit
+        :std/test
+        (only-in :std/srfi/13 string-contains)
+        (only-in :cli provider-command-line-args)
+        (only-in :commands/agent agent-main))
 (export cli-test)
 
 ;; CliTest
@@ -31,6 +34,17 @@
     (test-case "provider argv preserves unknown commands"
       (check (provider-command-line-args
               ["gxi" "src/cli.ss" "bogus"])
-             => ["bogus"]))))
+             => ["bogus"]))
+    (test-case "agent guide forwards section flags"
+      (let (status #f)
+        (let (output
+              (with-output-to-string
+                (lambda ()
+                  (set! status (agent-main ["guide" "." "--poo"])))))
+          (check status => 0)
+          (check (and (string-contains output "poo-prototype-fixed-point") #t)
+                 => #t)
+          (check (and (string-contains output "GERBIL-SCHEME-AGENT-R026") #t)
+                 => #t))))))
 
 (run-tests! cli-test)

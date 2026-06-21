@@ -15,10 +15,15 @@
         poo-object-model-findings
         poo-object-model-finding
         poo-method-shape-findings
-        poo-method-shape-finding)
+        poo-method-shape-finding
+        poo-prototype-fixed-point-findings
+        poo-prototype-fixed-point-finding)
 ;; ConfigConstant
 (def +manual-object-model-callees+
   '("hash" "make-hash-table" "list->hash-table"))
+;; ConfigConstant
+(def +poo-prototype-ref-callees+
+  '(".ref" ".@" ".get"))
 ;;; Boundary:
 ;;; - poo-direct-writeenv-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -129,6 +134,89 @@
          (callee (call-fact-callee call))
          (selector (call-fact-selector call))
          (next "search pattern poo class"))))
+;;; Boundary:
+;;; - Detect outer constructor projection bursts, not isolated slot reads.
+;;; - POO best practice keeps inherited/defaulted slot fixed points in one
+;;;   prototype with brace syntax, =>, =>.+, ?, and .mix.
+;; : (-> ProjectIndex (List TypeFinding) )
+(def (poo-prototype-fixed-point-findings index)
+  (if (poo-capability-active? index)
+    (apply append
+           (map (lambda (file)
+                  (if (and (index-source-runtime-file-path? index (source-file-path file))
+                           (null? (source-file-poo-forms file)))
+                    (poo-prototype-fixed-point-file-findings file)
+                    '()))
+                (project-index-files index)))
+    '()))
+;;; Projection-burst transform:
+;;; - Filter to POO slot projection calls first, then emit at most one finding
+;;;   per constructor caller through first-call selection.
+;;; - This keeps normal isolated `.ref` reads legal while making repeated
+;;;   constructor projection visible as a prototype-shape repair.
+;; : (-> SourceFile (List TypeFinding) )
+(def (poo-prototype-fixed-point-file-findings file)
+  (let (calls (filter poo-prototype-ref-call? (source-file-calls file)))
+    (filter-map
+     (lambda (call)
+       (let (caller (call-fact-caller call))
+         (and caller
+              (poo-constructor-caller? caller)
+              (first-poo-prototype-ref-call-for-caller? calls call)
+              (let (count (poo-prototype-ref-call-count calls caller))
+                (and (>= count 2)
+                     (poo-prototype-fixed-point-finding file call count))))))
+     calls)))
+;; : (-> CallFact Boolean )
+(def (poo-prototype-ref-call? call)
+  (member (call-fact-callee call) +poo-prototype-ref-callees+))
+;; : (-> String Boolean )
+(def (poo-constructor-caller? caller)
+  (or (string-prefix? "make-" caller)
+      (string-prefix? "new-" caller)
+      (string-prefix? "build-" caller)))
+;; : (-> (List CallFact) CallFact Boolean )
+(def (first-poo-prototype-ref-call-for-caller? calls target)
+  (cond
+   ((null? calls) #f)
+   ((equal? (call-fact-caller (car calls)) (call-fact-caller target))
+    (equal? (call-fact-selector (car calls)) (call-fact-selector target)))
+   (else
+    (first-poo-prototype-ref-call-for-caller? (cdr calls) target))))
+;;; Projection count:
+;;; - Count only calls that share the constructor caller already selected by
+;;;   the burst detector.
+;;; - Keeping the filter local makes the threshold evidence explicit in finding
+;;;   details without building a separate grouping table.
+;; : (-> (List CallFact) String Integer )
+(def (poo-prototype-ref-call-count calls caller)
+  (length
+   (filter (lambda (call)
+             (equal? (call-fact-caller call) caller))
+           calls)))
+;; : (-> SourceFile CallFact Integer TypeFinding )
+(def (poo-prototype-fixed-point-finding file call count)
+  (make-type-finding
+   (policy-rule-id +agent-poo-prototype-fixed-point-rule+)
+   (policy-rule-severity +agent-poo-prototype-fixed-point-rule+)
+   (source-file-path file)
+   (string-append
+    "POO constructor " (call-fact-caller call)
+    " projects " (number->string count)
+    " slots with " (call-fact-callee call)
+    "; prefer prototype-local composition with {(:: @ super) slot: ...}, =>, =>.+, ?, and .mix so the object fixed point stays in one POO shape")
+   (call-fact-selector call)
+   (hash (constructor (call-fact-caller call))
+         (callee (call-fact-callee call))
+         (projectionCount count)
+         (guidanceMode "soft-warning")
+         (trigger "constructor projection burst")
+         (allowedUse "isolated .ref/.@/.get boundary reads are valid POO API usage")
+         (repairShape "define a base prototype and refine slots inside {(:: @ super) ...}; use => for slot transforms, =>.+ for object merges, ? for defaults, and .mix for instance materialization")
+         (docsPath "docs/50-59-policy/51.02-gerbil-poo-programming-guidelines.org")
+         (source "gerbil-poo doc/poo.md:299-319, t/object-test.ss, and t/mop-test.ss")
+         (preferredSyntax "{(:: @ super) slot: ...}, =>, =>.+, ?, .mix")
+         (next "read docs/50-59-policy/51.02-gerbil-poo-programming-guidelines.org; gerbil-scheme-harness agent guide . --poo"))))
 ;;; Boundary:
 ;;; - poo-method-shape-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

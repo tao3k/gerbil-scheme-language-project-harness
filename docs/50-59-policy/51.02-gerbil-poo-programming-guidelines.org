@@ -1,0 +1,126 @@
+* 51.02 Gerbil POO Programming Guidelines
+
+This document is an agent-facing guide for writing better Gerbil POO code. It
+is not a hard restriction list. Policy findings should steer agents toward the
+source-backed POO shape that keeps behavior compositional, inspectable, and easy
+to repair.
+
+** 51.02.1 Source Evidence
+
+The reference source is =.data/gerbil-poo=.
+
+- =doc/prototypes.md:1-13= defines the programming model as incremental
+  composition of code and data fragments with late binding.
+- =doc/prototypes.md:162-182= separates an object as a queryable instance from
+  a composable prototype with open computations. The instance is the fixed
+  point of those computations.
+- =doc/poo.md:299-319= treats =.mix= as the way to instantiate a prototype when
+  side effects or repeated instantiation are needed.
+- =t/object-test.ss= and =t/mop-test.ss= show the concrete syntax agents should
+  learn: ={(:: @ super) slot: ...}=, =>=, =>.+=, =?=, and =.mix=.
+
+The harness should teach those shapes before it warns about drift.
+
+** 51.02.2 Positive Shape
+
+Good POO code starts from a prototype and refines slot computations inside that
+prototype:
+
+#+begin_src scheme
+(def base-order
+  {id: 0
+   total: 0
+   meta: {currency: 'USD}})
+
+(def order
+  {(:: @ base-order)
+   id: ? 1
+   total: => 1+
+   meta: =>.+ {source: 'agent}
+   status: ? 'draft})
+
+(def order-view
+  (.mix order))
+#+end_src
+
+The important property is not the surface syntax alone. The fixed point remains
+inside one POO shape:
+
+- =?= declares defaults without forcing an outer constructor to read and copy
+  every slot.
+- =>= transforms an inherited slot computation.
+- =>.+= merges nested object/prototype fragments.
+- =.mix= materializes an instance when the prototype should be instantiated.
+
+** 51.02.3 Allowed Boundary Reads
+
+=.ref=, =.@=, and =.get= are valid POO APIs. The harness must not teach agents
+to avoid them globally.
+
+Use boundary reads for:
+
+- small accessors,
+- assertions,
+- adapters that leave the POO object boundary,
+- test or diagnostic projections.
+
+Example:
+
+#+begin_src scheme
+(def (order-id source)
+  (.ref source 'id))
+#+end_src
+
+That shape is intentionally allowed. The quality issue appears when a
+constructor repeatedly projects slots from a POO object and rebuilds a parallel
+hash/alist/object outside the prototype.
+
+** 51.02.4 R026 Repair Contract
+
+=GERBIL-SCHEME-AGENT-R026= is a soft warning. It should fire only for a
+constructor/build function that performs a projection burst with =.ref=, =.@=,
+or =.get=.
+
+Drift shape:
+
+#+begin_src scheme
+(def (make-order source)
+  (let ((id (.ref source 'id))
+        (total (.ref source 'total))
+        (currency (.ref source 'currency)))
+    (hash (id id) (total total) (currency currency))))
+#+end_src
+
+Repair shape:
+
+#+begin_src scheme
+(def order
+  {(:: @ base-order)
+   id: ? 1
+   total: => 1+
+   meta: =>.+ {source: 'agent}})
+#+end_src
+
+The finding details must keep this contract visible:
+
+- =guidanceMode= is =soft-warning=.
+- =allowedUse= explains that isolated boundary reads are valid.
+- =repairShape= points to prototype-local composition.
+- =docsPath= points back to this document.
+
+** 51.02.5 Agent Repair Loop
+
+When an agent receives R026:
+
+1. Keep legitimate boundary accessors.
+2. Find the repeated slot projection group in the constructor/build function.
+3. Introduce or reuse a base prototype.
+4. Move defaults, transforms, and nested merges into one ={(:: @ super) ...}=
+   body.
+5. Use =.mix= only when an instance must be materialized.
+6. Re-run the scenario or policy check and require R026 findings to clear.
+
+The scenario owner is
+=t/scenarios/policy/poo-prototype-fixed-point/=. Its =input= side demonstrates
+the projection burst. Its =expected= side demonstrates the repair shape while
+preserving a valid =order-id= boundary read.

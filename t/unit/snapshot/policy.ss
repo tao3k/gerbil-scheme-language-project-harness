@@ -28,6 +28,7 @@
         package-build-canonical-shape-policy-snapshot
         package-build-std-build-script-policy-snapshot
         package-build-std-make-ssi-policy-snapshot
+        poo-prototype-fixed-point-policy-snapshot
         dependency-protocol-adapter-policy-snapshot
         dependency-manual-object-adapter-policy-snapshot
         check-policy-snapshot-fixtures)
@@ -39,6 +40,41 @@
     (list 'policyScenario
           (list 'id "downstream-poo-agent")
           (list 'findings (map finding-snapshot findings)))))
+
+;; Snapshot
+(def (poo-prototype-fixed-point-policy-snapshot)
+  (let* ((scenario
+          (make-policy-scenario
+           "poo-prototype-fixed-point"
+           "t/scenarios/policy/poo-prototype-fixed-point"))
+         (result (policy-scenario-run scenario))
+         (before-finding
+          (policy-scenario-required-finding
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R026"))
+         (before-details (type-finding-details before-finding))
+         (after-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R026")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'finding (finding-snapshot-copy before-finding))
+                (list 'guidance
+                      (list
+                       (list 'mode (hash-get before-details 'guidanceMode))
+                       (list 'trigger (hash-get before-details 'trigger))
+                       (list 'allowedUse (hash-get before-details 'allowedUse))
+                       (list 'repairShape (hash-get before-details 'repairShape))
+                       (list 'docsPath (hash-get before-details 'docsPath))
+                       (list 'preferredSyntax
+                             (hash-get before-details 'preferredSyntax)))))
+          (list 'after
+                (list 'r026Findings
+                      (map finding-snapshot-copy after-findings))))))
 
 ;; Snapshot
 (def (functional-idiom-policy-snapshot)
@@ -760,6 +796,9 @@
   (check (package-build-std-make-ssi-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-package-build-std-make-ssi.ss"))
+  (check (poo-prototype-fixed-point-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-poo-prototype-fixed-point.ss"))
   (check (dependency-manual-object-adapter-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-dependency-manual-object-adapter.ss"))
