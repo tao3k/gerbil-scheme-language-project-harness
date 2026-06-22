@@ -9,6 +9,7 @@
         :commands/search-evidence
         :commands/search-extension
         :commands/search-owner-items
+        :commands/search-prime-light
         :commands/search-proof
         :commands/search-structural
         :commands/search-workspace-scope
@@ -61,6 +62,10 @@
             json?))
           ((equal? view "workspace-scope")
            (emit-workspace-scope root json?))
+          ((and (equal? view "prime")
+                (prime-seeds-view? args)
+                (not json?))
+           (emit-prime-light root))
           ((equal? view "extension")
            (emit-extension-search
             (collect-project-package-only root)
@@ -107,6 +112,11 @@
 (def (poo-pattern-package-only-search? view args)
   (and (equal? view "pattern")
        (poo-pattern-query? (positional-args args))))
+
+;; : (-> Args Boolean )
+(def (prime-seeds-view? args)
+  (or (equal? (option "--view" args) "seeds")
+      (member "seeds" args)))
 ;; emit-workspace
 ;;   : (-> ProjectIndex Boolean Integer)
 ;;   | doc m%
@@ -180,6 +190,7 @@
       (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")
       (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))
   0)
+
 ;; : (-> ProjectIndex String )
 (def (emit-package-line index)
   (let (package (project-index-package index))

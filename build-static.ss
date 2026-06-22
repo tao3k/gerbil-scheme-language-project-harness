@@ -22,7 +22,9 @@
 (assert-static-supported!)
 
 (make
-  '((optimized-static-exe: "cli-launcher" bin: "gslph"))
+  '("commands/search-prime-light"
+    (optimized-static-exe: "search-light-launcher" bin: "gslph-search")
+    (optimized-static-exe: "cli-launcher" bin: "gslph"))
   srcdir: source-root
   bindir: bin-dir
   parallelize: 0)

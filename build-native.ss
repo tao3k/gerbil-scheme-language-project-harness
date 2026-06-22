@@ -12,7 +12,9 @@
 ;; Keep :std/make here instead of defbuild-script: Gerbil's defbuild-script
 ;; intentionally owns srcdir, while this package keeps modules under src/.
 (make
-  '((optimized-exe: "cli-launcher" bin: "gslph"))
+  '("commands/search-prime-light"
+    (optimized-exe: "search-light-launcher" bin: "gslph-search")
+    (optimized-exe: "cli-launcher" bin: "gslph"))
   srcdir: source-root
   bindir: bin-dir
   parallelize: 0)
