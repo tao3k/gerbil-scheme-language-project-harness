@@ -2,8 +2,8 @@
 ;;; Native launcher for per-command Gerbil Scheme harness executables.
 
 (import :gerbil/gambit
-        (only-in :cli command-line-args provider-command-line-args)
         (only-in :constants +help+)
+        (only-in :search-light-launcher try-search-light-main)
         (only-in :std/misc/path path-directory path-expand path-normalize)
         (only-in :std/misc/ports read-all-as-string)
         (only-in :std/misc/process process-status run-process)
@@ -27,8 +27,7 @@
 ;;; source-mode command dispatcher.
 ;; : (List (Pair String String))
 (def +command-binaries+
-  '(("search" . "gslph-search")
-    ("query" . "gslph-query")
+  '(("query" . "gslph-query")
     ("check" . "gslph-check")
     ("bench" . "gslph-bench")
     ("evidence" . "gslph-evidence")
@@ -36,10 +35,84 @@
     ("guide" . "gslph-guide")
     ("info" . "gslph-info")))
 
+;; : (List String)
+(def +source-commands+
+  '("search"
+    "query"
+    "check"
+    "bench"
+    "evidence"
+    "agent"
+    "guide"
+    "info"))
+
+;; : (List String)
+(def +commands+
+  '("search" "query" "check" "bench" "evidence" "agent" "guide" "info"
+    "help" "-h" "--help"))
+
+;; : (List String)
+(def +launcher-names+
+  '("gxi" "gslph" "gerbil-scheme-harness"))
+
+;;; Launcher argv boundary:
+;;; - Keep this tiny normalization local so the release launcher does not
+;;;   statically link the full source command dispatcher.
+;; : (-> (List String) (List String))
+(def (command-line-args argv)
+  (or (command-line-command-tail argv)
+      (strip-launcher-frames argv)))
+
+;; : (-> (List String) (List String))
+(def provider-command-line-args command-line-args)
+
+;; : (-> (List String) (Maybe (List String)))
+(def (command-line-command-tail argv)
+  (match argv
+    ([] #f)
+    ([arg . rest]
+     (if (member arg +commands+)
+       argv
+       (command-line-command-tail rest)))))
+
+;; : (-> (List String) (List String))
+(def (strip-launcher-frames argv)
+  (match argv
+    ([] [])
+    ([arg . rest]
+     (if (launcher-frame? arg)
+       (strip-launcher-frames rest)
+       argv))))
+
+;; : (-> String Boolean)
+(def (launcher-frame? arg)
+  (or (launcher-name? arg)
+      (launcher-binary-path? arg)
+      (launcher-script-path? arg)))
+
+;; : (-> String Boolean)
+(def (launcher-name? arg)
+  (member arg +launcher-names+))
+
+;; : (-> String Boolean)
+(def (launcher-binary-path? arg)
+  (or (string-suffix? "/gxi" arg)
+      (string-suffix? "/gslph" arg)
+      (string-suffix? "/gerbil-scheme-harness" arg)))
+
+;; : (-> String Boolean)
+(def (launcher-script-path? arg)
+  (or (equal? arg "src/cli.ss")
+      (string-suffix? "/src/cli.ss" arg)))
+
 ;; : (-> String (U String #f))
 (def (command-binary-name command)
   (let (entry (assoc command +command-binaries+))
     (and entry (cdr entry))))
+
+;; : (-> String Boolean)
+(def (known-source-command? command)
+  (and (member command +source-commands+) #t))
 
 ;;; Path boundary:
 ;;; - Optional command binaries are discovered only beside the active launcher,
@@ -83,7 +156,34 @@
 ;; : (-> (List String) Integer)
 (def (run-source-command args)
   (run-process/relay
-   ["gxi" "-e" (source-command-expression args)]))
+   ["gxi" "-e" (source-command-expression (normalize-source-command-args args))]))
+
+;;; Source CLI compatibility:
+;;; - Public ASP search commands use `--workspace PROJECT_ROOT`.
+;;; - The source dispatcher still accepts search workspace as a trailing
+;;;   positional PROJECT_ROOT and does not consume `--view`. Normalize only this
+;;;   launcher fallback boundary so canonical `gslph` stays source-compatible
+;;;   without depending on a sibling search binary.
+;; : (-> (List String) (List String))
+(def (normalize-source-command-args args)
+  (if (and (pair? args) (equal? (car args) "search"))
+    (cons "search" (normalize-search-workspace-args (cdr args) [] #f))
+    args))
+
+;; : (-> (List String) (List String) (U String #f) (List String))
+(def (normalize-search-workspace-args args kept workspace)
+  (cond
+   ((null? args)
+    (append (reverse kept)
+            (if workspace (list workspace) [])))
+   ((and (equal? (car args) "--workspace")
+         (pair? (cdr args)))
+    (normalize-search-workspace-args (cddr args) kept (cadr args)))
+   ((and (equal? (car args) "--view")
+         (pair? (cdr args)))
+    (normalize-search-workspace-args (cddr args) kept workspace))
+   (else
+    (normalize-search-workspace-args (cdr args) (cons (car args) kept) workspace))))
 
 ;;; Expression boundary:
 ;;; - The only generated expression is a small Gerbil bootstrap form.
@@ -116,23 +216,48 @@
 ;;;   command graph.
 ;;; - Real subcommands prefer sibling binaries when present, then fall back to
 ;;;   the source dispatcher with the original command token preserved.
+;; : (-> (List String) Boolean)
+(def (help-args? args)
+  (or (null? args)
+      (and (null? (cdr args))
+           (member (car args) '("-h" "--help" "help")))))
+
+;; : (-> Integer Integer)
+(def (emit-help status)
+  (display +help+)
+  status)
+
+;; : (-> String (List String) (List String) Integer)
+(def (dispatch-command command rest args)
+  (or (try-native-search-command command rest)
+      (dispatch-source-command command rest args)))
+
+;; : (-> String (List String) (U Integer #f))
+(def (try-native-search-command command rest)
+  (and (equal? command "search")
+       (try-search-light-main rest)))
+
+;; : (-> String (List String) (List String) Integer)
+(def (dispatch-source-command command rest args)
+  (if (known-source-command? command)
+    (or (try-sibling-command-binary command rest)
+        (run-source-command args))
+    (emit-help 2)))
+
+;; : (-> String (List String) (U Integer #f))
+(def (try-sibling-command-binary command rest)
+  (let (binary-name (command-binary-name command))
+    (and binary-name
+         (let (binary (sibling-binary-path binary-name))
+           (and (file-exists? binary)
+                (run-command-binary binary rest))))))
+
 ;; : (-> (List String) Integer)
 (def (main . args)
-  (match args
-    ([] (display +help+) 0)
-    (["-h"] (display +help+) 0)
-    (["--help"] (display +help+) 0)
-    (["help"] (display +help+) 0)
-    ([command . rest]
-     (let (binary-name (command-binary-name command))
-       (if binary-name
-         (let (binary (sibling-binary-path binary-name))
-           (if (file-exists? binary)
-             (run-command-binary binary rest)
-             (run-source-command args)))
-         (begin
-           (display +help+)
-           2))))
-    (else
-     (display +help+)
-     2)))
+  (cond
+   ((help-args? args)
+    (emit-help 0))
+   ((pair? args)
+    (dispatch-command (car args) (cdr args) args))
+   (else
+    (emit-help 2))))

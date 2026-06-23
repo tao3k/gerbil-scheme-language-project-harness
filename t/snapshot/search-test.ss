@@ -16,6 +16,10 @@
       (check-search-prime-semantic-fact-graph))
     (test-case "search owner items applies the materialization budget"
       (check-owner-items-limit-budget))
+    (test-case "search owner items skips call collection when limit is zero"
+      (check-owner-items-limit-zero-skips-call-collection))
+    (test-case "search owner items does not match syntax facts by selected owner path"
+      (check-owner-items-query-ignores-selected-owner-path))
     (test-case "search owner items exposes gerbil.pkg package facts"
       (check-owner-items-gerbil-package-facts))
     (test-case "search owner items fast entrypoint stays lightweight"

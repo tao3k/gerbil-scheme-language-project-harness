@@ -866,14 +866,41 @@
             (check (hash-get (type-finding-details finding) 'qualityReference)
                    => "gerbil-utils")
             (check (hash-get (type-finding-details finding) 'functionShape)
-                   => "small selector/predicate/helper first; keep match branches shallow and expression-returning")
+                   => "source-backed Gerbil idioms first: lambda-match/lambda-ematch for unary match destructuring, fun for reusable local lambdas, cut/curry/rcurry for specialization, compose/rcompose/!>/!!> for pipelines")
             (check (hash-get (type-finding-details finding) 'expressionLevelRewrite)
-                   => "turn repeated match plus accumulator shape into a named predicate/mapper/reducer pipeline before changing behavior")
+                   => "turn repeated branch or dispatch shape into lambda-match/lambda-ematch, fun, cut/curry/rcurry, compose/rcompose/!>/!!>, fold/filter-map, generator combinator, or a named helper in that order of evidence")
+            (check (hash-get (type-finding-details finding)
+                             'sourceBackedRepairCandidates)
+                   => ["lambda-match/lambda-ematch for unary match destructuring"
+                       "fun for reusable local named lambda boundaries"
+                       "cut/curry/rcurry for first-class argument specialization"
+                       "compose/rcompose/!>/!!> for reusable expression pipelines"
+                       "case-lambda only when there are real arity specializations"
+                       "plain named helpers only when no higher-order Gerbil idiom fits"])
             (match (policy-check-output [root])
               ([exit-code . output]
                (check exit-code => 1)
                (check (not (not (string-contains output "guideTopic=controlled-branch-shape"))) => #t)
                (check (not (not (string-contains output "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style"))) => #t)))))
+    (test-case "agent policy reports nested conditional dispatch before launcher-style repair"
+          (let* ((root ".run/policy-controlled-branch-conditional-dispatch")
+                 (_ (write-controlled-branch-conditional-dispatch-project root))
+                 (index (collect-project root))
+                 (findings (run-agent-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R014" findings))
+                 (finding (car matching)))
+            (check (length matching) => 1)
+            (check (type-finding-path finding) => "src/orders/core.ss")
+            (check (hash-get (type-finding-details finding) 'shape)
+                   => "nested-conditional-dispatch")
+            (check (hash-get (type-finding-details finding) 'conditionalBranchCount)
+                   => 4)
+            (check (hash-get (type-finding-details finding) 'conditionalDispatchGate)
+                   => 4)
+            (check (not (not (string-contains
+                              (type-finding-message finding)
+                              "source-backed Gerbil idioms such as fun, cut/curry/rcurry, compose/rcompose, or named fallback helpers")))
+                   => #t)))
     (test-case "agent policy reports match plus named-let selector shape before style repair"
           (let* ((root ".run/policy-controlled-branch-loop-shape")
                  (_ (write-controlled-branch-loop-shape-project root))

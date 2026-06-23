@@ -4,47 +4,57 @@
 (import :gerbil/gambit
         (only-in :commands/search-prime-light
                  search-prime-light-main
-                 search-workspace-scope-light-main)
-        (only-in :std/misc/path path-directory path-expand path-normalize)
-        (only-in :std/misc/ports read-all-as-string)
-        (only-in :std/misc/process process-status run-process)
-        (only-in :std/source this-source-file)
-        (only-in :std/sugar match))
+                 search-workspace-scope-light-main))
 
-(export main)
+(export main
+        try-search-light-main)
 
-;; : String
-(def +embedded-package-root+
-  (path-normalize (path-expand ".." (path-directory (this-source-file)))))
+(def +search-help+
+  "gslph search - Gerbil Scheme native fast search\n\nUsage:\n  gslph search prime [--view seeds] [--workspace PROJECT_ROOT]\n  gslph search workspace-scope [--workspace PROJECT_ROOT]\n")
 
 ;;; Process boundary:
 ;;; - Fast package/topology seed views stay in native code.
-;;; - Other search views delegate to the existing source command module so this
-;;;   launcher does not import the full parser/search graph at startup.
-;; : (-> (List String) Integer)
-(def (main . args)
+;;; - Other search views fail closed with a granular example instead of
+;;;   silently spawning `gxi` and turning search into a slow source load.
+;; : (-> (List String) (U Integer #f))
+(def (try-search-light-main args)
   (cond
+   ((help-argv? args)
+    (display +search-help+)
+    0)
    ((search-prime-light-argv? args)
     (search-prime-light-main args))
    ((search-workspace-scope-light-argv? args)
     (search-workspace-scope-light-main args))
    (else
-    (run-source-search args))))
+    #f)))
+
+;; : (-> (List String) Integer)
+(def (main . args)
+  (or (try-search-light-main args)
+      (emit-unsupported-native-search args)))
+
+;; : (-> Args Boolean)
+(def (help-argv? args)
+  (or (null? args)
+      (and (null? (cdr args))
+           (or (equal? (car args) "-h")
+               (equal? (car args) "--help")
+               (equal? (car args) "help")))))
 
 ;; : (-> Args Boolean )
 (def (search-prime-light-argv? args)
-  (match args
-    (["prime" . rest]
-     (and (search-prime-seeds-view? rest)
-          (not (arg-present? "--json" rest))))
-    (else #f)))
+  (and (pair? args)
+       (equal? (car args) "prime")
+       (let (rest (cdr args))
+         (and (search-prime-seeds-view? rest)
+              (not (arg-present? "--json" rest))))))
 
 ;; : (-> Args Boolean )
 (def (search-workspace-scope-light-argv? args)
-  (match args
-    (["workspace-scope" . rest]
-     (not (arg-present? "--json" rest)))
-    (else #f)))
+  (and (pair? args)
+       (equal? (car args) "workspace-scope")
+       (not (arg-present? "--json" (cdr args)))))
 
 ;; : (-> Args Boolean )
 (def (search-prime-seeds-view? args)
@@ -53,52 +63,22 @@
 
 ;; : (-> String Args Boolean )
 (def (arg-present? needle args)
-  (match args
-    ([] #f)
-    ([arg . rest]
-     (or (equal? arg needle)
-         (arg-present? needle rest)))))
+  (and (pair? args)
+       (or (equal? (car args) needle)
+           (arg-present? needle (cdr args)))))
 
 ;; : (-> String Args (Maybe String) )
 (def (option-value needle args)
-  (match args
-    ([] #f)
-    ([arg value . rest]
-     (if (equal? arg needle)
-       value
-       (option-value needle (cons value rest))))
-    ([_] #f)))
+  (cond
+   ((null? args) #f)
+   ((and (pair? (cdr args))
+         (equal? (car args) needle))
+    (cadr args))
+   (else
+    (option-value needle (cdr args)))))
 
 ;; : (-> (List String) Integer)
-(def (run-source-search args)
-  (run-process/relay
-   ["gxi" "-e" (source-search-expression args)]))
-
-;; : (-> (List String) String)
-(def (source-search-expression args)
-  (string-append
-   "(begin (add-load-path! "
-   (datum->expression-string (path-expand "src" +embedded-package-root+))
-   ") (eval (quote (import :commands/search)))"
-   " (exit ((eval (quote search-main)) "
-   "(quote "
-   (datum->expression-string args)
-   ")"
-   ")))"))
-
-;; : (-> (List String) Integer)
-(def (run-process/relay argv)
-  (run-process argv
-               stdin-redirection: #f
-               stdout-redirection: #t
-               stderr-redirection: #t
-               check-status: #f
-               coprocess:
-               (lambda (process)
-                 (let (output (read-all-as-string process))
-                   (display output)
-                   (process-status process)))))
-
-;; : (-> Datum String)
-(def (datum->expression-string value)
-  (call-with-output-string "" (cut write value <>)))
+(def (emit-unsupported-native-search args)
+  (display "gslph search supports native fast seed views only; use `gslph search prime --view seeds --workspace .` or `gslph search workspace-scope --workspace .`.\n"
+           (current-error-port))
+  64)

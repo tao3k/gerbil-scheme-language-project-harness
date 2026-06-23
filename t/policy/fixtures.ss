@@ -25,6 +25,7 @@
         write-functional-idiom-reader-project
         write-controlled-branch-shape-project
         write-controlled-branch-loop-shape-project
+        write-controlled-branch-conditional-dispatch-project
         write-predicate-family-combinator-project
         write-projection-burst-project
         write-dependency-protocol-adapter-project
@@ -274,6 +275,18 @@
                 ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export select-orders)\n")
     (write-text (string-append owner "/core.ss")
                 ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export select-orders)\n(def (select-orders facts state)\n  (match state\n    ([seen out remaining]\n     (let lp ((rest facts) (seen seen) (out out) (remaining remaining))\n       (cond\n        ((or (null? rest) (<= remaining 0))\n         [seen out remaining])\n        (else\n         (lp (cdr rest) seen out remaining)))))))\n")))
+;; : (-> String Unit )
+(def (write-controlled-branch-conditional-dispatch-project root)
+  (let* ((src (string-append root "/src"))
+         (owner (string-append src "/orders")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir src)
+    (ensure-dir owner)
+    (write-text (string-append owner "/facade.ss")
+                ";;; -*- Gerbil -*-\n;;; Orders facade intent.\n(export dispatch-order)\n")
+    (write-text (string-append owner "/core.ss")
+                ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export dispatch-order)\n(def (dispatch-order command args)\n  (let (fast-result\n        (and (equal? command \"search\")\n             (try-fast-search args)))\n    (if fast-result\n      fast-result\n      (let (binary-name (command-binary-name command))\n        (if (known-command? command)\n          (if binary-name\n            (let (binary (sibling-binary-path binary-name))\n              (if (file-exists? binary)\n                (run-binary binary args)\n                (run-source command args)))\n            (run-source command args))\n          (usage-error))))))\n")))
 ;; : (-> String Unit )
 (def (write-predicate-family-combinator-project root)
   (let* ((src (string-append root "/src"))

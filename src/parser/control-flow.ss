@@ -36,6 +36,8 @@
 ;; ConfigConstant
 (def +builder-control-heads+ '(with-list-builder))
 ;; ConfigConstant
+(def +conditional-branch-heads+ '(if cond case))
+;; ConfigConstant
 (def +actor-control-heads+
   '(spawn spawn/name spawn/group spawn-actor spawn-thread
     thread-start! thread-init! construct-actor-thread))
@@ -55,6 +57,7 @@
    +resource-scope-heads+
    +parameter-control-heads+
    +builder-control-heads+
+   +conditional-branch-heads+
    +actor-control-heads+
    +coroutine-control-heads+])
 ;; : (-> Relpath Form Datum (List ControlFlowFact) )
@@ -193,6 +196,7 @@
    ((member head +resource-scope-heads+) "resource-scope")
    ((member head +parameter-control-heads+) "parameter-state")
    ((member head +builder-control-heads+) "builder-control")
+   ((member head +conditional-branch-heads+) "conditional-branch")
    ((member head +actor-control-heads+) "actor-control")
    ((member head +coroutine-control-heads+) "coroutine-control")
    (else "control-flow")))
@@ -224,6 +228,8 @@
             "resource-lifecycle-boundary")
             (and (equal? (control-flow-fact-role fact) "builder-control")
                 "builder-boundary")
+            (and (equal? (control-flow-fact-role fact) "conditional-branch")
+                "conditional-dispatch-boundary")
             (and (equal? (control-flow-fact-role fact) "pattern-branch")
                 "extensible-match-dsl")
             (and (equal? (control-flow-fact-role fact) "manual-loop")

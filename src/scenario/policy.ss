@@ -4,6 +4,8 @@
 (import :parser/facade
         :policy/facade
         (only-in :std/srfi/1 find)
+        (only-in :std/sugar hash)
+        :support/time
         :types/facade)
 
 (export make-policy-scenario
@@ -12,6 +14,7 @@
         policy-scenario-input-root
         policy-scenario-expected-root
         policy-scenario-run
+        policy-scenario-run/timed
         policy-scenario-run/checks
         policy-scenario-result-id
         policy-scenario-index
@@ -66,6 +69,72 @@
           after-index
           (run-agent-policy before-index)
           (run-agent-policy after-index))))
+
+;;; Timed runner:
+;;; - Tests use this when policy guidance is explicitly performance-motivated.
+;;; - The result keeps the normal policy-scenario-run shape and adds a compact
+;;;   timing receipt so regressions fail with measured phase evidence.
+;; : (-> PolicyScenario TimedPolicyScenarioResult )
+(def (policy-scenario-run/timed scenario)
+  (let* ((before-index-step
+          (policy-scenario-timed-step
+           "collect-before"
+           (lambda ()
+             (collect-project (policy-scenario-input-root scenario)))))
+         (before-index (car before-index-step))
+         (before-index-timing (cdr before-index-step))
+         (after-index-step
+          (policy-scenario-timed-step
+           "collect-after"
+           (lambda ()
+             (collect-project (policy-scenario-expected-root scenario)))))
+         (after-index (car after-index-step))
+         (after-index-timing (cdr after-index-step))
+         (before-policy-step
+          (policy-scenario-timed-step
+           "policy-before"
+           (lambda ()
+             (run-agent-policy before-index))))
+         (before-findings (car before-policy-step))
+         (before-policy-timing (cdr before-policy-step))
+         (after-policy-step
+          (policy-scenario-timed-step
+           "policy-after"
+           (lambda ()
+             (run-agent-policy after-index))))
+         (after-findings (car after-policy-step))
+         (after-policy-timing (cdr after-policy-step))
+         (timings [before-index-timing
+                   after-index-timing
+                   before-policy-timing
+                   after-policy-timing])
+         (result
+          (list (policy-scenario-id scenario)
+                before-index
+                after-index
+                before-findings
+                after-findings)))
+    (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
+          (schemaVersion "1")
+          (scenarioId (policy-scenario-id scenario))
+          (totalMs (policy-scenario-timings-total-ms timings))
+          (timings timings)
+          (result result))))
+
+;; : (-> String Thunk Pair )
+(def (policy-scenario-timed-step name thunk)
+  (let (start (monotonic-ms))
+    (let (value (thunk))
+      (cons value
+            (hash (name name)
+                  (durationMs (duration-ms start (monotonic-ms))))))))
+
+;; : (-> (List Timing) Integer )
+(def (policy-scenario-timings-total-ms timings)
+  (if (null? timings)
+    0
+    (+ (hash-get (car timings) 'durationMs)
+       (policy-scenario-timings-total-ms (cdr timings)))))
 
 ;;; Full policy runner:
 ;;; - Use this when a scenario validates user-facing package policy controls.

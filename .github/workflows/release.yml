@@ -145,7 +145,19 @@ jobs:
 
       - name: Build native binary
         shell: bash
-        run: gxpkg env gxi build-native.ss
+        run: |
+          set -euo pipefail
+          build_cores() {
+            nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2
+          }
+          GERBIL_BUILD_CORES="$(build_cores)" gxpkg env ./build.ss compile --release --optimized
+          mkdir -p .bin
+          install -m 755 .gerbil/bin/gslph .bin/gslph
+          test -x .bin/gslph
+          .bin/gslph search prime --view seeds --workspace . | tee /tmp/gslph-prime.txt
+          grep -q 'filePreview=' /tmp/gslph-prime.txt
+          .bin/gslph search workspace-scope --workspace . | tee /tmp/gslph-workspace-scope.txt
+          grep -q 'filePreview=' /tmp/gslph-workspace-scope.txt
 
       - name: Package provider binary
         shell: bash

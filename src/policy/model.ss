@@ -39,7 +39,18 @@
         +agent-alist-access-rule+
         +agent-anonymous-pair-access-rule+
         +agent-package-build-canonical-shape-rule+
-        +agent-poo-prototype-fixed-point-rule+)
+        +agent-poo-prototype-fixed-point-rule+
+        +agent-poo-construction-performance-rule+
+        +agent-poo-clone-override-loop-performance-rule+
+        +agent-poo-materialization-loop-performance-rule+
+        +agent-poo-composition-loop-performance-rule+
+        +agent-poo-validation-loop-performance-rule+
+        +agent-poo-lens-loop-performance-rule+
+        +agent-poo-object-construction-loop-performance-rule+
+        +agent-poo-type-construction-loop-performance-rule+
+        +agent-poo-debug-instrumentation-loop-performance-rule+
+        +agent-poo-slot-spec-mutation-loop-performance-rule+
+        +agent-poo-slot-predicate-loop-performance-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -141,3 +152,36 @@
 ;; ConfigConstant
 (def +agent-poo-prototype-fixed-point-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R026" "warning"))
+;; ConfigConstant
+(def +agent-poo-construction-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R027" "warning"))
+;; ConfigConstant
+(def +agent-poo-clone-override-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R028" "warning"))
+;; ConfigConstant
+(def +agent-poo-materialization-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R029" "warning"))
+;; ConfigConstant
+(def +agent-poo-composition-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R030" "warning"))
+;; ConfigConstant
+(def +agent-poo-validation-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R031" "warning"))
+;; ConfigConstant
+(def +agent-poo-lens-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R032" "warning"))
+;; ConfigConstant
+(def +agent-poo-object-construction-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R033" "warning"))
+;; ConfigConstant
+(def +agent-poo-type-construction-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R034" "warning"))
+;; ConfigConstant
+(def +agent-poo-debug-instrumentation-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R035" "warning"))
+;; ConfigConstant
+(def +agent-poo-slot-spec-mutation-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R036" "warning"))
+;; ConfigConstant
+(def +agent-poo-slot-predicate-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R037" "warning"))

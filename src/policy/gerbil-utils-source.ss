@@ -46,15 +46,37 @@
   [(make-gerbil-utils-source-profile
     'predicate-combinator
     "gerbil-utils-predicate-combinator"
-    ["gerbil-utils/base.ss#compose"
+    ["gerbil-utils/base.ss#lambda-match/lambda-ematch"
+     "gerbil-utils/base.ss#fun"
+     "gerbil-utils/base.ss#compose/rcompose"
      "gerbil-utils/base.ss#cut/curry/rcurry"
      "gerbil-utils/base.ss#ensure-function"
      "gerbil-utils/generator.ss#generating-map/fold"]
     ["small-selector-helper"
+     "lambda-match-destructuring"
+     "lambda-match-rewrite-opportunity"
+     "named-lambda-helper"
      "expression-level-composition"
      "predicate-combinator"
+     "function-pipeline-abstraction"
      "generator-aware-transform"]
-    "gerbil-utils study: compose/cut/curry helpers and generator map/fold are style witnesses for bounded predicate or selector helper repair")
+    "gerbil-utils study: lambda-match/lambda-ematch, fun, compose/rcompose, cut/curry/rcurry, and generator map/fold are style witnesses for bounded predicate or selector repair")
+   (make-gerbil-utils-source-profile
+    'higher-order-expression
+    "gerbil-utils-higher-order-expression"
+    ["gerbil-utils/base.ss#lambda-match/lambda-ematch"
+     "gerbil-utils/base.ss#fun"
+     "gerbil-utils/base.ss#compose/rcompose/!>/!!>"
+     "gerbil-utils/base.ss#cut/curry/rcurry"
+     "gerbil-utils/base.ss#case-lambda specializers"
+     "gerbil-utils/generator.ss#compose-backed-generating-map"]
+    ["lambda-match-destructuring"
+     "named-lambda-helper"
+     "function-specialization-abstraction"
+     "function-pipeline-abstraction"
+     "multi-arity-abstraction"
+     "generator-composition"]
+    "gerbil-utils study: prefer real higher-order expression idioms before inventing helper-only rewrites")
    (make-gerbil-utils-source-profile
     'projection-builder
     "gerbil-utils-projection-builder"

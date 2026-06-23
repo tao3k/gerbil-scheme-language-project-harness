@@ -2,6 +2,7 @@
 ;;; Stable policy facade for Gerbil project rules.
 
 (import :policy/agent
+        :policy/agent-poo
         :policy/agent-build
         :policy/core
         :policy/model
@@ -43,6 +44,17 @@
         +agent-anonymous-pair-access-rule+
         +agent-package-build-canonical-shape-rule+
         +agent-poo-prototype-fixed-point-rule+
+        +agent-poo-construction-performance-rule+
+        +agent-poo-clone-override-loop-performance-rule+
+        +agent-poo-materialization-loop-performance-rule+
+        +agent-poo-composition-loop-performance-rule+
+        +agent-poo-validation-loop-performance-rule+
+        +agent-poo-lens-loop-performance-rule+
+        +agent-poo-object-construction-loop-performance-rule+
+        +agent-poo-type-construction-loop-performance-rule+
+        +agent-poo-debug-instrumentation-loop-performance-rule+
+        +agent-poo-slot-spec-mutation-loop-performance-rule+
+        +agent-poo-slot-predicate-loop-performance-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -75,6 +87,17 @@
         poo-object-model-finding
         poo-method-shape-finding
         poo-prototype-fixed-point-finding
+        poo-construction-performance-finding
+        poo-clone-override-loop-performance-finding
+        poo-materialization-loop-performance-finding
+        poo-composition-loop-performance-finding
+        poo-validation-loop-performance-finding
+        poo-lens-loop-performance-finding
+        poo-object-construction-loop-performance-finding
+        poo-type-construction-loop-performance-finding
+        poo-debug-instrumentation-loop-performance-finding
+        poo-slot-spec-mutation-loop-performance-finding
+        poo-slot-predicate-loop-performance-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
         typed-combinator-style-finding

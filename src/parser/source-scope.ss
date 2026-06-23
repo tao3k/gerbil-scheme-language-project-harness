@@ -22,6 +22,7 @@
         +config-files+
         +ignored-dirs+
         collect-source-files
+        collect-source-files-preview
         changed-source-files
         gerbil-source-path?
         source-line-count
@@ -69,6 +70,70 @@
                                     (walk-source-directory root path ignored-dirs)
                                     '())))
                               scan-roots)))))))
+
+;; collect-source-files-preview
+;;   : (-> String Integer MaybePackage (List String))
+;;   | doc m%
+;;       `collect-source-files-preview root limit package` returns a bounded,
+;;       deterministic source preview without walking the full workspace.
+;;
+(def (collect-source-files-preview root limit . maybe-package)
+  (let* ((package (and (pair? maybe-package) (car maybe-package)))
+         (scope-policy (and package
+                            (project-package-source-scope-policy package)))
+         (source-roots (configured-source-roots scope-policy))
+         (test-roots (configured-test-roots package))
+         (scan-roots (unique (append source-roots test-roots)))
+         (ignored-dirs (append +ignored-dirs+
+                               (if scope-policy
+                                 (source-scope-policy-exclude-directories scope-policy)
+                                 '())))
+         (configs (take-up-to (root-config-files root) limit))
+         (remaining (- limit (length configs))))
+    (unique
+     (map path-normalize
+          (append configs
+                  (if (> remaining 0)
+                    (scan-source-files-preview root scan-roots ignored-dirs remaining)
+                    '()))))))
+
+(def (scan-source-files-preview root scan-roots ignored-dirs limit)
+  (let ((result '())
+        (remaining limit))
+    (def (add-file path)
+      (when (> remaining 0)
+        (set! result (cons path result))
+        (set! remaining (- remaining 1))))
+    (def (walk dir)
+      (when (> remaining 0)
+        (for-each
+         (lambda (entry)
+           (when (> remaining 0)
+             (if (member entry '("." ".."))
+               #!void
+               (let (path (path-expand entry dir))
+                 (cond
+                  ((and (source-directory? path)
+                        (not (ignored-source-directory? root path entry ignored-dirs)))
+                   (walk path))
+                  ((gerbil-source-path? path)
+                   (add-file path))
+                  (else #!void))))))
+         (sort (directory-files dir) string<?))))
+    (for-each
+     (lambda (source-root)
+       (when (> remaining 0)
+         (let (path (path-expand source-root root))
+           (when (source-directory? path)
+             (walk path)))))
+     scan-roots)
+    (reverse result)))
+
+(def (take-up-to values limit)
+  (cond
+   ((or (<= limit 0) (null? values)) '())
+   (else (cons (car values)
+               (take-up-to (cdr values) (- limit 1))))))
 
 ;;; Changed-file indexing:
 ;;; - Git reports paths relative to the workspace root.

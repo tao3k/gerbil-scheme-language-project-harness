@@ -26,6 +26,29 @@
 (def +projection-burst-min-emitter-count+ 2)
 ;; Integer
 (def +boolean-condition-combinator-min-condition-count+ 5)
+;; Integer
+(def +controlled-branch-shape-conditional-dispatch-min-count+ 4)
+;;; Source-backed repair vocabulary:
+;;; - These candidates come from .data/gerbil-utils/base.ss and generator.ss evidence.
+;;; - R014 may steer an agent toward this vocabulary, but the parser facts still
+;;;   decide whether lambda-match, specialization, pipeline, fold, generator, or
+;;;   plain helper extraction is actually applicable.
+;; (List SourceOwner)
+(def +controlled-branch-shape-source-backed-owners+
+  ["gerbil-utils/base.ss#lambda-match/lambda-ematch"
+   "gerbil-utils/base.ss#fun"
+   "gerbil-utils/base.ss#cut/curry/rcurry"
+   "gerbil-utils/base.ss#compose/rcompose/!>/!!>"
+   "gerbil-utils/base.ss#case-lambda specializers"
+   "gerbil-utils/generator.ss#compose-backed-generating-map"])
+;; (List RepairMove)
+(def +controlled-branch-shape-source-backed-repair-candidates+
+  ["lambda-match/lambda-ematch for unary match destructuring"
+   "fun for reusable local named lambda boundaries"
+   "cut/curry/rcurry for first-class argument specialization"
+   "compose/rcompose/!>/!!> for reusable expression pipelines"
+   "case-lambda only when there are real arity specializations"
+   "plain named helpers only when no higher-order Gerbil idiom fits"])
 
 ;;; Branch-shape entrypoint:
 ;;; - Emit findings only after parser-owned control-flow facts group repeated shapes.
@@ -442,6 +465,10 @@
 (def (manual-loop-control-flow? fact)
   (equal? (control-flow-fact-role fact) "manual-loop"))
 
+;; : (-> ControlFlowFact Boolean )
+(def (conditional-branch-control-flow? fact)
+  (equal? (control-flow-fact-role fact) "conditional-branch"))
+
 ;;; Shape classifier:
 ;;; - Keep the branch/loop predicate list explicit so policies can add roles safely.
 ;;; - Avoid broad style findings when parser facts have not classified control flow.
@@ -449,7 +476,8 @@
 (def (controlled-branch-shape-control-flow? fact)
   (ormap (lambda (predicate) (predicate fact))
          [pattern-branch-control-flow?
-          manual-loop-control-flow?]))
+          manual-loop-control-flow?
+          conditional-branch-control-flow?]))
 
 ;;; Grouping reducer:
 ;;; - Fold by caller so repeated branch shapes are repaired within one behavior boundary.
@@ -488,11 +516,16 @@
 (def (controlled-branch-shape-kind group)
   (let* ((facts (cdr group))
          (pattern-facts (filter pattern-branch-control-flow? facts))
-         (manual-loop-facts (filter state-selector-manual-loop? facts)))
+         (manual-loop-facts (filter state-selector-manual-loop? facts))
+         (conditional-branch-facts
+          (filter conditional-branch-control-flow? facts)))
     (cond
      ((> (length pattern-facts) 1) "repeated-pattern-branch")
      ((and (pair? pattern-facts) (pair? manual-loop-facts))
       "pattern-branch-with-manual-loop")
+     ((>= (length conditional-branch-facts)
+          +controlled-branch-shape-conditional-dispatch-min-count+)
+      "nested-conditional-dispatch")
      (else #f))))
 
 ;; : (-> ControlFlowFact Boolean )
@@ -517,6 +550,8 @@
                 (facts (cdr group))
                 (pattern-facts (filter pattern-branch-control-flow? facts))
                 (manual-loop-facts (filter state-selector-manual-loop? facts))
+                (conditional-branch-facts
+                 (filter conditional-branch-control-flow? facts))
                 (first-fact (earliest-control-flow-fact facts)))
            (make-type-finding
             (policy-rule-id +agent-controlled-branch-shape-rule+)
@@ -529,24 +564,33 @@
              shape-kind
              pattern-facts
              manual-loop-facts
+             conditional-branch-facts
              first-fact))))))
 
-;; : (-> String String ControlFlowFacts ControlFlowFacts ControlFlowFact PolicyDetails )
-(def (controlled-branch-shape-details caller shape-kind pattern-facts manual-loop-facts first-fact)
+;; : (-> String String ControlFlowFacts ControlFlowFacts ControlFlowFacts ControlFlowFact PolicyDetails )
+(def (controlled-branch-shape-details caller shape-kind pattern-facts manual-loop-facts conditional-branch-facts first-fact)
   (hash (caller caller)
         (shape shape-kind)
         (matchCount (length pattern-facts))
         (manualLoopCount (length manual-loop-facts))
+        (conditionalBranchCount (length conditional-branch-facts))
+        (conditionalDispatchGate +controlled-branch-shape-conditional-dispatch-min-count+)
         (selector (control-flow-fact-selector first-fact))
-        (evidence "parser-owned controlFlowFacts role=pattern-branch plus manual-loop bindingCount>=4")
+        (evidence "parser-owned controlFlowFacts role=pattern-branch, manual-loop bindingCount>=4, or conditional-branch count>=4")
         (advice "do not refactor opportunistically; wait for this policy finding, preserve behavior, and use guide code for controlled branch shape")
         (styleGuide "controlled-branch-shape")
         (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
         (rewriteScope "same caller or extracted helper only")
         (qualityReference "gerbil-utils")
-        (functionShape "small selector/predicate/helper first; keep match branches shallow and expression-returning")
-        (agentRepairStandard "rewrite toward gerbil-utils style: extract branch selectors, replace stateful named-let with fold/filter-map when pure, keep IO/state drivers explicit")
-        (expressionLevelRewrite "turn repeated match plus accumulator shape into a named predicate/mapper/reducer pipeline before changing behavior")
+        (gerbilUtilsSource
+         (gerbil-utils-source-details 'higher-order-expression))
+        (sourceBackedOwners
+         +controlled-branch-shape-source-backed-owners+)
+        (sourceBackedRepairCandidates
+         +controlled-branch-shape-source-backed-repair-candidates+)
+        (functionShape "source-backed Gerbil idioms first: lambda-match/lambda-ematch for unary match destructuring, fun for reusable local lambdas, cut/curry/rcurry for specialization, compose/rcompose/!>/!!> for pipelines")
+        (agentRepairStandard "rewrite toward real gerbil-utils style: choose the least powerful source-backed higher-order idiom that preserves behavior; use plain helper extraction only when parser evidence shows no lambda-match, specialization, pipeline, fold, or generator shape")
+        (expressionLevelRewrite "turn repeated branch or dispatch shape into lambda-match/lambda-ematch, fun, cut/curry/rcurry, compose/rcompose/!>/!!>, fold/filter-map, generator combinator, or a named helper in that order of evidence")
         (next "guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")))
 
 ;; : (-> String String Message )
@@ -554,10 +598,13 @@
   (cond
    ((equal? shape-kind "pattern-branch-with-manual-loop")
     (string-append "caller " caller
-                   " combines match state destructuring with a named-let loop; keep the repair policy-driven, split the selector/update step or use a bounded pipeline before editing for style or performance"))
+                   " combines match state destructuring with a named-let loop; keep the repair policy-driven and choose a source-backed Gerbil idiom such as lambda-match, fun, fold/filter-map, or a bounded pipeline before editing for style or performance"))
+   ((equal? shape-kind "nested-conditional-dispatch")
+    (string-append "caller " caller
+                   " has nested conditional dispatch; keep the repair policy-driven and choose source-backed Gerbil idioms such as fun, cut/curry/rcurry, compose/rcompose, or named fallback helpers before editing for style or performance"))
    (else
     (string-append "caller " caller
-                   " has repeated match branches; keep the repair policy-driven, split nested branch logic into named helpers or a bounded selector pipeline before editing for style or performance"))))
+                   " has repeated match branches; keep the repair policy-driven and prefer lambda-match/lambda-ematch, fun, or a bounded selector pipeline before editing for style or performance"))))
 
 ;;; Earliest selector reducer:
 ;;; - The first source span is the least surprising repair anchor for an agent.

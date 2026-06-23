@@ -1,0 +1,26 @@
+;;; -*- Gerbil -*-
+(import :clan/poo/object)
+
+(def +report-profile+
+  '((id . "orders")
+    (status . "hot")
+    (score . 0)
+    (rows . 8)
+    (columns . 5)
+    (sections . 3)
+    (charts . 2)
+    (filters . 4)
+    (exports . 2)
+    (alerts . 6)
+    (retries . 3)
+    (priority . "high")))
+
+(def (build-report-profile)
+  (object<-alist +report-profile+))
+
+(def (score-report profile limit)
+  (let loop ((i 0) (current profile) (total 0))
+    (if (= i limit)
+      current
+      (let (next (.mix current (object<-alist (list (cons 'score i)))))
+        (loop (+ i 1) next (+ total (.ref next 'score)))))))

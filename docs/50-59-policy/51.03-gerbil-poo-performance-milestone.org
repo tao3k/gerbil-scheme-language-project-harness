@@ -1,0 +1,389 @@
+#+TITLE: Gerbil POO Performance Policy Milestone
+#+DATE: 2026-06-23
+#+OPTIONS: toc:2
+
+* Status
+
+This milestone records the first broad Gerbil POO performance hardening pass for
+the language-project harness. The outcome is a cost model, policy coverage, test
+scenarios, and remaining research lanes for downstream agents that write POO
+code.
+
+The milestone is not a Gerbil upstream implementation change. The harness
+enforces agent-facing guidance so downstream projects learn the efficient POO
+shape before repeated hot-loop patterns enter source code.
+
+* Evidence Boundary
+
+The research used ASP search-first discovery against the gerbil-poo checkout and
+then microbenchmarks in the same checkout. Source evidence was taken from
+parser-owned selectors and search metadata, not raw source scans.
+
+Primary owner evidence:
+
+- =object.ss= owns object construction, instance cache, materialization, clone,
+  composition, projection, and mutation boundaries.
+- =mop.ss= owns MOP type validation, lens update behavior, and
+  =MonomorphicObject= type construction.
+- =doc/poo.md= and =t/object-test.ss= remain supporting documentation and test
+  owners, but the policy cost model is implementation-owned.
+
+Key selector evidence:
+
+- =object.ss:454-474= shows =.put!= as a direct mutation boundary and =.cc= as
+  carbon-copy clone override setup.
+- =object.ss:195-215= shows =.alist=, =.alist/sort=, =force-object=, and
+  =hash<-object= full-object materialization paths.
+- =object.ss:209-229= shows =o?/slots= and =.refs/slots= projection helpers.
+- =mop.ss:420-484= shows =Lens .modify= delegates to =.set= and =slot-lens=
+  implements =.set= with =.cc=.
+- =mop.ss:188-208= shows =MonomorphicObject= constructs a fresh POO type object.
+
+* Cost Model
+
+The policy model separates POO cost into nine hot-loop surfaces.
+
+** Construction
+
+POO object construction is appropriate at module, boundary, and meaningful
+shape-change points. It is expensive when repeated in hot loops over stable
+input data.
+
+Covered patterns:
+
+- broad data-shaped =.o= construction
+- loop-local =object<-alist=
+- loop-local =object<-hash=
+- loop-local =object<-fun=
+- loop-local =make-object=
+
+Harness rules:
+
+- =GERBIL-SCHEME-AGENT-R027=: broad data-shaped =.o= should move to
+  =object<-alist= or smaller named POO fragments.
+- =GERBIL-SCHEME-AGENT-R033=: stable object construction should be hoisted out
+  of loops or represented as scalar/list/hash loop state and built once.
+
+** Clone And Override
+
+=.cc= is pure and idiomatic for one-time refinement, but it walks override data
+and produces a new object shape. In loops, it should usually become scalar loop
+state plus one final =.cc=.
+
+Covered patterns:
+
+- loop-local =.cc=
+- loop-local lens modification through =slot-lens=
+
+Harness rules:
+
+- =GERBIL-SCHEME-AGENT-R028=: repeated =.cc= clone overrides should move out of
+  hot loops.
+- =GERBIL-SCHEME-AGENT-R032=: repeated =Lens .modify= over =slot-lens= should
+  move to scalar accumulation plus one final object update.
+
+** Materialization And Projection
+
+Full-object materialization is correct at serialization and inspection
+boundaries. Slot projection is also valid, but repeated stable projection in a
+loop wastes work.
+
+Covered patterns:
+
+- loop-local =.alist=
+- loop-local =.alist/sort=
+- loop-local =.all-slots=
+- loop-local =.all-slots/sort=
+- loop-local =.refs/slots=
+- loop-local =hash<-object=
+- loop-local =force-object=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R029=: materialize or project once outside the loop, or
+  carry only the required scalar state.
+
+** Composition
+
+POO composition with supers is the right boundary for building object behavior.
+Repeated composition in a loop creates new supers chains and pushes lookup cost
+to later slot access.
+
+Covered patterns:
+
+- loop-local =.mix=
+- loop-local =.extend=
+- loop-local =.+=
+- loop-local =object<-alist=, =object<-hash=, or =object<-fun= with =supers:=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R030=: compose once at the boundary after scalar
+  accumulation.
+
+** Validation
+
+Validation is a boundary operation. Repeated validation over the same stable
+object shape inside a loop walks object values repeatedly.
+
+Covered patterns:
+
+- loop-local =validate=
+- loop-local =element?=
+- loop-local =monomorphic-object?=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R031=: validate once before the loop or validate only
+  changed scalar fields.
+
+** Type Construction
+
+MOP type construction is also a boundary operation. =MonomorphicObject= builds a
+fresh type object with closure slots, so stable type objects should be named and
+reused.
+
+Covered pattern:
+
+- loop-local =MonomorphicObject=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R034=: hoist stable POO/MOP type construction to a named
+  binding outside the loop.
+
+** Debug Instrumentation
+
+Debug instrumentation is a setup boundary. =trace-poo= walks all slots and
+installs traced wrappers, so repeated setup in a loop is expensive and also risks
+turning ordinary reads into diagnostic output.
+
+Covered pattern:
+
+- loop-local =trace-poo=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R035=: hoist =trace-poo= outside the loop and reuse the
+  traced object.
+
+** Slot-Spec Mutation
+
+Slot-spec mutation changes object shape. =.def!= and =.putslot!= are valid setup
+tools, but they are not the same as updating a slot value. In hot loops, value
+updates should use =.put!= for intentional mutation or scalar state plus one
+final pure object update.
+
+Covered patterns:
+
+- loop-local =.def!=
+- loop-local =.putslot!=
+- loop-local =.setslot!=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R036=: keep slot definitions at setup boundaries; use
+  =.put!= for mutable values or a final =.cc= for pure updates.
+
+** Slot Predicates
+
+Slot existence predicates are cheaper than value materialization, but multi-slot
+predicate checks still walk a slot list and call =.slot?= repeatedly. When object
+shape is stable, the predicate result should be computed once at a boundary.
+
+Covered pattern:
+
+- loop-local =o?/slots=
+
+Harness rule:
+
+- =GERBIL-SCHEME-AGENT-R037=: hoist stable =o?/slots= predicate results outside
+  the loop; hoist only the predicate closure when the object can change but the
+  slot list is stable.
+
+* Implementation Boundary Walk
+
+This pass also walked the major POO implementation boundaries, including
+boundaries that did not produce a new policy rule. The goal is to keep the
+policy model broad enough to explain why a candidate is covered, rejected, or
+deferred.
+
+| Boundary | Owners | Finding | Policy status |
+|----------+--------+---------+---------------|
+| Object lifecycle | =object.ss= | Construction, instance cache, clone, materialization, projection, composition, and mutation all converge here. | Covered by R027, R028, R029, R030, R033. |
+| MOP/type/lens | =mop.ss= | Validation, =Lens .modify=, =slot-lens=, and =MonomorphicObject= type construction are separate runtime cost surfaces. | Covered by R031, R032, R034. |
+| Debug instrumentation | =debug.ss=, =object.ss= | =trace-poo= walks =.all-slots= and installs traced slot wrappers. It is a setup boundary, not repeated loop work. | Covered by R035. |
+| Slot-spec mutation | =object.ss= | =.def!=, =.putslot!=, and =.setslot!= mutate object slot specifications, unlike =.put!= value mutation. | Covered by R036. |
+| Slot predicates | =object.ss= | =o?/slots= builds a multi-slot predicate and checks =.slot?= across a slot list. | Covered by R037. |
+| Compile-time brace/object expansion | =brace.ss=, =object.ss= | Brace syntax lowers into object slot normalization; large data-shaped =.o= is the compile-time pressure point. | Covered by R027; no separate rule until another macro shape has benchmark evidence. |
+| Method/table dispatch | =table.ss=, =doc/poo.md= | Search evidence is design/documentation-heavy and did not identify a loop-local implementation hotspot distinct from object/cache costs. | Walked; no rule. Revisit only with runtime call-site evidence. |
+| IO and serialization | =io.ss=, =object.ss=, =doc/poo.md= | Marshal/unmarshal and string/json/bytes conversion are boundary operations. Loop-local serialization falls through materialization or validation costs. | Covered indirectly by R029/R031; no independent loop rule. |
+| Functional wrapper/typeclass layer | =fun.ss= | =Wrap.=, =Functor=, and =Category= are semantic/typeclass abstractions. Current evidence shows wrapper definitions, not repeated downstream construction. | Walked; future extension of R034 only if loop-local wrapper type construction appears in downstream evidence. |
+| Auxiliary data structures | =trie.ss=, =fq.ss=, =rationaldict.ss=, =polynomial.ss=, =table.ss= | These owners are library/data-structure boundaries. =trie.ss= explicitly points at wrapper-level cached digests, lazy loading, and cached counts as possible internal extensions. | Walked; keep as upstream/library optimization lanes, not downstream POO policy rules. |
+| Cached parameterized types | =type.ss= | Some constructors use explicit caches, for example =hash-ensure-ref= style constructors. | Excluded from broad type-construction warnings; R034 stays narrow. |
+| Intentional mutation | =object.ss= | =.put!= is the direct mutation boundary and can be efficient when mutation is intentional. | Allowed by policy text; R028 only warns on repeated pure =.cc= clone overrides. |
+
+The reference checkout did not contain =.bin/gslph=, so ASP owner-item queries
+against =.data/gerbil-poo= could not use the package-local provider. This is a
+tooling/install boundary, not a POO performance conclusion. The walk therefore
+used ASP =rg=, =fd=, and selector queries for source evidence.
+
+* Benchmark Receipts
+
+The benchmark receipts below are intentionally small, repeatable probes. They
+measure warm behavior inside one Gerbil process and exclude command startup from
+the compared loop body.
+
+| Surface | Probe | Slow shape | Fast shape |
+|---------+-------+------------+------------|
+| Broad =.o= construction | large data-shaped object | 28 slots about 18s; 32 slots exceeded 20s probe budget | =object<-alist= under startup-scale timing |
+| =.cc= loop override | repeated score update | scales with slot count | scalar accumulation plus one final =.cc= near constant |
+| =.alist/sort= materialization | 500 slots x 2000 | about 2015ms | materialize once about 4ms |
+| supers composition | 500 slots x 200 | about 604ms | final composition about 0ms |
+| validation | 500 slots x 500 | about 741ms | validate once about 1ms |
+| =Lens .modify= | 500 slots x 2000 | 4489ms | scalar final =.cc= about 0ms |
+| loop object construction | =object<-hash= 500 slots x 2000 | 9522ms | hoisted object about 0ms |
+| slot projection | =.refs/slots= 200 keys x 2000 | 1264ms | hoisted projected values 484ms |
+| type construction | =MonomorphicObject= x 100000 | 6358ms | hoisted type object 67ms |
+| debug instrumentation | =trace-poo= 500 slots x 50 | 2942ms | hoisted traced object 0ms |
+| slot-spec mutation | =.def!= 500 slots x 5000 | 2020ms | =.put!= value update 0ms |
+| slot predicates | =o?/slots= 50 keys x 2000 | 524ms | hoisted predicate result 0ms |
+
+* Scenario Coverage
+
+Each policy surface has a focused before/after scenario under
+=t/scenarios/policy/= and is exercised by a timed policy test in
+=t/policy/agent-poo-test.ss=.
+
+Current scenario IDs:
+
+- =poo-construction-performance=
+- =poo-clone-override-loop-performance=
+- =poo-materialization-loop-performance=
+- =poo-slot-projection-loop-performance=
+- =poo-composition-loop-performance=
+- =poo-validation-loop-performance=
+- =poo-lens-loop-performance=
+- =poo-object-construction-loop-performance=
+- =poo-type-construction-loop-performance=
+- =poo-debug-instrumentation-loop-performance=
+- =poo-slot-spec-mutation-loop-performance=
+- =poo-slot-predicate-loop-performance=
+
+The test intent is not to enforce a hard microbenchmark budget for downstream
+machines. The timing wrapper ensures scenarios stay small and measured while
+the rule assertions verify before/after policy behavior.
+
+* Negative Findings
+
+The research also rejected several candidate policies.
+
+** Cached Slot Reads
+
+Stable repeated =.ref= is not currently a structural policy target. The object
+instance cache and slot function cache mean repeated slot reads are far cheaper
+than clone, construction, validation, or materialization surfaces. Hoisting can
+still help in extremely tight loops, but a broad rule would over-report normal
+POO code.
+
+** Assertion Checks
+
+=check-assertions!= is not active in the inspected instantiation path. The
+implementation has a commented assertion hook, so assertion checks are not a
+current hot-loop surface for harness policy.
+
+** JSON Conversion
+
+JSON conversion searches did not identify a distinct implementation-owned
+hot-loop surface beyond existing materialization and validation paths. The
+candidate was rejected to avoid policy duplication.
+
+** Method Dispatch And Tables
+
+Method dispatch/table searches converged on =doc/poo.md=, =table.ss=, and
+=t/table-testing.ss= but did not produce an implementation hot range with
+loop-local repeated dynamic dispatch cost. The boundary is documented as walked,
+but it should not become a rule without a concrete downstream call-site and a
+microbenchmark.
+
+** Dynamic =.call=
+
+=.call= searches converged on documentation and did not produce a runtime
+hot-loop implementation surface with =loop=, =repeated=, and =hoist= evidence.
+The API remains a normal POO method invocation surface. If downstream evidence
+shows a stable method closure repeatedly looked up inside a loop, revisit it as
+a narrow call-site rule rather than a broad =.call= warning.
+
+** Cached Slot Reads
+
+=.ref/cached= is an intentional low-level API for reading an existing cached slot
+value. It should not be reported as a performance issue by itself. The caution is
+semantic: it returns the default when a value has not been computed and can
+observe stale cache if object shape was mutated after instantiation.
+
+** IO And Marshal
+
+=io.ss= owns generic =marshal= and =unmarshal= boundaries. These are
+serialization boundaries, not inner-loop POO object lifecycle operations.
+Repeated serialization should normally be fixed by hoisting materialization,
+projection, or validation; that keeps this lane under R029 and R031.
+
+** Functional Wrapper Layer
+
+=fun.ss= defines wrapper/typeclass abstractions such as =Wrap.= and =Functor=.
+The inspected evidence did not show loop-local construction or repeated wrapper
+allocation patterns. This remains a future lane only if downstream evidence
+shows stable wrapper type construction inside hot loops.
+
+** Auxiliary Data Structures
+
+=trie.ss=, =fq.ss=, =rationaldict.ss=, =polynomial.ss=, and =table.ss= are
+supporting data-structure owners. They can have meaningful internal performance
+work, but they are not the same surface as downstream POO object lifecycle
+guidance. The trie implementation explicitly documents wrapper-level cached
+digests, lazy loading, and cached counts as possible extension points. Those are
+upstream/library design lanes, not harness rules for agent-authored POO code.
+
+** Generic Type Constructors
+
+Some parameterized type constructors are explicitly cached, for example
+constructors that use =hash-ensure-ref=. R034 is therefore intentionally narrow:
+it covers =MonomorphicObject=, where the inspected implementation constructs a
+fresh type object.
+
+* Milestone Gate
+
+This milestone is considered complete when:
+
+- R027 through R037 are exported through the policy facade and included in
+  =run-agent-policy=.
+- Each rule has a focused before/after scenario.
+- The timed scenario suite passes through =./build.ss test=.
+- Documentation records the broad cost model and the rejected candidates.
+
+Validation commands:
+
+#+begin_src sh
+direnv exec ../.. ./build.ss test
+git diff --check -- docs/50-59-policy/51.03-gerbil-poo-performance-milestone.org
+#+end_src
+
+* Next Research Lanes
+
+The next broad pass should look beyond per-API policy and into parser/runtime
+support:
+
+- derive loop-invariant object/type/projection suggestions from syntax facts
+  instead of only matching callee names
+- expose performance guidance in search packets so agents see the preferred
+  repair command before editing
+- add a policy report section that groups all POO performance findings by cost
+  surface
+- compare gerbil-poo patterns against downstream projects with real loop-heavy
+  workloads
+- investigate whether gerbil-poo itself should cache selected type constructors
+  such as =MonomorphicObject=, while keeping the harness rule as downstream
+  guidance
+- investigate upstream data-structure optimizations separately from harness
+  policy, especially trie wrapper-level cached digests, lazy loading, and cached
+  counts

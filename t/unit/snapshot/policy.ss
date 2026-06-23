@@ -17,6 +17,7 @@
         controlled-macro-syntax-policy-snapshot
         typeclass-algebra-policy-snapshot
         controlled-branch-shape-policy-snapshot
+        controlled-branch-conditional-dispatch-policy-snapshot
         typed-combinator-style-policy-snapshot
         case-lambda-function-factory-policy-snapshot
         comment-quality-policy-snapshot
@@ -228,17 +229,54 @@
                 (list 'r014Findings
                       (map finding-snapshot after-findings))))))
 
+;; Snapshot
+(def (controlled-branch-conditional-dispatch-policy-snapshot)
+  (let* ((scenario
+          (make-policy-scenario
+           "controlled-branch-conditional-dispatch"
+           "t/scenarios/policy/controlled-branch-conditional-dispatch"))
+         (result (policy-scenario-run scenario))
+         (before-finding
+          (policy-scenario-required-finding
+           result
+           'before
+           "GERBIL-SCHEME-AGENT-R014"))
+         (before-details (type-finding-details before-finding))
+         (after-findings
+          (policy-scenario-findings
+           result
+           'after
+           "GERBIL-SCHEME-AGENT-R014")))
+    (list 'policyScenario
+          (list 'id (policy-scenario-result-id result))
+          (list 'before
+                (list 'finding (finding-snapshot before-finding))
+                (list 'shape
+                      (controlled-branch-shape-guidance-snapshot
+                       before-details)))
+          (list 'after
+                (list 'r014Findings
+                      (map finding-snapshot after-findings))))))
+
 ;; : (-> PolicyDetails PolicyGuidance )
 (def (controlled-branch-shape-guidance-snapshot details)
   (list (list 'caller (hash-get details 'caller))
         (list 'shape (hash-get details 'shape))
         (list 'matchCount (hash-get details 'matchCount))
         (list 'manualLoopCount (hash-get details 'manualLoopCount))
+        (list 'conditionalBranchCount
+              (hash-get details 'conditionalBranchCount))
+        (list 'conditionalDispatchGate
+              (hash-get details 'conditionalDispatchGate))
         (list 'evidence (hash-get details 'evidence))
         (list 'advice (hash-get details 'advice))
         (list 'styleGuide (hash-get details 'styleGuide))
         (list 'styleCommand (hash-get details 'styleCommand))
         (list 'rewriteScope (hash-get details 'rewriteScope))
+        (list 'sourceBackedOwners
+              (hash-get details 'sourceBackedOwners))
+        (list 'sourceBackedRepairCandidates
+              (hash-get details 'sourceBackedRepairCandidates))
         (list 'functionShape (hash-get details 'functionShape))
         (list 'expressionLevelRewrite
               (hash-get details 'expressionLevelRewrite))))
@@ -829,6 +867,9 @@
   (check (controlled-branch-shape-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-controlled-branch-shape.ss"))
+  (check (controlled-branch-conditional-dispatch-policy-snapshot)
+         => (snapshot-load
+             "t/snapshots/policy-controlled-branch-conditional-dispatch.ss"))
   (check (typed-combinator-style-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-typed-combinator-style.ss"))

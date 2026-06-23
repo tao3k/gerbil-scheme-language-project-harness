@@ -679,8 +679,13 @@
 (def (top-form-from relpath form datum)
   (let* ((head (top-form-datum-head datum))
          (loc (stx-source form)))
-    (make-top-form (form-kind head) (datum->string head) relpath
+    (make-top-form (form-kind head) (top-form-head-name head) relpath
                    (source-start-line loc) (source-end-line loc))))
+;; : (-> Head String )
+(def (top-form-head-name head)
+  (if head
+    (datum->string head)
+    "form"))
 ;; : (-> TopForm Boolean )
 (def (declarative-top-form? form)
   (equal? (top-form-kind form) "declarative"))

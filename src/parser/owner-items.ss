@@ -30,7 +30,7 @@
                  string-join
                  string-prefix?
                  string-trim)
-        (only-in :std/sugar cut filter hash))
+        (only-in :std/sugar cut filter hash ormap))
 
 (export owner-items-source-path?
         parse-owner-items-source-file
@@ -72,8 +72,8 @@
 ;;; - Owner-items needs a lightweight SourceFile without the full project walk.
 ;;; - Native forms, definitions, calls, imports, and top-forms are collected in
 ;;;   one pass so CLI owner browsing stays cheap and parser-owned.
-;; : (-> ProjectRoot OwnerPath SourceFile )
-(def (parse-owner-items-source-file root path)
+;; : (-> ProjectRoot OwnerPath [MaybeLimit] [Terms] SourceFile )
+(def (parse-owner-items-source-file root path . maybe-limit/terms)
   (let* ((fullpath (source-full-path root path))
          (relpath (relative-path root fullpath))
          (line-count (owner-source-line-count fullpath))
@@ -82,7 +82,13 @@
          (parse-error (vector-ref read-result 1))
          (initial-package (vector-ref read-result 2))
          (initial-prelude (vector-ref read-result 3))
-         (initial-namespace (vector-ref read-result 4)))
+         (initial-namespace (vector-ref read-result 4))
+         (call-budget (and (pair? maybe-limit/terms)
+                           (car maybe-limit/terms)))
+         (call-terms (if (and (pair? maybe-limit/terms)
+                              (pair? (cdr maybe-limit/terms)))
+                       (cadr maybe-limit/terms)
+                       '())))
     (let ((rest forms)
           (package initial-package)
           (prelude initial-prelude)
@@ -102,8 +108,15 @@
                (metadata-value (form-metadata-value datum (cdr rest)))
                (next-rest (form-next-rest datum rest))
                (top-form (top-form-from relpath form datum))
-               (next-calls (append (calls-from-form relpath form datum) calls)))
+               (form-calls
+                (if (owner-call-collection-open? call-budget)
+                  (owner-filtered-calls-from-form relpath form datum
+                                                  call-terms call-budget)
+                  '()))
+               (next-calls (append form-calls calls)))
           (set! top-forms (cons top-form top-forms))
+          (when call-budget
+            (set! call-budget (max 0 (- call-budget (length form-calls)))))
           (cond
            ((eq? head 'package:)
             (set! package (datum->string metadata-value)))
@@ -154,6 +167,49 @@
                         '()
                         '()
                         parse-error))))
+
+;; : (-> MaybeInteger Boolean )
+(def (owner-call-collection-open? call-budget)
+  (or (not call-budget) (> call-budget 0)))
+
+;; : (-> Relpath Form Datum Terms MaybeInteger (List CallFact) )
+(def (owner-filtered-calls-from-form relpath form datum terms call-budget)
+  (let (calls (calls-from-form relpath form datum))
+    (cond
+     ((null? terms) (owner-take calls call-budget))
+     (else (owner-filtered-calls/limit calls terms call-budget [])))))
+
+;; : (-> (List CallFact) Terms MaybeInteger (List CallFact) (List CallFact) )
+(def (owner-filtered-calls/limit calls terms call-budget out)
+  (cond
+   ((or (null? calls)
+        (and call-budget (<= call-budget 0)))
+    (reverse out))
+   ((owner-call-fact-matches-any-term? (car calls) terms)
+    (owner-filtered-calls/limit
+     (cdr calls) terms
+     (and call-budget (- call-budget 1))
+     (cons (car calls) out)))
+   (else
+    (owner-filtered-calls/limit (cdr calls) terms call-budget out))))
+
+;; : (-> (List Any) MaybeInteger (List Any) )
+(def (owner-take values maybe-limit)
+  (if maybe-limit
+    (take values (min maybe-limit (length values)))
+    values))
+
+;; : (-> CallFact Terms Boolean )
+(def (owner-call-fact-matches-any-term? fact terms)
+  (ormap (cut owner-call-fact-matches-term? fact <>) terms))
+
+;; : (-> CallFact Term Boolean )
+(def (owner-call-fact-matches-term? fact term)
+  (ormap (cut string-contains <> term)
+         (filter string?
+                 (append [(call-fact-callee fact)
+                          (or (call-fact-caller fact) "")]
+                         (call-fact-arguments fact)))))
 
 ;;; Syntax projection:
 ;;; - Owner-items exposes imports, exports, calls, and top forms in one stream.
@@ -382,22 +438,34 @@
 
 ;; : (-> TopForm SyntaxFactJson )
 (def (owner-top-form-fact-json fact)
-  (hash (id (owner-syntax-fact-id "top-form"
-                                  (top-form-path fact)
-                                  (top-form-head fact)
-                                  (top-form-start fact)))
-        (kind "top-form")
-        (source "native-parser")
-        (languageKind (top-form-kind fact))
-        (name (top-form-head fact))
-        (ownerPath (top-form-path fact))
-        (location (owner-fact-location-json (top-form-path fact)
-                                            (top-form-start fact)
-                                            (top-form-end fact)))
-        (queryKeys (unique [(top-form-head fact)
-                            (top-form-kind fact)
-                            (top-form-path fact)]))
-        (fields (hash (role (top-form-kind fact))))))
+  (let ((name (owner-top-form-head-name fact))
+        (kind (owner-top-form-kind-name fact)))
+    (hash (id (owner-syntax-fact-id "top-form"
+                                    (top-form-path fact)
+                                    name
+                                    (top-form-start fact)))
+          (kind "top-form")
+          (source "native-parser")
+          (languageKind kind)
+          (name name)
+          (ownerPath (top-form-path fact))
+          (location (owner-fact-location-json (top-form-path fact)
+                                              (top-form-start fact)
+                                              (top-form-end fact)))
+          (queryKeys (unique [name
+                              kind
+                              (top-form-path fact)]))
+          (fields (hash (role kind))))))
+
+;; : (-> TopForm String )
+(def (owner-top-form-head-name fact)
+  (let (head (top-form-head fact))
+    (if (string? head) head "form")))
+
+;; : (-> TopForm String )
+(def (owner-top-form-kind-name fact)
+  (let (kind (top-form-kind fact))
+    (if (string? kind) kind "form")))
 
 ;; : (-> Kind Path Name Start String )
 (def (owner-syntax-fact-id kind path name start)

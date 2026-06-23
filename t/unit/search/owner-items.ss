@@ -12,8 +12,13 @@
         :std/test)
 
 (export check-owner-items-limit-budget
+        check-owner-items-limit-zero-skips-call-collection
+        check-owner-items-query-ignores-selected-owner-path
         check-owner-items-gerbil-package-facts
         check-owner-items-fast-entrypoint-stays-light
+        check-cli-launcher-search-fast-path-stays-canonical
+        check-search-fast-path-build-boundary
+        check-search-light-uses-bounded-preview
         check-owner-items-omits-empty-role-field
         check-guide-sections-static-data-loads
         check-search-guide-fast-entrypoint-stays-light)
@@ -31,6 +36,23 @@
     (check (length limited) => 3)
     (check (owner-item-query-terms "projection|chain receipt")
            => ["projection" "chain" "receipt"])))
+
+;; : (-> () Unit )
+(def (check-owner-items-limit-zero-skips-call-collection)
+  (let* ((file (parse-owner-items-source-file "."
+                                              (path-expand +owner-items-fixture+ ".")
+                                              0
+                                              ["call"]))
+         (facts (matching-owner-syntax-facts file ["call"] 0)))
+    (check (length (source-file-calls file)) => 0)
+    (check facts => [])))
+
+;; : (-> () Unit )
+(def (check-owner-items-query-ignores-selected-owner-path)
+  (let* ((file (parse-owner-items-source-file "."
+                                              (path-expand +owner-items-fixture+ ".")))
+         (facts (matching-owner-syntax-facts file ["complex-syntax"] 20)))
+    (check facts => [])))
 
 ;;; Regression: gerbil.pkg is a package owner, not an empty config blob.
 ;;; Owner-items should expose package metadata through parser-owned facts so
@@ -66,6 +88,62 @@
     (check (source-contains? source ":commands/search ") => #f)
     (check (source-contains? source ":commands/search)") => #f)
     (check (source-contains? source ":cli") => #f)))
+
+;; : (-> () Unit )
+(def (check-cli-launcher-search-fast-path-stays-canonical)
+  (let (source
+        (call-with-input-file "src/cli-launcher.ss" read-all-as-string))
+    (check (source-contains? source ":search-light-launcher") => #t)
+    (check (source-contains? source "(only-in :cli") => #f)
+    (check (source-contains? source "(eval (quote (import :cli)))") => #t)
+    (check (source-contains? source "try-search-light-main") => #t)
+    (check (source-contains? source "(def +source-commands+") => #t)
+    (check (source-contains? source "(def (command-line-args argv)") => #t)
+    (check (source-contains? source "\"search\"") => #t)
+    (check (source-contains? source "known-source-command?") => #t)
+    (check (source-contains? source ":commands/search-owner-items") => #f)
+    (check (source-contains? source "native-search-owner-items-argv?") => #f)
+    (check (source-contains? source "gslph search requires sibling binary") => #f)
+    (check (source-contains? source "(run-source-command args)") => #t)
+    (check (source-contains? source "normalize-source-command-args") => #t)
+    (check (source-contains? source "normalize-search-workspace-args") => #t)))
+
+;; : (-> () Unit )
+(def (check-search-fast-path-build-boundary)
+  (let (source
+        (call-with-input-file "build.ss" read-all-as-string))
+    (check (source-contains? source ":std/make") => #t)
+    (check (source-contains? source "(def cli-launcher-spec") => #t)
+    (check (source-contains? source "(def cli-launcher-release-modules") => #t)
+    (check (source-contains? source "\"src/commands/search-prime-light.ss\"") => #t)
+    (check (source-contains? source "(def cli-launcher-release-spec\n  (append cli-launcher-release-modules cli-launcher-spec))") => #t)
+    (check (source-contains? source "(def (package-build-spec)\n  (append (library-spec) cli-launcher-spec))") => #t)
+    (check (source-contains? source "(def (build-spec release?)\n  (if release?\n    cli-launcher-release-spec\n    (package-build-spec)))") => #t)
+    (check (source-contains? source "build-release: effective-release?") => #t)
+    (check (source-contains? source "build-optimized: effective-optimized?") => #t)
+    (check (source-contains? source "parallelize: #t") => #t)
+    (check (source-contains? source "run-build-impl") => #f)
+    (check (source-contains? source "build-impl.ss") => #f)
+    (check (source-contains? source "(def (static-cli-launcher-spec)") => #f)
+    (check (source-contains? source "(static-cli-launcher-spec)") => #f)
+    (check (source-contains? source "(def search-launcher-spec") => #f)
+    (check (source-contains? source "(def (search-acceleration-spec release?)") => #f)
+    (check (source-contains? source "(def launcher-spec") => #f)
+    (check (source-contains? source "(def (static-launcher-spec)") => #f)))
+
+;; : (-> () Unit )
+(def (check-search-light-uses-bounded-preview)
+  (let (source
+        (call-with-input-file "src/commands/search-prime-light.ss" read-all-as-string))
+    (check (source-contains? source "collect-source-files-preview") => #t)
+    (check (source-contains? source "workspace-scope-preview-files-light") => #t)
+    (check (source-contains? source "filePreview=") => #t)
+    (check (source-contains? source ":parser/package") => #f)
+    (check (source-contains? source ":parser/source-scope") => #f)
+    (check (source-contains? source ":parser/source-class") => #f)
+    (check (source-contains? source ":support/args") => #f)
+    (check (source-contains? source ":std/sugar") => #f)
+    (check (source-contains? source "(hash") => #f)))
 
 ;; : (-> () Unit )
 (def (check-owner-items-omits-empty-role-field)

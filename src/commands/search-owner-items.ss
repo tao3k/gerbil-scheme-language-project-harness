@@ -35,10 +35,10 @@
                         (equal? (cadr positionals) "items"))))
       (unless owner (error "search owner requires a path"))
       (unless items? (error "fast owner-items requires the items view"))
-      (let* ((file (parse-explicit-owner-items-file root owner))
-             (query (option "--query" args))
+      (let* ((query (option "--query" args))
              (terms (owner-item-query-terms query))
              (limit (owner-items-limit args))
+             (file (parse-explicit-owner-items-file root owner limit terms))
              (definition-matches
               (matching-definitions (source-file-definitions file) terms))
              (syntax-limit (max 0 (- limit (length definition-matches))))
@@ -58,11 +58,16 @@
 ;;; - Owner paths are resolved inside the requested project root.
 ;;; - The parser owner builds the source file; command code only validates path shape.
 ;; : (-> Root OwnerPath SourceFile )
-(def (parse-explicit-owner-items-file root owner)
+(def (parse-explicit-owner-items-file root owner . maybe-limit/terms)
   (let (path (path-expand owner root))
     (unless (and (owner-items-source-path? path) (file-exists? path))
       (error "owner not found" owner))
-    (parse-owner-items-source-file root path)))
+    (if (and (pair? maybe-limit/terms)
+             (pair? (cdr maybe-limit/terms)))
+      (parse-owner-items-source-file root path
+                                     (car maybe-limit/terms)
+                                     (cadr maybe-limit/terms))
+      (parse-owner-items-source-file root path))))
 
 ;;; Limit boundary:
 ;;; - Missing limits use the public default.
@@ -162,11 +167,14 @@
                      (car maybe-limit/root)))
          (root (and (pair? maybe-limit/root)
                     (pair? (cdr maybe-limit/root))
-                    (cadr maybe-limit/root)))
-         (facts (owner-items-syntax-fact-json file root)))
-    (if limit
-      (matching-owner-syntax-facts/limit facts terms limit [])
-      (filter (cut syntax-fact-matches-any-term? <> terms) facts))))
+                    (cadr maybe-limit/root))))
+    (cond
+     ((and limit (<= limit 0)) '())
+     (else
+      (let (facts (owner-items-syntax-fact-json file root))
+        (if limit
+          (matching-owner-syntax-facts/limit facts terms limit [])
+          (filter (cut syntax-fact-matches-any-term? <> terms) facts)))))))
 
 ;; : (-> (List SyntaxFact) (List String) Integer (List SyntaxFact) (List SyntaxFact) )
 (def (matching-owner-syntax-facts/limit facts terms remaining out)
@@ -203,10 +211,21 @@
   (filter string?
           (append [(hash-get fact 'kind)
                    (hash-get fact 'name)
-                   (hash-get fact 'languageKind)
-                   (hash-get fact 'ownerPath)]
-                  (hash-get fact 'queryKeys)
+                   (hash-get fact 'languageKind)]
+                  (syntax-fact-query-key-search-values fact)
                   (syntax-fact-field-values fact))))
+
+;;; Boundary:
+;;; - The owner path already selected the file before item filtering.
+;;; - Re-matching the selected path makes broad owner terms match every call.
+;; : (-> SyntaxFact (List String) )
+(def (syntax-fact-query-key-search-values fact)
+  (let ((keys (hash-get fact 'queryKeys))
+        (owner-path (hash-get fact 'ownerPath)))
+    (if (equal? (hash-get fact 'kind) "package")
+      keys
+      (filter (lambda (value) (not (equal? value owner-path)))
+              keys))))
 
 ;;; Boundary:
 ;;; - Flatten selected structured fields into string search keys.
