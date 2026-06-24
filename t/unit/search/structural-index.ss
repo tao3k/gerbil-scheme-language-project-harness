@@ -9,10 +9,30 @@
         check-structural-index-quality-shape-facts
         check-structural-index-dependency-adapter-facts)
 ;; Integer
+(def +structural-interface-summary-preview-limit+ 20)
+;; String
+(def +structural-interface-owner-path+ "src/commands/search-structural.ss")
+
+;; : (-> (List Json) OwnerPath Boolean)
+(def (summary-owner-present? summaries owner-path)
+  (cond
+   ((null? summaries) #f)
+   ((equal? (hash-get (car summaries) 'ownerPath) owner-path) #t)
+   (else (summary-owner-present? (cdr summaries) owner-path))))
+
+;; : (-> (List Json) Boolean)
+(def (summary-family-detail-present? summaries)
+  (cond
+   ((null? summaries) #f)
+   ((hash-get (car summaries) 'families) #t)
+   (else (summary-family-detail-present? (cdr summaries)))))
+
+;; Integer
 (def (check-structural-index-required-envelope)
   (let* ((index (collect-project "."))
          (packet (structural-index-packet-json index))
-         (generation-id (hash-get packet 'generationId)))
+         (generation-id (hash-get packet 'generationId))
+         (summaries (hash-get packet 'nativeSyntaxFactSummaries)))
     (check (hash-get packet 'schemaId)
            => "agent.semantic-protocols.semantic-structural-index")
     (check (hash-get packet 'schemaVersion) => "1")
@@ -38,7 +58,13 @@
     (check (> (hash-get packet 'symbolTotal) 0) => #t)
     (check (length (hash-get packet 'syntaxFacts)) => 0)
     (check (> (hash-get packet 'nativeSyntaxFactTotal) 0) => #t)
-    (check (> (length (hash-get packet 'nativeSyntaxFactSummaries)) 0) => #t)
+    (check (> (length summaries) 0) => #t)
+    (check (<= (length summaries)
+               +structural-interface-summary-preview-limit+)
+           => #t)
+    (check (summary-owner-present? summaries +structural-interface-owner-path+)
+           => #t)
+    (check (summary-family-detail-present? summaries) => #f)
     (check (hash-get (hash-get packet 'factInterface) 'ownerFactsCommand)
            => "gerbil-scheme-harness search structural --owner <path> --json .")
     (check (length (hash-get packet 'dependencyUsages)) => 0)

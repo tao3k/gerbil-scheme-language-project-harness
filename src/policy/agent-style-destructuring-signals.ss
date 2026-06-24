@@ -1,0 +1,118 @@
+;;; -*- Gerbil -*-
+;;; Parser-owned destructuring signals for typed-combinator style policy.
+
+(import :parser/facade
+        (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar filter ormap))
+
+(export typed-combinator-style-destructuring-quality-facets
+        typed-combinator-style-destructuring-signals
+        typed-combinator-style-destructuring-targets)
+
+;; (List Callee)
+(def +typed-combinator-style-destructuring-callees+
+  ["car" "cdr" "caar" "cadr" "cdar" "cddr" "assq" "assoc"
+   "hash-get"])
+
+;;; Destructuring boundary:
+;;; - gerbil://gerbil/core/match.ss teaches native applicative destructuring,
+;;;   syntax-local match extension, and compile-time metadata lookup.
+;;; - gerbil-utils/base.ss teaches lambda-match/match boundary style.
+;;; - gerbil-poo/mop.ss teaches slot/lens boundaries for object-shaped data.
+;;; - Emit only when parser facts prove a structure contract and repeated
+;;;   decomposition calls in the same owner.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-destructuring-quality-facets file)
+  (if (pair? (typed-combinator-style-destructuring-facts file))
+    ["destructuring-combinator-boundary"]
+    []))
+
+;;; Guidance boundary:
+;;; - Signals name local repair moves for generated-looking destructuring.
+;;; - They do not require importing gerbil-utils or gerbil-poo downstream.
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-destructuring-signals file)
+  (if (pair? (typed-combinator-style-destructuring-facts file))
+    ["replace repeated car/cdr/assq scaffolding with a named selector or match boundary"
+     "prefer native match/apply destructuring when it removes runtime probing"
+     "use syntax-local metadata lookup when the shape is known at expansion time"
+     "keep match-specific macro extension local and early-failing; do not invent broad macro layers"
+     "use lambda-match or match when pair shape is the actual interface"
+     "use local slot/lens helpers when repeated destructuring is object-slot access"
+     "keep temporary let bindings only when they name a real domain boundary"]
+    []))
+
+;;; Target boundary:
+;;; - Report only contract owners whose body has repeated parser-owned
+;;;   destructuring calls.
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-destructuring-targets file)
+  (map typed-contract-fact-definition-name
+       (typed-combinator-style-destructuring-facts file)))
+
+;;; Fact boundary:
+;;; - A structure contract alone is not enough; the owner must also carry
+;;;   repeated decomposition calls.
+;;; - The threshold keeps small selector helpers from warning after repair.
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-destructuring-facts file)
+  (filter (lambda (fact)
+            (typed-combinator-style-destructuring-fact? file fact))
+          (source-file-typed-contract-facts file)))
+
+;;; Contract/call gate keeps detection on parser-owned facts.
+;; : (-> SourceFile TypedContractFact Boolean )
+(def (typed-combinator-style-destructuring-fact? file fact)
+  (and (typed-combinator-style-structure-contract? fact)
+       (>= (typed-combinator-style-destructuring-call-count
+            file
+            (typed-contract-fact-definition-name fact))
+           4)))
+
+;;; Structure contracts cover pair/list records, alists, and object-like maps.
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-structure-contract? fact)
+  (typed-combinator-style-contract-mentions-any?
+   fact
+   ["Pair" "pair" "Cons" "cons" "Alist" "alist" "Entry" "entry"
+    "Record" "record" "Dict" "dict" "Map" "map" "Object" "object"]))
+
+;;; Count only decomposition calls owned by the same definition.
+;; : (-> SourceFile DefinitionName Integer )
+(def (typed-combinator-style-destructuring-call-count file definition-name)
+  (length
+   (filter (lambda (call)
+             (and (equal? (call-fact-caller call) definition-name)
+                  (typed-combinator-style-destructuring-call? call)))
+           (source-file-calls file))))
+
+;;; Callee predicate boundary:
+;;; - The destructuring vocabulary is intentionally a small allow-list.
+;;; - `ormap` keeps the membership check expression-shaped and prevents this
+;;;   policy helper from growing a generated conditional dispatch wall.
+;; : (-> CallFact Boolean )
+(def (typed-combinator-style-destructuring-call? call)
+  (ormap (lambda (callee)
+           (equal? (call-fact-callee call) callee))
+         +typed-combinator-style-destructuring-callees+))
+
+;;; Contract token boundary:
+;;; - Structure evidence is a compact token predicate over parser facts.
+;;; - The `terms` list stays data-owned so scenarios can add vocabulary without
+;;;   adding another branching helper.
+;; : (-> TypedContractFact (List String) Boolean )
+(def (typed-combinator-style-contract-mentions-any? fact terms)
+  (ormap (lambda (term)
+           (typed-combinator-style-contract-mentions? fact term))
+         terms))
+
+;;; Token match boundary:
+;;; - Use substring matching only on typed-contract tokens already emitted by
+;;;   the parser.
+;;; - This keeps legacy contract comments supported without scanning source
+;;;   text outside the parser-owned fact payload.
+;; : (-> TypedContractFact String Boolean )
+(def (typed-combinator-style-contract-mentions? fact term)
+  (ormap (lambda (token)
+           (string-contains token term))
+         (typed-contract-fact-tokens fact)))

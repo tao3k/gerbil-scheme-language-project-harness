@@ -15,18 +15,11 @@
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (export agent-poo-policy-test)
-;; Milliseconds
-(def +poo-policy-performance-scenario-max-ms+ 1000)
 
-;; : (-> Milliseconds String )
-(def (poo-policy-performance-timing-status total-ms)
-  (if (< total-ms +poo-policy-performance-scenario-max-ms+)
-    "pass"
-    (string-append
-     "fail durationMs="
-     (number->string total-ms)
-     " maxMs="
-     (number->string +poo-policy-performance-scenario-max-ms+))))
+;; : (-> TimedPolicyScenarioResult Boolean )
+(def (policy-scenario-benchmark-constrained? timing)
+  (and (number? (hash-get timing 'maxTotalMs))
+       (equal? (hash-get timing 'performanceStatus) "pass")))
 
 ;; : (-> (List Timing) Boolean )
 (def (policy-scenario-timing-steps-measured? timings)
@@ -37,9 +30,74 @@
     (policy-scenario-timing-steps-measured? (cdr timings)))
    (else #f)))
 
+(def +poo-performance-scenario-ids+
+  '("poo-clone-override-loop-performance"
+    "poo-composition-loop-performance"
+    "poo-construction-performance"
+    "poo-debug-instrumentation-loop-performance"
+    "poo-fq-type-construction-loop-performance"
+    "poo-function-type-construction-loop-performance"
+    "poo-integer-range-type-construction-loop-performance"
+    "poo-lens-loop-performance"
+    "poo-materialization-loop-performance"
+    "poo-object-construction-loop-performance"
+    "poo-object-iteration-loop-performance"
+    "poo-slot-predicate-loop-performance"
+    "poo-slot-projection-loop-performance"
+    "poo-slot-spec-mutation-loop-performance"
+    "poo-type-construction-loop-performance"
+    "poo-validation-loop-performance"
+    "poo-z-type-construction-loop-performance"))
+
+(def (poo-performance-scenario-benchmark-path scenario-id)
+  (string-append "t/scenarios/policy/" scenario-id "/benchmark.ss"))
+
+(def (missing-poo-performance-scenario-benchmarks scenario-ids)
+  (cond
+   ((null? scenario-ids) [])
+   ((file-exists? (poo-performance-scenario-benchmark-path (car scenario-ids)))
+    (missing-poo-performance-scenario-benchmarks (cdr scenario-ids)))
+   (else
+    (cons (poo-performance-scenario-benchmark-path (car scenario-ids))
+          (missing-poo-performance-scenario-benchmarks (cdr scenario-ids))))))
+
+;; : (-> String BenchmarkContract )
+(def (poo-performance-scenario-benchmark-contract scenario-id)
+  (policy-scenario-benchmark-contract
+   (make-policy-scenario
+    scenario-id
+    (string-append "t/scenarios/policy/" scenario-id))))
+
+;; : (-> BenchmarkContract Boolean )
+(def (poo-performance-scenario-hot-path-exemption-complete? contract)
+  (and (hash-get contract 'hotPathExemption)
+       (pair? (hash-get contract 'hotPathEvidence))
+       (hash-get contract 'styleRewriteBoundary)))
+
+;; : (-> (List String) (List String) )
+(def (poo-performance-scenarios-missing-hot-path-exemptions scenario-ids)
+  (cond
+   ((null? scenario-ids) [])
+   ((poo-performance-scenario-hot-path-exemption-complete?
+     (poo-performance-scenario-benchmark-contract (car scenario-ids)))
+    (poo-performance-scenarios-missing-hot-path-exemptions
+     (cdr scenario-ids)))
+   (else
+    (cons (car scenario-ids)
+          (poo-performance-scenarios-missing-hot-path-exemptions
+           (cdr scenario-ids))))))
+
 ;; PolicyTest
 (def agent-poo-policy-test
   (test-suite "gerbil scheme harness agent poo policy"
+    (test-case "POO performance scenarios own benchmark contracts"
+      (check (missing-poo-performance-scenario-benchmarks
+              +poo-performance-scenario-ids+)
+             => []))
+    (test-case "POO performance scenarios declare hot-path exemption evidence"
+      (check (poo-performance-scenarios-missing-hot-path-exemptions
+              +poo-performance-scenario-ids+)
+             => []))
     (test-case "agent policy rejects direct POO writeenv calls"
           (let* ((root ".run/policy-poo-direct-writeenv")
                  (_ (write-poo-direct-writeenv-project root))
@@ -120,7 +178,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -140,8 +197,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/profile.ss")
@@ -160,7 +217,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -176,8 +232,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/score.ss")
@@ -195,7 +251,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -211,8 +266,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/export.ss")
@@ -221,7 +276,7 @@
               (check (hash-get details 'callee) => ".alist/sort")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "materialize or project once outside the loop, or use direct .ref access for specific slots"))))
+                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots"))))
     (test-case "agent policy redirects loop-local POO slot projection to a boundary snapshot"
           (let* ((scenario
                   (make-policy-scenario
@@ -230,7 +285,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -246,8 +300,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/project.ss")
@@ -256,7 +310,41 @@
               (check (hash-get details 'callee) => ".refs/slots")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "materialize or project once outside the loop, or use direct .ref access for specific slots"))))
+                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots"))))
+    (test-case "agent policy redirects loop-local POO object iteration to a boundary snapshot"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "poo-object-iteration-loop-performance"
+                   "t/scenarios/policy/poo-object-iteration-loop-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
+                 (before-matching
+                  (policy-scenario-findings
+                   result
+                   'before
+                   "GERBIL-SCHEME-AGENT-R029"))
+                 (after-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-R029"))
+                 (finding (car before-matching))
+                   (details (type-finding-details finding)))
+              (check (length timings) => 4)
+              (check (policy-scenario-timing-steps-measured? timings)
+                     => #t)
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
+              (check (length before-matching) => 1)
+              (check after-matching => [])
+              (check (type-finding-path finding) => "src/reports/iteration.ss")
+              (check (hash-get details 'kind)
+                     => "poo-materialization-loop-performance")
+              (check (hash-get details 'callee) => ".for-each!")
+              (check (hash-get details 'loopRole) => "manual-loop")
+              (check (hash-get details 'preferredConstruction)
+                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots"))))
     (test-case "agent policy redirects loop-local POO composition to one boundary object"
           (let* ((scenario
                   (make-policy-scenario
@@ -265,7 +353,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -281,8 +368,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/compose.ss")
@@ -300,7 +387,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -316,8 +402,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/validate.ss")
@@ -335,7 +421,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -351,8 +436,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/lens.ss")
@@ -370,7 +455,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -386,8 +470,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/construct.ss")
@@ -405,6 +489,74 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
+                 (before-matching
+                  (policy-scenario-findings
+                   result
+                   'before
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (after-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (finding (car before-matching))
+                   (details (type-finding-details finding)))
+              (check (length timings) => 4)
+              (check (policy-scenario-timing-steps-measured? timings)
+                     => #t)
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
+              (check (length before-matching) => 1)
+              (check after-matching => [])
+              (check (type-finding-path finding) => "src/reports/type.ss")
+              (check (hash-get details 'kind)
+                     => "poo-type-construction-loop-performance")
+              (check (hash-get details 'callee) => "MonomorphicObject")
+              (check (hash-get details 'loopRole) => "manual-loop")
+              (check (hash-get details 'preferredConstruction)
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+    (test-case "agent policy redirects loop-local POO function type construction to a named type binding"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "poo-function-type-construction-loop-performance"
+                   "t/scenarios/policy/poo-function-type-construction-loop-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
+                 (before-matching
+                  (policy-scenario-findings
+                   result
+                   'before
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (after-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (finding (car before-matching))
+                   (details (type-finding-details finding)))
+              (check (length timings) => 4)
+              (check (policy-scenario-timing-steps-measured? timings)
+                     => #t)
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
+              (check (length before-matching) => 1)
+              (check after-matching => [])
+              (check (type-finding-path finding) => "src/reports/function-type.ss")
+              (check (hash-get details 'kind)
+                     => "poo-type-construction-loop-performance")
+              (check (hash-get details 'callee) => "Function")
+              (check (hash-get details 'loopRole) => "manual-loop")
+              (check (hash-get details 'preferredConstruction)
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+    (test-case "agent policy redirects loop-local POO finite-field type construction to a named type binding"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "poo-fq-type-construction-loop-performance"
+                   "t/scenarios/policy/poo-fq-type-construction-loop-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
                  (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
@@ -423,12 +575,88 @@
                      => #t)
               (check (poo-policy-performance-timing-status total-ms)
                      => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
-              (check (type-finding-path finding) => "src/reports/type.ss")
+              (check (type-finding-path finding) => "src/reports/finite-field.ss")
               (check (hash-get details 'kind)
                      => "poo-type-construction-loop-performance")
-              (check (hash-get details 'callee) => "MonomorphicObject")
+              (check (hash-get details 'callee) => "F_q")
+              (check (hash-get details 'loopRole) => "manual-loop")
+              (check (hash-get details 'preferredConstruction)
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+    (test-case "agent policy redirects loop-local POO modular type construction to a named type binding"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "poo-z-type-construction-loop-performance"
+                   "t/scenarios/policy/poo-z-type-construction-loop-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
+                 (total-ms (hash-get timing 'totalMs))
+                 (before-matching
+                  (policy-scenario-findings
+                   result
+                   'before
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (after-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (finding (car before-matching))
+                   (details (type-finding-details finding)))
+              (check (length timings) => 4)
+              (check (policy-scenario-timing-steps-measured? timings)
+                     => #t)
+              (check (poo-policy-performance-timing-status total-ms)
+                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
+              (check (length before-matching) => 1)
+              (check after-matching => [])
+              (check (type-finding-path finding) => "src/reports/modular.ss")
+              (check (hash-get details 'kind)
+                     => "poo-type-construction-loop-performance")
+              (check (hash-get details 'callee) => "Z/")
+              (check (hash-get details 'loopRole) => "manual-loop")
+              (check (hash-get details 'preferredConstruction)
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+    (test-case "agent policy redirects loop-local POO integer range type construction to a named type binding"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "poo-integer-range-type-construction-loop-performance"
+                   "t/scenarios/policy/poo-integer-range-type-construction-loop-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
+                 (total-ms (hash-get timing 'totalMs))
+                 (before-matching
+                  (policy-scenario-findings
+                   result
+                   'before
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (after-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-R034"))
+                 (finding (car before-matching))
+                   (details (type-finding-details finding)))
+              (check (length timings) => 4)
+              (check (policy-scenario-timing-steps-measured? timings)
+                     => #t)
+              (check (poo-policy-performance-timing-status total-ms)
+                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
+              (check (length before-matching) => 1)
+              (check after-matching => [])
+              (check (type-finding-path finding) => "src/reports/range.ss")
+              (check (hash-get details 'kind)
+                     => "poo-type-construction-loop-performance")
+              (check (hash-get details 'callee) => "IntegerRange")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
                      => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
@@ -440,7 +668,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -456,8 +683,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/debug.ss")
@@ -475,7 +702,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -491,8 +717,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/shape.ss")
@@ -510,7 +736,6 @@
                  (timing (policy-scenario-run/timed scenario))
                  (result (hash-get timing 'result))
                  (timings (hash-get timing 'timings))
-                 (total-ms (hash-get timing 'totalMs))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -526,8 +751,8 @@
               (check (length timings) => 4)
               (check (policy-scenario-timing-steps-measured? timings)
                      => #t)
-              (check (poo-policy-performance-timing-status total-ms)
-                     => "pass")
+              (check (policy-scenario-benchmark-constrained? timing)
+                     => #t)
               (check (length before-matching) => 1)
               (check after-matching => [])
               (check (type-finding-path finding) => "src/reports/predicate.ss")
@@ -583,12 +808,13 @@
             (check (hash-get (hash-get details 'runtimeSourceRequirement)
                              'selectorFormat)
                    => "gerbil-runtime-source://<source-path>#<symbol>")
-            (check (hash-get (hash-get details 'gerbilUtilsSource)
-                             'sourcePattern)
+            (check (hash-get (hash-get details 'qualityReference)
+                             'referencePattern)
                    => "gerbil-utils-controlled-macro-helper")
             (check (not (not (member "gerbil-utils/syntax.ss#syntax-case"
-                                     (hash-get (hash-get details 'gerbilUtilsSource)
-                                               'sourceOwners))))
+                                     (hash-get (hash-get details
+                                                         'qualityReference)
+                                               'referenceExamples))))
                    => #t)
             (check (hash-get details 'agentEscapeConstraint)
                    => "do not weaken macro-governance from a source macro edit; update gerbil.pkg only with a clear explanation and witness")))

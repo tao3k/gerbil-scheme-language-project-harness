@@ -1,0 +1,25 @@
+((maxTotalMs . 1000)
+ (maxCollectMs . 1000)
+ (maxParseMs . 750)
+ (maxFileMs . 250)
+ (maxPhaseMs . 100)
+ (iterations . 1)
+ (unit . "ms")
+ (purpose . "R013 case-lambda function factory scenario keeps arity-specialized repair within the scenario-owned timing gate")
+ (feature . "case-lambda-function-factory")
+ (rule . "GERBIL-SCHEME-AGENT-R013")
+ (optimizationFocus . "case-lambda arity-specialized function factory")
+ (inputShape . "single wrapper-lambda factory hiding distinct arity variants")
+ (expectedRepair . "case-lambda factory with explicit arity branches and typed documentation")
+ (expectedReferencePattern . "gerbil-utils-higher-order-expression")
+ (expectedReferenceExamples
+  "gerbil-utils/base.ss#case-lambda specializers")
+ (expectedQualitySignals
+  "function-specialization-abstraction"
+  "multi-arity-abstraction"
+  "thin-wrapper-elimination")
+ (learnedStyleSources "gerbil-utils")
+ (antiAiScaffoldIntent . "reject one-size wrapper-lambda factories when case-lambda expresses real arity variants")
+ (scenarioQualityAxes "case-lambda-function-factory" "anti-ai-scaffold")
+ (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after")
+ (tags "style" "higher-order" "case-lambda" "arity"))

@@ -24,7 +24,11 @@ Primary owner evidence:
 - =object.ss= owns object construction, instance cache, materialization, clone,
   composition, projection, and mutation boundaries.
 - =mop.ss= owns MOP type validation, lens update behavior, and
-  =MonomorphicObject= type construction.
+  =MonomorphicObject=/=Function= type construction.
+- =fq.ss= owns finite-field type construction, including parameterized =F_q=
+  descriptors.
+- =number.ss= owns numeric type construction, including fresh =Z/= and
+  =IntegerRange= descriptors plus cached =UIntN=/=IntN= descriptors.
 - =doc/poo.md= and =t/object-test.ss= remain supporting documentation and test
   owners, but the policy cost model is implementation-owned.
 
@@ -32,16 +36,23 @@ Key selector evidence:
 
 - =object.ss:454-474= shows =.put!= as a direct mutation boundary and =.cc= as
   carbon-copy clone override setup.
-- =object.ss:195-215= shows =.alist=, =.alist/sort=, =force-object=, and
-  =hash<-object= full-object materialization paths.
+- =object.ss:188-215= shows =.for-each!=, =.alist=, =.alist/sort=,
+  =force-object=, and =hash<-object= full-object iteration and
+  materialization paths.
 - =object.ss:209-229= shows =o?/slots= and =.refs/slots= projection helpers.
 - =mop.ss:420-484= shows =Lens .modify= delegates to =.set= and =slot-lens=
   implements =.set= with =.cc=.
-- =mop.ss:188-208= shows =MonomorphicObject= constructs a fresh POO type object.
+- =mop.ss:188-240= shows =MonomorphicObject= and =Function= construct
+  fresh POO type objects.
+- =fq.ss:24-95= shows =F_q= constructs a fresh finite-field type object.
+- =number.ss:90-160= shows =IntegerRange= and =Z/= construct fresh numeric
+  type objects.
+- =number.ss:175-207= shows =UIntN= and =IntN= use =hash-ensure-ref= and are
+  cached constructors.
 
 * Cost Model
 
-The policy model separates POO cost into nine hot-loop surfaces.
+The policy model separates POO cost into ten hot-loop surfaces.
 
 ** Construction
 
@@ -84,12 +95,13 @@ Harness rules:
 
 ** Materialization And Projection
 
-Full-object materialization is correct at serialization and inspection
-boundaries. Slot projection is also valid, but repeated stable projection in a
-loop wastes work.
+Full-object materialization and full-object iteration are correct at
+serialization and inspection boundaries. Slot projection is also valid, but
+repeated stable projection or traversal in a loop wastes work.
 
 Covered patterns:
 
+- loop-local =.for-each!=
 - loop-local =.alist=
 - loop-local =.alist/sort=
 - loop-local =.all-slots=
@@ -100,8 +112,8 @@ Covered patterns:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R029=: materialize or project once outside the loop, or
-  carry only the required scalar state.
+- =GERBIL-SCHEME-AGENT-R029=: materialize, iterate, or project once outside
+  the loop, or carry only the required scalar state.
 
 ** Composition
 
@@ -140,12 +152,18 @@ Harness rule:
 ** Type Construction
 
 MOP type construction is also a boundary operation. =MonomorphicObject= builds a
-fresh type object with closure slots, so stable type objects should be named and
-reused.
+fresh type object with closure slots, =Function= validates input/output type
+lists before building a descriptor object, =F_q= builds a finite-field
+descriptor with a nested =Z/pZ= descriptor, and =Z/= / =IntegerRange= build
+fresh numeric descriptors, so stable type objects should be named and reused.
 
 Covered pattern:
 
 - loop-local =MonomorphicObject=
+- loop-local =Function=
+- loop-local =F_q=
+- loop-local =Z/=
+- loop-local =IntegerRange=
 
 Harness rule:
 
@@ -234,6 +252,18 @@ The benchmark receipts below are intentionally small, repeatable probes. They
 measure warm behavior inside one Gerbil process and exclude command startup from
 the compared loop body.
 
+- =.for-each!= object iteration: 500 slots x 2000 loop iterations measured
+  =1910ms= inside the loop versus =0ms= for a hoisted =.alist= sum reused by
+  the loop.
+- =Function= type construction: 100000 loop constructions measured =1017ms=
+  versus =8ms= for a hoisted type descriptor reused by the loop.
+- =F_q= finite-field type construction: 100000 loop constructions measured
+  =524ms= versus =5ms= for a hoisted type descriptor reused by the loop.
+- =Z/= modular integer type construction: 100000 loop constructions measured
+  =392ms= versus =12ms= for a hoisted type descriptor reused by the loop.
+- =IntegerRange= type construction: 100000 loop constructions measured
+  =739ms= versus =4ms= for a hoisted type descriptor reused by the loop.
+
 | Surface | Probe | Slow shape | Fast shape |
 |---------+-------+------------+------------|
 | Broad =.o= construction | large data-shaped object | 28 slots about 18s; 32 slots exceeded 20s probe budget | =object<-alist= under startup-scale timing |
@@ -261,11 +291,16 @@ Current scenario IDs:
 - =poo-clone-override-loop-performance=
 - =poo-materialization-loop-performance=
 - =poo-slot-projection-loop-performance=
+- =poo-object-iteration-loop-performance=
 - =poo-composition-loop-performance=
 - =poo-validation-loop-performance=
 - =poo-lens-loop-performance=
 - =poo-object-construction-loop-performance=
 - =poo-type-construction-loop-performance=
+- =poo-function-type-construction-loop-performance=
+- =poo-fq-type-construction-loop-performance=
+- =poo-z-type-construction-loop-performance=
+- =poo-integer-range-type-construction-loop-performance=
 - =poo-debug-instrumentation-loop-performance=
 - =poo-slot-spec-mutation-loop-performance=
 - =poo-slot-predicate-loop-performance=
@@ -305,6 +340,13 @@ Method dispatch/table searches converged on =doc/poo.md=, =table.ss=, and
 loop-local repeated dynamic dispatch cost. The boundary is documented as walked,
 but it should not become a rule without a concrete downstream call-site and a
 microbenchmark.
+
+** Table Serialization
+=table.ss= owns generic table and set projection through =.list<-=,
+=.json<-=, =.bytes<-=, and =.marshal=. These are collection serialization
+boundaries over a typeclass, not POO object slot traversal. Do not fold them
+into R029 unless a future parser fact can distinguish stable table projection
+inside a hot loop from intentional collection boundary conversion.
 
 ** Dynamic =.call=
 
@@ -348,8 +390,9 @@ upstream/library design lanes, not harness rules for agent-authored POO code.
 
 Some parameterized type constructors are explicitly cached, for example
 constructors that use =hash-ensure-ref=. R034 is therefore intentionally narrow:
-it covers =MonomorphicObject=, where the inspected implementation constructs a
-fresh type object.
+it covers =MonomorphicObject=, =Function=, =F_q=, =Z/=, and =IntegerRange=,
+where the inspected implementations construct fresh type objects. Cached
+constructors such as =UIntN= and =IntN= remain outside the rule.
 
 * Milestone Gate
 
@@ -382,8 +425,8 @@ support:
 - compare gerbil-poo patterns against downstream projects with real loop-heavy
   workloads
 - investigate whether gerbil-poo itself should cache selected type constructors
-  such as =MonomorphicObject=, while keeping the harness rule as downstream
-  guidance
+  such as =MonomorphicObject=, =Function=, =F_q=, =Z/=, or =IntegerRange=,
+  while keeping the harness rule as downstream guidance
 - investigate upstream data-structure optimizations separately from harness
   policy, especially trie wrapper-level cached digests, lazy loading, and cached
   counts

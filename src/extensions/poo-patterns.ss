@@ -5,6 +5,7 @@
 ;;; - Keeps :extensions/poo focused on activation and origin dispatch.
 
 (import :extensions/poo-pattern-support
+        :extensions/poo-pattern-typeclass
         (only-in :std/srfi/13 string-join)
         (only-in :std/sugar hash))
 
@@ -856,6 +857,7 @@
         (cons 'lens +poo-lens-pattern-spec+)
         (cons 'type-validation +poo-type-validation-pattern-spec+)
         (cons 'c3-mro +poo-c3-mro-pattern-spec+)
+        (cons 'typeclass-algebra +poo-typeclass-algebra-pattern-spec+)
         (cons 'object-system +poo-object-system-pattern-spec+)))
 
 ;; : (-> Kind PatternSpec )

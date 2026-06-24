@@ -3,7 +3,8 @@
 
 (import :gerbil/gambit
         (only-in :commands/search-prime-light
-                 search-prime-light-main
+                 search-prime-light-main)
+        (only-in :commands/search-workspace-scope-light
                  search-workspace-scope-light-main))
 
 (export main

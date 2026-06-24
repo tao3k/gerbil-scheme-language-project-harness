@@ -615,7 +615,7 @@
                 (selectorFormat "gerbil-runtime-source://<source-path>#<symbol>")
                 (output "code-with-comments")
                 (indexOwner "asp-structural-index")))
-         (gerbilUtilsSource
+         (qualityReference
           (gerbil-utils-source-details 'macro-helper))
          (allowedMacroShape
           ["thin syntax bridge"

@@ -3,7 +3,7 @@
 #+STARTUP: overview
 #+PROPERTY: JD_ID 11.03
 #+PROPERTY: STATUS research-note
-#+PROPERTY: SOURCE_ROOT ../../../../.data/gerbil
+#+PROPERTY: SOURCE_ROOT gerbil://
 #+PROPERTY: UTILS_ROOT ../../../../.data/gerbil-utils
 #+PROPERTY: TARGET_ROOT ..
 
@@ -11,14 +11,14 @@
 :PROPERTIES:
 :JD_ID: 11.03
 :STATUS: research-note
-:SOURCE_ROOT: ../../../../.data/gerbil
+:SOURCE_ROOT: gerbil://
 :UTILS_ROOT: ../../../../.data/gerbil-utils
 :TARGET_ROOT: ..
 :END:
 
 ** 11.03.1 Scope
 
-This note audits the version-matched =.data/gerbil= source and selected
+This note audits the version-matched =gerbil://= source corpus and selected
 =.data/gerbil-utils= files for advanced Gerbil/Scheme engineering features.
 The goal is to give =gerbil-scheme-language-project-harness= a source-backed
 quality baseline for policy guidance, code examples, and future guide output.
@@ -63,13 +63,13 @@ enough for macro, module, or phase semantics.
 
 High-signal files inspected:
 
-- =.data/gerbil/src/gerbil/runtime/syntax.ss=
-- =.data/gerbil/src/gerbil/core/macro-object.ss=
-- =.data/gerbil/src/gerbil/core/sugar.ss=
-- =.data/gerbil/src/gerbil/core/module-sugar.ss=
-- =.data/gerbil/src/gerbil/core/match.ss=
-- =.data/gerbil/src/std/iter.ss=
-- =.data/gerbil/src/std/misc/list-builder.ss=
+- =gerbil://gerbil/runtime/syntax.ss=
+- =gerbil://gerbil/core/macro-object.ss=
+- =gerbil://gerbil/core/sugar.ss=
+- =gerbil://gerbil/core/module-sugar.ss=
+- =gerbil://gerbil/core/match.ss=
+- =gerbil://std/iter.ss=
+- =gerbil://std/misc/list-builder.ss=
 - =.data/gerbil-utils/list.ss=
 
 ** 11.03.3 Advanced Features Found

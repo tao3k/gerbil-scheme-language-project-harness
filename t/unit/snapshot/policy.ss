@@ -573,7 +573,7 @@
 ;; : (-> PolicyDetails PolicyGuidance )
 (def (macro-controlled-helper-guidance-snapshot details)
   (let ((runtime (hash-get details 'runtimeSourceRequirement))
-        (source (hash-get details 'gerbilUtilsSource)))
+        (reference (hash-get details 'qualityReference)))
     (list (list 'macro (hash-get details 'macro))
           (list 'phase (hash-get details 'phase))
           (list 'hygienic (hash-get details 'hygienic))
@@ -581,8 +581,10 @@
           (list 'allowedMacroShape (hash-get details 'allowedMacroShape))
           (list 'runtimeSelectorFormat
                 (hash-get runtime 'selectorFormat))
-          (list 'styleSourcePattern (hash-get source 'sourcePattern))
-          (list 'styleSourceOwners (hash-get source 'sourceOwners))
+          (list 'styleReferencePattern
+                (hash-get reference 'referencePattern))
+          (list 'styleReferenceExamples
+                (hash-get reference 'referenceExamples))
           (list 'escapeConstraint
                 (hash-get details 'agentEscapeConstraint)))))
 
@@ -617,15 +619,17 @@
 
 ;; : (-> PolicyDetails ProfileSnapshot )
 (def (predicate-combinator-profile-snapshot details)
-  (let ((source (hash-get details 'gerbilUtilsSource)))
+  (let ((reference (hash-get details 'qualityReference)))
     (list (list 'styleGuide (hash-get details 'styleGuide))
           (list 'subject (hash-get details 'subject))
           (list 'predicateCount (hash-get details 'predicateCount))
           (list 'fieldKeys (hash-get details 'fieldKeys))
           (list 'repeatedCallees (hash-get details 'repeatedCallees))
-          (list 'sourcePattern (hash-get source 'sourcePattern))
-          (list 'sourceOwners (hash-get source 'sourceOwners))
-          (list 'qualitySignals (hash-get source 'qualitySignals))
+          (list 'referencePattern
+                (hash-get reference 'referencePattern))
+          (list 'referenceExamples
+                (hash-get reference 'referenceExamples))
+          (list 'qualitySignals (hash-get reference 'qualitySignals))
           (list 'repairStandard
                 (hash-get details 'agentRepairStandard)))))
 

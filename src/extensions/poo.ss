@@ -241,6 +241,11 @@
                                   "dependency-protocol-adapter"
                                   "protocol-adapter" "adapter-quality"])
     'dependency-protocol-adapter)
+   ((poo-pattern-term-any? terms ["typeclass" "algebra" "category"
+                                  "Category." "functor" "Functor."
+                                  "ParametricFunctor." "wrapper" "Wrapper."
+                                  "Wrap." "identity" "Identity"])
+    'typeclass-algebra)
    ((poo-pattern-term-any? terms ["finite" "field" "fq" "F_q"
                                   "F_q." "F_2^n." "F_2^8"
                                   "binary-field" "field-descriptor"])

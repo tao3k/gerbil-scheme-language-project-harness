@@ -6,6 +6,7 @@
         :parser/facade
         :parser/selectors
         :parser/source-class
+        (only-in :std/srfi/1 filter)
         (only-in :std/sugar hash))
 
 (export workspace-scope-packet-json
@@ -30,6 +31,8 @@
          (source-roots (workspace-source-roots policy))
          (runtime-roots (workspace-runtime-roots policy))
          (exclude-directories (workspace-exclude-directories policy))
+         (scope-included-dirs (workspace-scope-included-dirs source-roots
+                                                             runtime-roots))
          (status (if package "ready" "missing-anchor")))
     (hash
      (schemaId +semantic-workspace-scope-schema-id+)
@@ -52,7 +55,8 @@
        (sourceExtensions +source-extensions+)
        (sourceRoots source-roots)
        (runtimeRoots runtime-roots)
-       (ignoredPathPrefixes (append +ignored-dirs+ exclude-directories))
+       (scopeIncludedDirs scope-included-dirs)
+       (excludeDirectories exclude-directories)
        (policyExplanation (and policy
                                (source-scope-policy-explanation policy)))))
      (files (map (lambda (path)
@@ -95,3 +99,36 @@
 (def (workspace-exclude-directories policy)
   (let (dirs (and policy (source-scope-policy-exclude-directories policy)))
     (if dirs dirs '())))
+
+;;; Included-scope boundary:
+;;; - The public packet exposes positive source/runtime roots for index seeding.
+;;; - Exclude directories stay as policy metadata and are not merged with
+;;;   provider-private default ignore lists.
+;; : (-> (List String) (List String) (List String) )
+(def (workspace-scope-included-dirs source-roots runtime-roots)
+  (unique-workspace-paths (append source-roots runtime-roots)))
+
+;;; Stable path-set boundary:
+;;; - Keep first occurrence order because agents compare packet text directly.
+;;; - Paths are policy strings, so string equality via member is sufficient.
+;; unique-workspace-paths
+;; : (-> (List String) (List String) )
+;;   | doc m%
+;;       `unique-workspace-paths` keeps each project-relative scope path once,
+;;       in the order supplied by the package source-scope policy.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (unique-workspace-paths '("src" "src" "test"))
+;;       ;; => ("src" "test")
+;;       ```
+;;     %
+(def (unique-workspace-paths values)
+  (if (null? values)
+    '()
+    (cons (car values)
+          (unique-workspace-paths
+           (filter (lambda (value)
+                     (not (equal? value (car values))))
+                   (cdr values))))))

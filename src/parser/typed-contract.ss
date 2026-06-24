@@ -57,16 +57,118 @@
 ;;;   contract extraction reusable without re-reading the file on hot paths.
 ;; : (-> (List SourceLine) Relpath (List Definition) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (List TypedContractFact) )
 (def (typed-contract-facts-from-lines lines relpath definitions calls higher-order-forms control-flow-forms)
-  (filter-map (cut typed-contract-fact-from-definition
-                   relpath lines <> calls
-                   higher-order-forms control-flow-forms)
-              definitions))
+  (let ((line-vector (list->vector lines))
+        (call-index (index-facts-by-field call-fact-caller calls))
+        (higher-order-index
+         (index-facts-by-field higher-order-fact-caller higher-order-forms))
+        (control-flow-index
+         (index-facts-by-field control-flow-fact-caller control-flow-forms)))
+    (filter-map (cut typed-contract-fact-from-definition/indexed
+                     relpath line-vector <>
+                     call-index higher-order-index control-flow-index)
+                definitions)))
+
+;;; Compatibility wrapper for callers that still pass list-shaped source lines.
+;; : (-> Relpath (List SourceLine) Definition (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (Maybe TypedContractFact) )
+(def (typed-contract-fact-from-definition relpath lines definition calls higher-order-forms control-flow-forms)
+  (typed-contract-fact-from-definition/indexed
+   relpath
+   (list->vector lines)
+   definition
+   (index-facts-by-field call-fact-caller calls)
+   (index-facts-by-field higher-order-fact-caller higher-order-forms)
+   (index-facts-by-field control-flow-fact-caller control-flow-forms)))
+
+;;; Boundary:
+;;; - typed-contract-fact-from-definition/indexed owns the hot path.
+;;; - Source lines and parser witnesses are indexed once per file by the caller.
+;; : (-> Relpath (Vector SourceLine) Definition HashTable HashTable HashTable (Maybe TypedContractFact) )
+(def (typed-contract-fact-from-definition/indexed relpath line-vector definition call-index higher-order-index control-flow-index)
+  (let (entry (typed-contract-entry-near-definition/indexed line-vector definition))
+    (and entry
+         (let* ((comment-start (car entry))
+                (comment-end (cadr entry))
+                (contract (caddr entry))
+                (block-style (cadddr entry))
+                (block-facets (typed-contract-entry-facets entry))
+                (typed-comment (typed-contract-entry-typed-comment entry))
+                (tokens (typed-contract-tokens contract))
+                (arrow-count (typed-contract-arrow-count contract))
+                (group-count (typed-contract-group-count contract))
+                (contract-output (typed-contract-output contract))
+                (contract-inputs (typed-contract-inputs contract))
+                (contract-input-count (length contract-inputs))
+                (arity-alignment
+                 (typed-contract-arity-alignment definition
+                                                 arrow-count
+                                                 contract-input-count))
+                (reasons (typed-contract-invalid-reasons
+                          definition contract contract-output contract-inputs
+                          typed-comment tokens arrow-count group-count))
+                (quality (typed-contract-quality reasons arrow-count group-count))
+                (matched-calls
+                 (indexed-facts call-index (definition-name definition)))
+                (matched-higher-order
+                 (indexed-facts higher-order-index (definition-name definition)))
+                (matched-control-flow
+                 (indexed-facts control-flow-index (definition-name definition)))
+                (quality-facets
+                (typed-contract-quality-facets
+                 definition quality arity-alignment reasons
+                 matched-calls matched-higher-order matched-control-flow
+                  block-style block-facets))
+                (repair-evidence
+                 (typed-contract-repair-evidence
+                  relpath definition contract quality quality-facets
+                  matched-calls matched-higher-order matched-control-flow)))
+           (make-typed-contract-fact
+            (definition-name definition)
+            (definition-kind definition)
+            (definition-formals definition)
+            (definition-arity definition)
+            relpath
+            (definition-start definition)
+            (definition-end definition)
+            comment-start
+            comment-end
+            contract
+            contract-output
+            contract-inputs
+            contract-input-count
+            arity-alignment
+            tokens
+            arrow-count
+            group-count
+            quality
+            reasons
+            quality-facets
+            repair-evidence
+            typed-comment)))))
+
+(def (index-facts-by-field accessor facts)
+  (let (table (make-hash-table))
+    (for-each
+     (lambda (fact)
+       (let (key (accessor fact))
+         (when key
+           (let (existing
+                 (if (hash-key? table key)
+                   (hash-get table key)
+                   '()))
+             (hash-put! table key (cons fact existing))))))
+     facts)
+    table))
+
+(def (indexed-facts table key)
+  (if (and key (hash-key? table key))
+    (hash-get table key)
+    '()))
 
 ;;; Boundary:
 ;;; - typed-contract-fact-from-definition coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
 ;; : (-> Relpath (List SourceLine) Definition (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (Maybe TypedContractFact) )
-(def (typed-contract-fact-from-definition relpath lines definition calls higher-order-forms control-flow-forms)
+(def (typed-contract-fact-from-definition/list-scan relpath lines definition calls higher-order-forms control-flow-forms)
   (let (entry (typed-contract-entry-near-definition lines definition))
     (and entry
          (let* ((comment-start (car entry))
@@ -329,6 +431,47 @@
 (def (typed-contract-entry-near-definition lines definition)
   (or (typed-contract-block-entry lines definition)
       (typed-contract-legacy-entry lines definition)))
+
+;;; Indexed boundary:
+;;; - The parser hot path already owns a source-line vector. Keep typed-contract
+;;;   lookup O(1) per line instead of falling back to repeated list-ref scans.
+;; : (-> (Vector SourceLine) Definition (Maybe TypedContractEntry))
+(def (typed-contract-entry-near-definition/indexed line-vector definition)
+  (or (typed-contract-block-entry/indexed line-vector definition)
+      (typed-contract-legacy-entry/indexed line-vector definition)))
+
+;; : (-> (Vector SourceLine) Definition (Maybe TypedContractEntry))
+(def (typed-contract-legacy-entry/indexed line-vector definition)
+  (let* ((comment-line-number (fx1- (definition-start definition)))
+         (line (line-vector-at* line-vector (fx1- comment-line-number)))
+         (contract (typed-contract-comment-body line)))
+    (and contract
+         [comment-line-number
+          comment-line-number
+          contract
+          "legacy-contract"
+          (typed-contract-legacy-facets contract)
+          (typed-comment-empty-metadata "legacy-contract" contract)])))
+
+;; : (-> (Vector SourceLine) Definition (Maybe TypedContractEntry))
+(def (typed-contract-block-entry/indexed line-vector definition)
+  (let (block
+        (typed-comment-block-before/indexed
+         line-vector
+         (fx1- (definition-start definition))))
+    (typed-comment-block-signature-entry block)))
+
+;; : (-> (Vector SourceLine) LineNumber (List TypedCommentLine))
+(def (typed-comment-block-before/indexed line-vector line-number)
+  (map (lambda (current)
+         [current (typed-comment-text
+                   (line-vector-at* line-vector (fx1- current)))])
+       (reverse
+        (take-while
+         (lambda (current)
+           (typed-comment-line?
+            (line-vector-at* line-vector (fx1- current))))
+         (iota line-number line-number -1)))))
 
 ;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
@@ -789,6 +932,12 @@
   (and (>= index 0)
        (< index (length lines))
        (list-ref lines index)))
+
+;; : (-> (Vector SourceLine) LineNumber (Maybe SourceLine) )
+(def (line-vector-at* line-vector index)
+  (and (>= index 0)
+       (< index (vector-length line-vector))
+       (vector-ref line-vector index)))
 
 ;; : (-> String Boolean )
 (def (blank-string? value)

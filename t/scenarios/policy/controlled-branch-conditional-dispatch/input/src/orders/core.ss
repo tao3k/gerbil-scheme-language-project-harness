@@ -14,6 +14,6 @@
             (let (binary (sibling-binary-path binary-name))
               (if (file-exists? binary)
                 (run-binary binary args)
-                (run-source command args)))
-            (run-source command args))
+                (missing-native-command command binary)))
+            (missing-native-command command #f))
           (usage-error))))))

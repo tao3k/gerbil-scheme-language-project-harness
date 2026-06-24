@@ -106,4 +106,4 @@
                (defaultExtensions +source-extensions+)
                (defaultConfigFiles +config-files+)
                (defaultSourceRoots ["src" "test" "tests" "doc" "docs" "examples" "tutorial"])
-               (defaultIgnoredPathPrefixes +ignored-dirs+))))])))
+               (defaultScopeIncludedDirs ["src" "test" "tests" "doc" "docs" "examples" "tutorial"]))))])))

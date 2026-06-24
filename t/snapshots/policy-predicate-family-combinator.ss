@@ -12,8 +12,8 @@
     (predicateCount 3)
     (fieldKeys ("role" "fields"))
     (repeatedCallees ("hash-get" "equal?" "field-string"))
-    (sourcePattern "gerbil-utils-predicate-combinator")
-    (sourceOwners
+    (referencePattern "gerbil-utils-predicate-combinator")
+    (referenceExamples
      ("gerbil-utils/base.ss#compose"
       "gerbil-utils/base.ss#cut/curry/rcurry"
       "gerbil-utils/base.ss#ensure-function"
@@ -24,6 +24,6 @@
       "predicate-combinator"
       "generator-aware-transform"))
     (repairStandard
-     "rewrite toward gerbil-utils style: keep predicate names stable, extract role/field selector helpers, and compose small expression-returning predicates"))))
+     "rewrite toward learned Gerbil predicate style: keep predicate names stable, extract role/field selector helpers, and compose small expression-returning predicates"))))
  (after
   (r016Findings ())))

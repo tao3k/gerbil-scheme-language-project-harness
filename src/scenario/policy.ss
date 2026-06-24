@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Policy scenario runner shared by tests and future agent-facing fixtures.
 
-(import :parser/facade
+(import :gerbil/gambit
+        :parser/facade
         :policy/facade
         (only-in :std/srfi/1 find)
         (only-in :std/sugar hash)
@@ -13,6 +14,8 @@
         policy-scenario-root
         policy-scenario-input-root
         policy-scenario-expected-root
+        policy-scenario-benchmark-contract
+        policy-scenario-benchmark-max-total-ms
         policy-scenario-run
         policy-scenario-run/timed
         policy-scenario-run/checks
@@ -30,6 +33,8 @@
 (def +policy-scenario-input-dir+ "input")
 ;; RelativePath
 (def +policy-scenario-expected-dir+ "expected")
+;; RelativePath
+(def +policy-scenario-benchmark-file+ "benchmark.ss")
 
 ;; : (-> Id ScenarioRoot PolicyScenario )
 (def (make-policy-scenario id root)
@@ -54,6 +59,94 @@
   (string-append (policy-scenario-root scenario)
                  "/"
                  +policy-scenario-expected-dir+))
+
+;; : (-> PolicyScenario Relpath )
+(def (policy-scenario-benchmark-path scenario)
+  (string-append (policy-scenario-root scenario)
+                 "/"
+                 +policy-scenario-benchmark-file+))
+
+;;; Fixture benchmark contract:
+;;; - A scenario must carry benchmark.ss beside input/ and expected/.
+;;; - The file is data, not code: an alist such as ((maxTotalMs . 1000)).
+;;; - Feature metadata stays fixture-owned so later optimization passes can
+;;;   group receipts by policy rule, input shape, and repair family.
+;; : (-> PolicyScenario BenchmarkContract )
+(def (policy-scenario-benchmark-contract scenario)
+  (let ((path (policy-scenario-benchmark-path scenario)))
+    (if (file-exists? path)
+      (policy-scenario-benchmark-datum->contract
+       (call-with-input-file path read))
+      (error "policy scenario requires benchmark.ss"
+             (policy-scenario-id scenario)
+             path))))
+
+;;; Contract normalization boundary:
+;;; - Keep fixture syntax small and stable.
+;;; - Timed runners receive hash data so tests and future JSON packets do not
+;;;   depend on alist shape.
+;; : (-> BenchmarkContractDatum BenchmarkContract )
+(def (policy-scenario-benchmark-datum->contract datum)
+  (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
+        (schemaVersion "1")
+        (maxTotalMs
+         (policy-scenario-benchmark-value datum 'maxTotalMs #f))
+        (iterations
+         (policy-scenario-benchmark-value datum 'iterations 1))
+        (unit
+         (policy-scenario-benchmark-value datum 'unit "ms"))
+        (purpose
+         (policy-scenario-benchmark-value datum 'purpose "scenario timing"))
+        (feature
+         (policy-scenario-benchmark-value datum 'feature "policy-scenario"))
+        (rule
+         (policy-scenario-benchmark-value datum 'rule #f))
+        (optimizationFocus
+         (policy-scenario-benchmark-value datum 'optimizationFocus #f))
+        (inputShape
+         (policy-scenario-benchmark-value datum 'inputShape #f))
+        (expectedRepair
+         (policy-scenario-benchmark-value datum 'expectedRepair #f))
+        (expectedReferencePattern
+         (policy-scenario-benchmark-value datum 'expectedReferencePattern #f))
+        (expectedReferenceExamples
+         (policy-scenario-benchmark-value datum 'expectedReferenceExamples '()))
+        (expectedQualitySignals
+         (policy-scenario-benchmark-value datum 'expectedQualitySignals '()))
+        (learnedStyleSources
+         (policy-scenario-benchmark-value datum 'learnedStyleSources '()))
+        (antiAiScaffoldIntent
+         (policy-scenario-benchmark-value datum 'antiAiScaffoldIntent #f))
+        (scenarioQualityAxes
+         (policy-scenario-benchmark-value datum 'scenarioQualityAxes '()))
+        (hotPathExemption
+         (policy-scenario-benchmark-value datum 'hotPathExemption #f))
+        (hotPathEvidence
+         (policy-scenario-benchmark-value datum 'hotPathEvidence '()))
+        (styleRewriteBoundary
+         (policy-scenario-benchmark-value datum 'styleRewriteBoundary #f))
+        (measurementPhases
+         (policy-scenario-benchmark-value
+          datum
+          'measurementPhases
+          '("collect-before" "collect-after" "policy-before" "policy-after")))
+        (tags
+         (policy-scenario-benchmark-value datum 'tags '()))))
+
+;;; Datum lookup boundary:
+;;; - Missing benchmark fields fall back to contract defaults.
+;;; - This keeps older scenarios readable while new fields become testable.
+;; : (-> BenchmarkContractDatum BenchmarkContractKey BenchmarkContractValue BenchmarkContractValue )
+(def (policy-scenario-benchmark-value datum key default)
+  (let (entry (and (list? datum) (assoc key datum)))
+    (if entry (cdr entry) default)))
+
+;;; Performance gate boundary:
+;;; - #f means the scenario records timing without enforcing a ceiling.
+;;; - benchmark.ss remains the owner for configured time budgets.
+;; : (-> BenchmarkContract (U Integer False) )
+(def (policy-scenario-benchmark-max-total-ms contract)
+  (hash-get contract 'maxTotalMs))
 
 ;;; Runner:
 ;;; - input/ is the failing project shape.
@@ -108,6 +201,11 @@
                    after-index-timing
                    before-policy-timing
                    after-policy-timing])
+         (total-ms (policy-scenario-timings-total-ms timings))
+         (benchmark-contract
+          (policy-scenario-benchmark-contract scenario))
+         (max-total-ms
+          (policy-scenario-benchmark-max-total-ms benchmark-contract))
          (result
           (list (policy-scenario-id scenario)
                 before-index
@@ -117,10 +215,38 @@
     (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
           (schemaVersion "1")
           (scenarioId (policy-scenario-id scenario))
-          (totalMs (policy-scenario-timings-total-ms timings))
+          (totalMs total-ms)
           (timings timings)
+          (benchmarkContract benchmark-contract)
+          (benchmarkFeature (hash-get benchmark-contract 'feature))
+          (benchmarkRule (hash-get benchmark-contract 'rule))
+          (optimizationFocus (hash-get benchmark-contract 'optimizationFocus))
+          (hotPathExemption (hash-get benchmark-contract 'hotPathExemption))
+          (hotPathEvidence (hash-get benchmark-contract 'hotPathEvidence))
+          (styleRewriteBoundary (hash-get benchmark-contract 'styleRewriteBoundary))
+          (maxTotalMs max-total-ms)
+          (performanceStatus
+           (policy-scenario-performance-status total-ms max-total-ms))
           (result result))))
 
+;;; Status boundary:
+;;; - Unbounded scenarios still return timing receipts.
+;;; - Bounded scenarios fail with both measured and configured values.
+;; : (-> Milliseconds (U Milliseconds False) String )
+(def (policy-scenario-performance-status total-ms max-total-ms)
+  (cond
+   ((not max-total-ms) "unbounded")
+   ((< total-ms max-total-ms) "pass")
+   (else
+    (string-append
+     "fail durationMs="
+     (number->string total-ms)
+     " maxMs="
+     (number->string max-total-ms)))))
+
+;;; Step timing boundary:
+;;; - Each phase returns its value and a compact duration receipt.
+;;; - Callers decide phase order; this helper only measures one thunk.
 ;; : (-> String Thunk Pair )
 (def (policy-scenario-timed-step name thunk)
   (let (start (monotonic-ms))
@@ -129,6 +255,9 @@
             (hash (name name)
                   (durationMs (duration-ms start (monotonic-ms))))))))
 
+;;; Total timing boundary:
+;;; - Sum phase receipts without re-running scenario work.
+;;; - Empty timing lists stay valid for degenerate fixtures.
 ;; : (-> (List Timing) Integer )
 (def (policy-scenario-timings-total-ms timings)
   (if (null? timings)
@@ -149,10 +278,16 @@
           (run-policy-checks before-index)
           (run-policy-checks after-index))))
 
+;;; Result tuple boundary:
+;;; - Scenario result slots stay positional for lightweight fixtures.
+;;; - Accessors keep tests from depending on raw list indexes.
 ;; : (-> PolicyScenarioResult String )
 (def (policy-scenario-result-id result)
   (list-ref result 0))
 
+;;; Phase index boundary:
+;;; - Only before/after are valid parser fact phases.
+;;; - Unknown phases fail early instead of returning a misleading index.
 ;; : (-> PolicyScenarioResult Phase ProjectIndex )
 (def (policy-scenario-index result phase)
   (case phase
@@ -182,6 +317,9 @@
             (policy-scenario-findings result phase rule-id))
       (error "missing policy scenario finding" phase rule-id)))
 
+;;; Rule predicate boundary:
+;;; - Keep rule-id matching in one helper so scenario queries stay uniform.
+;;; - The predicate compares public finding rule ids only.
 ;; : (-> TypeFinding RuleId Boolean )
 (def (policy-finding-rule? finding rule-id)
   (equal? (type-finding-rule-id finding) rule-id))

@@ -58,7 +58,8 @@
       (line-field "sourceExtensions" (join-or-dash (hash-get coverage 'sourceExtensions)))
       (line-field "sourceRoots" (join-or-dash (hash-get coverage 'sourceRoots)))
       (line-field "runtimeRoots" (join-or-dash (hash-get coverage 'runtimeRoots)))
-      (line-field "ignoredPathPrefixes" (join-or-dash (hash-get coverage 'ignoredPathPrefixes)))])
+      (line-field "scopeIncludedDirs" (join-or-dash (hash-get coverage 'scopeIncludedDirs)))
+      (line-field "excludeDirectories" (join-or-dash (hash-get coverage 'excludeDirectories)))])
     (for-each
      (lambda (file)
        (emit-field-line

@@ -3,7 +3,7 @@
 #+STARTUP: overview
 #+PROPERTY: JD_ID 11.04
 #+PROPERTY: STATUS research-note
-#+PROPERTY: SOURCE_ROOT ../../../../.data/gerbil
+#+PROPERTY: SOURCE_ROOT gerbil://
 #+PROPERTY: UTILS_ROOT ../../../../.data/gerbil-utils
 #+PROPERTY: TARGET_ROOT ..
 
@@ -11,7 +11,7 @@
 :PROPERTIES:
 :JD_ID: 11.04
 :STATUS: research-note
-:SOURCE_ROOT: ../../../../.data/gerbil
+:SOURCE_ROOT: gerbil://
 :UTILS_ROOT: ../../../../.data/gerbil-utils
 :TARGET_ROOT: ..
 :END:
@@ -24,7 +24,7 @@ advanced Gerbil/Scheme features that should shape
 
 The important distinction is:
 
-- =.data/gerbil= is the language implementation. Its source demonstrates
+- =gerbil://= is the language implementation source corpus. Its source demonstrates
   engineering-level semantics: expander state, hygiene, phase, module loading,
   MOP, runtime control, actors, syntax errors, and pattern compilation.
 - =.data/gerbil-utils= is an advanced library. Its source demonstrates dense
@@ -56,7 +56,7 @@ Follow-up axes and bounded searches used:
 - =search runtime-source match macro-object syntax-local ...=
 - =search runtime-source control continuation parameter ...=
 - =search std iterator generator coroutine ...=
-- =asp fd/rg= over =.data/gerbil/src= and =.data/gerbil-utils=
+- =asp fd/rg= over version-matched Gerbil source selectors (=gerbil://=) and =.data/gerbil-utils=
 - exact =asp gerbil-scheme query --selector ... --code= windows after owner
   discovery
 
@@ -65,7 +65,7 @@ Important interface finding:
 - =search runtime-source= emits selectors such as
   =gerbil-runtime-source://src/std/sugar.ss#defsyntax-call=.
 - Current =query --selector= did not resolve those selectors back to code.
-- Direct source windows from =.data/gerbil/src/gerbil= and
+- Direct source windows from =gerbil://gerbil= and
   =.data/gerbil-utils= did work.
 
 This means runtime-source search has the right evidence concept, but the
@@ -75,7 +75,7 @@ selector-to-code path is not yet closed for agent-facing guide =--code=.
 
 *** 11.04.3.1 Syntax objects, ASTs, marks, and syntax errors
 
-Source: =.data/gerbil/src/gerbil/runtime/syntax.ss=.
+Source: =gerbil://gerbil/runtime/syntax.ss=.
 
 Key features:
 
@@ -101,8 +101,8 @@ LLM blind spot:
 
 *** 11.04.3.2 Expander module system and phase state
 
-Source: =.data/gerbil/src/gerbil/expander/module.ss= and
-=.data/gerbil/src/gerbil/core/module-sugar.ss=.
+Source: =gerbil://gerbil/expander/module.ss= and
+=gerbil://gerbil/core/module-sugar.ss=.
 
 Key features:
 
@@ -129,7 +129,7 @@ LLM blind spot:
 
 *** 11.04.3.3 MOP and compile-time class/type generation
 
-Source: =.data/gerbil/src/gerbil/core/mop.ss=.
+Source: =gerbil://gerbil/core/mop.ss=.
 
 Key features:
 
@@ -157,7 +157,7 @@ LLM blind spot:
 
 *** 11.04.3.4 Extensible match DSL
 
-Source: =.data/gerbil/src/gerbil/core/match.ss=.
+Source: =gerbil://gerbil/core/match.ss=.
 
 Key features:
 
@@ -185,7 +185,7 @@ LLM blind spot:
 
 *** 11.04.3.5 Runtime control: promises, parameters, dynamic-wind, keywords
 
-Source: =.data/gerbil/src/gerbil/runtime/control.ss=.
+Source: =gerbil://gerbil/runtime/control.ss=.
 
 Key features:
 
@@ -211,7 +211,7 @@ LLM blind spot:
 
 *** 11.04.3.6 Actors, continuations, thread locals, and diagnostic hooks
 
-Source: =.data/gerbil/src/gerbil/runtime/thread.ss=.
+Source: =gerbil://gerbil/runtime/thread.ss=.
 
 Key features:
 

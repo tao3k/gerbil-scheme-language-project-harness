@@ -10,6 +10,7 @@
         +config-files+
         +ignored-dirs+
         collect-project
+        collect-project/profile
         collect-project/files
         collect-project-package-only
         collect-source-files

@@ -37,18 +37,17 @@
    (lambda () (path-normalize path))))
 ;;; Boundary:
 ;;; - Runtime evidence must prove active tool identity without leaking checkout paths.
-;;; - ASP-owned .data paths are implementation details, not agent-facing guidance.
+;;; - Public paths derive from the active runtime, not from a fixed checkout root.
 ;; : (-> RuntimePath PublicPath )
 (def (runtime-public-path path)
-  (cond
-   ((not path) path)
-   ((string-contains path ".data/gerbil/build")
-    (string-append "<asp-managed-gerbil-runtime>/"
-                   (path-strip-directory path)))
-   ((string-contains path ".data/gerbil")
-    (string-append "<asp-managed-gerbil-source>/"
-                   (path-strip-directory path)))
-   (else path)))
+  (if (not path)
+    path
+    (let* ((home (runtime-path-normalize (gerbil-home)))
+           (bin-root (runtime-path-normalize (path-expand "../bin" home))))
+      (if (or (string-contains path home)
+              (string-contains path bin-root))
+        (string-append "gerbil://runtime/" (path-strip-directory path))
+        path))))
 ;; : (-> VersionString GerbilRuntimeTag )
 (def (gerbil-runtime-tag version-string)
   (let (start (string-index version-string #\v))

@@ -8,6 +8,7 @@
         :std/sort
         :std/srfi/13
         :gerbil/gambit
+        (only-in :gerbil/compiler/base __available-cores)
         (rename-in :gerbil/tools/gxtest (main gxtest-main)))
 
 (def package-root (path-normalize (path-directory (this-source-file))))
@@ -15,22 +16,32 @@
 (def test-root (path-expand "t" package-root))
 
 (current-directory package-root)
-(add-load-path! package-root)
-(add-load-path! source-root)
 
 (def excluded-library-files
-  '("src/cli-launcher.ss"))
+  '("cli.ss"
+    "cli-launcher.ss"
+    "commands/agent-launcher.ss"
+    "commands/bench-launcher.ss"
+    "commands/check-launcher.ss"
+    "commands/evidence-launcher.ss"
+    "commands/guide-launcher.ss"
+    "commands/info-launcher.ss"
+    "commands/query-launcher.ss"))
 
-(def cli-launcher-spec
-  '((exe: "src/cli-launcher" bin: "gslph")))
+(def cli-spec
+  '((exe: "cli-launcher" bin: "gslph")
+    (exe: "commands/query-launcher" bin: "gslph-query")
+    (exe: "commands/check-launcher" bin: "gslph-check")
+    (exe: "commands/bench-launcher" bin: "gslph-bench")
+    (exe: "commands/evidence-launcher" bin: "gslph-evidence")
+    (exe: "commands/agent-launcher" bin: "gslph-agent")
+    (exe: "commands/guide-launcher" bin: "gslph-guide")
+    (exe: "commands/info-launcher" bin: "gslph-info")))
 
-(def cli-launcher-release-modules
-  '("src/constants.ss"
-    "src/commands/search-prime-light.ss"
-    "src/search-light-launcher.ss"))
-
-(def cli-launcher-release-spec
-  (append cli-launcher-release-modules cli-launcher-spec))
+(def cli-bootstrap-modules
+  '("constants.ss"
+    "search-light-launcher.ss"
+    "cli-launcher.ss"))
 
 (def +library-excluded-dirs+
   '("search-fast"))
@@ -45,7 +56,14 @@
    (flag 'optimized "-O" "--optimized"
          help: "Accept gxpkg optimized build mode")
    (flag 'release "-R" "--release"
-         help: "Build static release executables")])
+         help: "Build static release executables")
+   (flag 'binary "--binary"
+         help: "Build the native CLI executable")
+   (flag 'full "--full"
+         help: "Compile every library module instead of the CLI launcher")])
+
+(def (runtime-library-module? module)
+  (not (member module excluded-library-files)))
 
 (def (library-module? module)
   (and (not (member module excluded-library-files))
@@ -54,11 +72,11 @@
 (def (library-spec)
   (filter library-module? (all-package-gerbil-modules)))
 
+(def (runtime-library-spec)
+  (filter runtime-library-module? (all-package-gerbil-modules)))
+
 (def (all-package-gerbil-modules)
-  (append (if (file-exists? (path-expand "version.ss" package-root))
-            '("version.ss")
-            '())
-          (collect-gerbil-module-tree source-root "src")))
+  (collect-gerbil-module-tree source-root ""))
 
 (def (collect-gerbil-module-tree root rel-root)
   (let (result '())
@@ -66,8 +84,10 @@
       (for-each
        (lambda (entry)
          (unless (member entry '("." ".."))
-           (let ((path (path-expand entry dir))
-                 (relpath (string-append rel "/" entry)))
+           (let* ((path (path-expand entry dir))
+                  (relpath (if (string=? rel "")
+                             entry
+                             (string-append rel "/" entry))))
              (cond
               ((and (source-directory? path)
                     (not (member entry +library-excluded-dirs+)))
@@ -81,12 +101,51 @@
     (reverse result)))
 
 (def (package-build-spec)
-  (append (library-spec) cli-launcher-spec))
+  (append (runtime-library-spec) cli-spec))
 
 (def (build-spec release?)
   (if release?
-    cli-launcher-release-spec
-    (package-build-spec)))
+    (package-build-spec)
+    (library-spec)))
+
+(def (compile-spec full? release? binary?)
+  (cond
+   (full? (library-spec))
+   (release? (package-build-spec))
+   (binary? cli-spec)
+   (else cli-bootstrap-modules)))
+
+(def (compile-target verbose debug no-optimize optimized release full binary)
+  (let* ((is-darwin-release? (darwin-release? release))
+         (build-optimize? (and optimized (not no-optimize) (not is-darwin-release?)))
+         (effective-release? (and release (not is-darwin-release?)))
+         (effective-optimized? (and optimized (not is-darwin-release?)))
+         (worker-count (sync-build-worker-count!)))
+    (when is-darwin-release?
+      (display "build.ss: Darwin does not support Gerbil -static release linking; building native executables without Gerbil -O.\n"
+               (current-error-port)))
+    (make (compile-spec full release binary)
+      verbose: (and verbose 9)
+      debug: (and debug 'env)
+      optimize: build-optimize?
+      build-release: effective-release?
+      build-optimized: effective-optimized?
+      parallelize: worker-count
+      srcdir: source-root)))
+
+(def (build-worker-count)
+  (let* ((raw (getenv "GERBIL_BUILD_CORES" #f))
+         (configured (and raw (string->number raw))))
+    (if (and configured
+             (integer? configured)
+             (> configured 0))
+      configured
+      (max 1 (##cpu-count)))))
+
+(def (sync-build-worker-count!)
+  (let (worker-count (build-worker-count))
+    (set! __available-cores worker-count)
+    worker-count))
 
 (def (darwin-release? release?)
   (and release?
@@ -117,39 +176,38 @@
 (define-entry-point (compile verbose: (verbose #f) debug: (debug #f)
                              no-optimize: (no-optimize #f)
                              optimized: (optimized #f)
-                             release: (release #f))
+                             release: (release #f)
+                             full: (full #f)
+                             binary: (binary #f))
   (help: "Compile the package"
    getopt: compile-getopt)
-  (let* ((is-darwin-release? (darwin-release? release))
-         (build-optimize? (and (not no-optimize) (not is-darwin-release?)))
-         (effective-release? (and release (not is-darwin-release?)))
-         (effective-optimized? (and optimized (not is-darwin-release?))))
-    (when is-darwin-release?
-      (display "build.ss: Darwin does not support Gerbil -static release linking; building native executables without Gerbil -O.\n"
-               (current-error-port)))
-    (make (build-spec release)
-      verbose: (and verbose 9)
-      debug: (and debug 'env)
-      optimize: build-optimize?
-      build-release: effective-release?
-      build-optimized: effective-optimized?
-      parallelize: #t
-      srcdir: package-root)))
+  (compile-target verbose debug no-optimize optimized release full binary))
 
 (define-entry-point (spec verbose: (verbose #f) debug: (debug #f)
                           no-optimize: (no-optimize #f)
                           optimized: (optimized #f)
-                          release: (release #f))
+                          release: (release #f)
+                          full: (full #f)
+                          binary: (binary #f))
   (help: "Show the build specification"
    getopt: compile-getopt)
-  (pretty-print (build-spec release)))
+  (pretty-print (compile-spec full release binary)))
+
+(define-entry-point (install verbose: (verbose #f) debug: (debug #f)
+                             no-optimize: (no-optimize #f)
+                             optimized: (optimized #f)
+                             release: (release #f))
+  (help: "Build the native gslph executable"
+   getopt: compile-getopt)
+  (compile-target verbose debug no-optimize optimized release #f #t))
 
 (define-entry-point (test)
   (help: "Compile the package and run top-level gxtest files")
-  (make (package-build-spec) parallelize: #t srcdir: package-root)
-  (add-load-path! package-root)
-  (add-load-path! source-root)
-  (add-load-path! test-root)
+  (let (worker-count (sync-build-worker-count!))
+    (make (library-spec)
+      optimize: #f
+      parallelize: worker-count
+      srcdir: source-root))
   (let (tests (top-level-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")

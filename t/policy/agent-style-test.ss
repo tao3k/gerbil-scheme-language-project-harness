@@ -7,16 +7,699 @@
         :std/misc/process
         :commands/check
         :parser/facade
+        :policy/agent-style
         :policy/facade
         :policy/gxtest
+        :scenario/policy
         :types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (export agent-style-policy-test)
 
+;; Relpath
+(def +agent-style-policy-scenario-fixtures-root+ "t/scenarios/policy")
+(def +agent-style-policy-r013-rule-id+ "GERBIL-SCHEME-AGENT-R013")
+(def +agent-style-policy-scenario-timing-schema-id+
+  "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
+(def +agent-style-policy-self-apply-r013-clean-owners+
+  ["src/benchmark/gate.ss"])
+
+;; : (-> Path Boolean )
+(def (agent-style-policy-directory? path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (eq? (file-type path) 'directory))))
+
+;; : (-> String Boolean )
+(def (agent-style-policy-scenario-entry? entry)
+  (not (member entry '("." ".."))))
+
+;; : (-> String Path )
+(def (agent-style-policy-scenario-root entry)
+  (path-expand entry +agent-style-policy-scenario-fixtures-root+))
+
+;; : (-> Path Boolean )
+(def (agent-style-policy-scenario-fixture-root? root)
+  (and (agent-style-policy-directory? root)
+       (agent-style-policy-directory? (path-expand "input" root))
+       (agent-style-policy-directory? (path-expand "expected" root))))
+
+;; : (-> (List Path) )
+(def (agent-style-policy-scenario-roots)
+  (filter agent-style-policy-scenario-fixture-root?
+          (map agent-style-policy-scenario-root
+               (filter agent-style-policy-scenario-entry?
+                       (sort
+                        (directory-files
+                         +agent-style-policy-scenario-fixtures-root+)
+                        string<?)))))
+
+;; : (-> Path Path )
+(def (agent-style-policy-scenario-benchmark-path root)
+  (path-expand "benchmark.ss" root))
+
+;; : (-> (List Path) )
+(def (agent-style-policy-scenario-missing-benchmarks)
+  (filter (lambda (path) (not (file-exists? path)))
+          (map agent-style-policy-scenario-benchmark-path
+               (agent-style-policy-scenario-roots))))
+
+;; : (-> (List Timing) Boolean )
+(def (agent-style-policy-scenario-timing-steps-measured? timings)
+  (cond
+   ((null? timings) #t)
+   ((and (number? (hash-get (car timings) 'durationMs))
+         (>= (hash-get (car timings) 'durationMs) 0))
+    (agent-style-policy-scenario-timing-steps-measured? (cdr timings)))
+   (else #f)))
+
+;; : (-> ProjectIndex Relpath SourceFile )
+(def (project-index-source-file-by-path index path)
+  (let loop ((files (project-index-files index)))
+    (cond
+     ((null? files) #f)
+     ((equal? (source-file-path (car files)) path) (car files))
+     (else (loop (cdr files))))))
+
+;; : (-> SourceFile (List Role) )
+(def (source-file-higher-order-roles file)
+  (map higher-order-fact-role
+       (source-file-higher-order-forms file)))
+
+;; : (-> String Path )
+(def (agent-style-policy-scenario-path scenario-id)
+  (path-expand scenario-id +agent-style-policy-scenario-fixtures-root+))
+
+;; : (-> String HashTable )
+(def (agent-style-policy-r013-scenario-context scenario-id)
+  (let* ((scenario
+          (make-policy-scenario
+           scenario-id
+           (agent-style-policy-scenario-path scenario-id)))
+         (timing (policy-scenario-run/timed scenario))
+         (result (hash-get timing 'result))
+         (benchmark-contract (hash-get timing 'benchmarkContract))
+         (before-matching
+          (policy-scenario-findings
+           result
+           'before
+           +agent-style-policy-r013-rule-id+))
+         (after-matching
+          (policy-scenario-findings
+           result
+           'after
+           +agent-style-policy-r013-rule-id+))
+         (finding (car before-matching))
+         (details (type-finding-details finding)))
+    (hash (timing timing)
+          (result result)
+          (timings (hash-get timing 'timings))
+          (benchmarkContract benchmark-contract)
+          (beforeMatching before-matching)
+          (afterMatching after-matching)
+          (finding finding)
+          (details details)
+          (qualityReference (hash-get details 'qualityReference))
+          (expectedReferenceExamples
+           (hash-get benchmark-contract 'expectedReferenceExamples))
+          (expectedQualitySignals
+           (hash-get benchmark-contract 'expectedQualitySignals)))))
+
+;; : (-> ProjectIndex Relpath (List TypeFinding) )
+(def (agent-style-policy-r013-findings-for-owner index path)
+  (filter (lambda (finding)
+            (equal? (type-finding-path finding) path))
+          (typed-combinator-style-findings index)))
+
+;; : (-> Any (List Any) Boolean )
+(def (agent-style-member? item items)
+  (if (member item items) #t #f))
+
+;; : (-> (List Any) (List Any) Boolean )
+(def (agent-style-all-members? items candidates)
+  (cond
+   ((null? items) #t)
+   ((agent-style-member? (car items) candidates)
+    (agent-style-all-members? (cdr items) candidates))
+   (else #f)))
+
+;; : (-> (List Any) (List Integer) (List Any) )
+(def (agent-style-select-indexes items indexes)
+  (map (lambda (index) (list-ref items index)) indexes))
+
+;; : (-> HashTable String String Void )
+(def (agent-style-check-r013-scenario! context scenario-id feature)
+  (let ((timing (hash-get context 'timing))
+        (timings (hash-get context 'timings))
+        (benchmark-contract (hash-get context 'benchmarkContract))
+        (before-matching (hash-get context 'beforeMatching))
+        (after-matching (hash-get context 'afterMatching)))
+    (check (hash-get timing 'schemaId)
+           => +agent-style-policy-scenario-timing-schema-id+)
+    (check (hash-get timing 'scenarioId) => scenario-id)
+    (check (length timings) => 4)
+    (check (agent-style-policy-scenario-timing-steps-measured? timings)
+           => #t)
+    (check (hash-get benchmark-contract 'feature) => feature)
+    (check (hash-get benchmark-contract 'rule)
+           => +agent-style-policy-r013-rule-id+)
+    (check (hash-get timing 'performanceStatus) => "pass")
+    (check (length before-matching) => 1)
+    (check after-matching => [])))
+
+;; : (-> HashTable (List Integer) (List Integer) Void )
+(def (agent-style-check-r013-quality-reference! context example-indexes signal-indexes)
+  (let* ((benchmark-contract (hash-get context 'benchmarkContract))
+         (quality-reference (hash-get context 'qualityReference))
+         (expected-reference-examples
+          (hash-get context 'expectedReferenceExamples))
+         (expected-quality-signals
+          (hash-get context 'expectedQualitySignals)))
+    (check (hash-get quality-reference 'referencePattern)
+           => (hash-get benchmark-contract 'expectedReferencePattern))
+    (check (agent-style-all-members?
+            (agent-style-select-indexes expected-reference-examples example-indexes)
+            (hash-get quality-reference 'referenceExamples))
+           => #t)
+    (check (agent-style-all-members?
+            (agent-style-select-indexes expected-quality-signals signal-indexes)
+            (hash-get quality-reference 'qualitySignals))
+           => #t)))
+
+;; : (-> HashTable (List String) (List String) Void )
+(def (agent-style-check-r013-scenario-learning! context sources axes)
+  (let (benchmark-contract (hash-get context 'benchmarkContract))
+    (check (agent-style-all-members?
+            sources
+            (hash-get benchmark-contract 'learnedStyleSources))
+           => #t)
+    (check (string? (hash-get benchmark-contract 'antiAiScaffoldIntent))
+           => #t)
+    (check (agent-style-all-members?
+            axes
+            (hash-get benchmark-contract 'scenarioQualityAxes))
+           => #t)))
+
 ;; PolicyTest
 (def agent-style-typed-policy-test
   (test-suite "gerbil scheme harness typed style policy"
+    (test-case "policy scenario fixtures declare benchmark contracts"
+          (check (agent-style-policy-scenario-missing-benchmarks) => []))
+    (test-case "typed-combinator-style self-apply keeps repaired owners clean"
+          (let (index (collect-project "."))
+            (for-each
+             (lambda (path)
+               (check (agent-style-policy-r013-findings-for-owner index path)
+                      => []))
+             +agent-style-policy-self-apply-r013-clean-owners+)))
+    (test-case "typed-combinator-style warns on anonymous result index protocols"
+          (let* ((root ".run/policy-result-index-scaffold")
+                 (src (string-append root "/src"))
+                 (owner (string-append src "/demo"))
+                 (path "src/demo/core.ss"))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample)\n")
+            (write-text
+             (string-append owner "/core.ss")
+             ";;; -*- Gerbil -*-\n(package: sample/demo)\n(export unpack)\n;; unpack\n;;   : (-> Result (List Any))\n;;   | type Result = Vector\n;;   | doc m%\n;;       `unpack result` projects an anonymous result vector.\n;;     %\n(def (unpack result)\n  (list (vector-ref result 0)\n        (vector-ref result 1)))\n")
+            (let* ((index (collect-project root))
+                   (findings
+                    (agent-style-policy-r013-findings-for-owner index path))
+                   (finding (car findings))
+                   (details (type-finding-details finding)))
+              (check (length findings) => 1)
+              (check (agent-style-member?
+                      "result-index-scaffold"
+                      (hash-get details 'qualityFacets))
+                     => #t)
+              (check (agent-style-member?
+                      "anonymous-result-protocol"
+                      (hash-get details 'qualityFacets))
+                     => #t)
+              (check (agent-style-member?
+                      "replace anonymous vector-ref result/index protocols with values binding, named records, or a small domain object boundary"
+                      (hash-get details 'qualityFacetSteering))
+                     => #t))))
+    (test-case "agent policy validates controlled macro syntax scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "controlled-macro-syntax"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference
+                  (hash-get details 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "controlled-macro-syntax"
+             "macro-hygiene")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-utils"]
+             ["macro-hygiene-boundary" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "controlled macro syntax boundary")
+            (check (agent-style-member?
+                    "controlled-macro-syntax-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "syntax-case/with-syntax transformer shape"
+                    (hash-get details 'controlledMacroSyntaxSignals))
+                   => #t)
+            (check (agent-style-member?
+                    "hygienic macro boundary"
+                    (hash-get details 'controlledMacroSyntaxSignals))
+                   => #t)
+            (check (hash-get details 'controlledMacroTargets)
+                   => ["with-order-field"])
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-utils-controlled-macro-helper")
+            (check (agent-style-member?
+                    "gerbil-utils/autocurry.ss#syntax-rules"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "gerbil://gerbil/compiler/method.ss#ast-case-with-syntax-map-cut"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "macro-hygiene-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "with-syntax-reconstruction-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)))
+    (test-case "agent policy validates generator control scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "generator-control-performance"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "generator-control-performance"
+             "generator-control")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-utils"]
+             ["generator-combinator-boundary" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "push/pull generator control inversion boundary")
+            (check (agent-style-member?
+                    "generator-combinator-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "generating-fold reducer"
+                    (hash-get details 'generatorCombinatorSignals))
+                   => #t)
+            (check (hash-get details 'generatorContractTargets)
+                   => ["sum-generated"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 1)
+             (list 0 1))))
+    (test-case "agent policy validates list combinator boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "list-combinator-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "list-combinator-boundary"
+             "list-combinator-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-utils"]
+             ["list-combinator-boundary" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "manual list recursion to expression-level traversal boundary")
+            (check (agent-style-member?
+                    "list-combinator-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "replace hand-written list recursion scaffolding with map/filter/fold or a named reducer boundary"
+                    (hash-get details 'listCombinatorBoundarySignals))
+                   => #t)
+            (check (hash-get details 'listCombinatorBoundaryTargets)
+                   => ["render-active-orders"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 2 3)
+             (list 0 1 2))))
+    (test-case "agent policy validates functional idiom scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "functional-idiom"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "functional-idiom"
+             "functional-idiom")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://" "gerbil-utils"]
+             ["functional-idiom" "list-combinator-boundary" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "manual recursion to fold/pipeline and lambda-match boundary")
+            (check (agent-style-member?
+                    "gerbil://std/actor-v13/rpc/proto/cipher.ss#foldl-chunk-accumulator"
+                    (hash-get benchmark-contract 'expectedReferenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "manual-loop-drift"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "list-combinator-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)
+            (check (agent-style-member?
+                    "replace hand-written list recursion scaffolding with map/filter/fold or a named reducer boundary"
+                    (hash-get details 'listCombinatorBoundarySignals))
+                   => #t)
+            (check (hash-get details 'listCombinatorBoundaryTargets)
+                   => ["total"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 1 2 3)
+             (list 0 1 2 3))))
+    (test-case "agent policy validates destructuring combinator boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "destructuring-combinator-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "destructuring-combinator-boundary"
+             "destructuring-combinator-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://" "gerbil-utils" "gerbil-poo"]
+             ["destructuring-combinator-boundary" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "temporary destructuring scaffolding to native match, selector, or syntax-local boundary")
+            (check (agent-style-member?
+                    "destructuring-combinator-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "replace repeated car/cdr/assq scaffolding with a named selector or match boundary"
+                    (hash-get details 'destructuringBoundarySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "prefer native match/apply destructuring when it removes runtime probing"
+                    (hash-get details 'destructuringBoundarySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "use syntax-local metadata lookup when the shape is known at expansion time"
+                    (hash-get details 'destructuringBoundarySignals))
+                   => #t)
+            (check (hash-get details 'destructuringBoundaryTargets)
+                   => ["render-event"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 2 5 7)
+             (list 0 1 2 4))))
+    (test-case "agent policy validates protocol serialization boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "protocol-serialization-boundary"))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "protocol-serialization-boundary"
+             "protocol-serialization-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-poo" "gerbil-utils"]
+             ["protocol-serialization-boundary" "anti-ai-scaffold"])
+            (check (agent-style-member?
+                    "protocol-serialization-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "split JSON/string/bytes/marshal representation layers"
+                    (hash-get details 'serializationBoundarySignals))
+                   => #t)
+            (check (hash-get details 'serializationBoundaryTargets)
+                   => ["encode-wire"])
+            (check (agent-style-member?
+                    "anti-ai-scaffold-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "replace one-owner protocol conversion scaffolding with local adapter boundaries"
+                    (hash-get details 'antiAiScaffoldSignals))
+                   => #t)
+            (check (hash-get details 'antiAiScaffoldTargets)
+                   => ["encode-wire"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 1)
+             (list 0 2))))
+    (test-case "agent policy validates concurrency control boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "concurrency-control-boundary"))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "concurrency-control-boundary"
+             "concurrency-control-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://" "gerbil-utils"]
+             ["concurrency-control-boundary" "anti-ai-scaffold"])
+            (check (agent-style-member?
+                    "concurrency-control-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "split spawn/join/mutex/race responsibilities"
+                    (hash-get details 'concurrencyControlBoundarySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "preserve reentry guards and cleanup around dynamic-wind/unwind boundaries"
+                    (hash-get details 'concurrencyControlBoundarySignals))
+                   => #t)
+            (check (hash-get details 'concurrencyControlBoundaryTargets)
+                   => ["run-jobs"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 2 3)
+             (list 0 1 3))))
+    (test-case "agent policy validates typeclass wrapper adapter scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "typeclass-wrapper-adapter"))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "typeclass-wrapper-adapter"
+             "typeclass-wrapper-adapter")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-poo"]
+             ["poo-typeclass-algebra-boundary" "anti-ai-scaffold"])
+            (check (agent-style-member?
+                    "poo-typeclass-algebra-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "methods.io<-wrap lifts IO/JSON/bytes/marshal through wrap/unwrap"
+                    (hash-get details 'typeclassAlgebraSignals))
+                   => #t)
+            (check (hash-get details 'typeclassAlgebraTargets)
+                   => ["WrappedCodec."])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 2)
+             (list 0 2))))
+    (test-case "agent policy validates slot lens boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "slot-lens-boundary"))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "slot-lens-boundary"
+             "slot-lens-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-poo"]
+             ["slot-lens-boundary" "anti-ai-scaffold"])
+            (check (agent-style-member?
+                    "slot-lens-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "introduce local slot descriptor or lens helpers"
+                    (hash-get details 'slotLensBoundarySignals))
+                   => #t)
+            (check (hash-get details 'slotLensBoundaryTargets)
+                   => ["rename-widget"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 2)
+             (list 0 2))))
+    (test-case "agent policy validates exception continuation scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "exception-continuation-boundary"))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "exception-continuation-boundary"
+             "exception-continuation-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-utils"]
+             ["exception-continuation-boundary" "anti-ai-scaffold"])
+            (check (agent-style-member?
+                    "exception-continuation-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "log exception context before re-raising"
+                    (hash-get details 'exceptionContinuationBoundarySignals))
+                   => #t)
+            (check (hash-get details
+                             'exceptionContinuationBoundaryTargets)
+                   => ["run-checked"])
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 1)
+             (list 0 2))))
+    (test-case "agent policy validates higher-order composition scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "higher-order-composition-performance"))
+                 (result (hash-get context 'result))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference))
+                 (after-index (policy-scenario-index result 'after))
+                 (after-file
+                  (project-index-source-file-by-path
+                   after-index
+                   "src/orders/core.ss"))
+                 (higher-order-roles
+                  (source-file-higher-order-roles after-file)))
+            (agent-style-check-r013-scenario!
+             context
+             "higher-order-composition-performance"
+             "higher-order-composition")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://" "gerbil-utils"]
+             ["higher-order-composition" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "wrapper lambda to composition boundary")
+            (check (agent-style-member?
+                    "gerbil://std/actor-v18/executor.ss#cut-prefix-predicate"
+                    (hash-get benchmark-contract 'expectedReferenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "cut-prefix-predicate"
+                    (hash-get benchmark-contract 'expectedQualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "wrapper-lambda-drift"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "function-specialization-opportunity"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-utils-higher-order-expression")
+            (check (agent-style-member?
+                    "gerbil-utils/base.ss#left-to-right"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "gerbil://std/actor-v18/executor.ss#cut-prefix-predicate"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "cut-prefix-predicate"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "thin-wrapper-elimination"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member? "function-composition" higher-order-roles)
+                   => #t)))
+    (test-case "agent policy validates case-lambda function factory scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "case-lambda-function-factory"))
+                 (result (hash-get context 'result))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference))
+                 (after-index (policy-scenario-index result 'after))
+                 (after-file
+                  (project-index-source-file-by-path
+                   after-index
+                   "src/orders/core.ss"))
+                 (higher-order-roles
+                  (source-file-higher-order-roles after-file)))
+            (agent-style-check-r013-scenario!
+             context
+             "case-lambda-function-factory"
+             "case-lambda-function-factory")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-utils"]
+             ["case-lambda-function-factory" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "case-lambda arity-specialized function factory")
+            (check (agent-style-member?
+                    "gerbil-utils/base.ss#case-lambda specializers"
+                    (hash-get benchmark-contract 'expectedReferenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "multi-arity-abstraction"
+                    (hash-get benchmark-contract 'expectedQualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "wrapper-lambda-drift"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "function-specialization-opportunity"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-utils-higher-order-expression")
+            (check (agent-style-member?
+                    "gerbil-utils/base.ss#case-lambda specializers"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "multi-arity-abstraction"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "multi-arity-function"
+                    higher-order-roles)
+                   => #t)))
     (test-case "typed-combinator-style policy is enabled by default"
           (let* ((root ".run/policy-typed-combinator-style-default")
                  (src (string-append root "/src"))
@@ -55,9 +738,10 @@
                      => "extract predicate/mapper/reducer helpers, then compose with filter-map/map/fold/andmap/ormap/cut/curry/compose when behavior fits")
               (check (hash-get (type-finding-details finding) 'optimizationBoundary)
                      => "when using case-lambda or a specialized branch, comment why that branch exists and keep the comment about the boundary, not the code mechanics")
-              (check (not (not (member "legacy contracts split at top-level <-, not nested arrows"
-                                       (hash-get (type-finding-details finding)
-                                                 'gerbilContractProjectionSignals))))
+              (check (agent-style-member?
+                      "legacy contracts split at top-level <-, not nested arrows"
+                      (hash-get (type-finding-details finding)
+                                'gerbilContractProjectionSignals))
                      => #t))))
     (test-case "typed-combinator-style policy rejects partial definition coverage"
           (let* ((root ".run/policy-typed-combinator-style-partial")
@@ -122,14 +806,13 @@
               (check (length matching) => 1)
               (check (type-finding-path finding) => "src/orders/core.ss")
               (check (hash-get details 'qualityRepairTriggered) => #t)
-              (check (if (member "boolean-normalization-drift" facets) #t #f)
+              (check (agent-style-member? "boolean-normalization-drift" facets)
                      => #t)
-              (check (if (member "generated-scaffold-shape" facets) #t #f)
+              (check (agent-style-member? "generated-scaffold-shape" facets)
                      => #t)
-              (check (if (member "replace double-negation scaffolding with the underlying boolean expression, or name the predicate boundary when truthiness normalization is intentional"
-                                 steering)
-                       #t
-                       #f)
+              (check (agent-style-member?
+                      "replace double-negation scaffolding with the underlying boolean expression, or name the predicate boundary when truthiness normalization is intentional"
+                      steering)
                      => #t))))
     (test-case "typed-combinator-style policy reports method-table lambda drift"
           (let* ((root ".run/policy-typed-combinator-style-method-table")
@@ -157,14 +840,13 @@
               (check (length matching) => 1)
               (check (type-finding-path finding) => "src/orders/core.ss")
               (check (hash-get details 'qualityRepairTriggered) => #t)
-              (check (if (member "method-table-lambda-drift" facets) #t #f)
+              (check (agent-style-member? "method-table-lambda-drift" facets)
                      => #t)
-              (check (if (member "method-table-combinator-body" facets) #t #f)
+              (check (agent-style-member? "method-table-combinator-body" facets)
                      => #t)
-              (check (if (member "repair method-table lambdas by extracting slot-shaped helpers or using cut/curry/compose while preserving the receiver/protocol boundary"
-                                 steering)
-                       #t
-                       #f)
+              (check (agent-style-member?
+                      "repair method-table lambdas by extracting slot-shaped helpers or using cut/curry/compose while preserving the receiver/protocol boundary"
+                      steering)
                      => #t))))
     (test-case "typed-combinator-style policy rejects placeholder type variables"
           (let* ((root ".run/policy-typed-combinator-style-placeholder-token")
@@ -187,8 +869,9 @@
                    (example (car examples)))
               (check (length matching) => 1)
               (check (hash-get details 'invalidTypedContractCount) => 1)
-              (check (not (not (member "placeholder-type-variable-token"
-                                       (hash-get details 'invalidTypedContractReasons))))
+              (check (agent-style-member?
+                      "placeholder-type-variable-token"
+                      (hash-get details 'invalidTypedContractReasons))
                      => #t)
               (check (hash-get example 'definition) => "normalize-items"))))
     (test-case "typed-combinator-style policy rejects structural pseudo types"
@@ -212,8 +895,9 @@
                    (example (car examples)))
               (check (length matching) => 1)
               (check (hash-get details 'invalidTypedContractCount) => 1)
-              (check (not (not (member "type-signature:List-requires-one-parameter"
-                                       (hash-get details 'invalidTypedContractReasons))))
+              (check (agent-style-member?
+                      "type-signature:List-requires-one-parameter"
+                      (hash-get details 'invalidTypedContractReasons))
                      => #t)
               (check (hash-get example 'definition) => "ready?"))))
     (test-case "typed-combinator-style policy accepts keyword-aware contracts"
@@ -252,8 +936,9 @@
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
-              (check (not (not (member "runtime-contract[0]:function-parameter[1]:list-element:unknown-type"
-                                       (hash-get details 'invalidTypedContractReasons))))
+              (check (agent-style-member?
+                      "runtime-contract[0]:function-parameter[1]:list-element:unknown-type"
+                      (hash-get details 'invalidTypedContractReasons))
                      => #t))))
     (test-case "typed-combinator-style keeps legacy typed contract migration passive by default"
           (let* ((root ".run/policy-typed-combinator-style-legacy-migration")
@@ -295,14 +980,17 @@
               (check (hash-get details 'coveredDefinitionCount) => 1)
               (check (hash-get details 'minimumCoveredDefinitionCount) => 2)
               (check (hash-get details 'uncoveredDefinitionCount) => 3)
-              (check (not (not (member "order-net"
-                                       (hash-get details 'uncoveredDefinitions))))
+              (check (agent-style-member?
+                      "order-net"
+                      (hash-get details 'uncoveredDefinitions))
                      => #t)
-              (check (not (not (member "expression-level-composition"
-                                       (hash-get details 'qualityFacets))))
+              (check (agent-style-member?
+                      "expression-level-composition"
+                      (hash-get details 'qualityFacets))
                      => #t)
-              (check (not (not (member "prefer map/filter/filter-map/fold pipelines; extract predicate, mapper, or reducer helpers before rewriting loops"
-                                       (hash-get details 'qualityFacetSteering))))
+              (check (agent-style-member?
+                      "prefer map/filter/filter-map/fold pipelines; extract predicate, mapper, or reducer helpers before rewriting loops"
+                      (hash-get details 'qualityFacetSteering))
                      => #t))))
     (test-case "typed-combinator-style policy triggers on native quality facets"
           (let* ((root ".run/policy-typed-combinator-style-native-facets")
@@ -327,24 +1015,26 @@
               (check (length matching) => 1)
               (check (type-finding-severity finding) => "warning")
               (check (hash-get details 'qualityRepairTriggered) => #t)
-              (check (not (not (member "manual-loop-drift"
-                                       quality-facets)))
+              (check (agent-style-member? "manual-loop-drift" quality-facets)
                      => #t)
-              (check (not (not (member "combinator-candidate"
-                                       quality-facets)))
+              (check (agent-style-member? "combinator-candidate" quality-facets)
                      => #t)
-              (check (not (not (member "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness"
-                                       (hash-get details 'qualityFacetSteering))))
+              (check (agent-style-member?
+                      "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness"
+                      (hash-get details 'qualityFacetSteering))
                      => #t)
-              (check (not (not (member "λ/lambda-match local destructuring"
-                                       (hash-get details 'gerbilUtilsImplementationSignals))))
+              (check (agent-style-member?
+                      "λ/lambda-match local destructuring"
+                      (hash-get details 'gerbilUtilsImplementationSignals))
                      => #t)
-              (check (not (not (member "fun named lambda abstraction"
-                                       (hash-get details 'gerbilUtilsImplementationSignals))))
+              (check (agent-style-member?
+                      "fun named lambda abstraction"
+                      (hash-get details 'gerbilUtilsImplementationSignals))
                      => #t)
               (check (hash-get repair-evidence 'factSource) => "native-parser")
-              (check (not (not (member "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
-                                       (hash-get repair-evidence 'allowedMoves))))
+              (check (agent-style-member?
+                      "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
+                      (hash-get repair-evidence 'allowedMoves))
                      => #t))))
     (test-case "typed-combinator-style exposes generator combinator steering"
           (let* ((root ".run/policy-typed-combinator-style-generator-steering")
@@ -364,16 +1054,19 @@
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
-              (check (not (not (member "generator-combinator-boundary"
-                                       (hash-get details 'qualityFacets))))
+              (check (agent-style-member?
+                      "generator-combinator-boundary"
+                      (hash-get details 'qualityFacets))
                      => #t)
-              (check (not (not (member "generating-fold reducer"
-                                       (hash-get details 'generatorCombinatorSignals))))
+              (check (agent-style-member?
+                      "generating-fold reducer"
+                      (hash-get details 'generatorCombinatorSignals))
                      => #t)
               (check (hash-get details 'generatorContractTargets)
                      => ["sum-generated"])
-              (check (not (not (member "when contracts mention Generating, prefer gerbil-utils/generator.ss combinators such as generating-map, generating-fold, generating-partition, and generating-merge before hand-written producer loops"
-                                       (hash-get details 'qualityFacetSteering))))
+              (check (agent-style-member?
+                      "when contracts mention Generating, prefer gerbil-utils/generator.ss combinators such as generating-map, generating-fold, generating-partition, and generating-merge before hand-written producer loops"
+                      (hash-get details 'qualityFacetSteering))
                      => #t))))
     (test-case "typed-combinator-style exposes controlled macro syntax steering"
           (let* ((root ".run/policy-typed-combinator-style-controlled-macro-steering")
@@ -393,11 +1086,13 @@
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
-              (check (not (not (member "controlled-macro-syntax-boundary"
-                                       (hash-get details 'qualityFacets))))
+              (check (agent-style-member?
+                      "controlled-macro-syntax-boundary"
+                      (hash-get details 'qualityFacets))
                      => #t)
-              (check (not (not (member "syntax-case/with-syntax transformer shape"
-                                       (hash-get details 'controlledMacroSyntaxSignals))))
+              (check (agent-style-member?
+                      "syntax-case/with-syntax transformer shape"
+                      (hash-get details 'controlledMacroSyntaxSignals))
                      => #t)
               (check (hash-get details 'controlledMacroTargets)
                      => ["with-order-field"]))))
@@ -419,11 +1114,13 @@
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
-              (check (not (not (member "poo-typeclass-algebra-boundary"
-                                       (hash-get details 'qualityFacets))))
+              (check (agent-style-member?
+                      "poo-typeclass-algebra-boundary"
+                      (hash-get details 'qualityFacets))
                      => #t)
-              (check (not (not (member "Functor. map/tap/ap algebra"
-                                       (hash-get details 'typeclassAlgebraSignals))))
+              (check (agent-style-member?
+                      "Functor. map/tap/ap algebra"
+                      (hash-get details 'typeclassAlgebraSignals))
                      => #t)
               (check (hash-get details 'typeclassAlgebraTargets)
                      => ["OrderFunctor."]))))))
@@ -901,6 +1598,71 @@
                               (type-finding-message finding)
                               "source-backed Gerbil idioms such as fun, cut/curry/rcurry, compose/rcompose, or named fallback helpers")))
                    => #t)))
+    (test-case "agent policy validates higher-order branch repair scenario under performance gate"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "controlled-branch-higher-order-performance"
+                   "t/scenarios/policy/controlled-branch-higher-order-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
+                 (benchmark-contract
+                  (hash-get timing 'benchmarkContract))
+                 (max-total-ms (hash-get timing 'maxTotalMs))
+                 (before-matching
+                  (policy-scenario-findings
+                   result
+                   'before
+                   "GERBIL-SCHEME-AGENT-R014"))
+                 (after-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-R014"))
+                 (after-index (policy-scenario-index result 'after))
+                 (after-file
+                  (project-index-source-file-by-path
+                   after-index
+                   "src/orders/core.ss"))
+                 (higher-order-roles
+                  (source-file-higher-order-roles after-file)))
+            (check (hash-get timing 'schemaId)
+                   => "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
+            (check (hash-get timing 'scenarioId)
+                   => "controlled-branch-higher-order-performance")
+            (check (length timings) => 4)
+            (check (agent-style-policy-scenario-timing-steps-measured?
+                    timings)
+                   => #t)
+            (check (hash-get benchmark-contract 'maxTotalMs) => 1000)
+            (check (hash-get benchmark-contract 'feature)
+                   => "typed-combinator-style")
+            (check (hash-get benchmark-contract 'rule)
+                   => "GERBIL-SCHEME-AGENT-R014")
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "higher-order branch repair")
+            (check (hash-get timing 'benchmarkFeature)
+                   => "typed-combinator-style")
+            (check (hash-get timing 'benchmarkRule)
+                   => "GERBIL-SCHEME-AGENT-R014")
+            (check (hash-get timing 'optimizationFocus)
+                   => "higher-order branch repair")
+            (check max-total-ms => 1000)
+            (check (hash-get timing 'performanceStatus) => "pass")
+            (check (length before-matching) => 1)
+            (check after-matching => [])
+            (check (not (not (member "pattern-matching-function"
+                                     higher-order-roles)))
+                   => #t)
+            (check (not (not (member "named-lambda-abstraction"
+                                     higher-order-roles)))
+                   => #t)
+            (check (not (not (member "function-composition"
+                                     higher-order-roles)))
+                   => #t)
+            (check (not (not (member "function-curry"
+                                     higher-order-roles)))
+                   => #t)))
     (test-case "agent policy reports match plus named-let selector shape before style repair"
           (let* ((root ".run/policy-controlled-branch-loop-shape")
                  (_ (write-controlled-branch-loop-shape-project root))
@@ -937,12 +1699,13 @@
             (check (hash-get details 'styleGuide) => "predicate-family-combinator")
             (check (hash-get details 'subject) => "fact")
             (check (hash-get details 'predicateCount) => 3)
-            (check (hash-get (hash-get details 'gerbilUtilsSource)
-                             'sourcePattern)
+            (check (hash-get (hash-get details 'qualityReference)
+                             'referencePattern)
                    => "gerbil-utils-predicate-combinator")
             (check (not (not (member "gerbil-utils/base.ss#compose"
-                                     (hash-get (hash-get details 'gerbilUtilsSource)
-                                               'sourceOwners))))
+                                     (hash-get (hash-get details
+                                                         'qualityReference)
+                                               'referenceExamples))))
                    => #t)
             (check (not (not (member "role" (hash-get details 'fieldKeys)))) => #t)
             (check (not (not (member "hash-get" (hash-get details 'repeatedCallees)))) => #t)

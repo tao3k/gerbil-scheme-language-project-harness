@@ -38,11 +38,19 @@
 ;;;   quality extraction reusable without a second read-file-lines pass.
 ;; : (-> (List SourceLine) Relpath (List Definition) (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List CommentQualityFact) )
 (def (comment-quality-facts-from-lines lines relpath definitions macros poo-forms higher-order-forms control-flow-forms)
-  (let (module-fact (module-comment-quality-fact relpath lines))
+  (let* ((module-fact (module-comment-quality-fact relpath lines))
+         (line-vector (list->vector lines))
+         (macro-index (index-facts-by-field macro-fact-name macros))
+         (poo-index (index-facts-by-field poo-form-fact-name poo-forms))
+         (higher-order-index
+          (index-facts-by-field higher-order-fact-caller higher-order-forms))
+         (control-flow-index
+          (index-facts-by-field control-flow-fact-caller control-flow-forms)))
     (cons module-fact
-          (map (cut definition-comment-quality-fact
-                    relpath lines <> macros poo-forms
-                    higher-order-forms control-flow-forms)
+          (map (cut definition-comment-quality-fact/indexed
+                    relpath line-vector <>
+                    macro-index poo-index
+                    higher-order-index control-flow-index)
                definitions))))
 
 ;; : (-> Relpath (List SourceLine) CommentQualityFact )
@@ -65,17 +73,34 @@
 ;;; - Keep packet shape and invariants stable.
 ;; : (-> Relpath (List SourceLine) Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) CommentQualityFact )
 (def (definition-comment-quality-fact relpath lines definition macros poo-forms higher-order-forms control-flow-forms)
-  (let* ((comments (leading-comment-lines lines (definition-start definition)))
-         (context (definition-comment-context definition macros poo-forms higher-order-forms control-flow-forms))
+  (definition-comment-quality-fact/indexed
+   relpath
+   (list->vector lines)
+   definition
+   (index-facts-by-field macro-fact-name macros)
+   (index-facts-by-field poo-form-fact-name poo-forms)
+   (index-facts-by-field higher-order-fact-caller higher-order-forms)
+   (index-facts-by-field control-flow-fact-caller control-flow-forms)))
+
+;; : (-> Relpath (Vector SourceLine) Definition HashTable HashTable HashTable HashTable CommentQualityFact )
+(def (definition-comment-quality-fact/indexed relpath line-vector definition macro-index poo-index higher-order-index control-flow-index)
+  (let* ((comments
+          (leading-comment-lines/indexed
+           line-vector
+           (definition-start definition)))
+         (context
+          (definition-comment-context/indexed
+           definition macro-index poo-index
+           higher-order-index control-flow-index))
          (required (definition-comment-required? definition context))
          (summary (comment-quality-summary comments required context))
          (comment-start (if (null? comments)
                           (definition-start definition)
                           (- (definition-start definition)
                              (length comments))))
-         (evidence (definition-comment-quality-evidence
-                     definition context macros poo-forms
-                     higher-order-forms control-flow-forms comments)))
+         (evidence (definition-comment-quality-evidence/indexed
+                     definition context macro-index poo-index
+                     higher-order-index control-flow-index comments)))
     (make-comment-quality-fact
      "definition"
      (definition-name definition)
@@ -129,6 +154,28 @@
           (commentQuestions (comment-quality-context-questions context))
           (agentRepairMode "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale"))))
 
+;; : (-> Definition String HashTable HashTable HashTable HashTable (List CommentLine) Json )
+(def (definition-comment-quality-evidence/indexed definition context macro-index poo-index higher-order-index control-flow-index comments)
+  (let (matched-facts
+        (definition-comment-matched-facts/indexed
+          definition macro-index poo-index higher-order-index control-flow-index))
+    (hash (factSource "native-parser")
+          (targetKind "definition")
+          (definition (definition-name definition))
+          (definitionKind (definition-kind definition))
+          (definitionFormals (definition-formals definition))
+          (definitionArity (definition-arity definition))
+          (lineSpan (definition-line-span definition))
+          (selector (definition-source-selector definition))
+          (context context)
+          (existingCommentLines comments)
+          (existingCommentLineCount (length comments))
+          (matchedFactCount (length matched-facts))
+          (matchedFacts matched-facts)
+          (commentFocus (comment-quality-context-focus context))
+          (commentQuestions (comment-quality-context-questions context))
+          (agentRepairMode "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale"))))
+
 ;;; Parser witness join: preserve owner/caller keyed joins so R015 can expose concrete macro, POO, higher-order, and control-flow evidence without source scanning.
 ;; : (-> Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) (List Json) )
 (def (definition-comment-matched-facts definition macros poo-forms higher-order-forms control-flow-forms)
@@ -146,6 +193,44 @@
       (let (facts (matching-control-flow-facts name control-flow-forms))
         (map control-flow-comment-evidence
              (take facts (min 4 (length facts))))))))
+
+;; : (-> Definition HashTable HashTable HashTable HashTable (List Json) )
+(def (definition-comment-matched-facts/indexed definition macro-index poo-index higher-order-index control-flow-index)
+  (let (name (definition-name definition))
+    (append
+     (let (facts (indexed-facts macro-index name))
+       (map macro-comment-evidence
+            (take facts (min 4 (length facts)))))
+     (let (facts (indexed-facts poo-index name))
+       (map poo-comment-evidence
+            (take facts (min 4 (length facts)))))
+     (let (facts (indexed-facts higher-order-index name))
+       (map higher-order-comment-evidence
+            (take facts (min 6 (length facts)))))
+     (let (facts (indexed-facts control-flow-index name))
+       (map control-flow-comment-evidence
+            (take facts (min 4 (length facts))))))))
+
+;; : (-> Procedure (List Fact) HashTable)
+(def (index-facts-by-field accessor facts)
+  (let (table (make-hash-table))
+    (for-each
+     (lambda (fact)
+       (let (key (accessor fact))
+         (when key
+           (let (existing
+                 (if (hash-key? table key)
+                   (hash-get table key)
+                   '()))
+             (hash-put! table key (cons fact existing))))))
+     facts)
+    table))
+
+;; : (-> HashTable Value (List Fact))
+(def (indexed-facts table key)
+  (if (and key (hash-key? table key))
+    (hash-get table key)
+    '()))
 
 ;;; Parser-owned macro evidence is joined by definition name.
 ;;; Do not widen this into comment text or selector substring matching.
@@ -376,6 +461,29 @@
                (line-at* lines (fx1- line-number)))
              (reverse (iota (max 0 (fx1- start-line)) 1))))))
 
+;; leading-comment-lines/indexed
+;;   : (-> (Vector SourceLine) SourceLineNumber (List CommentLine))
+;;   | doc m%
+;;       `leading-comment-lines/indexed` returns the contiguous comment block
+;;       immediately above `start-line`, preserving source order while using the
+;;       indexed source-line vector.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (leading-comment-lines/indexed '#(";; helper" "(def helper 1)") 2)
+;;       ;; => ("helper")
+;;       ```
+;;     %
+(def (leading-comment-lines/indexed line-vector start-line)
+  (reverse
+   (map comment-body
+        (take-while
+         comment-line?
+         (map (lambda (line-number)
+                (line-at-vector* line-vector (fx1- line-number)))
+              (reverse (iota (max 0 (fx1- start-line)) 1)))))))
+
 ;; : (-> Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) String )
 (def (definition-comment-context definition macros poo-forms higher-order-forms control-flow-forms)
   (let ((name (definition-name definition))
@@ -388,6 +496,22 @@
      ((definition-name-in-higher-order-forms? name higher-order-forms)
       "higher-order")
      ((definition-name-in-control-flow-forms? name control-flow-forms)
+      "control-flow")
+     ((>= (definition-line-span definition) 24) "long-definition")
+     (else "definition"))))
+
+;; : (-> Definition HashTable HashTable HashTable HashTable String )
+(def (definition-comment-context/indexed definition macro-index poo-index higher-order-index control-flow-index)
+  (let ((name (definition-name definition))
+        (kind (definition-kind definition)))
+    (cond
+     ((not (null? (indexed-facts macro-index name))) "macro")
+     ((or (member kind '("defclass" "defgeneric" "defmethod" "defprotocol"))
+          (not (null? (indexed-facts poo-index name))))
+      "poo")
+     ((not (null? (indexed-facts higher-order-index name)))
+      "higher-order")
+     ((not (null? (indexed-facts control-flow-index name)))
       "control-flow")
      ((>= (definition-line-span definition) 24) "long-definition")
      (else "definition"))))
@@ -492,22 +616,33 @@
   (and (engineering-comment-body? comment)
        (comment-rationale-semicolon? comment)))
 
-;;; Boundary:
-;;; - A rationale semicolon is a prose separator inside one engineering line.
-;;; - Scheme comment markers such as `;; :` are code evidence, not compression.
-;; : (-> CommentLine Boolean)
+;; comment-rationale-semicolon?
+;;   : (-> CommentLine Boolean)
+;;   | rationale A single engineering comment line with prose semicolons is
+;;       usually compressed rationale, but repeated Scheme comment markers are
+;;       not compression.
+;;   | doc m%
+;;       `comment-rationale-semicolon?` detects a semicolon that separates prose
+;;       clauses inside one engineering comment body.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (comment-rationale-semicolon? "Boundary: parse first; emit later")
+;;       ;; => #t
+;;       ```
+;;     %
 (def (comment-rationale-semicolon? comment)
   (let (length (string-length comment))
-    (ormap (lambda (entry)
-             (let (index (fx1- (cdr entry)))
-               (and (char=? (car entry) #\;)
-                    (not (comment-semicolon-neighbor?
-                          comment
-                          length
-                          index)))))
-           (map cons
-                (string->list comment)
-                (iota (string-length comment) 1)))))
+    (let loop ((index 0))
+      (and (< index length)
+           (if (char=? (string-ref comment index) #\;)
+             (or (not (comment-semicolon-neighbor?
+                       comment
+                       length
+                       index))
+                 (loop (fx1+ index)))
+             (loop (fx1+ index)))))))
 
 ;; : (-> CommentLine Integer Integer Boolean)
 (def (comment-semicolon-neighbor? comment length index)
@@ -617,32 +752,51 @@
       (substring text start end))
     ""))
 
-;;; Boundary:
-;;; - first-non-ascii-space keeps SRFI-13 character-set conversion out of the trim path.
-;;; - Indexed character pairs expose the first non-ASCII-space character index without a loop.
-;; : (-> SourceLine SourceLength Integer )
+;; first-non-ascii-space
+;;   : (-> SourceLine SourceLength Integer )
+;;   | rationale Keep SRFI-13 character-set conversion out of the comment trim
+;;       path while preserving high-codepoint prose.
+;;   | doc m%
+;;       `first-non-ascii-space` returns the left trim boundary for ASCII
+;;       whitespace only.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (first-non-ascii-space "  body" 6)
+;;       ;; => 2
+;;       ```
+;;     %
 (def (first-non-ascii-space text length)
-  (let (hit (find (lambda (entry)
-                    (not (ascii-space? (car entry))))
-                  (map cons
-                       (string->list text)
-                       (iota (string-length text) 1))))
-    (if hit (fx1- (cdr hit)) length)))
+  (let loop ((index 0))
+    (cond
+     ((>= index length) length)
+     ((ascii-space? (string-ref text index))
+      (loop (fx1+ index)))
+     (else index))))
 
-;;; Boundary:
-;;; - last-non-ascii-space owns the right trim scan with the caller-provided lower bound.
-;;; - Preserve high-codepoint comment bodies and never scan before the left trim boundary.
-;; : (-> SourceLine TrimStart SourceLength Integer )
+;; last-non-ascii-space
+;;   : (-> SourceLine TrimStart SourceLength Integer )
+;;   | rationale The caller-provided left boundary prevents the right scan from
+;;       crossing already-trimmed content.
+;;   | doc m%
+;;       `last-non-ascii-space` returns the exclusive right trim boundary for
+;;       ASCII whitespace only.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (last-non-ascii-space "body  " 0 6)
+;;       ;; => 4
+;;       ```
+;;     %
 (def (last-non-ascii-space text start length)
-  (let (hit (find (lambda (entry)
-                    (let (index (fx1- (cdr entry)))
-                      (and (fx>= index start)
-                           (not (ascii-space? (car entry))))))
-                  (reverse
-                   (map cons
-                        (string->list text)
-                        (iota (string-length text) 1)))))
-    (if hit (cdr hit) start)))
+  (let loop ((index (fx1- length)))
+    (cond
+     ((< index start) start)
+     ((ascii-space? (string-ref text index))
+      (loop (fx1- index)))
+     (else (fx1+ index)))))
 
 ;; : (-> Character Boolean )
 (def (ascii-space? ch)
@@ -651,19 +805,28 @@
       (char=? ch #\newline)
       (char=? ch #\return)))
 
-;;; Boundary:
-;;; - Comment markers are stripped by finding the first non-semicolon character index.
-;;; - Keep the body substring unchanged after that index for parser evidence.
-;; : (-> SourceLine SourceLine )
+;; drop-leading-semicolons
+;;   : (-> SourceLine SourceLine )
+;;   | rationale Comment marker removal should not trim or normalize the body;
+;;       later trimming owns whitespace policy.
+;;   | doc m%
+;;       `drop-leading-semicolons` removes the leading Scheme comment marker run
+;;       and returns the remaining body unchanged.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (drop-leading-semicolons ";;; Boundary")
+;;       ;; => " Boundary"
+;;       ```
+;;     %
 (def (drop-leading-semicolons text)
-  (let (hit (find (lambda (entry)
-                    (not (char=? (car entry) #\;)))
-                  (map cons
-                       (string->list text)
-                       (iota (string-length text) 1))))
-    (substring text
-               (if hit (fx1- (cdr hit)) (string-length text))
-               (string-length text))))
+  (let (length (string-length text))
+    (let loop ((index 0))
+      (if (and (< index length)
+               (char=? (string-ref text index) #\;))
+        (loop (fx1+ index))
+        (substring text index length)))))
 
 ;; : (-> Definition Integer )
 (def (definition-line-span definition)
@@ -678,6 +841,12 @@
   (and (>= index 0)
        (< index (length lines))
        (list-ref lines index)))
+
+;; : (-> (Vector SourceLine) Integer SourceLine )
+(def (line-at-vector* line-vector index)
+  (and (>= index 0)
+       (< index (vector-length line-vector))
+       (vector-ref line-vector index)))
 
 ;; : (-> String Boolean )
 (def (blank-string? value)

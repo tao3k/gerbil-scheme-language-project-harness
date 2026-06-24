@@ -323,14 +323,14 @@
         (disallowedShape
          "hand-written srcdir/loadpath setup, manual compiler/process orchestration, shell pipelines, or CLI/runtime routing that replaces Gerbil's package build entrypoints")
         (sourceEvidence
-         [".data/gerbil/src/tools/gxpkg.ss:1224-1234"
-          ".data/gerbil/src/std/build-script.ss:9-43"
-          ".data/gerbil/src/std/build-spec.ss:150-220"
-          ".data/gerbil/src/std/make.ss:150-190"
-          ".data/gerbil/src/std/make.ss:559-579"
+         ["gerbil://tools/gxpkg.ss:1224-1234"
+          "gerbil://std/build-script.ss:9-43"
+          "gerbil://std/build-spec.ss:150-220"
+          "gerbil://std/make.ss:150-190"
+          "gerbil://std/make.ss:559-579"
           ".data/gerbil-utils/building.ss:1-120"
           ".data/gerbil-poo/build.ss:1-18"
-          ".data/gerbil/doc/reference/std/make.md:32-52"])
+          "gerbil://doc/reference/std/make.md:32-52"])
         (nativeFactSource
          "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
         (next

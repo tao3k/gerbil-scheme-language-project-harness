@@ -33,6 +33,11 @@
 ;;; - R014 may steer an agent toward this vocabulary, but the parser facts still
 ;;;   decide whether lambda-match, specialization, pipeline, fold, generator, or
 ;;;   plain helper extraction is actually applicable.
+;;; Source owner anchors:
+;;; - Keep these as human-readable owner strings until gerbil-utils:// selectors
+;;;   are provider-owned facts.
+;;; - They are emitted in details so an agent can trace the guidance to the
+;;;   reference corpus instead of treating it as a local preference.
 ;; (List SourceOwner)
 (def +controlled-branch-shape-source-backed-owners+
   ["gerbil-utils/base.ss#lambda-match/lambda-ematch"
@@ -41,6 +46,12 @@
    "gerbil-utils/base.ss#compose/rcompose/!>/!!>"
    "gerbil-utils/base.ss#case-lambda specializers"
    "gerbil-utils/generator.ss#compose-backed-generating-map"])
+;;; Repair candidate contract:
+;;; - Candidate order matters: start from the most syntax-specific idiom and
+;;;   fall back to plain helpers only after parser facts rule out higher-order
+;;;   Gerbil syntax.
+;;; - The policy exposes choices; it does not prescribe one rewrite shape for
+;;;   every R014 finding.
 ;; (List RepairMove)
 (def +controlled-branch-shape-source-backed-repair-candidates+
   ["lambda-match/lambda-ematch for unary match destructuring"
@@ -108,8 +119,8 @@
 (def (predicate-family-combinator-details file fact)
   (hash (styleGuide "predicate-family-combinator")
         (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
-        (qualityReference "gerbil-utils")
-        (gerbilUtilsSource
+        (qualityReferenceCorpus "gerbil-utils")
+        (qualityReference
          (gerbil-utils-source-details 'predicate-combinator))
         (evidenceSource "parser-owned predicateFamilyFacts plus fieldAccessPatternFacts")
         (subject (predicate-family-fact-subject fact))
@@ -125,7 +136,7 @@
          (let (patterns (map field-access-pattern-repair-evidence
                              (source-file-field-access-pattern-facts file)))
            (take patterns (min 6 (length patterns)))))
-        (agentRepairStandard "rewrite toward gerbil-utils style: keep predicate names stable, extract role/field selector helpers, and compose small expression-returning predicates")
+        (agentRepairStandard "rewrite toward learned Gerbil predicate style: keep predicate names stable, extract role/field selector helpers, and compose small expression-returning predicates")
         (agentRepairEnvelope
          (hash (flexibility "agent may choose helper names, role-set tables, or predicate combinator shape")
                (constraints ["preserve public predicate behavior"
@@ -295,8 +306,8 @@
 (def (boolean-condition-combinator-details fact)
   (hash (styleGuide "predicate-family-combinator")
         (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
-        (qualityReference "gerbil-utils")
-        (gerbilUtilsSource
+        (qualityReferenceCorpus "gerbil-utils")
+        (qualityReference
          (gerbil-utils-source-details 'predicate-combinator))
         (evidenceSource "parser-owned booleanConditionFacts")
         (caller (boolean-condition-fact-caller fact))
@@ -567,6 +578,10 @@
              conditional-branch-facts
              first-fact))))))
 
+;;; Details packet boundary:
+;;; - Preserve parser-owned counts separately from source-backed repair choices.
+;;; - The agent receives Gerbil idiom candidates, but this policy still avoids
+;;;   picking a concrete rewrite without matching parser evidence.
 ;; : (-> String String ControlFlowFacts ControlFlowFacts ControlFlowFacts ControlFlowFact PolicyDetails )
 (def (controlled-branch-shape-details caller shape-kind pattern-facts manual-loop-facts conditional-branch-facts first-fact)
   (hash (caller caller)
@@ -581,15 +596,15 @@
         (styleGuide "controlled-branch-shape")
         (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
         (rewriteScope "same caller or extracted helper only")
-        (qualityReference "gerbil-utils")
-        (gerbilUtilsSource
+        (qualityReferenceCorpus "gerbil-utils")
+        (qualityReference
          (gerbil-utils-source-details 'higher-order-expression))
         (sourceBackedOwners
          +controlled-branch-shape-source-backed-owners+)
         (sourceBackedRepairCandidates
          +controlled-branch-shape-source-backed-repair-candidates+)
         (functionShape "source-backed Gerbil idioms first: lambda-match/lambda-ematch for unary match destructuring, fun for reusable local lambdas, cut/curry/rcurry for specialization, compose/rcompose/!>/!!> for pipelines")
-        (agentRepairStandard "rewrite toward real gerbil-utils style: choose the least powerful source-backed higher-order idiom that preserves behavior; use plain helper extraction only when parser evidence shows no lambda-match, specialization, pipeline, fold, or generator shape")
+        (agentRepairStandard "rewrite toward learned Gerbil style: choose the least powerful reference-backed higher-order idiom that preserves behavior; use plain helper extraction only when parser evidence shows no lambda-match, specialization, pipeline, fold, or generator shape")
         (expressionLevelRewrite "turn repeated branch or dispatch shape into lambda-match/lambda-ematch, fun, cut/curry/rcurry, compose/rcompose/!>/!!>, fold/filter-map, generator combinator, or a named helper in that order of evidence")
         (next "guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")))
 

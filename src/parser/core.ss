@@ -18,10 +18,11 @@
         :parser/support
         :parser/syntax
         :parser/typed-contract
+        :support/time
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports open-output-string read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/srfi/1 take)
+        (only-in :std/srfi/1 iota take)
         (only-in :std/srfi/13
                  string-contains
                  string-join
@@ -32,6 +33,7 @@
         +config-files+
         +ignored-dirs+
         collect-project
+        collect-project/profile
         collect-project/files
         collect-project-package-only
         collect-source-files
@@ -347,6 +349,245 @@
         project-index-root
         project-index-files
         project-index-package)
+;; profile-row
+;;   : (-> String Integer HashTable)
+;;   | doc m%
+;;       `profile-row name duration-ms` creates one JSON-ready timing row for
+;;       a named parser phase.
+;;       # Examples
+;;       ```scheme
+;;       (hash-get (profile-row "parse" 12) 'durationMs)
+;;       ;; => 12
+;;       ```
+;;     %
+(def (profile-row name duration-ms)
+  (hash (name name)
+        (durationMs duration-ms)))
+
+;; timed-profile-value
+;;   : (-> String Procedure Vector)
+;;   | doc m%
+;;       `timed-profile-value name thunk` returns the thunk value together with
+;;       a timing row for the named phase.
+;;     %
+(def (timed-profile-value name thunk)
+  (let (start (monotonic-ms))
+    (let (value (thunk))
+      (vector value
+              (profile-row name (duration-ms start (monotonic-ms)))))))
+
+;;; Profile ranking boundary: timing rows are JSON-facing hash packets, so the
+;;; comparator uses only `durationMs` and leaves later row fields out of the
+;;; ordering contract.
+;; slowest-profile-rows
+;;   : (-> (List HashTable) Integer (List HashTable))
+;;   | doc m%
+;;       `slowest-profile-rows rows limit` returns the highest-duration rows
+;;       while preserving the row packet shape.
+;;     %
+(def (slowest-profile-rows rows limit)
+  (let* ((ordered (sort rows
+                        (lambda (left right)
+                          (> (hash-get left 'durationMs)
+                             (hash-get right 'durationMs)))))
+         (count (min limit (length ordered))))
+    (take ordered count)))
+
+;;; Environment boundary: optional tuning variables are configuration hints, so
+;;; missing or unreadable environment state collapses to `#f` instead of
+;;; turning parser startup into a runtime failure.
+;; optional-environment-variable
+;;   : (-> String (Or String False))
+;;   | doc m%
+;;       `optional-environment-variable name` returns an environment value when
+;;       available and `#f` when the lookup is unavailable.
+;;     %
+(def (optional-environment-variable name)
+  (with-catch
+    (lambda (_) #f)
+    (lambda () (getenv name))))
+
+;; collect-project-worker-count
+;;   : (-> Integer Integer)
+;;   | doc m%
+;;       `collect-project-worker-count file-count` caps parser worker count by
+;;       file count, configured `GSLPH_COLLECT_CORES`, and host CPU count.
+;;     %
+(def (collect-project-worker-count file-count)
+  (let* ((raw (optional-environment-variable "GSLPH_COLLECT_CORES"))
+         (configured (and raw (string->number raw)))
+         (cores (if (and configured
+                         (integer? configured)
+                         (> configured 0))
+                  configured
+                  (##cpu-count))))
+    (max 1 (min file-count cores))))
+
+;;; Parallel parse boundary: the foreground thread owns scheduling and result
+;;; vectors. Parser workers are bounded green threads that only parse one file
+;;; and report completion through the foreground mailbox.
+;; parse-source-files/concurrent
+;;   : (-> String (List String) Boolean (Or Vector (List SourceFile)))
+;;   | doc m%
+;;       `parse-source-files/concurrent root files profile?` parses files
+;;       through bounded green-thread workers and optionally returns profile
+;;       rows.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (parse-source-files/concurrent "." ["build.ss"] #f)
+;;       ;; => source files in input order
+;;       ```
+;;     %
+(def (parse-source-files/concurrent root files profile?)
+  (let* ((file-count (length files))
+         (worker-count (collect-project-worker-count file-count))
+         (file-vector (list->vector files))
+         (source-vector (make-vector file-count #f))
+         (row-vector (and profile? (make-vector file-count #f)))
+         (foreground-thread (current-thread))
+         (next-index 0)
+         (active-workers 0)
+         (completed 0)
+         (start (monotonic-ms)))
+    ;; : (-> String Integer SourceFile HashTable)
+    (def (parse-profile-row path elapsed-ms source-file stage-rows)
+      (let (row
+            (hash (path path)
+                  (durationMs elapsed-ms)
+                  (lineCount
+                   (source-file-line-count source-file))
+                  (definitions
+                   (length
+                    (source-file-definitions source-file)))
+                  (calls
+                   (length
+                    (source-file-calls source-file)))))
+        (when stage-rows
+          (hash-put! row 'phases stage-rows))
+        row))
+    ;; : (-> Integer Void)
+    (def (spawn-parse-worker! index)
+      (let (path (vector-ref file-vector index))
+        (set! active-workers (+ active-workers 1))
+        (spawn/name
+         [worker: path]
+         (lambda ()
+           (with-catch
+             (lambda (exn)
+               (thread-send foreground-thread
+                            (vector 'error
+                                    (current-thread)
+                                    index
+                                    exn)))
+             (lambda ()
+               (let* ((file-start (monotonic-ms))
+                      (parse-result
+                       (if profile?
+                         (parse-source-file/profile root path)
+                         (parse-source-file root path)))
+                      (source-file
+                       (if profile?
+                         (vector-ref parse-result 0)
+                         parse-result))
+                      (stage-rows
+                       (and profile? (vector-ref parse-result 1)))
+                      (elapsed-ms
+                       (duration-ms file-start (monotonic-ms))))
+                 (thread-send foreground-thread
+                              (vector 'ok
+                                      (current-thread)
+                                      index
+                                      source-file
+                                      elapsed-ms
+                                      stage-rows)))))))))
+    ;; : (-> Boolean)
+    (def (spawn-next-worker!)
+      (and (< next-index file-count)
+           (let (index next-index)
+             (set! next-index (+ next-index 1))
+             (spawn-parse-worker! index)
+             #t)))
+    ;; : (-> Void)
+    (def (seed-workers!)
+      (let loop ((slot 0))
+        (when (and (< slot worker-count)
+                   (spawn-next-worker!))
+          (loop (+ slot 1)))))
+    ;; : (-> Void)
+    (def (receive-worker!)
+      (let (message (thread-receive))
+        (unless (vector? message)
+          (error "unexpected parse worker message" message))
+        (let ((status (vector-ref message 0))
+              (worker-thread (vector-ref message 1))
+              (index (vector-ref message 2)))
+          (thread-join! worker-thread)
+          (set! active-workers (- active-workers 1))
+          (case status
+            ((ok)
+             (let ((source-file (vector-ref message 3))
+                   (elapsed-ms (vector-ref message 4))
+                   (stage-rows (vector-ref message 5))
+                   (path (vector-ref file-vector index)))
+               (vector-set! source-vector index source-file)
+               (when profile?
+                 (vector-set! row-vector
+                              index
+                              (parse-profile-row path
+                                                 elapsed-ms
+                                                 source-file
+                                                 stage-rows)))
+               (set! completed (+ completed 1))))
+            ((error)
+             (raise (vector-ref message 3)))
+            (else
+             (error "unexpected parse worker status" status))))))
+    (seed-workers!)
+    (let loop ()
+      (when (> active-workers 0)
+        (receive-worker!)
+        (spawn-next-worker!)
+        (loop)))
+    (when (not (= completed file-count))
+      (error "parse worker completion mismatch" completed file-count))
+    (let* ((source-files (vector->list source-vector))
+           (rows (and profile? (vector->list row-vector)))
+           (parse-phase
+            (profile-row "parse-source-files"
+                         (duration-ms start (monotonic-ms)))))
+      (hash-put! parse-phase 'workerCount worker-count)
+      (hash-put! parse-phase 'parallel (> worker-count 1))
+      (hash-put! parse-phase 'scheduler "green-thread-mailbox")
+      (hash-put! parse-phase 'sharedState "foreground-owned")
+      (hash-put! parse-phase 'backpressure "bounded-active-workers")
+      (if profile?
+        (vector source-files
+                parse-phase
+                (slowest-profile-rows rows 10))
+        source-files))))
+
+;; parse-source-files
+;;   : (-> String (List String) (List SourceFile))
+;;   | doc m%
+;;       `parse-source-files root files` parses files concurrently without
+;;       profile telemetry.
+;;     %
+(def (parse-source-files root files)
+  (parse-source-files/concurrent root files #f))
+
+;; parse-source-files/profile
+;;   : (-> String (List String) Vector)
+;;   | doc m%
+;;       `parse-source-files/profile root files` parses files concurrently and
+;;       returns parsed sources plus aggregate and slowest-file profile rows.
+;;     %
+(def (parse-source-files/profile root files)
+  (parse-source-files/concurrent root files #t))
+
+;;; Project collection boundary: source discovery is sorted once before the
+;;; `map`, and `cut` threads the normalized root into every file parser call.
 ;; collect-project
 ;;   : (-> String ProjectIndex)
 ;;   | doc m%
@@ -363,8 +604,47 @@
          (package (read-project-package root))
          (files (sort (collect-source-files root package) string<?)))
     (make-project-index root
-                        (map (cut parse-source-file root <>) files)
+                        (parse-source-files root files)
                         package)))
+
+;;; Profile packet boundary: each timed thunk owns exactly one phase, so the
+;;; final packet can report phase latency without changing the ProjectIndex
+;;; construction path.
+;; collect-project/profile
+;;   : (-> String HashTable)
+;;   | doc m%
+;;       `collect-project/profile root` returns a parsed index plus profile
+;;       telemetry for package, source-scope, and parse phases.
+;;     %
+(def (collect-project/profile root)
+  (let* ((root (path-normalize root))
+         (total-start (monotonic-ms))
+         (package-result
+          (timed-profile-value
+           "read-project-package"
+           (lambda () (read-project-package root))))
+         (package (vector-ref package-result 0))
+         (package-phase (vector-ref package-result 1))
+         (files-result
+          (timed-profile-value
+           "collect-source-files"
+           (lambda () (sort (collect-source-files root package) string<?))))
+         (files (vector-ref files-result 0))
+         (source-scope-phase (vector-ref files-result 1))
+         (parse-result (parse-source-files/profile root files))
+         (source-files (vector-ref parse-result 0))
+         (parse-phase (vector-ref parse-result 1))
+         (slowest-files (vector-ref parse-result 2))
+         (index (make-project-index root source-files package))
+         (total-ms (duration-ms total-start (monotonic-ms)))
+         (profile
+          (hash (totalMs total-ms)
+                (fileCount (length files))
+                (definitionCount (length (project-definitions index)))
+                (phases [package-phase source-scope-phase parse-phase])
+                (slowestFiles slowest-files))))
+    (hash (index index)
+          (profile profile))))
 ;; collect-project/files
 ;;   : (-> String (List String) ProjectIndex)
 ;;   | doc m%
@@ -381,7 +661,7 @@
          (package (read-project-package root))
          (files (sort (changed-source-files root package paths) string<?)))
     (make-project-index root
-                        (map (cut parse-source-file root <>) files)
+                        (parse-source-files root files)
                         package)))
 ;; collect-project-package-only
 ;;   : (-> String ProjectIndex )
@@ -395,6 +675,7 @@
 ;;       ;; => ()
 ;;       ```
 ;;     %
+;; : (-> String ProjectIndex)
 (def (collect-project-package-only root)
   (let* ((root (path-normalize root))
          (package (read-project-package root)))
@@ -412,6 +693,7 @@
 ;;       ;; => syntax forms
 ;;       ```
 ;;     %
+;; : (-> String NativeFormsRead)
 (def (read-native-forms path)
   (read-native-forms/lines path (read-source-lines path)))
 
@@ -438,6 +720,30 @@
          (read-lang-syntax-forms/lines path lines)
          (read-syntax-forms path))
        (read-syntax-forms path)))))
+
+;;; Native reader tuple boundary: public reader helpers preserve the historical
+;;; vector result, while parser internals use named accessors instead of slot
+;;; indices at every call site.
+;; : (-> NativeFormsRead (List Syntax))
+(def (native-forms-read-forms read)
+  (vector-ref read 0))
+
+;; : (-> NativeFormsRead (Or String False))
+(def (native-forms-read-parse-error read)
+  (vector-ref read 1))
+
+;; : (-> NativeFormsRead (Or String False))
+(def (native-forms-read-package read)
+  (vector-ref read 2))
+
+;; : (-> NativeFormsRead (Or String False))
+(def (native-forms-read-prelude read)
+  (vector-ref read 3))
+
+;; : (-> NativeFormsRead (Or String False))
+(def (native-forms-read-namespace read)
+  (vector-ref read 4))
+
 ;; read-syntax-forms
 ;;   : (-> String NativeFormsRead)
 ;;   | doc m%
@@ -451,6 +757,7 @@
 ;;       ;; => syntax forms
 ;;       ```
 ;;     %
+;; : (-> String NativeFormsRead)
 (def (read-syntax-forms path)
   (parameterize ((current-output-port (open-output-string))
                  (current-error-port (open-output-string)))
@@ -470,6 +777,7 @@
 ;;       ;; => syntax forms
 ;;       ```
 ;;     %
+;; : (-> String NativeFormsRead)
 (def (read-lang-syntax-forms path)
   (read-lang-syntax-forms/lines path (read-source-lines path)))
 
@@ -506,6 +814,7 @@
 ;;       ;; => #t
 ;;       ```
 ;;     %
+;; : (-> String Boolean)
 (def (file-starts-with-lang? path)
   (file-starts-with-lang?/lines (read-source-lines path)))
 
@@ -541,6 +850,16 @@
              (not (string-contains line ":gerbil/core"))))
       (let (lines (read-file-lines path))
         (take lines (min 12 (length lines))))))))
+
+;; : (-> Datum (List Datum) (Or Datum False))
+(def (form-metadata-value/from-datums datum datum-rest)
+  (cond
+   ((and (pair? datum) (pair? (cdr datum))) (cadr datum))
+   ((and (member datum '(package: prelude: namespace:))
+         (pair? (cdr datum-rest)))
+    (cadr datum-rest))
+   (else #f)))
+
 ;; parse-source-file
 ;;   : (-> String String SourceFile)
 ;;   | doc m%
@@ -555,19 +874,40 @@
 ;;       ;; => "src/parser/core.ss"
 ;;       ```
 ;;     %
-(def (parse-source-file root path)
-  (let* ((fullpath (source-full-path root path))
+(def (parse-source-file* root path profile?)
+  (let (stage-rows '())
+    (def (record-stage name thunk)
+      (if profile?
+        (let (stage-start (monotonic-ms))
+          (let (value (thunk))
+            (set! stage-rows
+              (cons (profile-row name
+                                 (duration-ms stage-start (monotonic-ms)))
+                    stage-rows))
+            value))
+        (thunk)))
+    (let* ((fullpath (source-full-path root path))
          (relpath (relative-path root fullpath))
-         (source-lines (read-source-lines fullpath))
+         (source-lines
+          (record-stage
+           "read-source-lines"
+           (lambda () (read-source-lines fullpath))))
          (line-count (length source-lines))
-         (read-result (read-native-forms/lines fullpath source-lines))
-         (forms (vector-ref read-result 0))
-         (form-datums (map syntax->datum forms))
-         (parse-error (vector-ref read-result 1))
-         (initial-package (vector-ref read-result 2))
-         (initial-prelude (vector-ref read-result 3))
-         (initial-namespace (vector-ref read-result 4)))
+         (read
+          (record-stage
+           "read-native-forms"
+           (lambda () (read-native-forms/lines fullpath source-lines))))
+         (forms (native-forms-read-forms read))
+         (form-datums
+          (record-stage
+           "syntax->datum"
+           (lambda () (map syntax->datum forms))))
+         (parse-error (native-forms-read-parse-error read))
+         (initial-package (native-forms-read-package read))
+         (initial-prelude (native-forms-read-prelude read))
+         (initial-namespace (native-forms-read-namespace read)))
     (let ((rest forms)
+          (datum-rest form-datums)
           (package initial-package)
           (prelude initial-prelude)
           (namespace initial-namespace)
@@ -585,12 +925,17 @@
           (higher-order-forms '())
           (control-flow-forms '())
           (dependency-adapter-candidates '()))
-      (while (pair? rest)
-        (let* ((form (car rest))
-               (datum (syntax->datum form))
+      (record-stage
+       "top-form-scan"
+       (lambda ()
+         (while (pair? rest)
+           (let* ((form (car rest))
+               (datum (car datum-rest))
                (head (form-datum-head datum))
-               (metadata-value (form-metadata-value datum (cdr rest)))
+               (metadata-value
+                (form-metadata-value/from-datums datum datum-rest))
                (next-rest (form-next-rest datum rest))
+               (next-datum-rest (form-next-rest datum datum-rest))
                (top-form (top-form-from relpath form datum))
                (next-calls (append (calls-from-form relpath form datum) calls))
                (form-module-imports
@@ -662,7 +1007,8 @@
             (set! poo-forms (append form-poo-forms poo-forms))
             (set! higher-order-forms
               (append form-higher-order-forms higher-order-forms))))
-          (set! rest next-rest)))
+             (set! rest next-rest)
+             (set! datum-rest next-datum-rest)))))
       (let ((ordered-definitions (reverse definitions))
             (ordered-calls (reverse calls))
             (ordered-macros (reverse macros))
@@ -671,78 +1017,125 @@
             (ordered-control-flow-forms (reverse control-flow-forms))
             (ordered-dependency-adapter-candidates
              (reverse dependency-adapter-candidates)))
-        (let* ((ordered-exports (unique exports))
+        (let* ((ordered-exports
+                (record-stage "unique-exports"
+                              (lambda () (unique exports))))
                (predicate-family-facts
-                (predicate-family-facts-from-source relpath ordered-definitions ordered-calls))
+                (record-stage
+                 "predicate-family-facts"
+                 (lambda ()
+                   (predicate-family-facts-from-source
+                    relpath ordered-definitions ordered-calls))))
                (field-access-pattern-facts
-                (field-access-pattern-facts-from-source
-                 relpath
-                 ordered-calls
-                 ordered-definitions
-                 form-datums))
+                (record-stage
+                 "field-access-pattern-facts"
+                 (lambda ()
+                   (field-access-pattern-facts-from-source
+                    relpath
+                    ordered-calls
+                    ordered-definitions
+                    form-datums))))
                (projection-burst-facts
-                (projection-burst-facts-from-source relpath ordered-calls))
+                (record-stage
+                 "projection-burst-facts"
+                 (lambda ()
+                   (projection-burst-facts-from-source relpath ordered-calls))))
                (boolean-condition-facts
-                (boolean-condition-facts-from-source
-                 relpath
-                 ordered-definitions
-                 ordered-calls
-                 form-datums))
+                (record-stage
+                 "boolean-condition-facts"
+                 (lambda ()
+                   (boolean-condition-facts-from-source
+                    relpath
+                    ordered-definitions
+                    ordered-calls
+                    form-datums))))
                (loop-driver-facts
-                (loop-driver-facts-from-source relpath
-                                               ordered-calls
-                                               ordered-higher-order-forms
-                                               ordered-control-flow-forms))
+                (record-stage
+                 "loop-driver-facts"
+                 (lambda ()
+                   (loop-driver-facts-from-source
+                    relpath
+                    ordered-calls
+                    ordered-higher-order-forms
+                    ordered-control-flow-forms))))
                (dependency-adapter-quality-facts
-                (dependency-adapter-quality-facts-from-candidates
-                 relpath
-                 ordered-dependency-adapter-candidates
-                 (reverse module-imports)))
+                (record-stage
+                 "dependency-adapter-quality-facts"
+                 (lambda ()
+                   (dependency-adapter-quality-facts-from-candidates
+                    relpath
+                    ordered-dependency-adapter-candidates
+                    (reverse module-imports)))))
                (typed-contract-facts
-                (typed-contract-facts-from-lines
-                 source-lines relpath ordered-definitions
-                 ordered-calls
-                 ordered-higher-order-forms
-                 ordered-control-flow-forms))
+                (record-stage
+                 "typed-contract-facts"
+                 (lambda ()
+                   (typed-contract-facts-from-lines
+                    source-lines relpath ordered-definitions
+                    ordered-calls
+                    ordered-higher-order-forms
+                    ordered-control-flow-forms))))
                (comment-quality-facts
-                (comment-quality-facts-from-lines
-                 source-lines relpath ordered-definitions
-                 ordered-macros
-                 ordered-poo-forms
-                 ordered-higher-order-forms
-                 ordered-control-flow-forms))
+                (record-stage
+                 "comment-quality-facts"
+                 (lambda ()
+                   (comment-quality-facts-from-lines
+                    source-lines relpath ordered-definitions
+                    ordered-macros
+                    ordered-poo-forms
+                    ordered-higher-order-forms
+                    ordered-control-flow-forms))))
                (function-quality-profiles
-                (function-quality-profiles-from-source
-                 relpath
-                 ordered-exports
-                 ordered-definitions
-                 typed-contract-facts
-                 comment-quality-facts
-                 ordered-control-flow-forms
-                 ordered-higher-order-forms
-                 predicate-family-facts
-                 field-access-pattern-facts
-                 loop-driver-facts
-                 ordered-macros
-                 ordered-poo-forms)))
-          (make-source-file relpath line-count package prelude namespace
-                            (unique imports) ordered-exports (unique includes)
-                            ordered-definitions ordered-calls
-                            (reverse top-forms)
-                            (reverse module-imports)
-                            (reverse module-exports)
-                            ordered-macros
-                            (reverse bindings)
-                            ordered-poo-forms
-                            ordered-higher-order-forms
-                            ordered-control-flow-forms
-                            predicate-family-facts
-                            field-access-pattern-facts
-                            projection-burst-facts
-                            boolean-condition-facts
-                            loop-driver-facts
-                            dependency-adapter-quality-facts
-                            function-quality-profiles
-                            typed-contract-facts
-                            comment-quality-facts
-                            parse-error))))))
+                (record-stage
+                 "function-quality-profiles"
+                 (lambda ()
+                   (function-quality-profiles-from-source
+                    relpath
+                    ordered-exports
+                    ordered-definitions
+                    typed-contract-facts
+                    comment-quality-facts
+                    ordered-control-flow-forms
+                    ordered-higher-order-forms
+                    predicate-family-facts
+                    field-access-pattern-facts
+                    loop-driver-facts
+                    ordered-macros
+                    ordered-poo-forms)))))
+          (let (source-file
+                (record-stage
+                 "make-source-file"
+                 (lambda ()
+                   (make-source-file
+                    relpath line-count package prelude namespace
+                    (unique imports) ordered-exports (unique includes)
+                    ordered-definitions ordered-calls
+                    (reverse top-forms)
+                    (reverse module-imports)
+                    (reverse module-exports)
+                    ordered-macros
+                    (reverse bindings)
+                    ordered-poo-forms
+                    ordered-higher-order-forms
+                    ordered-control-flow-forms
+                    predicate-family-facts
+                    field-access-pattern-facts
+                    projection-burst-facts
+                    boolean-condition-facts
+                    loop-driver-facts
+                    dependency-adapter-quality-facts
+                    function-quality-profiles
+                    typed-contract-facts
+                    comment-quality-facts
+                    parse-error))))
+            (if profile?
+              (vector source-file (reverse stage-rows))
+              source-file))))))))
+
+;; : (-> String String SourceFile)
+(def (parse-source-file root path)
+  (parse-source-file* root path #f))
+
+;; : (-> String String Vector)
+(def (parse-source-file/profile root path)
+  (parse-source-file* root path #t))

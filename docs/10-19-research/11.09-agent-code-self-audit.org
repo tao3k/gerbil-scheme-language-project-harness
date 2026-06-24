@@ -103,9 +103,9 @@ work into named steps such as =abort=, =in-gerbil=, manifest checks, and version
 selection. The lesson is not "never use display"; it is "make side effects live
 behind named script steps with precise responsibility."
 
-** gerbil/src/std/build-script.ss
+** gerbil://std/build-script.ss
 
-=.data/gerbil/src/std/build-script.ss= uses =defbuild-script= to hide the
+=gerbil://std/build-script.ss= uses =defbuild-script= to hide the
 repeated build-main boilerplate while keeping command handling explicit. This is
 the model for future harness script quality: use a small macro or protocol when
 the repetition is semantic, not string concatenation.

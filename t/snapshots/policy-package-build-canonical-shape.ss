@@ -25,7 +25,7 @@
     (sourceEvidence
      (".data/gerbil-utils/building.ss:1-120"
       ".data/gerbil-poo/build.ss:1-18"
-      ".data/gerbil/doc/reference/std/make.md:32-52"))
+      "gerbil://doc/reference/std/make.md:32-52"))
     (nativeFactSource "parser-owned moduleImportFacts plus include facts, callFacts and definitionFacts")
     (next "remove manual compiler/loadpath/srcdir or defbuild-script control from build.ss; keep package build initialization on clan/building and route runtime commands through compiled package modules"))))
  (after

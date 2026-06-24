@@ -9,7 +9,9 @@
         :commands/search-evidence
         :commands/search-extension
         :commands/search-owner-items
-        :commands/search-prime-light
+        (only-in :commands/search-prime-light
+                 emit-prime-light
+                 source-path-class)
         :commands/search-proof
         :commands/search-structural
         :commands/search-workspace-scope

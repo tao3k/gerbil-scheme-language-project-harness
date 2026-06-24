@@ -1,12 +1,31 @@
 ;;; -*- Gerbil -*-
 ;;; Boundary:
-;;; - Orders generator helpers use gerbil-utils/generator combinators.
+;;; - Orders generator helpers use a named local generator reducer boundary.
 (package: sample/orders)
-(import (only-in :gerbil-utils/generator generating-fold))
 (export generated-total)
 
+;; fold-generated
+;;   : (-> (Generating Number) Number (-> Number Number Number) Number)
+;;   | doc m%
+;;       `fold-generated source seed combine` consumes one numeric generator
+;;       through a reusable reducer protocol.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (fold-generated source 0 +)
+;;       ;; => 12
+;;       ```
+;;     %
+(def (fold-generated source seed combine)
+  (let loop ((acc seed))
+    (let (value (source))
+      (if (eof-object? value)
+        acc
+        (loop (combine value acc))))))
+
 ;;; Boundary:
-;;; - generated-total keeps producer traversal in the generator fold algebra.
+;;; - generated-total keeps producer traversal in one reducer boundary.
 ;; generated-total
 ;;   : (-> (Generating Number) Number)
 ;;   | doc m%
@@ -20,4 +39,4 @@
 ;;       ```
 ;;     %
 (def (generated-total source)
-  (generating-fold source 0 (lambda (value acc) (+ acc value))))
+  (fold-generated source 0 +))

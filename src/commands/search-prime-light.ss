@@ -3,6 +3,7 @@
 
 (import :gerbil/gambit
         :constants
+        :commands/search-prime-light-list
         (only-in :std/misc/path directory-files path-expand path-normalize)
         (only-in :std/sort sort)
         (only-in :std/srfi/13
@@ -14,31 +15,47 @@
                  string-suffix?))
 
 (export search-prime-light-main
-        search-workspace-scope-light-main
-        emit-prime-light)
+        emit-prime-light
+        read-project-package
+        project-package-path
+        project-package-name
+        project-package-manager
+        project-package-source-scope-policy
+        source-scope-policy-roots
+        source-scope-policy-runtime-roots
+        source-scope-policy-exclude-directories
+        project-root
+        drop-project-root
+        flag?
+        source-path-class
+        take-up-to
+        relative-owner-path
+        workspace-source-roots
+        workspace-runtime-roots
+        workspace-exclude-directories)
 
-;; Integer
+;; : Integer
 (def +prime-light-preview-limit+ 12)
 
-;; String
+;; : String
 (def +semantic-workspace-scope-schema-id+
   "agent.semantic-protocols.semantic-workspace-scope")
-;; String
+;; : String
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
 
-;; ConfigConstant
+;; : (List String)
 (def +source-extensions+ '(".ss" ".ssi" ".scm" ".sld"))
-;; ConfigConstant
+;; : (List String)
 (def +config-files+ '("gerbil.pkg" "build.ss"))
-;; Boolean
+;; : (List String)
 (def +ignored-dirs+
   '(".devenv" ".git" ".cache" ".run" ".gerbil" "build" "dist" "target" "src/gambit" "tree-sitter"))
-;; ConfigConstant
+;; : (List String)
 (def +boolean-flags+
   '("--json" "--code" "--names-only" "--changed" "--full" "--more"
     "--artifact"))
-;; ConfigConstant
+;; : (List String)
 (def +value-options+
   '("--term" "--query" "--selector" "--workspace" "--from-hook" "--view" "--package"
     "--owner"
@@ -113,6 +130,9 @@
                             build-scope))
      (else #f))))
 
+;;; Package reader boundary:
+;;; - Protect the lightweight launcher from malformed or absent package files.
+;;; - The sequence search returns only the first package form for scope seeding.
 ;; : (-> String ParsedData)
 (def (read-package-form root)
   (with-catch
@@ -138,20 +158,40 @@
              '()
              "Inferred from build.ss defbuild-script targets."))))))
 
-;; : (-> String (List Datum))
+;; read-package-forms
+;;   : (-> String (List Datum))
+;;   | doc m%
+;;       `read-package-forms` reads every datum from a package metadata file
+;;       under one port scope.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (read-package-forms "gerbil.pkg")
+;;       ;; => (package-forms ...)
+;;       ```
+;;     %
+;;; Port boundary:
+;;; - The helper owns the reader EOF boundary for one open input port.
+;;; - Consing each datum onto the recursive tail preserves source order.
 (def (read-package-forms path)
   (call-with-input-file path
-    (lambda (port)
-      (let lp ((out '()))
-        (let ((next (read port)))
-          (if (eof-object? next)
-            (reverse out)
-            (lp (cons next out))))))))
+    read-package-forms/from-port))
+
+;; : (-> InputPort (List Datum))
+(def (read-package-forms/from-port port)
+  (let ((next (read port)))
+    (if (eof-object? next)
+      '()
+      (cons next (read-package-forms/from-port port)))))
 
 ;; : (-> Datum Boolean)
 (def (package-form? datum)
   (and (pair? datum) (eq? (car datum) 'package:)))
 
+;;; Dependency projection:
+;;; - `depend:` values are optional package metadata.
+;;; - The filter-map keeps only string-like dependency entries.
 ;; : (-> Datum (List String))
 (def (package-dependencies datum)
   (let ((deps (package-field-value datum 'depend:)))
@@ -190,15 +230,33 @@
   (and (pair? datum)
        (member (car datum) '(source-scope source-policy project-scope))))
 
-;; : (-> Datum Symbol Datum)
+;; package-field-value
+;;   : (-> Datum Symbol Datum)
+;;   | doc m%
+;;       `package-field-value` returns the value after a package metadata field
+;;       symbol, or `#f` when the field is absent.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (package-field-value '(package: x depend: (a)) 'depend:)
+;;       ;; => (a)
+;;       ```
+;;     %
+;;; Field scan boundary:
+;;; - Package forms are flat keyword/value lists.
+;;; - The helper advances one cell at a time so malformed tails fail closed.
 (def (package-field-value datum field)
-  (let lp ((rest (if (pair? datum) (cdr datum) '())))
-    (cond
-     ((null? rest) #f)
-     ((and (eq? (car rest) field)
-           (pair? (cdr rest)))
-      (cadr rest))
-     (else (lp (cdr rest))))))
+  (package-field-value/rest (if (pair? datum) (cdr datum) '()) field))
+
+;; : (-> (List Datum) Symbol Datum)
+(def (package-field-value/rest rest field)
+  (cond
+   ((null? rest) #f)
+   ((and (eq? (car rest) field)
+         (pair? (cdr rest)))
+    (cadr rest))
+   (else (package-field-value/rest (cdr rest) field))))
 
 ;; : (-> Datum Symbol (List String))
 (def (policy-string-list-field entry field)
@@ -209,6 +267,9 @@
 (def (policy-string-field entry field)
   (datum->string (package-field-value entry field)))
 
+;;; String-list projection:
+;;; - Accept either a list-like metadata field or one scalar value.
+;;; - Unique filtering prevents duplicate source roots from widening scans.
 ;; : (-> Datum (List String))
 (def (datum-string-list value)
   (cond
@@ -217,6 +278,9 @@
    (else (let ((string-value (datum->string value)))
            (if string-value [string-value] '())))))
 
+;;; Build-script target projection:
+;;; - Only the first `defbuild-script` form contributes light source roots.
+;;; - Full build semantics stay with Gerbil's build system.
 ;; : (-> (List Datum) (List String))
 (def (build-script-targets forms)
   (let ((form (find build-script-form? forms)))
@@ -228,6 +292,9 @@
 (def (build-script-form? datum)
   (and (pair? datum) (eq? (car datum) 'defbuild-script)))
 
+;;; Target coercion boundary:
+;;; - `defbuild-script` may use quoted, scalar, or list-shaped targets.
+;;; - filter-map keeps only values that can become source-root strings.
 ;; : (-> Datum (List String))
 (def (build-script-target-value datum)
   (cond
@@ -240,6 +307,9 @@
 (def (quoted-datum? datum)
   (and (pair? datum) (eq? (car datum) 'quote)))
 
+;;; Source-root projection:
+;;; - Build targets are converted to unique root prefixes before file walking.
+;;; - This keeps repeated targets from expanding the preview scope twice.
 ;; : (-> (List String) (List String))
 (def (build-target-source-roots targets)
   (unique (filter-map build-target-source-root targets)))
@@ -265,17 +335,39 @@
     (cadr args))
    (else (option flag (cdr args)))))
 
-;; : (-> (List String) (List String))
+;; positional-args
+;;   : (-> (List String) (List String))
+;;   | doc m%
+;;       `positional-args` returns non-option arguments while preserving their
+;;       command-line order.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (positional-args '("--workspace" "." "src"))
+;;       ;; => ("src")
+;;       ```
+;;     %
+;;; Argument scan boundary:
+;;; - Value options consume their following argument without counting it as
+;;;   positional.
+;;; - Boolean and unknown long flags are skipped so workspace paths remain last.
 (def (positional-args args)
-  (let lp ((rest args) (out '()))
-    (cond
-     ((null? rest) (reverse out))
-     ((member (car rest) +value-options+)
-      (lp (if (pair? (cdr rest)) (cddr rest) (cdr rest)) out))
-     ((or (member (car rest) +boolean-flags+)
-          (string-prefix? "--" (car rest)))
-      (lp (cdr rest) out))
-     (else (lp (cdr rest) (cons (car rest) out))))))
+  (reverse (positional-args/reversed args '())))
+
+;; : (-> (List String) (List String) (List String))
+(def (positional-args/reversed rest out)
+  (cond
+   ((null? rest) out)
+   ((member (car rest) +value-options+)
+    (positional-args/reversed
+     (if (pair? (cdr rest)) (cddr rest) (cdr rest))
+     out))
+   ((or (member (car rest) +boolean-flags+)
+        (string-prefix? "--" (car rest)))
+    (positional-args/reversed (cdr rest) out))
+   (else
+    (positional-args/reversed (cdr rest) (cons (car rest) out)))))
 
 ;; : (-> (List String) ProjectRoot)
 (def (project-root args)
@@ -294,31 +386,77 @@
       (drop-positional-index args root-index)
       args)))
 
-;; : (-> (List String) Integer (List String))
+;; drop-positional-index
+;;   : (-> (List String) Integer (List String))
+;;   | doc m%
+;;       `drop-positional-index` removes one positional argument by 1-based
+;;       positional index while preserving options and skipped option values.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (drop-positional-index '("--full" "." "src") 1)
+;;       ;; => ("--full" "src")
+;;       ```
+;;     %
+;;; Drop boundary:
+;;; - Option values stay attached to their flags while positional indexes are
+;;;   counted over non-option arguments only.
+;;; - This keeps workspace root normalization from rewriting command options.
 (def (drop-positional-index args target-index)
-  (let lp ((rest args) (out '()) (index 0))
-    (cond
-     ((null? rest) (reverse out))
-     ((and (member (car rest) +value-options+)
-           (pair? (cdr rest)))
-      (lp (cddr rest) (cons (cadr rest) (cons (car rest) out)) index))
-     ((member (car rest) +value-options+)
-      (lp (cdr rest) (cons (car rest) out) index))
-     ((or (member (car rest) +boolean-flags+)
-          (string-prefix? "--" (car rest)))
-      (lp (cdr rest) (cons (car rest) out) index))
-     (else
-      (let ((next-index (fx1+ index)))
-        (if (fx= next-index target-index)
-          (lp (cdr rest) out next-index)
-          (lp (cdr rest) (cons (car rest) out) next-index)))))))
+  (drop-positional-index/walk args '() 0 target-index))
 
+;;; Positional-drop scan:
+;;; - The helper owns all branches that preserve option/value attachment while
+;;;   counting only non-option arguments toward the target positional index.
+;;; - Keeping the index and output accumulator explicit makes the workspace-root
+;;;   removal boundary visible without reintroducing mutable recursive closures.
+;; : (-> (List String) (List String) Integer Integer (List String))
+(def (drop-positional-index/walk rest out index target-index)
+  (cond
+   ((null? rest) (reverse out))
+   ((and (member (car rest) +value-options+)
+         (pair? (cdr rest)))
+    (drop-positional-index/walk
+     (cddr rest)
+     (cons (cadr rest) (cons (car rest) out))
+     index
+     target-index))
+   ((member (car rest) +value-options+)
+    (drop-positional-index/walk
+     (cdr rest)
+     (cons (car rest) out)
+     index
+     target-index))
+   ((or (member (car rest) +boolean-flags+)
+        (string-prefix? "--" (car rest)))
+    (drop-positional-index/walk
+     (cdr rest)
+     (cons (car rest) out)
+     index
+     target-index))
+   (else
+    (let ((next-index (fx1+ index)))
+      (if (fx= next-index target-index)
+        (drop-positional-index/walk (cdr rest) out next-index target-index)
+        (drop-positional-index/walk
+         (cdr rest)
+         (cons (car rest) out)
+         next-index
+         target-index))))))
+
+;;; Filesystem probe boundary:
+;;; - Missing or inaccessible paths are ordinary negative checks in CLI parsing.
+;;; - Exceptions must not escape while detecting a trailing workspace argument.
 ;; : (-> String Boolean)
 (def (file-directory? path)
   (with-catch
    (lambda (_) #f)
    (lambda () (eq? (file-type path) 'directory))))
 
+;;; Preview assembly boundary:
+;;; - Config files are emitted before source previews.
+;;; - The source walk receives only the remaining preview budget.
 ;; : (-> Root Integer ProjectPackage (List Path))
 (def (collect-source-files-preview root limit package)
   (let* ((scope-policy (and package
@@ -335,6 +473,9 @@
                     (scan-source-files-preview root source-roots ignored-dirs remaining)
                     '()))))))
 
+;;; Config preview boundary:
+;;; - Package config files are checked in stable order before source traversal.
+;;; - Existing files are returned as absolute paths for later normalization.
 ;; : (-> Root (List Path))
 (def (root-config-files root)
   (filter-list
@@ -343,6 +484,9 @@
    (map (lambda (path) (path-expand path root))
         +config-files+)))
 
+;;; Directory walk boundary:
+;;; - The walker shares one mutable budget across nested directories.
+;;; - It returns paths in deterministic traversal order for stable prime output.
 ;; : (-> Root (List String) (List String) Integer (List Path))
 (def (scan-source-files-preview root scan-roots ignored-dirs limit)
   (let ((result '())
@@ -375,6 +519,9 @@
      scan-roots)
     (reverse result)))
 
+;;; Source directory probe:
+;;; - Directory lookup failures mean the scan root is unavailable.
+;;; - The caller decides whether a missing root is acceptable.
 ;; : (-> String Boolean)
 (def (source-directory? path)
   (with-catch
@@ -386,12 +533,18 @@
   (or (member entry ignored-dirs)
       (member (relative-owner-path root path) ignored-dirs)))
 
+;;; Source extension predicate:
+;;; - The light launcher recognizes only Gerbil-family source suffixes.
+;;; - any short-circuits once a configured extension matches.
 ;; : (-> Path Boolean)
 (def (gerbil-source-path? path)
   (any (lambda (extension)
          (string-suffix? extension path))
        +source-extensions+))
 
+;;; Source-class projection:
+;;; - Class labels are agent-facing routing hints, not parser facts.
+;;; - More specific generated/test/build cases win before generic source.
 ;; : (-> SourcePath SourceClass)
 (def (source-path-class path)
   (cond
@@ -426,81 +579,6 @@
     "runtime-source")
    (else "source")))
 
-;; : (-> (List a) Integer (List a))
-(def (take-up-to values limit)
-  (let lp ((rest values) (remaining limit) (out '()))
-    (if (or (null? rest) (<= remaining 0))
-      (reverse out)
-      (lp (cdr rest) (- remaining 1) (cons (car rest) out)))))
-
-;; : (-> (List a) a)
-(def (last-item values)
-  (if (and (pair? values) (pair? (cdr values)))
-    (last-item (cdr values))
-    (car values)))
-
-;; : (-> Obj (List Obj))
-(def (datum-list-items obj)
-  (let ((rest obj)
-        (out '()))
-    (while (pair? rest)
-      (set! out (cons (car rest) out))
-      (set! rest (cdr rest)))
-    (reverse out)))
-
-;; : (-> Obj (U #f Obj))
-(def (safe-cadr obj)
-  (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
-
-;; : (-> Obj (U #f String))
-(def (datum->string obj)
-  (cond
-   ((not obj) #f)
-   ((string? obj) obj)
-   ((symbol? obj) (symbol->string obj))
-   ((keyword? obj) (string-append (keyword->string obj) ":"))
-   (else (call-with-output-string "" (cut display obj <>)))))
-
-;; : (-> (-> a Boolean) (List a) (U #f a))
-(def (find predicate values)
-  (cond
-   ((null? values) #f)
-   ((predicate (car values)) (car values))
-   (else (find predicate (cdr values)))))
-
-;; : (-> (-> a (U #f b)) (List a) (List b))
-(def (filter-map procedure values)
-  (let lp ((rest values) (out '()))
-    (cond
-     ((null? rest) (reverse out))
-     (else
-      (let ((value (procedure (car rest))))
-        (lp (cdr rest) (if value (cons value out) out)))))))
-
-;; : (-> (-> a Boolean) (List a) (List a))
-(def (filter-list predicate values)
-  (let lp ((rest values) (out '()))
-    (cond
-     ((null? rest) (reverse out))
-     ((predicate (car rest)) (lp (cdr rest) (cons (car rest) out)))
-     (else (lp (cdr rest) out)))))
-
-;; : (-> (-> a Boolean) (List a) Boolean)
-(def (any predicate values)
-  (and (pair? values)
-       (or (predicate (car values))
-           (any predicate (cdr values)))))
-
-;; : (-> (List String) (List String))
-(def (unique values)
-  (let lp ((rest values) (seen '()) (out '()))
-    (cond
-     ((null? rest) (reverse out))
-     ((member (car rest) seen)
-      (lp (cdr rest) seen out))
-     (else
-      (lp (cdr rest) (cons (car rest) seen) (cons (car rest) out))))))
-
 ;;; Boundary:
 ;;; - This command path is intentionally package/source-scope only.
 ;;; - ASP owns dependency source indexing, route topology, symbol indexes, and
@@ -516,20 +594,6 @@
               (error "search prime light does not render json")
               (emit-prime-light root))))))
     (error "search-prime-light requires prime view")))
-
-;;; Boundary:
-;;; - Workspace scope is the provider-owned topology seed.
-;;; - The provider reports package/source policy; ASP builds the heavy source
-;;;   index and dependency navigation structures from the packet.
-;; : (-> Args Integer )
-(def (search-workspace-scope-light-main args)
-  (if (and (pair? args) (equal? (car args) "workspace-scope"))
-    (let ((tail (cdr args)))
-      (let ((root (path-normalize (project-root tail))))
-        (let ((normalized-args (drop-project-root tail)))
-          (let ((json? (flag? "--json" normalized-args)))
-            (emit-workspace-scope-light root json?)))))
-    (error "search-workspace-scope-light requires workspace-scope view")))
 
 ;;; Boundary:
 ;;; - The seed packet exposes durable navigation facts only.
@@ -563,62 +627,10 @@
     (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"))
   0)
 
-;; : (-> Root Boolean Integer )
-(def (emit-workspace-scope-light root json?)
-    (if json?
-      (error "search workspace-scope light does not render json")
-      (let* ((root (path-normalize root))
-             (package (read-project-package root))
-             (files (workspace-scope-preview-files-light root package)))
-        (emit-workspace-scope-lines-light root package files)
-        0)))
-
-;; : (-> Root MaybePackage (List Path) Unit )
-(def (emit-workspace-scope-lines-light root package files)
-  (let* ((policy (and package
-                      (project-package-source-scope-policy package)))
-         (source-roots (workspace-source-roots policy))
-         (runtime-roots (workspace-runtime-roots policy))
-         (exclude-directories (workspace-exclude-directories policy))
-         (status (if package "ready" "missing-anchor")))
-    (displayln "[gerbil-workspace-scope] root=" root
-               " status=" status
-               " filePreview=" (length files)
-               " scopeOwner=" +provider-id+
-               " indexOwner=asp-rust-sql-source-index")
-    (displayln "|anchor path=" (if package (project-package-path package) "missing")
-               " packageManager=" (if package (project-package-manager package) "gxpkg")
-               " packageName=" (or (and package (project-package-name package)) "-"))
-    (displayln "|coverage configFiles=" (join-or-dash +config-files+)
-               " sourceExtensions=" (join-or-dash +source-extensions+)
-               " sourceRoots=" (join-or-dash source-roots)
-               " runtimeRoots=" (join-or-dash runtime-roots)
-               " ignoredPathPrefixes=" (join-or-dash (append +ignored-dirs+
-                                                              exclude-directories)))
-    (for-each
-     (lambda (path)
-       (let* ((owner (relative-owner-path root path))
-              (source-class (source-path-class owner)))
-         (displayln "|file path=" owner
-                    " sourceClass=" source-class
-                    " sourceKind=" (if (equal? source-class "config")
-                                      "config"
-                                      "source"))))
-     (take-up-to files 24))
-    (displayln "nextCommand=asp cache source-index refresh")))
-
 ;; : (-> Root MaybePackage (List Path) )
 (def (source-files-light root package)
   (if package
     (collect-source-files-preview root +prime-light-preview-limit+ package)
-    '()))
-
-;; : (-> Root MaybePackage (List Path) )
-(def (workspace-scope-preview-files-light root package)
-  (if package
-    (map (lambda (path)
-           (path-normalize (path-expand path root)))
-         +config-files+)
     '()))
 
 ;; : (-> MaybeSourceScopePolicy (List String) )
@@ -635,12 +647,6 @@
 (def (workspace-exclude-directories policy)
   (let ((dirs (and policy (source-scope-policy-exclude-directories policy))))
     (if dirs dirs '())))
-
-;; : (-> (List String) String )
-(def (join-or-dash values)
-  (if (and values (pair? values))
-    (string-join values ",")
-    "-"))
 
 ;; : (-> MaybePackage Unit )
 (def (emit-package-line-light package)
@@ -659,6 +665,9 @@
       (substring path* (string-length prefix) (string-length path*))
       path*)))
 
+;;; Path normalization boundary:
+;;; - Remove only trailing separators after path-normalize has run.
+;;; - Relative owner projection depends on this stable root prefix.
 ;; : (-> Path Path )
 (def (strip-trailing-path-separator path)
   (let ((last-path-char

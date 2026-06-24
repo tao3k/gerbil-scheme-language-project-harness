@@ -7,7 +7,7 @@
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/srfi/1 append-map)
+        (only-in :std/srfi/1 append-map take)
         (only-in :std/srfi/13 string-join)
         (only-in :std/sugar cut foldl hash hash-put! with-catch))
 
@@ -26,15 +26,28 @@
 ;; String
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
+;; String
+(def +structural-interface-required-owner-path+
+  "src/commands/search-structural.ss")
+;; Integer
+(def +structural-interface-summary-preview-limit+ 20)
 
 ;;; Interface packet is the hot path: stable handles, counts, and commands.
 ;;; It avoids workspace syntaxFacts materialization so ASP Rust can own the
 ;;; full index, graph topology, cache, and graph-turbo ranking layers.
 ;; : (-> ProjectIndex Json )
 (def (structural-index-packet-json index)
-  (let* ((generation-id (structural-interface-generation-id index))
+  (let* ((files (project-index-files index))
+         (summaries (map structural-interface-summary-json files))
+         (generation-id
+          (structural-interface-generation-id/summaries summaries))
          (artifact-id (string-append "structural-index/" generation-id ".json"))
-         (files (project-index-files index)))
+         (symbol-total
+          (structural-interface-summary-total summaries 'symbolCount))
+         (fact-total
+          (structural-interface-summary-total summaries 'facts))
+         (dependency-total
+          (structural-interface-summary-total summaries 'dependencyCount)))
     (hash
      (schemaId +semantic-structural-index-schema-id+)
      (schemaVersion "1")
@@ -54,18 +67,19 @@
      (indexOwner "asp-structural-index")
      (heavyIndexOwner "asp-rust")
      (graphTurboOwner "asp-graph-turbo")
-     (fileHashes (map structural-interface-file-hash-json files))
+     (fileHashes (map structural-interface-summary-file-hash-json summaries))
      (owners (map structural-owner-json files))
      (symbols [])
-     (symbolTotal (structural-symbol-total files))
+     (symbolTotal symbol-total)
      (syntaxFacts [])
-     (nativeSyntaxFactTotal (native-syntax-fact-total files))
+     (nativeSyntaxFactTotal fact-total)
      (nativeSyntaxFactSummaries
-      (map native-syntax-fact-summary-json files))
+      (map native-syntax-fact-summary-json
+           (structural-interface-summary-source-files files)))
      (factInterface
       (structural-fact-interface-json index generation-id))
      (dependencyUsages [])
-     (dependencyUsageTotal (structural-dependency-total files)))))
+     (dependencyUsageTotal dependency-total))))
 
 ;;; Artifact packet is explicit validation/debug transport.
 ;;; It preserves the complete syntaxFacts shape while keeping that cost outside
@@ -199,11 +213,81 @@
   (hash
    (ownerPath (source-file-path file))
    (facts (source-file-native-syntax-fact-count file))
-   (families (source-file-native-syntax-family-counts file))
    (ownerFactsCommand
     (string-append "gerbil-scheme-harness search structural --owner "
                    (source-file-path file)
                    " --json ."))))
+
+;;; Interface summaries are the single owner pass used by the hot packet path.
+;;; Counts, dependency totals, and fingerprints reuse this row so benchmarked
+;;; interface rendering does not rescan every fact family.
+;; : (-> SourceFile Json)
+(def (structural-interface-summary-json file)
+  (let* ((fact-count (source-file-native-syntax-fact-count file))
+         (symbol-count (length (source-file-definitions file)))
+         (dependency-count (+ (length (source-file-imports file))
+                              (length (source-file-includes file))))
+         (fingerprint
+          (stable-hex64
+           (string-join [(source-file-path file)
+                         (number->string (source-file-line-count file))
+                         (or (source-file-package file) "")
+                         (or (source-file-namespace file) "")
+                         (number->string symbol-count)
+                         (number->string dependency-count)
+                         (number->string fact-count)]
+                        "|"))))
+    (hash
+     (ownerPath (source-file-path file))
+     (facts fact-count)
+     (symbolCount symbol-count)
+     (dependencyCount dependency-count)
+     (fingerprint fingerprint)
+     (ownerFactsCommand
+      (string-append "gerbil-scheme-harness search structural --owner "
+                     (source-file-path file)
+                     " --json .")))))
+
+;; : (-> (List Json) Symbol Integer)
+(def (structural-interface-summary-total summaries key)
+  (foldl (lambda (summary total)
+           (+ total (hash-get summary key)))
+         0
+         summaries))
+
+;;; Fact summaries are an interface preview, not a workspace fact manifest.
+;;; ASP gets the complete owner list from `owners` and requests full facts with
+;;; the owner-bounded command.
+;; : (-> (List SourceFile) (List SourceFile))
+(def (structural-interface-summary-source-files files)
+  (let ((head (take files
+                    (min +structural-interface-summary-preview-limit+
+                         (length files))))
+        (required (find-structural-interface-summary-source-file files)))
+    (cond
+     ((not required) head)
+     ((structural-interface-source-file-present? head required) head)
+     (else
+      (append (take head
+                    (min (- +structural-interface-summary-preview-limit+ 1)
+                         (length head)))
+              [required])))))
+
+;; : (-> (List SourceFile) MaybeSourceFile)
+(def (find-structural-interface-summary-source-file files)
+  (cond
+   ((null? files) #f)
+   ((equal? (source-file-path (car files))
+            +structural-interface-required-owner-path+)
+    (car files))
+   (else (find-structural-interface-summary-source-file (cdr files)))))
+
+;; : (-> (List SourceFile) SourceFile Boolean)
+(def (structural-interface-source-file-present? files required)
+  (ormap (lambda (file)
+           (equal? (source-file-path file)
+                   (source-file-path required)))
+         files))
 
 ;;; Fact count mirrors the owner packet families exactly.
 ;;; Counting struct lists is intentionally cheaper than rendering fact payloads.
@@ -278,22 +362,33 @@
 ;;; rendering and sorting.
 ;; : (-> ProjectIndex String )
 (def (structural-interface-generation-id index)
+  (structural-interface-generation-id/summaries
+   (map structural-interface-summary-json (project-index-files index))))
+
+;; : (-> (List Json) String)
+(def (structural-interface-generation-id/summaries summaries)
   (string-append
    +language-id+
    "-structural-interface-"
-   (substring (stable-hex64
-               (string-join (map structural-interface-file-fingerprint
-                          (project-index-files index))
-                     "|"))
-              0
-              16)))
+   (substring
+    (stable-hex64
+     (string-join
+      (map (lambda (summary) (hash-get summary 'fingerprint)) summaries)
+      "|"))
+    0
+    16)))
 
 ;;; Interface file hashes are summary hashes, not source-content hashes.
 ;;; The source marker makes that contract explicit for ASP cache consumers.
 ;; : (-> SourceFile Json )
 (def (structural-interface-file-hash-json file)
-  (hash (path (source-file-path file))
-        (sha256 (structural-interface-file-fingerprint file))
+  (structural-interface-summary-file-hash-json
+   (structural-interface-summary-json file)))
+
+;; : (-> Json Json)
+(def (structural-interface-summary-file-hash-json summary)
+  (hash (path (hash-get summary 'ownerPath))
+        (sha256 (hash-get summary 'fingerprint))
         (source "native-parser-interface-fingerprint")))
 
 ;;; The interface fingerprint is based on stable owner metadata and counts.

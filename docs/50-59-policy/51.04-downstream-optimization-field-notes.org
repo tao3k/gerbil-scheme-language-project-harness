@@ -1,0 +1,175 @@
+#+TITLE: Gerbil Harness Downstream Optimization Field Notes
+#+DATE: 2026-06-23
+#+OPTIONS: toc:2
+
+* Status
+
+This note records downstream optimization lessons from applying the Gerbil
+language-project harness guidance to a real POO-heavy project. It is a harness
+policy document, not a downstream project design log.
+
+The purpose is to make the next agent produce the efficient project shape
+directly:
+
+- use one canonical project CLI surface
+- keep package release builds owned by Gerbil package tooling
+- expose focused build and test gates through the project CLI
+- record native-binary receipts separately from compiler or test backend cost
+- turn repeated downstream pain into harness policy scenarios
+
+* Field Receipt Boundary
+
+The field case optimized a downstream POO project after module-registry and
+facade costs became visible. The useful outcome was not a project-specific
+binary or a shell wrapper. The useful outcome was a general command and policy
+shape that the harness can teach downstream agents.
+
+Validated command shape:
+
+#+begin_src sh
+poo-flow build meta
+poo-flow build spec --module src/module-system/module-registry.ss
+poo-flow build compile --module src/module-system/module-registry.ss
+poo-flow test t/module-system-lazy-loader-test.ss
+#+end_src
+
+The release spec stayed canonical:
+
+#+begin_src scheme
+(exe: "src/cli" bin: "poo-flow")
+#+end_src
+
+There was no durable value in a separate focused-build binary. Once the focused
+commands existed, the temporary binary name was removed from code, docs, and
+generated local artifacts. This is the policy-relevant lesson: helper commands
+are acceptable only when they converge into the project-owned CLI or into
+Gerbil's package toolchain.
+
+* Command Surface Policy
+
+Downstream projects should present one project command surface to agents.
+
+Recommended shape:
+
+- =<project> build meta= prints focused build capabilities.
+- =<project> build spec --module <file>.ss= prints the direct compiler plan.
+- =<project> build compile --module <file>.ss= runs the focused compiler gate.
+- =<project> test [test-file.ss...]= runs focused test files.
+
+Package builds remain outside that focused surface:
+
+#+begin_src sh
+gxpkg build -R -O
+#+end_src
+
+The harness should guide agents toward the distinction:
+
+- focused gates answer "did this owner module or test file still work?"
+- package builds answer "does the releasable package artifact still work?"
+- release binaries must be actual binaries, not shell-script wrappers
+- shell launchers are development conveniences, not release receipts
+
+If an agent runs a broad package build when a focused gate is enough, the next
+guidance should show the narrower command. If an agent asks a focused command to
+perform a full package build, the command should fail with a short next action
+that names =gxpkg build -R -O=.
+
+* Build File Policy
+
+The harness should avoid over-constraining =build.ss=. Gerbil package management
+and upstream Gerbil build mechanics own dependency resolution and release
+semantics. Harness policy should instead encourage the simple downstream shape
+that matches efficient Gerbil projects:
+
+- small package-local =build.ss= files
+- explicit source directories or include lists
+- no generated shell-script release wrappers
+- no temporary helper binaries that become public API
+- no fragmented manual batching outside the native build graph
+
+The policy should flag confusing public surfaces and fragile build indirection.
+It should not require every downstream package to encode upstream package-manager
+responsibilities in its own =gerbil.pkg= or =build.ss=.
+
+* Performance Receipt Policy
+
+Timing receipts must separate three costs.
+
+1. CLI dispatch cost
+
+   Native project binaries should make capability and spec commands cheap. A
+   receipt such as =poo-flow build meta= or =poo-flow build spec --module ...=
+   measures command dispatch plus formatting. It should not include compiler
+   backend work.
+
+2. Backend compiler or test cost
+
+   =poo-flow build compile --module ...= and =poo-flow test ...= include Gerbil
+   compiler or =gxtest= work. These receipts are valid, but they should not be
+   interpreted as CLI startup overhead.
+
+3. Release artifact cost
+
+   =gxc -exe -O= or =gxpkg build -R -O= receipts measure release build behavior.
+   They are not substitutes for the focused module and test gates that agents
+   should use during local iteration.
+
+Good documentation records the command, the result, and the boundary being
+measured. A bare elapsed time without the boundary is not actionable.
+
+* POO Performance Policy Carry-Forward
+
+The downstream optimization confirmed the existing POO policy direction in
+=51.03-gerbil-poo-performance-milestone.org=.
+
+The high-value rules remain:
+
+- hoist stable POO construction out of hot loops
+- avoid loop-local clone, override, lens modification, and full-object
+  materialization
+- compose object behavior at boundaries, not per item
+- validate stable shapes once, then loop over scalar or small projected state
+- treat large facade and module-registry objects as boundary data, not
+  repeatedly rebuilt loop state
+
+When a real project exposes a new large-object boundary, the harness should add
+a scenario rather than only add prose. A useful scenario has:
+
+- a minimal input project under =t/scenarios/policy/<name>/input=
+- an expected package or findings artifact
+- a =benchmark.ss= when the policy claim is performance-sensitive
+- a rule or guidance text that names the narrower downstream shape
+
+* Agent-Facing Error Text
+
+The best error text is short and corrective. It should tell the agent what to do
+next, not only what was wrong.
+
+Good shape:
+
+#+begin_src text
+<project> build: full package builds are owned by gxpkg build
+next: gxpkg build -R -O
+#+end_src
+
+For broad searches or broad build attempts, the message should include one
+concrete narrower command. The command must be copyable and should preserve the
+project-owned facade instead of introducing a second public command name.
+
+* Harness Follow-Up
+
+Future harness work should turn these field notes into executable coverage:
+
+- scenario coverage for canonical focused build command surfaces
+- scenario coverage that rejects separate public helper binaries after a
+  project CLI exists
+- policy guidance that distinguishes native-binary dispatch time from backend
+  compiler or test time
+- documentation receipts that include command, status, elapsed time, and
+  measurement boundary
+- POO large-boundary scenarios for module registry, facade, and generated
+  presentation objects
+
+The guiding rule is simple: downstream projects should become easier for agents
+to operate because the harness teaches one canonical surface, narrow gates, and
+measured performance boundaries.

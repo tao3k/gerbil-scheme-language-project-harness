@@ -193,16 +193,22 @@
    (else
     (owner-filtered-calls/limit (cdr calls) terms call-budget out))))
 
-;; : (-> (List Any) MaybeInteger (List Any) )
+;; : (-> (List Dyn) MaybeInteger (List Dyn) )
 (def (owner-take values maybe-limit)
   (if maybe-limit
     (take values (min maybe-limit (length values)))
     values))
 
+;;; Call-term filter boundary:
+;;; - Use ormap/cut so owner item browsing stays a bounded predicate pass.
+;;; - Terms are agent query tokens, not source selectors or regexes.
 ;; : (-> CallFact Terms Boolean )
 (def (owner-call-fact-matches-any-term? fact terms)
   (ormap (cut owner-call-fact-matches-term? fact <>) terms))
 
+;;; Call-field boundary:
+;;; - Match only callee, caller, and parser-owned argument strings.
+;;; - Filtering non-strings keeps mixed syntax facts from becoming ad hoc text.
 ;; : (-> CallFact Term Boolean )
 (def (owner-call-fact-matches-term? fact term)
   (ormap (cut string-contains <> term)

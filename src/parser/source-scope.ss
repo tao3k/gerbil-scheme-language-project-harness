@@ -97,6 +97,10 @@
                     (scan-source-files-preview root scan-roots ignored-dirs remaining)
                     '()))))))
 
+;;; Preview walker boundary:
+;;; - Keep the traversal deterministic and stop as soon as the limit is filled.
+;;; - The local add-file/walk helpers preserve one shared remaining counter.
+;; : (-> Root (List Path) (List String) Integer (List Path))
 (def (scan-source-files-preview root scan-roots ignored-dirs limit)
   (let ((result '())
         (remaining limit))
@@ -129,6 +133,7 @@
      scan-roots)
     (reverse result)))
 
+;; : (forall (a) (-> (List a) Integer (List a)))
 (def (take-up-to values limit)
   (cond
    ((or (<= limit 0) (null? values)) '())

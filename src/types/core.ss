@@ -3,7 +3,6 @@
 
 (import :checker/facade
         :parser/facade
-        :policy/facade
         (only-in :std/sugar hash ormap)
         :types/env
         :types/findings)
@@ -36,8 +35,7 @@
   (append
    (apply append (map source-file-type-findings (project-index-files index)))
    (type-env-findings (build-type-env/signatures index signatures))
-   (run-checker-checks/whitelist index signatures whitelist)
-   (run-policy-checks index)))
+   (run-checker-checks/whitelist index signatures whitelist)))
 ;; : (-> SourceFile (List TypeFinding) )
 (def (source-file-type-findings file)
   (let (error (source-file-parse-error file))

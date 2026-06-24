@@ -56,7 +56,7 @@ uses Gerbil reader/expander APIs as the parser boundary.
 
 ** 11.01.4 Compiler Proof Boundary
 
-The upstream compiler evidence in ~.data/gerbil/src/gerbil/compiler~ supports
+The upstream compiler evidence in ~gerbil://gerbil/compiler~ supports
 our current lightweight proof design, not a full proof system.
 
 - ~compiler/optimize-base.ss~ defines optimizer metadata such as ~!signature~,
