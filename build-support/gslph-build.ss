@@ -119,18 +119,15 @@
   (current-directory package-root)
   (when (and binary (not release))
     (error "binary install is release-only; use ./build.ss install --release or install the pinned release with asp install language"))
-  (let* ((is-darwin-release? (darwin-release? release))
-         (build-optimize? (and optimized (not no-optimize) (not is-darwin-release?)))
+  (when (darwin-release? release)
+    (error "Darwin release binary build is disabled because Gerbil compile-exe does not complete reliably on macOS; use the Linux release builder or a pinned GitHub release artifact"))
+  (let* ((build-optimize? (and optimized (not no-optimize)))
          (effective-release? release)
-         (effective-optimized? (and optimized (not is-darwin-release?)))
+         (effective-optimized? optimized)
          (worker-count (sync-build-worker-count!)))
-    (when is-darwin-release?
-      (display "build.ss: Darwin disables Gerbil full-program optimization but keeps the release module graph.\n"
-               (current-error-port)))
     (if (and (not full) (or release binary))
       (compile-cli-binary verbose debug build-optimize?
-                          release
-                          effective-release? effective-optimized?
+                          release effective-release? effective-optimized?
                           worker-count)
       (make-target (compile-spec full release binary)
                    verbose debug build-optimize?
@@ -139,8 +136,7 @@
     #!void))
 
 (def (compile-cli-binary verbose debug build-optimize?
-                         release?
-                         effective-release? effective-optimized?
+                         release? effective-release? effective-optimized?
                          worker-count)
   (make-target (cli-binary-build-spec release?)
                verbose debug build-optimize?

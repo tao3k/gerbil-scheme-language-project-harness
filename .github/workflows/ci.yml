@@ -172,6 +172,7 @@ jobs:
         run: gxpkg env ./build.ss test
 
       - name: Build canonical gslph binary
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
@@ -182,6 +183,7 @@ jobs:
           test -x .gerbil/bin/gslph
 
       - name: Smoke canonical search subcommands
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
@@ -191,15 +193,18 @@ jobs:
           grep -q 'filePreview=' /tmp/gslph-workspace-scope.txt
 
       - name: Run harness check
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
+          set -euo pipefail
           .gerbil/bin/gslph check --full .
 
       - name: Run harness verification bench
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
+          set -euo pipefail
           max_total_ms=60000
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            max_total_ms=75000
-          fi
           bench_output="$(mktemp)"
           if ! .gerbil/bin/gslph bench --json --iterations 1 --max-total-ms "$max_total_ms" --max-interface-ms 500 . > "$bench_output"; then
             cat "$bench_output"
@@ -220,8 +225,10 @@ jobs:
           '
 
       - name: Verify package extension packet
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           .gerbil/bin/gslph search prime --json . \
             | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
