@@ -205,9 +205,10 @@ jobs:
             .status == "pass" and
             .maxTotalMs == $max_total_ms and
             .maxInterfaceMs == 500 and
+            .mode == "hot" and
             (.totalMs | type == "number") and
             (.slowestBenchmark.durationMs | type == "number") and
-            (.benchmarks | length) == 5 and
+            ([.benchmarks[].name] | sort) == ["search-prime-light", "workspace-scope-light"] and
             all(.benchmarks[]; (.durationMs | type == "number") and .durationMs >= 0)
           '
 
