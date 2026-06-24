@@ -41,6 +41,11 @@
         (check (member "cli-release-linker.ss" spec) ? true)
         (check (member '(exe: "cli-release-linker" bin: "gslph") spec) ? true)
         (check (member '(exe: "cli-launcher" bin: "gslph") spec) => #f)))
+    (test-case "static release binary builds runtime module graph"
+      (let (spec (cli-binary-build-spec #t))
+        (check (member "cli-release-linker.ss" spec) ? true)
+        (check (member "parser/model.ss" spec) ? true)
+        (check (member "policy/core.ss" spec) ? true)))
     (test-case "agent guide forwards section flags"
       (let (status #f)
         (let (output

@@ -11,6 +11,7 @@
         (rename-in :gerbil/tools/gxtest (main gxtest-main)))
 (export compile-target
         compile-spec
+        cli-binary-build-spec
         configure-build-root!
         test-target
         package-build-spec)
@@ -139,11 +140,16 @@
 (def (compile-cli-binary verbose debug build-optimize?
                          effective-release? effective-optimized?
                          worker-count)
-  (make-target cli-bootstrap-modules
+  (make-target (cli-binary-build-spec effective-release?)
                verbose debug build-optimize?
                effective-release? effective-optimized?
                worker-count)
   (compile-cli-launcher-exe verbose debug))
+
+(def (cli-binary-build-spec static-release?)
+  (if static-release?
+    (runtime-library-spec)
+    cli-bootstrap-modules))
 
 (def (compile-cli-launcher-exe verbose debug)
   (let* ((binpath (native-launcher-binpath))
