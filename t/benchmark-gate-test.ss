@@ -158,10 +158,22 @@
     (test-case "fixture carries reusable gate metadata"
       (check (benchmark-fixture-ref benchmark-gate-fixture 'maxTotalMs)
              => 1000)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'maxRssMb)
+             => 512)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryMetric)
+             => 'resident-set-size)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryUnit)
+             => "MB")
+      (check (member 'assert-memory-gate
+                     (benchmark-fixture-ref benchmark-gate-fixture
+                                            'measurementPhases))
+             => '(assert-memory-gate))
       (check (benchmark-fixture-ref benchmark-gate-fixture 'iterations) => 3)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'tags)
              => '(benchmark gate test))
       (check (benchmark-fixture-missing-keys benchmark-gate-fixture) => [])
+      (check (benchmark-fixture-memory-contract-pass? benchmark-gate-fixture)
+             => #t)
       (check (benchmark-fixture-contract-pass? benchmark-gate-fixture) => #t))
 
     (test-case "scenario benchmark fixtures satisfy the shared gate contract"
@@ -171,6 +183,7 @@
          (lambda (path)
            (let (fixture (benchmark-gate-read-fixture path))
              (check (benchmark-fixture-missing-keys fixture) => [])
+             (check (benchmark-fixture-memory-contract-pass? fixture) => #t)
              (check (benchmark-fixture-contract-pass? fixture) => #t)))
          paths)))
 
@@ -180,6 +193,12 @@
                            (lambda () 'ok)))
         (check (benchmark-fixture-ref receipt 'feature)
                => 'fixture-gate)
+        (check (benchmark-fixture-ref receipt 'maxRssMb)
+               => 512)
+        (check (benchmark-fixture-ref receipt 'memoryMetric)
+               => 'resident-set-size)
+        (check (benchmark-fixture-ref receipt 'memoryUnit)
+               => "MB")
         (check (benchmark-receipt-pass? receipt) => #t)))
 
     (test-case "run returns fail receipt at zero threshold"

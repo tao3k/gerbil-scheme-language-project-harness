@@ -8,10 +8,14 @@
         benchmark-default-max-parse-ms
         benchmark-default-max-file-ms
         benchmark-default-max-phase-ms
+        benchmark-default-max-rss-mb
+        benchmark-default-memory-metric
+        benchmark-default-memory-unit
         benchmark-fixture-required-keys
         make-benchmark-fixture
         benchmark-fixture-ref
         benchmark-fixture-missing-keys
+        benchmark-fixture-memory-contract-pass?
         benchmark-fixture-contract-pass?
         benchmark-elapsed-ms
         benchmark-best-elapsed-ms
@@ -32,6 +36,12 @@
 (def benchmark-default-max-file-ms 250)
 ;; Integer
 (def benchmark-default-max-phase-ms 100)
+;; Integer
+(def benchmark-default-max-rss-mb 512)
+;; Symbol
+(def benchmark-default-memory-metric 'resident-set-size)
+;; String
+(def benchmark-default-memory-unit "MB")
 
 ;; benchmark-fixture-required-keys
 ;;   : (List Symbol)
@@ -44,6 +54,9 @@
     maxParseMs
     maxFileMs
     maxPhaseMs
+    maxRssMb
+    memoryMetric
+    memoryUnit
     iterations
     unit
     rule
@@ -66,6 +79,9 @@
         (cons 'maxParseMs benchmark-default-max-parse-ms)
         (cons 'maxFileMs benchmark-default-max-file-ms)
         (cons 'maxPhaseMs benchmark-default-max-phase-ms)
+        (cons 'maxRssMb benchmark-default-max-rss-mb)
+        (cons 'memoryMetric benchmark-default-memory-metric)
+        (cons 'memoryUnit benchmark-default-memory-unit)
         (cons 'iterations 3)
         (cons 'unit "ms")
         (cons 'rule rule)
@@ -74,7 +90,7 @@
         (cons 'inputShape input-shape)
         (cons 'expectedRepair expected-repair)
         (cons 'measurementPhases
-              '(prepare-fixture measure-best assert-gate))
+              '(prepare-fixture measure-best assert-time-gate assert-memory-gate))
         (cons 'tags tags)))
 
 ;; benchmark-fixture-ref
@@ -96,6 +112,37 @@
 (def (benchmark-fixture-missing-keys fixture)
   (filter (lambda (key) (not (assoc key fixture)))
           benchmark-fixture-required-keys))
+
+;; : (-> (List Value) Symbol Boolean)
+(def (benchmark-fixture-phase-present? phases phase)
+  (or (member phase phases)
+      (member (symbol->string phase) phases)))
+
+;; benchmark-fixture-memory-contract-pass?
+;;   : (-> Alist Boolean)
+;;   | doc m%
+;;       Validate the reusable RSS budget fields required by benchmark fixtures.
+;;     %
+(def (benchmark-fixture-memory-contract-pass? fixture)
+  (let ((max-rss-entry (assoc 'maxRssMb fixture))
+        (memory-metric-entry (assoc 'memoryMetric fixture))
+        (memory-unit-entry (assoc 'memoryUnit fixture))
+        (measurement-phases-entry (assoc 'measurementPhases fixture)))
+    (and max-rss-entry
+         memory-metric-entry
+         memory-unit-entry
+         measurement-phases-entry
+         (let ((max-rss-mb (cdr max-rss-entry))
+               (memory-metric (cdr memory-metric-entry))
+               (memory-unit (cdr memory-unit-entry))
+               (measurement-phases (cdr measurement-phases-entry)))
+           (and (integer? max-rss-mb)
+                (> max-rss-mb 0)
+                (eq? memory-metric benchmark-default-memory-metric)
+                (equal? memory-unit benchmark-default-memory-unit)
+                (not (not (benchmark-fixture-phase-present?
+                           measurement-phases
+                           'assert-memory-gate))))))))
 
 ;; benchmark-fixture-contract-pass?
 ;;   : (-> Alist Boolean)
@@ -123,7 +170,8 @@
               (> max-phase-ms 0)
               (integer? iterations)
               (> iterations 0)
-              (equal? unit "ms")))))
+              (equal? unit "ms")
+              (benchmark-fixture-memory-contract-pass? fixture)))))
 
 ;; benchmark-elapsed-ms
 ;;   : (-> (-> Value) Integer)
@@ -172,6 +220,9 @@
           (cons 'maxParseMs (benchmark-fixture-ref fixture 'maxParseMs))
           (cons 'maxFileMs (benchmark-fixture-ref fixture 'maxFileMs))
           (cons 'maxPhaseMs (benchmark-fixture-ref fixture 'maxPhaseMs))
+          (cons 'maxRssMb (benchmark-fixture-ref fixture 'maxRssMb))
+          (cons 'memoryMetric (benchmark-fixture-ref fixture 'memoryMetric))
+          (cons 'memoryUnit (benchmark-fixture-ref fixture 'memoryUnit))
           (cons 'status (if (< elapsed-ms max-total-ms) 'pass 'fail)))))
 
 ;; benchmark-receipt-pass?

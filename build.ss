@@ -30,6 +30,7 @@
     "commands/search-prime-light.ss"
     "commands/search-workspace-scope-light.ss"
     "search-light-launcher.ss"
+    "cli-launcher.ss"
     "support/time.ss"
     "commands/bench-light.ss"))
 
