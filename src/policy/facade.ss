@@ -55,6 +55,7 @@
         +agent-poo-debug-instrumentation-loop-performance-rule+
         +agent-poo-slot-spec-mutation-loop-performance-rule+
         +agent-poo-slot-predicate-loop-performance-rule+
+        +agent-poo-documentation-usage-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -98,6 +99,7 @@
         poo-debug-instrumentation-loop-performance-finding
         poo-slot-spec-mutation-loop-performance-finding
         poo-slot-predicate-loop-performance-finding
+        poo-documentation-usage-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
         typed-combinator-style-finding

@@ -239,6 +239,10 @@
          (typed-combinator-style-list-combinator-signals file))
         (listCombinatorBoundaryTargets
          (typed-combinator-style-list-combinator-targets file))
+        (loopDriverCombinatorSignals
+         (typed-combinator-style-loop-driver-signals file))
+        (loopDriverCombinatorTargets
+         (typed-combinator-style-loop-driver-targets file))
         (destructuringBoundarySignals
          (typed-combinator-style-destructuring-signals file))
         (destructuringBoundaryTargets
@@ -257,6 +261,10 @@
         (exceptionContinuationBoundaryTargets
          (typed-combinator-style-exception-continuation-boundary-targets
           file))
+        (macroFamilySignals
+         (typed-combinator-style-macro-family-signals file))
+        (macroFamilyTargets
+         (typed-combinator-style-macro-family-targets file))
         (controlledMacroSyntaxSignals
          (typed-combinator-style-controlled-macro-syntax-signals file))
         (controlledMacroTargets
@@ -269,7 +277,7 @@
         (implementationEvidenceSource
          "parser-owned higherOrderFacts plus callFacts; do not use raw text heuristics")
         (qualityFacetSource
-         "parser-owned typedContractFacts, higherOrderFacts, booleanConditionFacts, and functionQualityProfiles derived from native call, higher-order, and control-flow facts")
+         "parser-owned typedContractFacts, higherOrderFacts, booleanConditionFacts, loopDriverFacts, and functionQualityProfiles derived from native call, higher-order, and control-flow facts")
         (qualityFacets quality-facets)
         (qualityFacetSteering
          (typed-combinator-style-quality-facet-steering quality-facets))
@@ -448,11 +456,13 @@
     (typed-combinator-style-generator-quality-facets file)
     (typed-combinator-style-anti-ai-scaffold-quality-facets file)
     (typed-combinator-style-list-combinator-quality-facets file)
+    (typed-combinator-style-loop-driver-quality-facets file)
     (typed-combinator-style-destructuring-quality-facets file)
     (typed-combinator-style-serialization-boundary-quality-facets file)
     (typed-combinator-style-slot-lens-boundary-quality-facets file)
     (typed-combinator-style-concurrency-control-quality-facets file)
     (typed-combinator-style-exception-continuation-boundary-quality-facets file)
+    (typed-combinator-style-macro-family-quality-facets file)
     (typed-combinator-style-controlled-macro-quality-facets file)
     (typed-combinator-style-result-index-scaffold-quality-facets file)
     (typed-combinator-style-typeclass-quality-facets file))))
@@ -489,16 +499,20 @@
 ;; : (-> SourceFile (List QualityFacet) Boolean )
 (def (typed-combinator-style-quality-repair-triggered? file quality-facets)
   (or (quality-facet-any? quality-facets
-                          ["manual-loop-drift"
-                           "scheme-native-typed-block-migration"
-                           "method-table-lambda-drift"
-                           "anti-ai-scaffold-boundary"
-                           "list-combinator-boundary"
-                           "destructuring-combinator-boundary"
-                           "result-index-scaffold"
-                           "slot-lens-boundary"
-                           "concurrency-control-boundary"
-                           "exception-continuation-boundary"])
+                          ["scheme-native-typed-block-migration"])
+      (and (not (typed-combinator-style-positive-quality-covered?
+                 quality-facets))
+           (quality-facet-any? quality-facets
+                               ["manual-loop-drift"
+                                "method-table-lambda-drift"
+                                "anti-ai-scaffold-boundary"
+                                "list-combinator-boundary"
+                                "destructuring-combinator-boundary"
+                                "result-index-scaffold"
+                                "slot-lens-boundary"
+                                "concurrency-control-boundary"
+                                "exception-continuation-boundary"
+                                "macro-family-boundary"]))
       (and (typed-combinator-style-runtime-wrapper-source-file? file)
            (not (typed-combinator-style-positive-quality-covered?
                  quality-facets))

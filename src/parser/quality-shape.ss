@@ -28,6 +28,10 @@
 (def +condition-callees+ '("member" "equal?" "not" ">" "<" ">=" "<=" "string=?" "string-contains" "string-prefix?" "string-suffix?"))
 ;; (List String)
 (def +reader-driver-callees+ '("read" "read-line" "read-syntax"))
+;; (List String)
+(def +state-mutation-callees+
+  '("set!" "set-car!" "set-cdr!" "vector-set!" "hash-put!" "hash-remove!"
+    "hash-clear!" "table-set!" "table-delete!" ".put!" ".slot-set!"))
 
 ;;; Predicate family facts identify repeated one-argument predicate helpers over the same subject.
 ;;; They give policy enough native evidence to request a helper/combinator rewrite without reading raw source.
@@ -507,6 +511,8 @@
     (cond
      ((caller-has-callee? calls caller +reader-driver-callees+)
       "io-reader-driver")
+     ((caller-has-callee? calls caller +state-mutation-callees+)
+      "state-driver-candidate")
      ((caller-has-higher-order? higher-order-forms caller)
       "higher-order-boundary")
      ((>= (control-flow-fact-binding-count fact) 4)

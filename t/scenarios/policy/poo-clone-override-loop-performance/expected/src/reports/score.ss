@@ -19,7 +19,9 @@
   (object<-alist +report-profile+))
 
 (def (score-report profile limit)
-  (let loop ((i 0) (score 0))
-    (if (= i limit)
-      (.cc profile 'score score)
-      (loop (+ i 1) i))))
+  (let (score
+        (let loop ((i 0) (score 0))
+          (if (= i limit)
+            score
+            (loop (+ i 1) i))))
+    (.cc profile 'score score)))

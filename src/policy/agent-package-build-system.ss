@@ -4,7 +4,7 @@
 (import :parser/facade
         :policy/detection
         :policy/poo-source
-        (only-in :std/srfi/13 string-contains)
+        (only-in :std/srfi/13 string-contains string-suffix?)
         (only-in :std/sugar cut filter hash ormap))
 
 (export package-build-file?
@@ -266,8 +266,10 @@
 
 ;; : (-> CallFact Boolean)
 (def (package-build-std-make-call? call)
-  (member (call-fact-callee call)
-          +package-build-std-make-callees+))
+  (or (member (call-fact-callee call)
+              +package-build-std-make-callees+)
+      (and (equal? (call-fact-callee call) "apply")
+           (call-arguments-contain? call "make"))))
 
 ;; : (-> CallFact Boolean)
 (def (package-build-canonical-enumerator-call? call)
@@ -280,8 +282,12 @@
 
 ;; : (-> DefinitionFact Boolean)
 (def (package-build-std-make-spec-definition? definition)
-  (member (definition-name definition)
-          +package-build-std-make-spec-definitions+))
+  (package-build-spec-definition-name? (definition-name definition)))
+
+;; : (-> DefinitionName Boolean)
+(def (package-build-spec-definition-name? name)
+  (or (member name +package-build-std-make-spec-definitions+)
+      (string-suffix? "-build-spec" name)))
 
 ;; : (-> IncludePath Boolean)
 (def (package-build-std-make-spec-include? include)

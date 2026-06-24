@@ -29,6 +29,7 @@
 (def (explicit-precise-import-finding index file fact)
   (and (index-source-runtime-file-path? index (source-file-path file))
        (imprecise-runtime-import? fact)
+       (not (reexported-import? file fact))
        (make-type-finding
         (policy-rule-id +agent-explicit-precise-import-rule+)
         (policy-rule-severity +agent-explicit-precise-import-rule+)
@@ -44,6 +45,24 @@
        (or (equal? (module-import-fact-modifier fact) "direct")
            (and (equal? (module-import-fact-modifier fact) "only-in")
                 (null? (module-import-fact-symbols fact))))))
+
+;;; Boundary:
+;;; - A direct import that is immediately re-exported with `(export (import: ...))`
+;;;   is a public interface surface, not a private runtime dependency.
+;;; - Parser-owned export facts make the exception explicit without scanning text.
+;; : (-> SourceFile ModuleImportFact Boolean )
+(def (reexported-import? file fact)
+  (let ((module (module-import-fact-module fact))
+        (phase (module-import-fact-phase fact)))
+    (and (equal? phase "runtime")
+         (let loop ((exports (source-file-module-exports file)))
+           (cond
+            ((null? exports) #f)
+            ((and (equal? (module-export-fact-modifier (car exports)) "import:")
+                  (equal? (module-export-fact-module (car exports)) module))
+             #t)
+            (else
+             (loop (cdr exports))))))))
 
 ;; : (-> ModuleName Boolean )
 (def (governed-import-module? module)

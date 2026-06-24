@@ -72,6 +72,8 @@
                 "when one owner mixes spawn/join/mutex/race/thread-parameter responsibilities, split local concurrency helpers, name sequentialization and join boundaries, and preserve parameter propagation without requiring gerbil-utils dependencies")
            (and (member "exception-continuation-boundary" quality-facets)
                 "when one owner mixes exception, continuation, handler, context, and raise responsibilities, split a local exception boundary that preserves handler restoration, contextual logging, and re-raise behavior; do not require gerbil-utils dependencies")
+           (and (member "macro-family-boundary" quality-facets)
+                "collapse repeated same-prefix thin macros into one hygienic macro family helper or table, then keep runtime behavior in ordinary functions")
            (and (member "controlled-macro-syntax-boundary" quality-facets)
                 "when parser facts show macro owners, use upstream Gerbil macro-library idioms; keep syntax wrappers thin and hygienic, and push reusable runtime behavior into ordinary helpers")
            (and (member "poo-typeclass-algebra-boundary" quality-facets)

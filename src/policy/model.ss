@@ -50,7 +50,8 @@
         +agent-poo-type-construction-loop-performance-rule+
         +agent-poo-debug-instrumentation-loop-performance-rule+
         +agent-poo-slot-spec-mutation-loop-performance-rule+
-        +agent-poo-slot-predicate-loop-performance-rule+)
+        +agent-poo-slot-predicate-loop-performance-rule+
+        +agent-poo-documentation-usage-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -185,3 +186,6 @@
 ;; ConfigConstant
 (def +agent-poo-slot-predicate-loop-performance-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R037" "warning"))
+;; ConfigConstant
+(def +agent-poo-documentation-usage-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R038" "warning"))

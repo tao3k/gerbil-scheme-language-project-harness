@@ -497,7 +497,7 @@
       "higher-order")
      ((definition-name-in-control-flow-forms? name control-flow-forms)
       "control-flow")
-     ((>= (definition-line-span definition) 24) "long-definition")
+     ((>= (definition-line-span definition) 60) "long-definition")
      (else "definition"))))
 
 ;; : (-> Definition HashTable HashTable HashTable HashTable String )
@@ -513,7 +513,7 @@
       "higher-order")
      ((not (null? (indexed-facts control-flow-index name)))
       "control-flow")
-     ((>= (definition-line-span definition) 24) "long-definition")
+     ((>= (definition-line-span definition) 60) "long-definition")
      (else "definition"))))
 
 ;; : (-> Definition String Boolean )
@@ -521,7 +521,7 @@
   (or (member (definition-kind definition)
               '("defrule" "defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
       (member context
-              '("macro" "poo" "higher-order" "control-flow" "long-definition"))))
+              '("macro" "poo" "long-definition"))))
 
 ;; : (-> (List CommentLine) Boolean String CommentSummary )
 (def (comment-quality-summary comments required context)

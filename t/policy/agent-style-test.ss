@@ -5,6 +5,7 @@
         :std/test
         :std/misc/ports
         :std/misc/process
+        :std/sort
         :commands/check
         :parser/facade
         :policy/agent-style
@@ -294,6 +295,44 @@
                     "with-syntax-reconstruction-boundary"
                     (hash-get quality-reference 'qualitySignals))
                    => #t)))
+    (test-case "agent policy validates macro family thin wrapper scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "macro-family-thin-wrapper"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "macro-family-thin-wrapper"
+             "macro-family-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://" "gerbil-utils" "poo-flow"]
+             ["macro-family-boundary" "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "collapse repeated same-prefix macro wrappers into one hygienic family helper")
+            (check (agent-style-member?
+                    "macro-family-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "collapse repeated same-prefix macro wrappers into one macro family helper"
+                    (hash-get details 'macroFamilySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "prefer a syntax-rules family table or stx helper over copy-pasted defrules"
+                    (hash-get details 'macroFamilySignals))
+                   => #t)
+            (check (hash-get details 'macroFamilyTargets)
+                   => ["defpoo-flow"])
+            (check (agent-style-member?
+                    "collapse repeated same-prefix thin macros into one hygienic macro family helper or table, then keep runtime behavior in ordinary functions"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 1)
+             (list 0 1))))
     (test-case "agent policy validates generator control scenario under performance gate"
           (let* ((context
                   (agent-style-policy-r013-scenario-context
@@ -367,7 +406,7 @@
             (agent-style-check-r013-scenario-learning!
              context
              ["gerbil://" "gerbil-utils"]
-             ["functional-idiom" "list-combinator-boundary" "anti-ai-scaffold"])
+             ["functional-idiom" "loop-driver-combinator-boundary" "anti-ai-scaffold"])
             (check (hash-get benchmark-contract 'optimizationFocus)
                    => "manual recursion to fold/pipeline and lambda-match boundary")
             (check (agent-style-member?
@@ -379,22 +418,56 @@
                     (hash-get details 'qualityFacets))
                    => #t)
             (check (agent-style-member?
-                    "list-combinator-boundary"
-                    (hash-get details 'qualityFacets))
-                   => #t)
-            (check (agent-style-member?
                     "replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness"
                     (hash-get details 'qualityFacetSteering))
                    => #t)
             (check (agent-style-member?
-                    "replace hand-written list recursion scaffolding with map/filter/fold or a named reducer boundary"
-                    (hash-get details 'listCombinatorBoundarySignals))
+                    "replace pure named-let accumulator loops with map/filter/filter-map/fold when behavior is a data transform"
+                    (hash-get details 'loopDriverCombinatorSignals))
                    => #t)
-            (check (hash-get details 'listCombinatorBoundaryTargets)
+            (check (hash-get details 'loopDriverCombinatorTargets)
                    => ["total"])
             (agent-style-check-r013-quality-reference!
              context
-             (list 0 1 2 3)
+             (list 0 2 3)
+             (list 1 2 3 5 6))))
+    (test-case "agent policy validates wrapper lambda function factory scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "wrapper-lambda-function-factory"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "wrapper-lambda-function-factory"
+             "wrapper-lambda-function-factory")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil-utils"]
+             ["wrapper-lambda-drift"
+              "function-specialization-opportunity"
+              "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "repeated wrapper lambdas to named specializer and factory boundaries")
+            (check (agent-style-member?
+                    "wrapper-lambda-drift"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "function-specialization-opportunity"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "extract repeated wrapper lambdas into a named factory, case-lambda function factory, curry/rcurry specializer, or compose/rcompose pipeline"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)
+            (check (agent-style-member?
+                    "repair anonymous specialization by introducing one first-class helper boundary before changing call sites"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)
+            (agent-style-check-r013-quality-reference!
+             context
+             (list 0 2 3 4)
              (list 0 1 2 3))))
     (test-case "agent policy validates destructuring combinator boundary scenario under performance gate"
           (let* ((context

@@ -2,7 +2,7 @@
 ;;; Gerbil-specific style signals for R013 typed-combinator guidance.
 
 (import :parser/facade
-        (only-in :std/srfi/13 string-contains)
+        (only-in :std/srfi/13 string-contains string-empty?)
         (only-in :std/sugar cut filter ormap))
 
 (export typed-combinator-style-generator-quality-facets
@@ -15,6 +15,9 @@
         typed-combinator-style-list-combinator-quality-facets
         typed-combinator-style-list-combinator-signals
         typed-combinator-style-list-combinator-targets
+        typed-combinator-style-loop-driver-quality-facets
+        typed-combinator-style-loop-driver-signals
+        typed-combinator-style-loop-driver-targets
         typed-combinator-style-generator-combinator-signals
         typed-combinator-style-generator-contract-targets
         typed-combinator-style-serialization-boundary-quality-facets
@@ -29,6 +32,9 @@
         typed-combinator-style-exception-continuation-boundary-quality-facets
         typed-combinator-style-exception-continuation-boundary-signals
         typed-combinator-style-exception-continuation-boundary-targets
+        typed-combinator-style-macro-family-quality-facets
+        typed-combinator-style-macro-family-signals
+        typed-combinator-style-macro-family-targets
         typed-combinator-style-controlled-macro-quality-facets
         typed-combinator-style-controlled-macro-syntax-signals
         typed-combinator-style-controlled-macro-targets
@@ -168,6 +174,60 @@
   (typed-combinator-style-facts->targets
    (typed-combinator-style-list-combinator-facts file)
    typed-contract-fact-definition-name))
+
+;;; Loop-driver boundary:
+;;; - Pure named-let loops are parser-owned evidence even when older code lacks
+;;;   a precise List traversal contract.
+;;; - IO, state, and higher-order loops stay preserved by the loop-driver
+;;;   classifier and do not emit this repair signal.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-loop-driver-quality-facets file)
+  (typed-combinator-style-facts->quality-facet
+   (typed-combinator-style-loop-driver-facts file)
+   "manual-loop-drift"))
+
+;;; Guidance boundary:
+;;; - This is the contract-light repair lane for real legacy owners.
+;;; - Keep the advice constrained to pure transform loops.
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-loop-driver-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-loop-driver-facts file)
+   ["replace pure named-let accumulator loops with map/filter/filter-map/fold when behavior is a data transform"
+    "extract mapper, predicate, and reducer helpers before rewriting the loop body"
+    "preserve named-let loops when parser facts show IO, state, generator, or higher-order boundary evidence"]))
+
+;;; Target boundary:
+;;; - Use caller names when available, otherwise the loop label.
+;;; - This gives repair a bounded edit target without relying on typed comments.
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-loop-driver-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-loop-driver-facts file)
+   typed-combinator-style-loop-driver-target-name))
+
+;;; Fact boundary:
+;;; - Consume only parser-classified pure transform loops.
+;;; - No source text or reference-repo dependency is used here.
+;; : (-> SourceFile (List LoopDriverFact) )
+(def (typed-combinator-style-loop-driver-facts file)
+  (filter typed-combinator-style-loop-driver-fact?
+          (source-file-loop-driver-facts file)))
+
+;; : (-> LoopDriverFact Boolean )
+(def (typed-combinator-style-loop-driver-fact? fact)
+  (and (equal? (loop-driver-fact-driver-kind fact)
+               "pure-transform-candidate")
+       (member "manual-loop-drift"
+               (loop-driver-fact-quality-facets fact))))
+
+;; : (-> LoopDriverFact TargetName )
+(def (typed-combinator-style-loop-driver-target-name fact)
+  (let (caller (loop-driver-fact-caller fact))
+    (if (and (string? caller)
+             (not (string-empty? caller)))
+      caller
+      (loop-driver-fact-name fact))))
 
 ;;; Fact boundary:
 ;;; - A List contract alone is not enough: the parser must also classify a
@@ -600,6 +660,32 @@
                (and (string? input)
                     (string-contains input needle)))
              (typed-contract-fact-contract-inputs fact))))
+
+;;; Macro-family facts catch repeated same-prefix thin macro wrappers before
+;;; policy turns them into copy-pasted syntax APIs.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-macro-family-quality-facets file)
+  (typed-combinator-style-facts->quality-facet
+   (source-file-macro-family-facts file)
+   "macro-family-boundary"))
+
+;;; Signal boundary:
+;;; - Family guidance is emitted only from parser-owned macro-family facts.
+;;; - It does not make downstream projects depend on poo-flow or gerbil-utils.
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-macro-family-signals file)
+  (typed-combinator-style-facts->signals
+   (source-file-macro-family-facts file)
+   ["collapse repeated same-prefix macro wrappers into one macro family helper"
+    "prefer a syntax-rules family table or stx helper over copy-pasted defrules"
+    "keep runtime semantics in ordinary helpers and make macro expansion a thin surface"]))
+
+;;; Target projection names the macro family prefix, not each repeated wrapper.
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-macro-family-targets file)
+  (typed-combinator-style-facts->targets
+   (source-file-macro-family-facts file)
+   macro-family-fact-prefix))
 
 ;;; Macro facts already classify syntax owners.  R013 exposes the engineering
 ;;; steering so macro-heavy files use upstream macro-library idioms without

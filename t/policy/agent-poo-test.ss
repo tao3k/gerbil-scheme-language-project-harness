@@ -21,6 +21,26 @@
   (and (number? (hash-get timing 'maxTotalMs))
        (equal? (hash-get timing 'performanceStatus) "pass")))
 
+;; : (-> TimedPolicyScenarioResult Boolean )
+(def (policy-scenario-benchmark-targeted? timing)
+  (let* ((observed-ms (hash-get timing 'observedTotalMs))
+         (target-ms (hash-get timing 'targetTotalMs))
+         (max-ms (hash-get timing 'maxTotalMs))
+         (regression-budget-ms (hash-get timing 'regressionBudgetMs)))
+    (and (number? observed-ms)
+         (number? target-ms)
+         (number? max-ms)
+         (number? regression-budget-ms)
+         (<= observed-ms target-ms)
+         (< target-ms max-ms)
+         (= max-ms (+ observed-ms regression-budget-ms)))))
+
+;; : (-> MaybeNumber String )
+(def (poo-policy-performance-timing-status total-ms)
+  (if (and (number? total-ms) (>= total-ms 0))
+    "pass"
+    "fail"))
+
 ;; : (-> (List Timing) Boolean )
 (def (policy-scenario-timing-steps-measured? timings)
   (cond
@@ -42,12 +62,33 @@
     "poo-materialization-loop-performance"
     "poo-object-construction-loop-performance"
     "poo-object-iteration-loop-performance"
+    "poo-real-dashboard-workflow-performance"
     "poo-slot-predicate-loop-performance"
     "poo-slot-projection-loop-performance"
     "poo-slot-spec-mutation-loop-performance"
     "poo-type-construction-loop-performance"
     "poo-validation-loop-performance"
     "poo-z-type-construction-loop-performance"))
+
+(def +poo-real-dashboard-workflow-rule-ids+
+  '("GERBIL-SCHEME-AGENT-R028"
+    "GERBIL-SCHEME-AGENT-R029"
+    "GERBIL-SCHEME-AGENT-R030"
+    "GERBIL-SCHEME-AGENT-R031"
+    "GERBIL-SCHEME-AGENT-R033"
+    "GERBIL-SCHEME-AGENT-R035"
+    "GERBIL-SCHEME-AGENT-R037"))
+
+;; : (-> PolicyScenarioResult Symbol (List String) (List TypeFinding) )
+(def (policy-scenario-findings/rules result phase rule-ids)
+  (apply append
+         (map (lambda (rule-id)
+                (policy-scenario-findings result phase rule-id))
+              rule-ids)))
+
+;; : (-> String (List TypeFinding) Boolean )
+(def (policy-rule-present? rule-id findings)
+  (if (member rule-id (map type-finding-rule-id findings)) #t #f))
 
 (def (poo-performance-scenario-benchmark-path scenario-id)
   (string-append "t/scenarios/policy/" scenario-id "/benchmark.ss"))
@@ -98,6 +139,60 @@
       (check (poo-performance-scenarios-missing-hot-path-exemptions
               +poo-performance-scenario-ids+)
              => []))
+    (test-case "agent policy rewrites real dashboard POO workflow to boundary APIs"
+          (let* ((scenario
+                  (make-policy-scenario
+                   "poo-real-dashboard-workflow-performance"
+                   "t/scenarios/policy/poo-real-dashboard-workflow-performance"))
+                 (timing (policy-scenario-run/timed scenario))
+                 (result (hash-get timing 'result))
+                 (timings (hash-get timing 'timings))
+                 (before-findings
+                  (policy-scenario-findings/rules
+                   result
+                   'before
+                   +poo-real-dashboard-workflow-rule-ids+))
+                 (after-findings
+                  (policy-scenario-findings/rules
+                   result
+                   'after
+                   +poo-real-dashboard-workflow-rule-ids+)))
+            (check (hash-get timing 'schemaId)
+                   => "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
+            (check (hash-get timing 'scenarioId)
+                   => "poo-real-dashboard-workflow-performance")
+            (check (length timings) => 4)
+            (check (policy-scenario-timing-steps-measured? timings)
+                   => #t)
+            (check (policy-scenario-benchmark-constrained? timing)
+                   => #t)
+            (check (policy-scenario-benchmark-targeted? timing)
+                   => #t)
+            (check (hash-get timing 'targetStatus)
+                   => "pass")
+            (check (>= (length before-findings) 7) => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R028" before-findings)
+                   => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R029" before-findings)
+                   => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R030" before-findings)
+                   => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R031" before-findings)
+                   => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R033" before-findings)
+                   => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R035" before-findings)
+                   => #t)
+            (check (policy-rule-present?
+                    "GERBIL-SCHEME-AGENT-R037" before-findings)
+                   => #t)
+            (check after-findings => [])))
     (test-case "agent policy rejects direct POO writeenv calls"
           (let* ((root ".run/policy-poo-direct-writeenv")
                  (_ (write-poo-direct-writeenv-project root))
@@ -137,6 +232,33 @@
             (check (type-finding-path finding) => "src/orders/methods.ss")
             (check (type-finding-message finding)
                    => "POO method order-discount is missing parser-owned defgeneric,defclass-or-defprotocol facts; query POO pattern evidence and add defgeneric/defclass/defprotocol structure before extending methods")))
+    (test-case "agent policy requires POO usage documentation for defaults and slot mutation"
+          (let* ((root ".run/policy-poo-documentation-usage")
+                 (_ (write-poo-documentation-usage-project root))
+                 (index (collect-project root))
+                 (findings (run-agent-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings))
+                 (finding (car matching))
+                 (details (type-finding-details finding)))
+            (check (length matching) => 1)
+            (check (type-finding-path finding) => "src/orders/docs.ss")
+            (check (type-finding-message finding)
+                   => "POO defaults and slot mutation APIs need a full-form typed doc with body, result example, and POO usage terms")
+            (check (not (not (member ".putdefault!" (hash-get details 'apiCallees))))
+                   => #t)
+            (check (not (not (member "setslots!" (hash-get details 'apiCallees))))
+                   => #t)
+            (check (hash-get details 'triggerApis)
+                   => ".putslot!,.putdefault!,.setslot!,.setslots!,.set!,putslot!,putdefault!,setslot!,setslots!")
+            (check (hash-get details 'coveredApis)
+                   => ".o,.def,defpoo,.mix,.ref,.get,.putslot!,.putdefault!,.setslot!,.setslots!,.set!,putslot!,putdefault!,setslot!,setslots!")))
+    (test-case "agent policy accepts documented POO usage for defaults and slot mutation"
+          (let* ((root ".run/policy-poo-documentation-usage-positive")
+                 (_ (write-poo-documentation-usage-positive-project root))
+                 (index (collect-project root))
+                 (findings (run-agent-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings)))
+            (check matching => [])))
     (test-case "agent policy redirects outer POO constructor slot projection to prototype fixed point"
           (let* ((root ".run/policy-poo-prototype-fixed-point")
                  (_ (write-poo-prototype-fixed-point-drift-project root))
@@ -162,6 +284,20 @@
                  (index (collect-project root))
                  (findings (run-agent-policy index))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-R026" findings)))
+            (check matching => [])))
+    (test-case "agent policy allows isolated POO boundary reads without usage docs"
+          (let* ((root ".run/policy-poo-documentation-boundary-read")
+                 (_ (write-poo-prototype-boundary-read-project root))
+                 (index (collect-project root))
+                 (findings (run-agent-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings)))
+            (check matching => [])))
+    (test-case "agent policy does not treat ordinary Scheme set! as POO usage"
+          (let* ((root ".run/policy-poo-documentation-ordinary-set")
+                 (_ (write-poo-documentation-ordinary-set-project root))
+                 (index (collect-project root))
+                 (findings (run-agent-policy index))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings)))
             (check matching => [])))
     (test-case "agent policy allows isolated POO slot boundary reads"
           (let* ((root ".run/policy-poo-prototype-boundary-read")
@@ -208,7 +344,7 @@
               (check (hash-get details 'slotSpecCount) => 16)
               (check (hash-get details 'slotSpecThreshold) => 12)
               (check (hash-get details 'preferredConstruction)
-                     => "object<-alist for broad mostly-data POO values"))))
+                     => "object<-alist for broad mostly-data POO values")))
     (test-case "agent policy redirects loop-local POO clone overrides out of hot loops"
           (let* ((scenario
                   (make-policy-scenario
@@ -242,7 +378,7 @@
               (check (hash-get details 'callee) => ".cc")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "accumulate loop state and apply one final .cc; use .put! only for intentional mutable objects"))))
+                     => "accumulate loop state and apply one final .cc; use .put! only for intentional mutable objects")))
     (test-case "agent policy redirects loop-local POO materialization to a single boundary snapshot"
           (let* ((scenario
                   (make-policy-scenario
@@ -276,7 +412,7 @@
               (check (hash-get details 'callee) => ".alist/sort")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots"))))
+                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots")))
     (test-case "agent policy redirects loop-local POO slot projection to a boundary snapshot"
           (let* ((scenario
                   (make-policy-scenario
@@ -310,7 +446,7 @@
               (check (hash-get details 'callee) => ".refs/slots")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots"))))
+                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots")))
     (test-case "agent policy redirects loop-local POO object iteration to a boundary snapshot"
           (let* ((scenario
                   (make-policy-scenario
@@ -344,7 +480,7 @@
               (check (hash-get details 'callee) => ".for-each!")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots"))))
+                     => "materialize, iterate, or project once outside the loop, or use direct .ref access for specific slots")))
     (test-case "agent policy redirects loop-local POO composition to one boundary object"
           (let* ((scenario
                   (make-policy-scenario
@@ -378,7 +514,7 @@
               (check (hash-get details 'callee) => ".mix")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "accumulate scalar loop state and apply one final POO composition outside the loop"))))
+                     => "accumulate scalar loop state and apply one final POO composition outside the loop")))
     (test-case "agent policy redirects loop-local POO validation to a boundary check"
           (let* ((scenario
                   (make-policy-scenario
@@ -412,7 +548,7 @@
               (check (hash-get details 'callee) => "validate")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "validate once outside the loop, then operate on the validated object or scalar fields"))))
+                     => "validate once outside the loop, then operate on the validated object or scalar fields")))
     (test-case "agent policy redirects loop-local POO lens modification to a boundary update"
           (let* ((scenario
                   (make-policy-scenario
@@ -446,7 +582,7 @@
               (check (hash-get details 'callee) => ".call")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "accumulate scalar lens target state and apply one final .cc outside the loop"))))
+                     => "accumulate scalar lens target state and apply one final .cc outside the loop")))
     (test-case "agent policy redirects loop-local POO object construction to one boundary object"
           (let* ((scenario
                   (make-policy-scenario
@@ -480,7 +616,7 @@
               (check (hash-get details 'callee) => "object<-hash")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable object construction or accumulate scalar/list/hash state and construct one final POO object"))))
+                     => "hoist stable object construction or accumulate scalar/list/hash state and construct one final POO object")))
     (test-case "agent policy redirects loop-local POO type construction to a named type binding"
           (let* ((scenario
                   (make-policy-scenario
@@ -514,7 +650,7 @@
               (check (hash-get details 'callee) => "MonomorphicObject")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop")))
     (test-case "agent policy redirects loop-local POO function type construction to a named type binding"
           (let* ((scenario
                   (make-policy-scenario
@@ -548,7 +684,7 @@
               (check (hash-get details 'callee) => "Function")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop")))
     (test-case "agent policy redirects loop-local POO finite-field type construction to a named type binding"
           (let* ((scenario
                   (make-policy-scenario
@@ -585,7 +721,7 @@
               (check (hash-get details 'callee) => "F_q")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop")))
     (test-case "agent policy redirects loop-local POO modular type construction to a named type binding"
           (let* ((scenario
                   (make-policy-scenario
@@ -622,7 +758,7 @@
               (check (hash-get details 'callee) => "Z/")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop")))
     (test-case "agent policy redirects loop-local POO integer range type construction to a named type binding"
           (let* ((scenario
                   (make-policy-scenario
@@ -659,7 +795,7 @@
               (check (hash-get details 'callee) => "IntegerRange")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable POO/MOP type objects to a named binding outside the loop"))))
+                     => "hoist stable POO/MOP type objects to a named binding outside the loop")))
     (test-case "agent policy redirects loop-local POO debug instrumentation to one setup boundary"
           (let* ((scenario
                   (make-policy-scenario
@@ -693,7 +829,7 @@
               (check (hash-get details 'callee) => "trace-poo")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist trace-poo outside the loop and reuse the traced object"))))
+                     => "hoist trace-poo outside the loop and reuse the traced object")))
     (test-case "agent policy redirects loop-local POO slot-spec mutation to value updates"
           (let* ((scenario
                   (make-policy-scenario
@@ -727,7 +863,7 @@
               (check (hash-get details 'callee) => ".def!")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "define slots once at setup; use .put! for intentional value mutation or scalar loop state plus one final object update"))))
+                     => "define slots once at setup; use .put! for intentional value mutation or scalar loop state plus one final object update")))
     (test-case "agent policy redirects loop-local POO slot predicates to a boundary check"
           (let* ((scenario
                   (make-policy-scenario
@@ -761,7 +897,7 @@
               (check (hash-get details 'callee) => "o?/slots")
               (check (hash-get details 'loopRole) => "manual-loop")
               (check (hash-get details 'preferredConstruction)
-                     => "hoist stable o?/slots predicate results outside the loop; hoist the predicate closure when only the slot list is stable"))))
+                     => "hoist stable o?/slots predicate results outside the loop; hoist the predicate closure when only the slot list is stable")))
     (test-case "agent policy accepts compact POO object construction"
           (let* ((root ".run/policy-poo-construction-performance-compact")
                  (src (string-append root "/src"))
@@ -779,7 +915,7 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R027" findings)))
-              (check matching => []))))
+            (check matching => [])))
     (test-case "agent policy requires macro runtime-source witness"
           (let* ((root ".run/policy-macro-runtime-source")
                  (_ (write-macro-runtime-source-project root #f))
@@ -905,7 +1041,7 @@
                    (finding (car matching)))
               (check (length matching) => 1)
               (check (type-finding-path finding) => "src/orders/broad.ss")
-              (check (type-finding-selector finding) => "src/orders/broad.ss:3-3"))))
+              (check (type-finding-selector finding) => "src/orders/broad.ss:3-3")))
     (test-case "agent policy rejects duplicate facade exports"
           (let* ((root ".run/policy-export-conflict")
                  (_alpha (write-facade-policy-project
@@ -923,4 +1059,4 @@
             (check (length matching) => 1)
             (check (type-finding-rule-id finding)
                    => "GERBIL-SCHEME-AGENT-R003")
-            (check (type-finding-path finding) => "src/beta/facade.ss")))))
+            (check (type-finding-path finding) => "src/beta/facade.ss")))))))

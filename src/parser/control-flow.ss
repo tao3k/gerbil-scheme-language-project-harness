@@ -98,6 +98,8 @@
         '())
        ((metadata-head? head)
         '())
+       ((eq? head 'begin-syntax)
+        '())
        ((member head +definition-heads+)
         (cond
          ((member head +macro-definition-heads+) '())

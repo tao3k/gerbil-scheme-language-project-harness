@@ -3,7 +3,7 @@
 
 (import :parser/facade
         :policy/model
-        (only-in :std/srfi/13 string-contains string-prefix?)
+        (only-in :std/srfi/13 string-contains string-prefix? string-suffix?)
         (only-in :std/sugar cut filter filter-map find ormap)
         :types/findings)
 
@@ -61,6 +61,10 @@
 ;; (List CalleeName)
 (def +package-build-spec-callees+
   '("init-build-environment!" "%set-build-environment!" "defbuild-script" "make"))
+
+;; (List CalleeName)
+(def +package-build-std-make-callees+
+  '("make" "make-clean"))
 
 ;; (List CalleeName)
 (def +package-build-manual-environment-callees+
@@ -184,8 +188,32 @@
 ;;;   `(ssi:)`/FFI build forms that clan/building does not express.
 ;; : (-> CallFact Boolean )
 (def (package-build-init-environment-call? call)
-  (member (call-fact-callee call)
-          +package-build-spec-callees+))
+  (or (member (call-fact-callee call)
+              +package-build-spec-callees+)
+      (and (equal? (call-fact-callee call) "apply")
+           (package-build-call-arguments-contain? call "make"))))
+
+;; : (-> CallFact String Boolean)
+(def (package-build-call-arguments-contain? call needle)
+  (ormap (lambda (argument)
+           (and (string? argument)
+                (string-contains argument needle)))
+         (call-fact-arguments call)))
+
+;; : (-> CallFact String Boolean)
+(def (package-build-call-arguments-member? call needle)
+  (ormap (lambda (argument)
+           (and (string? argument)
+                (equal? argument needle)))
+         (call-fact-arguments call)))
+
+;; : (-> CallFact Boolean)
+(def (package-build-std-make-call? call)
+  (or (member (call-fact-callee call)
+              +package-build-std-make-callees+)
+      (and (equal? (call-fact-callee call) "apply")
+           (ormap (cut package-build-call-arguments-member? call <>)
+                  +package-build-std-make-callees+))))
 
 ;;; Module enumeration proves the spec delegates source discovery to
 ;;; clan/building instead of keeping a handwritten file walk.
@@ -205,7 +233,12 @@
 ;;; - Keep the accepted names narrow so this does not bless arbitrary build helpers.
 ;; : (-> DefinitionFact Boolean )
 (def (package-build-native-build-definition? definition)
-  (member (definition-name definition) '("spec" "build-spec" "buildspec")))
+  (package-build-native-build-definition-name? (definition-name definition)))
+
+;; : (-> DefinitionName Boolean)
+(def (package-build-native-build-definition-name? name)
+  (or (member name '("spec" "build-spec" "buildspec"))
+      (string-suffix? "-build-spec" name)))
 
 ;; : (-> IncludePath Boolean )
 (def (package-build-provider-build-include? include)
@@ -219,7 +252,8 @@
                +package-build-manual-environment-callees+)
        (or (equal? (call-fact-callee call) "add-load-path!")
            (package-build-loadpath-setenv-call? call)
-           (package-build-srcdir-argument-call? call))
+           (and (package-build-srcdir-argument-call? call)
+                (not (package-build-std-make-call? call))))
        (not (package-build-test-load-path-call? call))))
 
 ;;; Build-local gxtest needs source and test module roots in the running Gerbil
@@ -240,8 +274,8 @@
        (ormap (cut string-contains <> "GERBIL_LOADPATH")
               (filter string? (call-fact-arguments call)))))
 
-;;; srcdir: inside make/apply is handwritten source-root control, which should
-;;; move to init-build-environment! for package-level build.ss files.
+;;; srcdir: is legal as a std/make option. Outside canonical make/make-clean
+;;; calls it is handwritten source-root control and belongs in build setup.
 ;; : (-> CallFact Boolean )
 (def (package-build-srcdir-argument-call? call)
   (ormap (cut string-contains <> "srcdir:")

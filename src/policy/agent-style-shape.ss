@@ -28,6 +28,10 @@
 (def +boolean-condition-combinator-min-condition-count+ 5)
 ;; Integer
 (def +controlled-branch-shape-conditional-dispatch-min-count+ 4)
+;; (List CalleeName)
+(def +controlled-branch-shape-stateful-callees+
+  '("set!" "set-car!" "set-cdr!" "vector-set!" "hash-put!" "hash-remove!"
+    "hash-clear!" "table-set!" "table-delete!" ".put!" ".slot-set!"))
 ;;; Source-backed repair vocabulary:
 ;;; - These candidates come from .data/gerbil-utils/base.ss and generator.ss evidence.
 ;;; - R014 may steer an agent toward this vocabulary, but the parser facts still
@@ -557,6 +561,10 @@
 (def (controlled-branch-shape-finding file group)
   (let (shape-kind (controlled-branch-shape-kind group))
     (and shape-kind
+         (not (controlled-branch-shape-stateful-caller?
+               file
+               (car group)
+               shape-kind))
          (let* ((caller (car group))
                 (facts (cdr group))
                 (pattern-facts (filter pattern-branch-control-flow? facts))
@@ -577,6 +585,17 @@
              manual-loop-facts
              conditional-branch-facts
              first-fact))))))
+
+;;; Stateful hot paths often need explicit branch shape to keep allocation and
+;;; mutation boundaries visible; R014 remains focused on pure dispatch drift.
+;; : (-> SourceFile Caller ShapeKind Boolean)
+(def (controlled-branch-shape-stateful-caller? file caller shape-kind)
+  (and (equal? shape-kind "nested-conditional-dispatch")
+       (ormap (lambda (call)
+                (and (equal? (or (call-fact-caller call) "") caller)
+                     (member (call-fact-callee call)
+                             +controlled-branch-shape-stateful-callees+)))
+              (source-file-calls file))))
 
 ;;; Details packet boundary:
 ;;; - Preserve parser-owned counts separately from source-backed repair choices.

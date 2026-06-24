@@ -19,8 +19,8 @@
    (flag 'release "-R" "--release"
          help: "Build static release executables")
    (flag 'binary "--binary"
-         help: "Build the native CLI executable")
-       (flag 'full "--full"
+         help: "Build the package-local development CLI executable under .bin")
+   (flag 'full "--full"
          help: "Compile every library module instead of the CLI launcher")])
 
 (define-multicall-main)
@@ -49,9 +49,9 @@
                              no-optimize: (no-optimize #f)
                              optimized: (optimized #f)
                              release: (release #f))
-  (help: "Build the native gslph executable"
+  (help: "Install gslph into $HOME/.local/bin"
    getopt: compile-getopt)
-  (compile-target verbose debug no-optimize optimized release #f #t))
+  (install-target verbose debug no-optimize optimized release))
 
 (define-entry-point (test)
   (help: "Compile the package and run top-level gxtest files")

@@ -15,6 +15,7 @@
         :policy/agent-style-test
         :policy/agent-dependency-adapter-test
         :policy/agent-poo-test
+        :policy/scenario-benchmark-test
         :policy/detection-test
         :policy/gerbil-utils-source-test)
 (export policy-test)
@@ -32,5 +33,6 @@
     agent-style-policy-test
      agent-dependency-adapter-policy-test
      agent-poo-policy-test
+     scenario-benchmark-policy-test
      detection-policy-test
      gerbil-utils-source-policy-test))

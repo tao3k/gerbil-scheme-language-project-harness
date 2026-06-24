@@ -41,6 +41,7 @@
         parse-source-file
         project-definitions
         project-calls
+        project-macro-family-facts
         project-predicate-family-facts
         project-field-access-pattern-facts
         project-projection-burst-facts
@@ -97,6 +98,19 @@
         macro-fact-hygienic
         macro-fact-quality-facets
         macro-fact-selector
+        macro-family-fact-name
+        macro-family-fact-kind
+        macro-family-fact-path
+        macro-family-fact-start
+        macro-family-fact-end
+        macro-family-fact-role
+        macro-family-fact-prefix
+        macro-family-fact-macro-names
+        macro-family-fact-macro-count
+        macro-family-fact-transformer
+        macro-family-fact-quality-facets
+        macro-family-fact-advice
+        macro-family-fact-selector
         binding-fact-name
         binding-fact-kind
         binding-fact-path
@@ -317,6 +331,7 @@
         source-file-module-imports
         source-file-module-exports
         source-file-macros
+        source-file-macro-family-facts
         source-file-bindings
         source-file-poo-forms
         source-file-higher-order-forms
@@ -1020,6 +1035,11 @@
         (let* ((ordered-exports
                 (record-stage "unique-exports"
                               (lambda () (unique exports))))
+               (macro-family-facts
+                (record-stage
+                 "macro-family-facts"
+                 (lambda ()
+                   (macro-family-facts-from-macros relpath ordered-macros))))
                (predicate-family-facts
                 (record-stage
                  "predicate-family-facts"
@@ -1114,6 +1134,7 @@
                     (reverse module-imports)
                     (reverse module-exports)
                     ordered-macros
+                    macro-family-facts
                     (reverse bindings)
                     ordered-poo-forms
                     ordered-higher-order-forms

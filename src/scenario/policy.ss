@@ -36,6 +36,15 @@
 ;; RelativePath
 (def +policy-scenario-benchmark-file+ "benchmark.ss")
 
+;; : (List BenchmarkContractKey)
+(def +policy-scenario-benchmark-required-fields+
+  '(maxTotalMs
+    observedTotalMs
+    targetTotalMs
+    regressionBudgetMs
+    observedTimings
+    targetRationale))
+
 ;; : (-> Id ScenarioRoot PolicyScenario )
 (def (make-policy-scenario id root)
   (list id root))
@@ -85,12 +94,24 @@
 ;;; - Keep fixture syntax small and stable.
 ;;; - Timed runners receive hash data so tests and future JSON packets do not
 ;;;   depend on alist shape.
+;;; - Baseline, target, and regression budget are required so performance
+;;;   guidance exposes optimization headroom instead of only a loose timeout.
 ;; : (-> BenchmarkContractDatum BenchmarkContract )
 (def (policy-scenario-benchmark-datum->contract datum)
   (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
         (schemaVersion "1")
         (maxTotalMs
-         (policy-scenario-benchmark-value datum 'maxTotalMs #f))
+         (policy-scenario-benchmark-required-value datum 'maxTotalMs))
+        (observedTotalMs
+         (policy-scenario-benchmark-required-value datum 'observedTotalMs))
+        (targetTotalMs
+         (policy-scenario-benchmark-required-value datum 'targetTotalMs))
+        (regressionBudgetMs
+         (policy-scenario-benchmark-required-value datum 'regressionBudgetMs))
+        (observedTimings
+         (policy-scenario-benchmark-required-value datum 'observedTimings))
+        (targetRationale
+         (policy-scenario-benchmark-required-value datum 'targetRationale))
         (iterations
          (policy-scenario-benchmark-value datum 'iterations 1))
         (unit
@@ -132,6 +153,16 @@
           '("collect-before" "collect-after" "policy-before" "policy-after")))
         (tags
          (policy-scenario-benchmark-value datum 'tags '()))))
+
+;;; Required benchmark field lookup:
+;;; - Missing baseline/target fields are contract errors, not optional legacy
+;;;   defaults; otherwise new scenarios silently fall back to unhelpful gates.
+;; : (-> BenchmarkContractDatum BenchmarkContractKey BenchmarkContractValue )
+(def (policy-scenario-benchmark-required-value datum key)
+  (let (entry (and (list? datum) (assoc key datum)))
+    (if entry
+      (cdr entry)
+      (error "policy scenario benchmark missing required field" key))))
 
 ;;; Datum lookup boundary:
 ;;; - Missing benchmark fields fall back to contract defaults.
@@ -225,18 +256,28 @@
           (hotPathEvidence (hash-get benchmark-contract 'hotPathEvidence))
           (styleRewriteBoundary (hash-get benchmark-contract 'styleRewriteBoundary))
           (maxTotalMs max-total-ms)
+          (observedTotalMs (hash-get benchmark-contract 'observedTotalMs))
+          (targetTotalMs (hash-get benchmark-contract 'targetTotalMs))
+          (regressionBudgetMs (hash-get benchmark-contract 'regressionBudgetMs))
+          (observedTimings (hash-get benchmark-contract 'observedTimings))
+          (targetRationale (hash-get benchmark-contract 'targetRationale))
+          (targetStatus
+           (policy-scenario-performance-status
+            total-ms
+            (hash-get benchmark-contract 'targetTotalMs)))
           (performanceStatus
            (policy-scenario-performance-status total-ms max-total-ms))
           (result result))))
 
 ;;; Status boundary:
 ;;; - Unbounded scenarios still return timing receipts.
-;;; - Bounded scenarios fail with both measured and configured values.
+;;; - Bounded scenarios pass when measured time does not exceed the configured
+;;;   value, and fail with both measured and configured values otherwise.
 ;; : (-> Milliseconds (U Milliseconds False) String )
 (def (policy-scenario-performance-status total-ms max-total-ms)
   (cond
    ((not max-total-ms) "unbounded")
-   ((< total-ms max-total-ms) "pass")
+   ((<= total-ms max-total-ms) "pass")
    (else
     (string-append
      "fail durationMs="

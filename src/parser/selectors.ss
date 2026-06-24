@@ -7,6 +7,7 @@
 
 (export project-definitions
         project-calls
+        project-macro-family-facts
         project-predicate-family-facts
         project-field-access-pattern-facts
         project-projection-burst-facts
@@ -22,6 +23,7 @@
         module-import-fact-selector
         module-export-fact-selector
         macro-fact-selector
+        macro-family-fact-selector
         binding-fact-selector
         poo-form-fact-selector
         higher-order-fact-selector
@@ -52,6 +54,14 @@
 ;; : (-> ProjectIndex (List CallFact) )
 (def (project-calls index)
   (apply append (map source-file-calls (project-index-files index))))
+
+;;; Macro-family facts are source-owned cross-macro evidence.
+;;; The project projection only flattens files for policy and search consumers.
+;; : (-> ProjectIndex (List MacroFamilyFact) )
+(def (project-macro-family-facts index)
+  (apply append
+         (map source-file-macro-family-facts
+              (project-index-files index))))
 
 ;;; Predicate-family facts are already source-owned by the native parser.
 ;;; The project projection only flattens file buckets for policy and search.
@@ -159,6 +169,13 @@
 ;; : (-> Fact Selector )
 (def (macro-fact-selector fact)
   (selector-from macro-fact-path macro-fact-start macro-fact-end fact))
+
+;; : (-> Fact Selector )
+(def (macro-family-fact-selector fact)
+  (selector-from macro-family-fact-path
+                 macro-family-fact-start
+                 macro-family-fact-end
+                 fact))
 
 ;; : (-> Fact Selector )
 (def (binding-fact-selector fact)

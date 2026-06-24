@@ -166,6 +166,7 @@
                         '()
                         '()
                         '()
+                        '()
                         parse-error))))
 
 ;; : (-> MaybeInteger Boolean )

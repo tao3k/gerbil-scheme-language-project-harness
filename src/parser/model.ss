@@ -47,6 +47,19 @@
         macro-fact-pattern-count
         macro-fact-hygienic
         macro-fact-quality-facets
+        make-macro-family-fact
+        macro-family-fact-name
+        macro-family-fact-kind
+        macro-family-fact-path
+        macro-family-fact-start
+        macro-family-fact-end
+        macro-family-fact-role
+        macro-family-fact-prefix
+        macro-family-fact-macro-names
+        macro-family-fact-macro-count
+        macro-family-fact-transformer
+        macro-family-fact-quality-facets
+        macro-family-fact-advice
         make-binding-fact
         binding-fact-name
         binding-fact-kind
@@ -265,6 +278,7 @@
         source-file-module-imports
         source-file-module-exports
         source-file-macros
+        source-file-macro-family-facts
         source-file-bindings
         source-file-poo-forms
         source-file-higher-order-forms
@@ -293,6 +307,8 @@
 (defstruct module-export-fact (name modifier alias module symbols path start end))
 ;; MacroFactStruct
 (defstruct macro-fact (name kind path start end transformer phase pattern-count hygienic quality-facets))
+;; MacroFamilyFactStruct
+(defstruct macro-family-fact (name kind path start end role prefix macro-names macro-count transformer quality-facets advice))
 ;; BindingFactStruct
 (defstruct binding-fact (name kind path start end scope value-type))
 ;; PooFormFactStruct
@@ -322,6 +338,6 @@
 ;; TopFormStruct
 (defstruct top-form (kind head path start end))
 ;; SourceFileStruct
-(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports module-exports macros bindings poo-forms higher-order-forms control-flow-forms predicate-family-facts field-access-pattern-facts projection-burst-facts boolean-condition-facts loop-driver-facts dependency-adapter-quality-facts function-quality-profiles typed-contract-facts comment-quality-facts parse-error))
+(defstruct source-file (path line-count package prelude namespace imports exports includes definitions calls forms module-imports module-exports macros macro-family-facts bindings poo-forms higher-order-forms control-flow-forms predicate-family-facts field-access-pattern-facts projection-burst-facts boolean-condition-facts loop-driver-facts dependency-adapter-quality-facts function-quality-profiles typed-contract-facts comment-quality-facts parse-error))
 ;; ProjectIndexStruct
 (defstruct project-index (root files package))

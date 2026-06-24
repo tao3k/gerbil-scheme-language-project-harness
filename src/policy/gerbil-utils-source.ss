@@ -108,7 +108,21 @@
      "lambda-match-list-destructuring"
      "list-builder-output-shape"
      "deduplicated-builder-boundary"]
-    "gerbil:// source corpus, gerbil-utils/list.ss, and base.ss study: list traversal quality comes from fold reducers, cut-shaped predicates, small mapper/reducer/selector boundaries, lambda-match when pair shape matters, and builders only when output construction needs them")
+   "gerbil:// source corpus, gerbil-utils/list.ss, and base.ss study: list traversal quality comes from fold reducers, cut-shaped predicates, small mapper/reducer/selector boundaries, lambda-match when pair shape matters, and builders only when output construction needs them")
+   (make-gerbil-utils-source-profile
+    'loop-driver-combinator-boundary
+    "loop-driver-combinator-boundary"
+    ["gerbil://std/actor-v13/rpc/proto/cipher.ss#foldl-chunk-accumulator"
+     "gerbil-utils/list.ss#list-map"
+     "gerbil-utils/list.ss#list<-monoid"
+     "gerbil-utils/base.ss#lambda-match"
+     "gerbil-utils/base.ss#compose/rcompose"]
+    ["manual-loop-drift"
+     "pure-loop-driver-combinator-boundary"
+     "fold-reducer-boundary"
+     "map-fold-boundary"
+     "lambda-match-list-destructuring"]
+    "gerbil:// source corpus, gerbil-utils/list.ss, and base.ss study: pure named-let drivers should become fold/map/filter-map style transform boundaries when parser facts show no IO, state, generator, or higher-order witness")
    (make-gerbil-utils-source-profile
     'destructuring-combinator-boundary
     "destructuring-combinator-boundary"
@@ -404,6 +418,10 @@
      quality-facets
      ["list-combinator-boundary"])
     'list-combinator-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["manual-loop-drift"])
+    'loop-driver-combinator-boundary)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["destructuring-combinator-boundary"])

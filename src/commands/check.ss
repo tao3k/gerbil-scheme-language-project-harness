@@ -27,7 +27,7 @@
 
 (export check-main)
 
-(def +check-cache-version+ "check-full-output-cache.v1")
+(def +check-cache-version+ "check-full-output-cache.v2")
 
 (def +check-cache-fnv64-offset+ 14695981039346656037)
 (def +check-cache-fnv64-prime+ 1099511628211)

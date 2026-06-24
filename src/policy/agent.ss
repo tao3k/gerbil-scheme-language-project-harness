@@ -39,6 +39,7 @@
         poo-object-model-finding
         poo-method-shape-finding
         poo-prototype-fixed-point-finding
+        poo-documentation-usage-finding
         macro-runtime-source-witness-finding
         protocol-evidence-finding
         typed-combinator-style-finding
@@ -144,6 +145,7 @@
    (poo-debug-instrumentation-loop-performance-findings index)
    (poo-slot-spec-mutation-loop-performance-findings index)
    (poo-slot-predicate-loop-performance-findings index)
+   (poo-documentation-usage-findings index)
    (macro-runtime-source-witness-findings index)
    (protocol-evidence-findings index)
    (typed-combinator-style-findings index)
@@ -298,6 +300,7 @@
 ;; (List TopFormHead)
 (def +agent-declarative-top-level-heads+
   '("load!"
+    "begin-syntax"
     "use-module"
     "use-live-case"
     "modularity-policy"
@@ -346,7 +349,37 @@
 (def (declarative-top-level-call? file call)
   (or (poo-declarative-call? file call)
       (agent-declarative-call? file call)
+      (data-alist-declarative-call? file call)
       (ffi-declarative-call? file call)))
+
+;;; Boundary:
+;;; - A file containing only one alist datum is declarative metadata, not a
+;;;   runtime entrypoint.
+;;; - Keep the exemption shape-owned: no definitions/imports/exports, one
+;;;   pair-looking top form, and the call fact must live inside that form.
+;; : (-> SourceFile CallFact Boolean )
+(def (data-alist-declarative-call? file call)
+  (and (data-alist-source-file? file)
+       (ormap (lambda (form)
+                (and (data-alist-top-form? form)
+                     (call-within-top-form-range? call form)))
+              (source-file-forms file))))
+
+;; : (-> SourceFile Boolean )
+(def (data-alist-source-file? file)
+  (and (null? (source-file-definitions file))
+       (null? (source-file-imports file))
+       (null? (source-file-exports file))
+       (let (forms (source-file-forms file))
+         (and (pair? forms)
+              (null? (cdr forms))
+              (data-alist-top-form? (car forms))))))
+
+;; : (-> TopForm Boolean )
+(def (data-alist-top-form? form)
+  (let (head (top-form-head form))
+    (and (string-prefix? "(" head)
+         (string-contains head " . "))))
 
 ;;; Boundary: FFI top forms run at expansion time, so nested call facts are declarations.
 ;; : (-> SourceFile CallFact Boolean )
@@ -472,10 +505,33 @@
 ;;; at redundant pure-transform boilerplate, not at named-let usage itself.
 ;; : (-> SourceFile ControlFlowFact Boolean )
 (def (redundant-manual-loop-control-flow? file fact)
-  (let (signals (manual-loop-detection-signals file fact))
-    (not (find (lambda (signal)
-                 (not (member signal signals)))
-               +redundant-manual-loop-required-signals+))))
+  (and (manual-loop-pure-transform-driver? file fact)
+       (let (signals (manual-loop-detection-signals file fact))
+         (not (find (lambda (signal)
+                      (not (member signal signals)))
+                    +redundant-manual-loop-required-signals+)))))
+
+;;; Driver-kind gate:
+;;; - Control-flow facts identify named-let syntax.
+;;; - Loop-driver facts carry parser-owned preservation classification.
+;;; - R009 must not bypass that classification or stateful loops become false positives.
+;; : (-> SourceFile ControlFlowFact Boolean)
+(def (manual-loop-pure-transform-driver? file fact)
+  (ormap (cut manual-loop-matching-pure-driver? fact <>)
+         (source-file-loop-driver-facts file)))
+
+;; : (-> ControlFlowFact LoopDriverFact Boolean)
+(def (manual-loop-matching-pure-driver? fact driver)
+  (and (equal? (control-flow-fact-start fact)
+               (loop-driver-fact-start driver))
+       (equal? (control-flow-fact-end fact)
+               (loop-driver-fact-end driver))
+       (equal? (or (control-flow-fact-caller fact) "")
+               (or (loop-driver-fact-caller driver) ""))
+       (equal? (loop-driver-fact-driver-kind driver)
+               "pure-transform-candidate")
+       (member "manual-loop-drift"
+               (loop-driver-fact-quality-facets driver))))
 ;;; Evidence packet: keep positive and negative witnesses visible so repair
 ;;; agents can explain why this loop is redundant before rewriting it.
 ;; : (-> SourceFile ControlFlowFact (List String) )

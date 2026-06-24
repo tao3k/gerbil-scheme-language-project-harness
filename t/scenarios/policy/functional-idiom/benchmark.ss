@@ -1,4 +1,12 @@
-((maxTotalMs . 1000)
+((maxTotalMs . 25)
+ (observedTotalMs . 4)
+ (targetTotalMs . 15)
+ (regressionBudgetMs . 21)
+ (observedTimings ((collect-before . 1)
+                   (collect-after . 2)
+                   (policy-before . 0)
+                   (policy-after . 1)))
+ (targetRationale . "observed baseline 4ms for functional-idiom; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -14,7 +22,7 @@
  (optimizationFocus . "manual recursion to fold/pipeline and lambda-match boundary")
  (inputShape . "single exported function uses named-let, cdr/car traversal, and an accumulator over a list")
  (expectedRepair . "foldl total, !>/curry pipeline, and named lambda-match classifier with full typed documentation")
- (expectedReferencePattern . "list-combinator-boundary")
+ (expectedReferencePattern . "loop-driver-combinator-boundary")
  (expectedReferenceExamples
   "gerbil://std/actor-v13/rpc/proto/cipher.ss#foldl-chunk-accumulator"
   "gerbil://std/actor-v18/executor.ss#cut-prefix-predicate"
@@ -22,12 +30,14 @@
   "gerbil-utils/base.ss#lambda-match")
  (expectedQualitySignals
   "list-combinator-boundary"
+  "manual-loop-drift"
+  "pure-loop-driver-combinator-boundary"
   "fold-reducer-boundary"
   "cut-predicate-specialization"
   "map-fold-boundary"
   "lambda-match-destructuring")
  (learnedStyleSources "gerbil://" "gerbil-utils")
  (antiAiScaffoldIntent . "reject hand-written traversal and anonymous destructuring when fold, cut/curry pipeline, or lambda-match exposes the data flow")
- (scenarioQualityAxes "functional-idiom" "list-combinator-boundary" "anti-ai-scaffold")
+ (scenarioQualityAxes "functional-idiom" "loop-driver-combinator-boundary" "anti-ai-scaffold")
  (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
  (tags "style" "functional" "fold" "pipeline" "lambda-match" "anti-scaffold"))

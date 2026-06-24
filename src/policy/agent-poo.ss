@@ -8,7 +8,7 @@
         :policy/agent-support
         :policy/model
         (only-in :std/srfi/13 string-contains string-join string-prefix?)
-        (only-in :std/sugar filter filter-map hash ormap)
+        (only-in :std/sugar filter filter-map hash hash-get ormap)
         :types/findings)
 
 (export poo-direct-writeenv-findings
@@ -42,7 +42,9 @@
         poo-slot-spec-mutation-loop-performance-findings
         poo-slot-spec-mutation-loop-performance-finding
         poo-slot-predicate-loop-performance-findings
-        poo-slot-predicate-loop-performance-finding)
+        poo-slot-predicate-loop-performance-finding
+        poo-documentation-usage-findings
+        poo-documentation-usage-finding)
 ;;; Direct-writeenv scan boundary:
 ;;; - The outer map keeps file ownership visible while inner filter-map drops
 ;;;   non-writeenv calls without constructing placeholder findings.
@@ -350,3 +352,122 @@
          (receiverType (or (poo-form-fact-receiver-type fact) ""))
          (missing missing)
          (next "search pattern poo class protocol"))))
+
+;; (List Callee)
+(def +poo-documentation-usage-callees+
+  '(".putslot!" ".putdefault!" ".setslot!" ".setslots!" ".set!"
+    "putslot!" "putdefault!" "setslot!" "setslots!"))
+
+;; (List String)
+(def +poo-documentation-usage-doc-terms+
+  '(".o" ".def" "defpoo" ".mix" ".ref" ".get"
+    ".putslot!" ".putdefault!" ".setslot!" ".setslots!" ".set!"
+    "putslot!" "putdefault!" "setslot!" "setslots!"
+    "slot" "slots" "prototype" "fixed point" "default"))
+
+;;; Boundary:
+;;; - POO usage docs are required for defaults and slot mutation, not ordinary
+;;;   construction, composition, or boundary reads.
+;;; - The rule consumes parser-owned calls and typed-comment metadata only.
+;; : (-> ProjectIndex (List TypeFinding) )
+(def (poo-documentation-usage-findings index)
+  (if (poo-capability-active? index)
+    (filter-map
+     (lambda (file)
+       (and (index-source-runtime-file-path? index (source-file-path file))
+            (pair? (poo-documentation-usage-calls file))
+            (not (poo-documentation-usage-documented? file))
+            (poo-documentation-usage-finding file)))
+     (project-index-files index))
+    '()))
+
+;; : (-> SourceFile (List CallFact) )
+(def (poo-documentation-usage-calls file)
+  (filter poo-documentation-usage-call? (source-file-calls file)))
+
+;; : (-> CallFact Boolean )
+(def (poo-documentation-usage-call? call)
+  (member (call-fact-callee call) +poo-documentation-usage-callees+))
+
+;; : (-> SourceFile Boolean )
+(def (poo-documentation-usage-documented? file)
+  (ormap poo-documentation-typed-contract-complete?
+         (source-file-typed-contract-facts file)))
+
+;; : (-> TypedContractFact Boolean )
+(def (poo-documentation-typed-contract-complete? fact)
+  (let (typed-comment (typed-contract-fact-typed-comment fact))
+    (and typed-comment
+         (hash-get typed-comment 'fullForm)
+         (poo-documentation-docs-complete
+          (or (hash-get typed-comment 'docs) [])))))
+
+;; : (-> (List Json) Boolean )
+(def (poo-documentation-docs-complete docs)
+  (and (poo-documentation-docs-have-body? docs)
+       (poo-documentation-docs-have-result-example? docs)
+       (poo-documentation-docs-mention-usage? docs)))
+
+;; : (-> (List Json) Boolean )
+(def (poo-documentation-docs-have-body? docs)
+  (ormap (lambda (doc)
+           (let (body (or (hash-get doc 'body) ""))
+             (not (blank-string? body))))
+         docs))
+
+;; : (-> (List Json) Boolean )
+(def (poo-documentation-docs-have-result-example? docs)
+  (ormap (lambda (doc)
+           (or (hash-get doc 'hasResultExamples)
+               (ormap poo-documentation-example-has-result?
+                      (or (hash-get doc 'examples) []))))
+         docs))
+
+;; : (-> Json Boolean )
+(def (poo-documentation-example-has-result? example)
+  (if (hash-get example 'hasExpectedResult) #t #f))
+
+;; : (-> (List Json) Boolean )
+(def (poo-documentation-docs-mention-usage? docs)
+  (ormap (lambda (doc)
+           (poo-documentation-text-mentions-usage?
+            (string-append (or (hash-get doc 'body) "")
+                           "\n"
+                           (poo-documentation-examples-text
+                            (or (hash-get doc 'examples) [])))))
+         docs))
+
+;; : (-> (List Json) String )
+(def (poo-documentation-examples-text examples)
+  (string-join
+   (filter-map (lambda (example)
+                 (or (hash-get example 'code)
+                     (hash-get example 'body)
+                     (hash-get example 'text)))
+               examples)
+   "\n"))
+
+;; : (-> String Boolean )
+(def (poo-documentation-text-mentions-usage? text)
+  (ormap (lambda (term)
+           (string-contains text term))
+         +poo-documentation-usage-doc-terms+))
+
+;; : (-> SourceFile TypeFinding )
+(def (poo-documentation-usage-finding file)
+  (let (calls (poo-documentation-usage-calls file))
+    (make-type-finding
+     (policy-rule-id +agent-poo-documentation-usage-rule+)
+     (policy-rule-severity +agent-poo-documentation-usage-rule+)
+     (source-file-path file)
+     "POO defaults and slot mutation APIs need a full-form typed doc with body, result example, and POO usage terms"
+     (call-fact-selector (car calls))
+     (hash (apiCallees (map call-fact-callee calls))
+           (requiredEvidence ["full-form typed doc" "body" "result-example" "poo-usage-terms"])
+           (triggerApis ".putslot!,.putdefault!,.setslot!,.setslots!,.set!,putslot!,putdefault!,setslot!,setslots!")
+           (coveredApis ".o,.def,defpoo,.mix,.ref,.get,.putslot!,.putdefault!,.setslot!,.setslots!,.set!,putslot!,putdefault!,setslot!,setslots!")
+           (source "gerbil-poo doc/poo.md:30-50, 655-720")
+           (next
+            (string-append
+             "asp gerbil-scheme search owner " (source-file-path file)
+             " items --query 'poo putdefault setslots typed doc result example' --workspace . --view seeds"))))))

@@ -10,9 +10,12 @@
         (only-in :gerbil/compiler/driver compile-exe)
         (rename-in :gerbil/tools/gxtest (main gxtest-main)))
 (export compile-target
+        install-target
         compile-spec
         cli-binary-build-spec
         configure-build-root!
+        dev-launcher-binpath
+        install-launcher-binpath
         test-target
         package-build-spec)
 
@@ -116,8 +119,6 @@
 (def (compile-target verbose debug no-optimize optimized release full binary)
   (ensure-build-root!)
   (current-directory package-root)
-  (when (and binary (not release))
-    (error "binary install is release-only; use ./build.ss install --release or install the pinned release with asp install language"))
   (when (darwin-release? release)
     (error "Darwin release binary build is disabled because Gerbil compile-exe does not complete reliably on macOS; use the Linux release builder or a pinned GitHub release artifact"))
   (let* ((build-optimize? (and optimized (not no-optimize)))
@@ -125,7 +126,8 @@
          (effective-optimized? optimized)
          (worker-count (sync-build-worker-count!)))
     (if (and (not full) (or release binary))
-      (compile-cli-binary verbose debug build-optimize?
+      (compile-cli-binary (dev-launcher-binpath)
+                          verbose debug build-optimize?
                           release effective-release? effective-optimized?
                           worker-count)
       (make-target (compile-spec full release binary)
@@ -134,25 +136,36 @@
                    worker-count))
     #!void))
 
-(def (compile-cli-binary verbose debug build-optimize?
+(def (install-target verbose debug no-optimize optimized release)
+  (ensure-build-root!)
+  (current-directory package-root)
+  (when (darwin-release? release)
+    (error "Darwin release binary build is disabled because Gerbil compile-exe does not complete reliably on macOS; install the pinned GitHub release artifact with asp install language"))
+  (let* ((build-optimize? (and optimized (not no-optimize)))
+         (worker-count (sync-build-worker-count!)))
+    (compile-cli-binary (install-launcher-binpath)
+                        verbose debug build-optimize?
+                        release release optimized
+                        worker-count)
+    #!void))
+
+(def (compile-cli-binary binpath verbose debug build-optimize?
                          release? effective-release? effective-optimized?
                          worker-count)
   (make-target (cli-binary-build-spec release?)
                verbose debug build-optimize?
                effective-release? effective-optimized?
                worker-count)
-  (compile-cli-launcher-exe verbose debug))
+  (compile-cli-launcher-exe binpath verbose debug))
 
 (def (cli-binary-build-spec release?)
   (if release?
     (runtime-library-spec)
     cli-bootstrap-modules))
 
-(def (compile-cli-launcher-exe verbose debug)
-  (let* ((binpath (native-launcher-binpath))
-         (bindir (path-directory binpath)))
-    (unless (file-exists? bindir)
-      (create-directory bindir))
+(def (compile-cli-launcher-exe binpath verbose debug)
+  (let (bindir (path-directory binpath))
+    (ensure-directory! bindir)
     (compile-exe (path-expand "cli-release-linker.ss" source-root)
                  [invoke-gsc: #t
                   output-file: binpath
@@ -163,12 +176,24 @@
                   parallel: #f])
     binpath))
 
-(def (native-launcher-binpath)
-  (path-expand "bin/gslph" (gerbil-user-root)))
+(def (dev-launcher-binpath)
+  (path-expand ".bin/gslph" package-root))
 
-(def (gerbil-user-root)
-  (or (getenv "GERBIL_PATH" #f)
-      (path-expand ".gerbil" (getenv "HOME"))))
+(def (install-launcher-binpath)
+  (path-expand ".local/bin/gslph" (user-home-directory)))
+
+(def (user-home-directory)
+  (or (getenv "HOME" #f)
+      (error "HOME is required to install gslph into $HOME/.local/bin")))
+
+(def (ensure-directory! path)
+  (unless (file-exists? path)
+    (let (parent (path-directory path))
+      (when (and parent
+                 (not (string=? parent ""))
+                 (not (string=? parent path)))
+        (ensure-directory! parent))
+      (create-directory path))))
 
 (def (make-target spec verbose debug build-optimize?
                   effective-release? effective-optimized?
