@@ -30,17 +30,16 @@
       "examples",
       "tutorial"
     ],
-    "defaultIgnoredPathPrefixes": [
-      ".devenv",
-      ".git",
-      ".cache",
-      ".run",
-      ".gerbil",
-      "build",
-      "dist",
-      "src/gambit",
-      "tree-sitter"
+    "defaultScopeIncludedDirs": [
+      "src",
+      "test",
+      "tests",
+      "doc",
+      "docs",
+      "examples",
+      "tutorial"
     ],
+    "defaultIgnoredPathPrefixes": [],
     "defaultProjectMarkers": [
       "gerbil.pkg"
     ],
