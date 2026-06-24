@@ -4,7 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
-        (only-in :cli provider-command-line-args)
+        (only-in :cli-launcher provider-command-line-args)
         (only-in :commands/agent agent-main))
 (export cli-test)
 
@@ -19,17 +19,17 @@
       (check (provider-command-line-args
               ["gxi" "src/cli.ss" "check" "--changed" "."])
              => ["check" "--changed" "."]))
-    (test-case "provider argv strips generated wrapper frames"
+    (test-case "provider argv strips generated binary frames"
       (check (provider-command-line-args
-              ["gerbil-scheme-harness" "check" "--full" "/tmp/project"])
+              ["gslph" "check" "--full" "/tmp/project"])
              => ["check" "--full" "/tmp/project"]))
     (test-case "provider argv preserves help requests"
       (check (provider-command-line-args
-              ["gerbil-scheme-harness" "--help"])
+              ["gslph" "--help"])
              => ["--help"]))
     (test-case "provider argv strips no-argument launcher frames"
       (check (provider-command-line-args
-              ["gerbil-scheme-harness"])
+              ["gslph"])
              => []))
     (test-case "provider argv preserves unknown commands"
       (check (provider-command-line-args

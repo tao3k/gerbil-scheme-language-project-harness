@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Optional native query command entrypoint for the Gerbil Scheme harness.
 
-(import (only-in :cli command-line-args provider-command-line-args)
+(import (only-in :cli-launcher command-line-args provider-command-line-args)
         (only-in :commands/query query-main))
 (export main
         command-line-args

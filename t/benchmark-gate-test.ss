@@ -5,6 +5,7 @@
         :std/sort
         :std/test
         (only-in :gslph/src/commands/check check-main)
+        (rename-in :gslph/src/cli-launcher (main launcher-main))
         (only-in :gslph/src/support/time monotonic-ms duration-ms)
         :gslph/src/benchmark/gate)
 
@@ -40,6 +41,9 @@
 
 ;; Integer
 (def +check-cache-gate-max-warm-ms+ 100)
+
+;; Integer
+(def +check-cache-gate-max-launcher-warm-ms+ 100)
 
 ;; : (-> Path Boolean)
 (def (benchmark-gate-directory? path)
@@ -138,6 +142,16 @@
     (list (cons 'status status)
           (cons 'elapsedMs elapsed-ms))))
 
+;; : (-> Path Alist)
+(def (run-launcher-check-full/silent root)
+  (let* ((start-ms (monotonic-ms))
+         (status
+          (parameterize ((current-output-port (open-output-string)))
+            (apply launcher-main ["check" "--workspace" root "--full"])))
+         (elapsed-ms (duration-ms start-ms (monotonic-ms))))
+    (list (cons 'status status)
+          (cons 'elapsedMs elapsed-ms))))
+
 ;; : TestSuite
 (def benchmark-gate-test
   (test-suite "gerbil scheme benchmark gate"
@@ -183,4 +197,16 @@
         (check (integer? (benchmark-fixture-ref warm 'status)) => #t)
         (check (< (benchmark-fixture-ref warm 'elapsedMs)
                   +check-cache-gate-max-warm-ms+)
+               => #t)))
+
+    (test-case "launcher check full warm cache stays in millisecond budget"
+      (prepare-check-cache-gate-project!)
+      (let* ((cold (run-check-full/silent +check-cache-gate-root+))
+             (prime (run-launcher-check-full/silent +check-cache-gate-root+))
+             (warm (run-launcher-check-full/silent +check-cache-gate-root+)))
+        (check (integer? (benchmark-fixture-ref cold 'status)) => #t)
+        (check (integer? (benchmark-fixture-ref prime 'status)) => #t)
+        (check (integer? (benchmark-fixture-ref warm 'status)) => #t)
+        (check (< (benchmark-fixture-ref warm 'elapsedMs)
+                  +check-cache-gate-max-launcher-warm-ms+)
                => #t)))))

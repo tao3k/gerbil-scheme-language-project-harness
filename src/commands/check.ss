@@ -29,6 +29,10 @@
 
 (def +check-cache-version+ "check-full-output-cache.v1")
 
+(def +check-cache-fnv64-offset+ 14695981039346656037)
+(def +check-cache-fnv64-prime+ 1099511628211)
+(def +check-cache-fnv64-modulus+ 18446744073709551616)
+
 ;; : (-> String Integer Json)
 (def (check-profile-row name start-ms)
   (hash (name name)
@@ -97,6 +101,25 @@
         (unless (file-exists? dir)
           (create-directory dir))))))
 
+;; : (-> Integer Integer Integer)
+(def (check-cache-fnv64-step hash byte)
+  (modulo (* (bitwise-xor hash byte) +check-cache-fnv64-prime+)
+          +check-cache-fnv64-modulus+))
+
+;; : (-> String Integer)
+(def (check-cache-file-hash path)
+  (call-with-input-file path
+    (lambda (in)
+      (let loop ((hash +check-cache-fnv64-offset+))
+        (let (byte (read-u8 in))
+          (if (eof-object? byte)
+            hash
+            (loop (check-cache-fnv64-step hash byte))))))))
+
+;; : (-> String (List Datum))
+(def (check-cache-directory-fingerprint path)
+  ['directory (sort (directory-files path) string<?)])
+
 ;; : (-> String String (List Datum))
 (def (check-cache-file-fingerprint root path)
   (with-catch
@@ -104,9 +127,12 @@
    (lambda ()
      (let* ((fullpath (path-expand path root))
             (info (file-info fullpath)))
-       [path
-        (file-info-size info)
-        (time->seconds (file-info-last-modification-time info))]))))
+       (if (eq? (file-type fullpath) 'directory)
+         (cons path (check-cache-directory-fingerprint fullpath))
+         [path
+          'file
+          (file-info-size info)
+          (check-cache-file-hash fullpath)])))))
 
 ;; : (-> String (U #f String) (U #f Datum) (List Pair))
 (def (check-cache-state root whitelist-path existing-cache)

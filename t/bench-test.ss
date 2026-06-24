@@ -3,8 +3,9 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :std/test
-        :commands/bench
+        :commands/bench-light
         :std/misc/ports
+        (rename-in :cli-launcher (main cli-main))
         (only-in :std/text/json read-json))
 (export bench-test)
 ;; : (-> Table Key Json )
@@ -24,12 +25,22 @@
   (bench-output/status args 0))
 ;; : (-> (List XX) ExpectedStatus Status )
 (def (bench-output/status args expected-status)
+  (bench-output/status* bench-light-main args expected-status))
+;; : (-> (List XX) BenchOutput )
+(def (cli-bench-output args)
+  (bench-output/status*
+   (lambda (runner-args)
+     (apply cli-main (cons "bench" runner-args)))
+   args
+   0))
+;; : (-> Procedure (List XX) ExpectedStatus Status )
+(def (bench-output/status* runner args expected-status)
   (let* ((status #f)
          (output
           (call-with-output-string
             (lambda (out)
               (parameterize ((current-output-port out))
-                (set! status (bench-main args)))))))
+                (set! status (runner args)))))))
     (check status => expected-status)
     output))
 ;; : (-> OutputPort Fragment Boolean )
@@ -47,6 +58,17 @@
                                   "--max-file-ms" "3600000"
                                   "--max-phase-ms" "3600000"
                                   "."]))
+        (check (contains? output "[gerbil-bench] status=pass") => #t)
+        (check (contains? output "mode=hot") => #t)
+        (check (contains? output "|bench name=search-prime-light") => #t)
+        (check (contains? output "|bench name=workspace-scope-light") => #t)
+        (check (contains? output "|bench name=collect-project") => #f)
+        (check (contains? output "|bench name=type-check") => #f)))
+    (test-case "cli bench entry uses native hot path"
+      (let (output (cli-bench-output ["--iterations" "1"
+                                      "--max-total-ms" "3600000"
+                                      "--max-interface-ms" "3600000"
+                                      "."]))
         (check (contains? output "[gerbil-bench] status=pass") => #t)
         (check (contains? output "mode=hot") => #t)
         (check (contains? output "|bench name=search-prime-light") => #t)

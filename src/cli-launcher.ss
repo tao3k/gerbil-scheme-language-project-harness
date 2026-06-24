@@ -2,30 +2,19 @@
 ;;; Native launcher for per-command Gerbil Scheme harness executables.
 
 (import :gerbil/gambit
+        (only-in :commands/bench-light bench-light-main)
         (only-in :constants +help+)
         (only-in :search-light-launcher try-search-light-main)
-        (only-in :std/misc/path path-directory path-expand)
+        (only-in :std/misc/path path-expand path-normalize)
         (only-in :std/misc/ports read-all-as-string)
-        (only-in :std/misc/process process-status run-process)
-        (only-in :std/srfi/13 string-index string-index-right))
+        (only-in :std/srfi/13 string-index string-index-right string-prefix?))
 (export main
         command-line-args
         provider-command-line-args)
 
 ;;; Install boundary:
-;;; - The native launcher is the command boundary. It dispatches only
-;;;   in-process fast paths or installed sibling binaries.
-;;; - Command binaries are discovered only beside the active launcher so an
-;;;   installed harness is self-contained under its bin directory.
-;; : (List (Pair String String))
-(def +command-binaries+
-  '(("query" . "gslph-query")
-    ("check" . "gslph-check")
-    ("bench" . "gslph-bench")
-    ("evidence" . "gslph-evidence")
-    ("agent" . "gslph-agent")
-    ("guide" . "gslph-guide")
-    ("info" . "gslph-info")))
+;;; - The native launcher is the command boundary. It dispatches subcommands
+;;;   in-process so an installed harness is one native executable.
 
 ;; : (List String)
 (def +commands+
@@ -35,6 +24,18 @@
 ;; : (List String)
 (def +launcher-names+
   '("gxi" "gslph"))
+
+;; : (List CommandDispatch)
+(def +dynamic-command-dispatch+
+  '(("search" "gslph/src/commands/search" gslph/src/commands/search#search-main)
+    ("query" "gslph/src/commands/query" gslph/src/commands/query#query-main)
+    ("check" "gslph/src/commands/check" gslph/src/commands/check#check-main)
+    ("evidence" "gslph/src/commands/evidence" gslph/src/commands/evidence#evidence-main)
+    ("agent" "gslph/src/commands/agent" gslph/src/commands/agent#agent-main)
+    ("guide" "gslph/src/commands/guide" gslph/src/commands/guide#guide-main)
+    ("info" "gslph/src/commands/info" gslph/src/commands/info#info-main)))
+
+(def +check-cache-version+ "check-full-output-cache.v1")
 
 ;;; Launcher argv boundary:
 ;;; - Keep this tiny normalization local so the release launcher does not
@@ -74,7 +75,8 @@
 ;; : (-> String Boolean)
 (def (launcher-frame? arg)
   (or (launcher-name? arg)
-      (launcher-binary-path? arg)))
+      (launcher-binary-path? arg)
+      (launcher-script-path? arg)))
 
 ;; : (-> String Boolean)
 (def (launcher-name? arg)
@@ -85,48 +87,18 @@
   (or (string-suffix? "/gxi" arg)
       (string-suffix? "/gslph" arg)))
 
-;; : (-> String (U String #f))
-(def (command-binary-name command)
-  (let (entry (assoc command +command-binaries+))
-    (and entry (cdr entry))))
-
-;;; Path boundary:
-;;; - No PATH probing happens here; PATH remains the caller's concern at the
-;;;   install-wrapper level.
-;; : (-> String String)
-(def (sibling-binary-path binary-name)
-  (path-expand binary-name (path-directory (car (command-line)))))
-
-;;; Process boundary:
-;;; - Invoke Gerbil directly with argv vectors. Do not construct a shell command;
-;;;   command arguments are data all the way to the child process.
-;;; - Capture and replay stdout/stderr through Gerbil ports so the launcher can
-;;;   return the child status while preserving command output for hooks/tests.
-;; : (-> (List String) Integer)
-(def (run-process/relay argv)
-  (run-process argv
-               stdin-redirection: #f
-               stdout-redirection: #t
-               stderr-redirection: #t
-               check-status: #f
-               coprocess:
-               (lambda (process)
-                 (let (output (read-all-as-string process))
-                   (display output)
-                   (process-status process)))))
-
-;;; Binary dispatch:
-;;; - Sibling command binaries receive only the subcommand tail because their
-;;;   executable name already identifies the command owner.
-;; : (-> String (List String) Integer)
-(def (run-command-binary binary args)
-  (run-process/relay (cons binary args)))
+;; : (-> String Boolean)
+(def (launcher-script-path? arg)
+  (or (equal? arg "src/cli.ss")
+      (equal? arg "src/cli-launcher.ss")
+      (string-suffix? "/src/cli.ss" arg)
+      (string-suffix? "/src/cli-launcher.ss" arg)))
 
 ;;; Public CLI:
 ;;; - Help stays in-process so `gslph --help` has no startup dependency on the
 ;;;   command graph.
-;;; - Subcommands are handled by native launcher fast paths or sibling native
-;;;   binaries. Missing native coverage is a hard install/build error.
+;;; - Subcommands are handled by native launcher fast paths or direct in-process
+;;;   dispatch. Missing native coverage is a hard implementation error.
 ;; : (-> (List String) Boolean)
 (def (help-args? args)
   (or (null? args)
@@ -142,6 +114,7 @@
 (def (dispatch-command command rest)
   (or (try-native-search-command command rest)
       (try-native-direct-source-query command rest)
+      (try-native-check-cache-command command rest)
       (dispatch-native-command command rest)))
 
 ;; : (-> String (List String) (U Integer #f))
@@ -175,6 +148,117 @@
 ;; : (-> String (List String) Boolean)
 (def (launcher-flag? name args)
   (and (member name args) #t))
+
+;;; Check cache fast path:
+;;; - Full-check cache hits must not load the parser/checker command graph.
+;;; - Cache misses fall through to dynamic `commands/check` dispatch.
+;; : (-> String (List String) (U Integer #f))
+(def (try-native-check-cache-command command rest)
+  (and (equal? command "check")
+       (launcher-check-cache-eligible? rest)
+       (let* ((root (path-normalize (path-expand (launcher-check-root rest))))
+              (mode (launcher-check-output-mode rest))
+              (cache-path (launcher-check-cache-path root mode))
+              (cache (launcher-read-check-cache cache-path)))
+         (and cache
+              (let* ((state (launcher-check-cache-state root cache))
+                     (fingerprint (launcher-check-cache-ref state 'fingerprint))
+                     (hit (launcher-matching-check-cache cache fingerprint)))
+                (and hit
+                     (launcher-emit-cached-check hit)))))))
+
+;; : (-> (List String) Boolean)
+(def (launcher-check-cache-eligible? args)
+  (and (not (launcher-flag? "--profile-json" args))
+       (not (launcher-flag? "--changed" args))))
+
+;; : (-> (List String) String)
+(def (launcher-check-output-mode args)
+  (if (launcher-flag? "--json" args) "json" "text"))
+
+;; : (-> (List String) String)
+(def (launcher-check-root args)
+  (or (launcher-option "--workspace" args)
+      (let (positionals (launcher-positionals args))
+        (if (pair? positionals)
+          (car (reverse positionals))
+          "."))))
+
+;; : (-> (List String) (List String))
+(def (launcher-positionals args)
+  (let loop ((rest args) (out []))
+    (cond
+     ((null? rest) (reverse out))
+     ((member (car rest) '("--workspace" "--whitelist"))
+      (loop (if (pair? (cdr rest)) (cddr rest) []) out))
+     ((string-prefix? "-" (car rest))
+      (loop (cdr rest) out))
+     (else
+      (loop (cdr rest) (cons (car rest) out))))))
+
+;; : (-> String String String)
+(def (launcher-check-cache-path root mode)
+  (path-expand (string-append mode ".sexp")
+               (path-expand ".cache/agent-semantic-protocol/gerbil-scheme/check" root)))
+
+;; : (-> String String (List Datum))
+(def (launcher-check-cache-file-fingerprint root path)
+  (with-catch
+   (lambda (_) [path 'missing])
+   (lambda ()
+     (let* ((fullpath (path-expand path root))
+            (info (file-info fullpath)))
+       [path
+        (file-info-size info)
+        (time->seconds (file-info-last-modification-time info))]))))
+
+;; : (-> String Datum (U #f (List Pair)))
+(def (launcher-check-cache-state root cache)
+  (let ((inputs (launcher-check-cache-ref cache 'inputs))
+        (directories (launcher-check-cache-ref cache 'directories)))
+    (and (list? inputs)
+         (list? directories)
+         (let (fingerprint
+           (call-with-output-string ""
+             (lambda (out)
+               (write [version: +check-cache-version+
+                       mode: "source-inputs"
+                       inputs: (map (lambda (path)
+                                      (launcher-check-cache-file-fingerprint root path))
+                                    inputs)
+                       directories: (map (lambda (path)
+                                           (launcher-check-cache-file-fingerprint root path))
+                                         directories)]
+                      out))))
+           (list (cons 'fingerprint fingerprint))))))
+
+;; : (-> String (U #f Datum))
+(def (launcher-read-check-cache cache-path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (and (file-exists? cache-path)
+          (call-with-input-file cache-path read)))))
+
+;; : (-> Datum Symbol (U #f Datum))
+(def (launcher-check-cache-ref cache key)
+  (let (entry (and (pair? cache) (assq key cache)))
+    (and entry (cdr entry))))
+
+;; : (-> Datum String (U #f Datum))
+(def (launcher-matching-check-cache cache fingerprint)
+  (and cache
+       (equal? (launcher-check-cache-ref cache 'version) +check-cache-version+)
+       (equal? (launcher-check-cache-ref cache 'fingerprint) fingerprint)
+       cache))
+
+;; : (-> Datum Integer)
+(def (launcher-emit-cached-check cache)
+  (let ((output (launcher-check-cache-ref cache 'output))
+        (status (launcher-check-cache-ref cache 'status)))
+    (when output
+      (display output))
+    (if (integer? status) status 1)))
 
 ;; : (-> (List String) Selector Integer)
 (def (emit-native-direct-source-query rest selector)
@@ -238,28 +322,42 @@
 
 ;; : (-> String (List String) Integer)
 (def (dispatch-native-command command rest)
-  (if (member command +commands+)
-    (or (try-sibling-command-binary command rest)
-        (emit-missing-command-binary command))
-    (emit-help 2)))
+  (match command
+    ("bench" (bench-light-main rest))
+    (else (dispatch-dynamic-command command rest))))
 
-;; : (-> String Integer)
-(def (emit-missing-command-binary command)
-  (let (binary-name (command-binary-name command))
-    (if binary-name
-      (let (binary (sibling-binary-path binary-name))
-        (displayln "gslph native command binary missing: " binary
-                   ". Rebuild or install the Gerbil harness native binaries; source execution is disabled."))
-      (displayln "gslph native command is not implemented: " command))
-    2))
+;;; Dynamic dispatch boundary:
+;;; - Hot commands stay in the launcher.
+;;; - Cold/full commands load only after argv selects them, so `bench` and
+;;;   native search cannot accidentally pay parser/checker startup cost.
+;; : (-> String (List String) Integer)
+(def (dispatch-dynamic-command command rest)
+  (let (entry (find-dynamic-command command +dynamic-command-dispatch+))
+    (if entry
+      (let (command-main
+            (begin
+              (ensure-runtime-loader!)
+              (dynamic-command-main (cadr entry) (caddr entry))))
+        (command-main rest))
+      (emit-help 2))))
 
-;; : (-> String (List String) (U Integer #f))
-(def (try-sibling-command-binary command rest)
-  (let (binary-name (command-binary-name command))
-    (and binary-name
-         (let (binary (sibling-binary-path binary-name))
-           (and (file-exists? binary)
-                (run-command-binary binary rest))))))
+;; : (-> String (List CommandDispatch) MaybeCommandDispatch)
+(def (find-dynamic-command command entries)
+  (match entries
+    ([] #f)
+    ([entry . more]
+     (if (equal? command (car entry))
+       entry
+       (find-dynamic-command command more)))))
+
+;; : (-> Unit)
+(def (ensure-runtime-loader!)
+  (##global-var-set! (##make-global-var 'load-module) load-module))
+
+;; : (-> String Symbol Procedure)
+(def (dynamic-command-main module-id binding-id)
+  (load-module module-id)
+  (eval binding-id))
 
 ;; : (-> (List String) Integer)
 (def (main . args)

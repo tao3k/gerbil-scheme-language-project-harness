@@ -9,6 +9,7 @@
         :std/srfi/13
         :gerbil/gambit
         (only-in :gerbil/compiler/base __available-cores)
+        (only-in :gerbil/compiler/driver compile-exe)
         (rename-in :gerbil/tools/gxtest (main gxtest-main)))
 
 (def package-root (path-normalize (path-directory (this-source-file))))
@@ -18,30 +19,18 @@
 (current-directory package-root)
 
 (def excluded-library-files
-  '("cli.ss"
-    "cli-launcher.ss"
-    "commands/agent-launcher.ss"
-    "commands/bench-launcher.ss"
-    "commands/check-launcher.ss"
-    "commands/evidence-launcher.ss"
-    "commands/guide-launcher.ss"
-    "commands/info-launcher.ss"
-    "commands/query-launcher.ss"))
+  '("cli.ss"))
 
 (def cli-spec
-  '((exe: "cli-launcher" bin: "gslph")
-    (exe: "commands/query-launcher" bin: "gslph-query")
-    (exe: "commands/check-launcher" bin: "gslph-check")
-    (exe: "commands/bench-launcher" bin: "gslph-bench")
-    (exe: "commands/evidence-launcher" bin: "gslph-evidence")
-    (exe: "commands/agent-launcher" bin: "gslph-agent")
-    (exe: "commands/guide-launcher" bin: "gslph-guide")
-    (exe: "commands/info-launcher" bin: "gslph-info")))
+  '((exe: "cli-launcher" bin: "gslph")))
 
 (def cli-bootstrap-modules
   '("constants.ss"
     "search-light-launcher.ss"
-    "cli-launcher.ss"))
+    "commands/bench-light.ss"))
+
+(def (cli-binary-spec)
+  (append cli-bootstrap-modules cli-spec))
 
 (def +library-excluded-dirs+
   '("search-fast"))
@@ -105,17 +94,19 @@
 
 (def (build-spec release?)
   (if release?
-    (package-build-spec)
+    (cli-binary-spec)
     (library-spec)))
 
 (def (compile-spec full? release? binary?)
   (cond
    (full? (library-spec))
-   (release? (package-build-spec))
-   (binary? cli-spec)
+   (release? (cli-binary-spec))
+   (binary? (cli-binary-spec))
    (else cli-bootstrap-modules)))
 
 (def (compile-target verbose debug no-optimize optimized release full binary)
+  (when (and binary (not release))
+    (error "binary install is release-only; use ./build.ss install --release or install the pinned release with asp install language"))
   (let* ((is-darwin-release? (darwin-release? release))
          (build-optimize? (and optimized (not no-optimize) (not is-darwin-release?)))
          (effective-release? (and release (not is-darwin-release?)))
@@ -124,14 +115,57 @@
     (when is-darwin-release?
       (display "build.ss: Darwin does not support Gerbil -static release linking; building native executables without Gerbil -O.\n"
                (current-error-port)))
-    (make (compile-spec full release binary)
-      verbose: (and verbose 9)
-      debug: (and debug 'env)
-      optimize: build-optimize?
-      build-release: effective-release?
-      build-optimized: effective-optimized?
-      parallelize: worker-count
-      srcdir: source-root)))
+    (if (and (not full) (or release binary))
+      (compile-cli-binary verbose debug build-optimize?
+                          effective-release? effective-optimized?
+                          worker-count)
+      (make-target (compile-spec full release binary)
+                   verbose debug build-optimize?
+                   effective-release? effective-optimized?
+                   worker-count))))
+
+(def (compile-cli-binary verbose debug build-optimize?
+                         effective-release? effective-optimized?
+                         worker-count)
+  (make-target cli-bootstrap-modules
+               verbose debug build-optimize?
+               effective-release? effective-optimized?
+               worker-count)
+  (compile-cli-launcher-exe verbose debug))
+
+(def (compile-cli-launcher-exe verbose debug)
+  (let* ((binpath (native-launcher-binpath))
+         (bindir (path-directory binpath)))
+    (unless (file-exists? bindir)
+      (create-directory bindir))
+    (compile-exe (path-expand "cli-launcher.ss" source-root)
+                 [invoke-gsc: #t
+                  output-file: binpath
+                  keep-scm: #f
+                  verbose: (and verbose 9)
+                  debug: (and debug 'env)
+                  full-program-optimization: #f
+                  parallel: #f])
+    binpath))
+
+(def (native-launcher-binpath)
+  (path-expand "bin/gslph" (gerbil-user-root)))
+
+(def (gerbil-user-root)
+  (or (getenv "GERBIL_PATH" #f)
+      (path-expand ".gerbil" (getenv "HOME"))))
+
+(def (make-target spec verbose debug build-optimize?
+                  effective-release? effective-optimized?
+                  worker-count)
+  (make spec
+    verbose: (and verbose 9)
+    debug: (and debug 'env)
+    optimize: build-optimize?
+    build-release: effective-release?
+    build-optimized: effective-optimized?
+    parallelize: worker-count
+    srcdir: source-root))
 
 (def (build-worker-count)
   (let* ((raw (getenv "GERBIL_BUILD_CORES" #f))
