@@ -32,7 +32,7 @@
   '("cli.ss"))
 
 (def cli-spec
-  '((exe: "cli-launcher" bin: "gslph")))
+  '((exe: "cli-release-linker" bin: "gslph")))
 
 (def cli-bootstrap-modules
   '("constants.ss"
@@ -48,6 +48,7 @@
     "commands/info.ss"
     "search-light-launcher.ss"
     "cli-launcher.ss"
+    "cli-release-linker.ss"
     "support/time.ss"
     "commands/bench-light.ss"))
 
@@ -149,7 +150,7 @@
          (bindir (path-directory binpath)))
     (unless (file-exists? bindir)
       (create-directory bindir))
-    (compile-exe (path-expand "cli-launcher.ss" source-root)
+    (compile-exe (path-expand "cli-release-linker.ss" source-root)
                  [invoke-gsc: #t
                   output-file: binpath
                   keep-scm: #f

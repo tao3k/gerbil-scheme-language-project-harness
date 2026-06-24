@@ -4,6 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
+        "../build-support/gslph-build"
         (only-in :cli-launcher provider-command-line-args)
         (only-in :commands/agent agent-main))
 (export cli-test)
@@ -35,6 +36,11 @@
       (check (provider-command-line-args
               ["gxi" "src/cli.ss" "bogus"])
              => ["bogus"]))
+    (test-case "release build spec uses static linker root"
+      (let (spec (compile-spec #f #t #f))
+        (check (member "cli-release-linker.ss" spec) ? true)
+        (check (member '(exe: "cli-release-linker" bin: "gslph") spec) ? true)
+        (check (member '(exe: "cli-launcher" bin: "gslph") spec) => #f)))
     (test-case "agent guide forwards section flags"
       (let (status #f)
         (let (output
