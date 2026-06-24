@@ -63,8 +63,7 @@
   (not (member module excluded-library-files)))
 
 (def (library-module? module)
-  (and (not (member module excluded-library-files))
-       (not (string-prefix? "policy/" module))))
+  (runtime-library-module? module))
 
 (def (library-spec)
   (filter library-module? (all-package-gerbil-modules)))
