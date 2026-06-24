@@ -121,14 +121,15 @@
     (error "binary install is release-only; use ./build.ss install --release or install the pinned release with asp install language"))
   (let* ((is-darwin-release? (darwin-release? release))
          (build-optimize? (and optimized (not no-optimize) (not is-darwin-release?)))
-         (effective-release? (and release (not is-darwin-release?)))
+         (effective-release? release)
          (effective-optimized? (and optimized (not is-darwin-release?)))
          (worker-count (sync-build-worker-count!)))
     (when is-darwin-release?
-      (display "build.ss: Darwin does not support Gerbil -static release linking; building native executables without Gerbil -O.\n"
+      (display "build.ss: Darwin disables Gerbil full-program optimization but keeps the release module graph.\n"
                (current-error-port)))
     (if (and (not full) (or release binary))
       (compile-cli-binary verbose debug build-optimize?
+                          release
                           effective-release? effective-optimized?
                           worker-count)
       (make-target (compile-spec full release binary)
@@ -138,16 +139,17 @@
     #!void))
 
 (def (compile-cli-binary verbose debug build-optimize?
+                         release?
                          effective-release? effective-optimized?
                          worker-count)
-  (make-target (cli-binary-build-spec effective-release?)
+  (make-target (cli-binary-build-spec release?)
                verbose debug build-optimize?
                effective-release? effective-optimized?
                worker-count)
   (compile-cli-launcher-exe verbose debug))
 
-(def (cli-binary-build-spec static-release?)
-  (if static-release?
+(def (cli-binary-build-spec release?)
+  (if release?
     (runtime-library-spec)
     cli-bootstrap-modules))
 
