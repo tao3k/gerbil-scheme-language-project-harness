@@ -143,10 +143,17 @@ jobs:
             gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-
 
       - name: Install Gerbil package dependencies from gerbil.pkg
+        env:
+          GERBIL_PKG_CACHE_HIT: ${{ steps.gerbil-pkg-cache.outputs.cache-hit }}
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.gerbil/pkg"
           gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
-          gxpkg deps --install
+          if [ "$GERBIL_PKG_CACHE_HIT" = "true" ]; then
+            echo "Using cached Gerbil package dependencies"
+          else
+            gxpkg deps --install
+          fi
           if [ ! -e .gerbil/pkg/gslph ]; then
             gxpkg link gslph .
           fi
