@@ -105,7 +105,7 @@
         "defaultExtensions",
         "defaultConfigFiles",
         "defaultSourceRoots",
-          "defaultScopeIncludedDirs"
+        "defaultIgnoredPathPrefixes"
       ],
       "properties": {
         "defaultExtensions": {
@@ -129,10 +129,10 @@
             "$ref": "#/$defs/pathPattern"
           }
         },
-              "defaultScopeIncludedDirs": {
-                "type": "array",
-                "uniqueItems": true,
-                "items": {
+        "defaultIgnoredPathPrefixes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
             "$ref": "#/$defs/pathPattern"
           }
         },
