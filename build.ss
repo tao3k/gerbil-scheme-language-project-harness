@@ -26,6 +26,9 @@
 
 (def cli-bootstrap-modules
   '("constants.ss"
+    "commands/search-prime-light-list.ss"
+    "commands/search-prime-light.ss"
+    "commands/search-workspace-scope-light.ss"
     "search-light-launcher.ss"
     "commands/bench-light.ss"))
 
@@ -122,7 +125,8 @@
       (make-target (compile-spec full release binary)
                    verbose debug build-optimize?
                    effective-release? effective-optimized?
-                   worker-count))))
+                   worker-count))
+    #!void))
 
 (def (compile-cli-binary verbose debug build-optimize?
                          effective-release? effective-optimized?
