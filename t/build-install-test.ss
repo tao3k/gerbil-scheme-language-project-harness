@@ -25,6 +25,14 @@
         (check (member "t/parser-test.ss" files) ? true)
         (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
       (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
+    (test-case "bootstrap spec includes downstream gxtest support"
+      (configure-build-root! (current-directory))
+      (let (stage (compile-spec #f #f #f))
+        (check (member "build-api/source-coverage.ss" stage) ? true)
+        (check (member "policy/gxtest.ss" stage) ? true)
+        (check (member "policy/gxtest.ss"
+                       (member "build-api/source-coverage.ss" stage))
+               ? true)))
     (test-case "source coverage files follow the build declaration"
       (configure-build-root! (current-directory))
       (gslph-source-coverage

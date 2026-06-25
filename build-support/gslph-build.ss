@@ -118,6 +118,7 @@
     "search-light-launcher.ss"
     "cli-launcher.ss"
     "cli-release-linker.ss"
+    "build-api/source-coverage.ss"
     "policy/gxtest.ss"
     "support/time.ss"
     "benchmark/gate.ss"
