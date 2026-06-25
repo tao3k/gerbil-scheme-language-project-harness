@@ -455,7 +455,18 @@
   (with-catch
    (lambda (_) #f)
    (lambda () (delete-file path))))
-;; : (-> String OwnerName Unit )
+;; write-large-policy-source
+;;   : (-> String OwnerName Unit )
+;;   | doc m%
+;;       `write-large-policy-source root owner-name` creates a generated
+;;       policy source owner under `root/src` for large-file policy fixtures.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (write-large-policy-source ".run/policy" "orders")
+;;       ;; => writes .run/policy/src/orders/core.ss
+;;       ```
+;;     %
 (def (write-large-policy-source root owner-name)
   (let* ((src (string-append root "/src"))
          (owner (string-append src "/" owner-name))
@@ -485,7 +496,18 @@
 ;; : (-> String OwnerName Unit )
 (def (write-large-policy-test root owner-name)
   (write-padded-policy-test root owner-name 650))
-;; : (-> String OwnerName PaddingLineCount Unit )
+;; write-padded-policy-test
+;;   : (-> String OwnerName PaddingLineCount Unit )
+;;   | doc m%
+;;       `write-padded-policy-test root owner-name padding-line-count` creates
+;;       a generated test owner with replay padding for policy-size fixtures.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (write-padded-policy-test ".run/policy" "orders" 650)
+;;       ;; => writes .run/policy/t/orders-test.ss
+;;       ```
+;;     %
 (def (write-padded-policy-test root owner-name padding-line-count)
   (let* ((test-dir (string-append root "/t"))
          (source-path (string-append test-dir "/" owner-name "-test.ss")))
@@ -507,7 +529,19 @@
           (when (fx< index padding-line-count)
             (display ";; generated replay padding\n" port)
             (lp (fx1+ index))))))))
-;; : (-> String OwnerName PaddingLineCount Unit )
+;; write-ledger-padded-policy-test
+;;   : (-> String OwnerName PaddingLineCount Unit )
+;;   | doc m%
+;;       `write-ledger-padded-policy-test root owner-name padding-line-count`
+;;       creates a generated test owner whose first comments model an existing
+;;       typed-combinator-style ledger before replay padding.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (write-ledger-padded-policy-test ".run/policy" "orders" 200)
+;;       ;; => writes .run/policy/t/orders-test.ss
+;;       ```
+;;     %
 (def (write-ledger-padded-policy-test root owner-name padding-line-count)
   (let* ((test-dir (string-append root "/t"))
          (source-path (string-append test-dir "/" owner-name "-test.ss")))
@@ -523,7 +557,19 @@
           (when (fx< index padding-line-count)
             (display ";; generated replay padding after ledger\n" port)
             (lp (fx1+ index))))))))
-;; : (-> String OwnerName TestCaseCount Unit )
+;; write-complex-policy-test
+;;   : (-> String OwnerName TestCaseCount Unit )
+;;   | doc m%
+;;       `write-complex-policy-test root owner-name test-case-count` creates a
+;;       generated std/test owner with many test cases for complex policy
+;;       scenario fixtures.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (write-complex-policy-test ".run/policy" "orders" 12)
+;;       ;; => writes .run/policy/t/orders-test.ss
+;;       ```
+;;     %
 (def (write-complex-policy-test root owner-name test-case-count)
   (let* ((test-dir (string-append root "/t"))
          (source-path (string-append test-dir "/" owner-name "-test.ss")))

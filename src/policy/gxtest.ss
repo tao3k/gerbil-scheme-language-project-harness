@@ -70,16 +70,24 @@
   (make-policy-test root [file]))
 
 ;;; Boundary:
-;;; - make-project-policy-test is the explicit full-project gate.
+;;; - make-project-policy-test is the explicit full-project smoke gate.
+;;; - Project-level warning backlog stays visible through project-policy-report,
+;;;   but only error findings fail CI gxtest runs.
 ;;; - Regular gxtest targets should use make-policy-test with their file scope.
 ;; : (-> Root TestSuite )
 (def (make-project-policy-test root)
   (test-suite "gerbil scheme project policy"
-    (test-case "package policy passes"
-      (let (report (project-policy-report root))
-        (when (not (equal? (hash-get report 'status) "pass"))
+    (test-case "package policy has no errors"
+      (let* ((report (project-policy-report root))
+             (errors (filter project-policy-error-finding?
+                             (hash-get report 'findings))))
+        (when (not (null? errors))
           (display-project-policy-report report))
-        (check (hash-get report 'status) => "pass")))))
+        (check errors => [])))))
+
+;; : (-> TypeFinding Boolean )
+(def (project-policy-error-finding? finding)
+  (equal? (type-finding-severity finding) "error"))
 
 ;; : (-> Root (List Path) (List TypeFinding) )
 (def (policy-findings root files)

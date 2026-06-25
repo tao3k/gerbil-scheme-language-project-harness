@@ -75,7 +75,19 @@
     (agent-style-policy-scenario-timing-steps-measured? (cdr timings)))
    (else #f)))
 
-;; : (-> ProjectIndex Relpath SourceFile )
+;; project-index-source-file-by-path
+;;   : (-> ProjectIndex Relpath (U SourceFile False) )
+;;   | doc m%
+;;       `project-index-source-file-by-path index path` returns the source
+;;       file in `index` whose relative path matches `path`, or `#f` when the
+;;       fixture does not contain that source.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (project-index-source-file-by-path index "src/orders/core.ss")
+;;       ;; => <source-file>
+;;       ```
+;;     %
 (def (project-index-source-file-by-path index path)
   (let loop ((files (project-index-files index)))
     (cond

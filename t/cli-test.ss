@@ -51,11 +51,11 @@
         (check (member "cli-release-linker.ss" spec) ? true)
         (check (member "parser/model.ss" spec) => #f)
         (check (member "policy/core.ss" spec) => #f)))
-    (test-case "default compile spec exposes benchmark gate helper"
+    (test-case "default compile spec builds full harness and benchmark gate helper"
       (let (spec (compile-spec #f #f #f))
         (check (member "benchmark/gate.ss" spec) ? true)
-        (check (member "parser/model.ss" spec) => #f)
-        (check (member "policy/core.ss" spec) => #f)))
+        (check (member "parser/model.ss" spec) ? true)
+        (check (member "policy/core.ss" spec) ? true)))
     (test-case "agent guide forwards section flags"
       (let (status #f)
         (let (output
