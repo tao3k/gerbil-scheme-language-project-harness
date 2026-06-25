@@ -8,12 +8,7 @@
         :gerbil/gambit
         (only-in :gerbil/compiler/base __available-cores)
         (only-in :gerbil/compiler/driver compile-exe)
-        (rename-in :gerbil/tools/gxtest (main gxtest-main))
-        (only-in :gslph/src/policy/gxtest
-                 display-project-policy-report
-                 policy-report)
-        (only-in :gslph/src/types/facade
-                 type-finding-rule-id))
+        (rename-in :gerbil/tools/gxtest (main gxtest-main)))
 (export compile-target
         install-target
         compile-spec
@@ -58,6 +53,7 @@
     "search-light-launcher.ss"
     "cli-launcher.ss"
     "cli-release-linker.ss"
+    "policy/gxtest.ss"
     "support/time.ss"
     "benchmark/gate.ss"
     "commands/bench-light.ss"))
@@ -290,6 +286,25 @@
              (files (hash-get report 'files))
              (definitions (hash-get report 'definitions))
              (findings findings))))))
+
+(def (runtime-procedure module-id binding-id)
+  (load-module module-id)
+  (eval binding-id))
+
+(def (policy-report root files)
+  ((runtime-procedure "gslph/src/policy/gxtest"
+                      'gslph/src/policy/gxtest#policy-report)
+   root files))
+
+(def (display-project-policy-report report)
+  ((runtime-procedure "gslph/src/policy/gxtest"
+                      'gslph/src/policy/gxtest#display-project-policy-report)
+   report))
+
+(def (type-finding-rule-id finding)
+  ((runtime-procedure "gslph/src/types/findings"
+                      'gslph/src/types/findings#type-finding-rule-id)
+   finding))
 
 (def (test-target)
   (ensure-build-root!)
