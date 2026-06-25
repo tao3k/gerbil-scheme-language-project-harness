@@ -411,17 +411,28 @@
 ;; : (-> (List Json) Boolean )
 (def (poo-documentation-docs-have-body? docs)
   (ormap (lambda (doc)
-           (let (body (or (hash-get doc 'body) ""))
-             (not (blank-string? body))))
+           (not (blank-string? (poo-documentation-doc-body doc))))
          docs))
 
 ;; : (-> (List Json) Boolean )
 (def (poo-documentation-docs-have-result-example? docs)
   (ormap (lambda (doc)
-           (or (hash-get doc 'hasResultExamples)
-               (ormap poo-documentation-example-has-result?
-                      (or (hash-get doc 'examples) []))))
+           (poo-documentation-doc-has-result-example? doc))
          docs))
+
+;; : (-> Json String )
+(def (poo-documentation-doc-body doc)
+  (or (hash-get doc 'body) ""))
+
+;; : (-> Json (List Json) )
+(def (poo-documentation-doc-examples doc)
+  (or (hash-get doc 'examples) []))
+
+;; : (-> Json Boolean )
+(def (poo-documentation-doc-has-result-example? doc)
+  (or (hash-get doc 'hasResultExamples)
+      (ormap poo-documentation-example-has-result?
+             (poo-documentation-doc-examples doc))))
 
 ;; : (-> Json Boolean )
 (def (poo-documentation-example-has-result? example)
@@ -431,10 +442,10 @@
 (def (poo-documentation-docs-mention-usage? docs)
   (ormap (lambda (doc)
            (poo-documentation-text-mentions-usage?
-            (string-append (or (hash-get doc 'body) "")
+            (string-append (poo-documentation-doc-body doc)
                            "\n"
                            (poo-documentation-examples-text
-                            (or (hash-get doc 'examples) [])))))
+                            (poo-documentation-doc-examples doc)))))
          docs))
 
 ;; : (-> (List Json) String )

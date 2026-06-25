@@ -163,6 +163,10 @@
 (def (guide-section-rows section)
   (cadr section))
 
+;; : (-> Boolean Boolean GuideSection (Maybe GuideSection))
+(def (guide-section-when all? selected? section)
+  (and (or all? selected?) section))
+
 ;;; Boundary:
 ;;; - Select only the guide section objects requested by explicit flags.
 ;;; - Keep the basic section first so default guide remains a stable primer.
@@ -176,13 +180,14 @@
         (poo? (guide-section-flag? args "--poo"))
         (exemplars? (or (guide-section-flag? args "--exemplars")
                         (guide-section-flag? args "--exemplar"))))
-    (append
-     [+guide-basic-section+]
-     (if (or all? downstream?) [+guide-downstream-section+] [])
-     (if (or all? policy?) [+guide-policy-section+] [])
-     (if (or all? extensions?) [+guide-extension-section+] [])
-     (if (or all? poo?) [+guide-poo-section+] [])
-     (if (or all? exemplars?) [+guide-exemplar-section+] []))))
+    (cons +guide-basic-section+
+          (filter-map (lambda (entry)
+                        (guide-section-when all? (car entry) (cdr entry)))
+                      [(cons downstream? +guide-downstream-section+)
+                       (cons policy? +guide-policy-section+)
+                       (cons extensions? +guide-extension-section+)
+                       (cons poo? +guide-poo-section+)
+                       (cons exemplars? +guide-exemplar-section+)]))))
 
 ;;; Boundary:
 ;;; - Collapse selected guide section objects into the line protocol.

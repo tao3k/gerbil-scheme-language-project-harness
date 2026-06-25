@@ -396,12 +396,26 @@
 ;;;   invalid contracts, missing evidence, or parser-owned quality repairs.
 ;; : (-> Nat Nat Nat Nat Nat Nat Nat Boolean )
 (def (typed-combinator-style-implementation-coverage-insufficient? function-definition-count covered-definition-count minimum-covered-definition-count implementation-evidence-count valid-typed-comment-count invalid-typed-comment-count missing-count module-engineering-comment?)
+  (and (typed-combinator-style-coverage-gate-open?
+        function-definition-count
+        valid-typed-comment-count
+        invalid-typed-comment-count
+        missing-count
+        module-engineering-comment?)
+       (typed-combinator-style-below-coverage-floor?
+        covered-definition-count
+        minimum-covered-definition-count
+        implementation-evidence-count)))
+;; : (-> Nat Nat Nat Nat Boolean Boolean )
+(def (typed-combinator-style-coverage-gate-open? function-definition-count valid-typed-comment-count invalid-typed-comment-count missing-count module-engineering-comment?)
   (and (> function-definition-count 2)
        (> valid-typed-comment-count 0)
        (= invalid-typed-comment-count 0)
        (= missing-count 0)
-       (not module-engineering-comment?)
-       (< covered-definition-count minimum-covered-definition-count)
+       (not module-engineering-comment?)))
+;; : (-> Nat Nat Nat Boolean )
+(def (typed-combinator-style-below-coverage-floor? covered-definition-count minimum-covered-definition-count implementation-evidence-count)
+  (and (< covered-definition-count minimum-covered-definition-count)
        (< implementation-evidence-count
           (typed-combinator-style-minimum-file-evidence-count
            minimum-covered-definition-count))))
@@ -670,6 +684,33 @@
 ;;; Boundary:
 ;;; - typed-combinator-style-message coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
+;; : (-> Boolean String String )
+(def (typed-combinator-style-message-fragment condition text)
+  (if condition text ""))
+;; : (-> InvalidContractCount String )
+(def (typed-combinator-style-invalid-comment-fragment invalid-typed-comment-count)
+  (typed-combinator-style-message-fragment
+   (> invalid-typed-comment-count 0)
+   (string-append " and "
+                  (number->string invalid-typed-comment-count)
+                  " low-information typed comments")))
+;; : (-> Nat Nat Nat String )
+(def (typed-combinator-style-coverage-fragment covered-definition-count function-definition-count minimum-covered-definition-count)
+  (string-append
+   "; parser-owned expression-level implementation evidence covers "
+   (number->string covered-definition-count)
+   "/"
+   (number->string function-definition-count)
+   " arity-bearing definitions, below minimum "
+   (number->string minimum-covered-definition-count)))
+;; : (-> Boolean Nat String )
+(def (typed-combinator-style-doc-fragment typed-doc-missing? typed-doc-missing-count)
+  (typed-combinator-style-message-fragment
+   typed-doc-missing?
+   (string-append
+    "; "
+    (number->string typed-doc-missing-count)
+    " public/policy-sensitive helpers need full typed doc blocks with | doc m%, # Examples, and result comments")))
 ;; : (-> DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Boolean Boolean Nat Nat Nat Nat Message )
 (def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? typed-doc-missing? quality-repair-triggered? typed-doc-missing-count covered-definition-count function-definition-count minimum-covered-definition-count)
   (string-append
@@ -678,32 +719,22 @@
    " definitions but only "
    (number->string typed-comment-count)
    " adjacent typed-combinator-style algebraic contracts"
-   (if (> invalid-typed-comment-count 0)
-     (string-append " and "
-                    (number->string invalid-typed-comment-count)
-                    " low-information typed comments")
-     "")
-   (if missing-implementation-evidence?
-     "; typed contracts are present but no parser-owned expression-level implementation evidence was found"
-     "")
-   (if implementation-coverage-insufficient?
-     (string-append
-      "; parser-owned expression-level implementation evidence covers "
-      (number->string covered-definition-count)
-      "/"
-      (number->string function-definition-count)
-      " arity-bearing definitions, below minimum "
-      (number->string minimum-covered-definition-count))
-     "")
-   (if typed-doc-missing?
-     (string-append
-      "; "
-      (number->string typed-doc-missing-count)
-      " public/policy-sensitive helpers need full typed doc blocks with | doc m%, # Examples, and result comments")
-     "")
-   (if quality-repair-triggered?
-     "; parser-owned quality facets require repair toward compact expression-level composition"
-     "")
+   (typed-combinator-style-invalid-comment-fragment invalid-typed-comment-count)
+   (typed-combinator-style-message-fragment
+    missing-implementation-evidence?
+    "; typed contracts are present but no parser-owned expression-level implementation evidence was found")
+   (typed-combinator-style-message-fragment
+    implementation-coverage-insufficient?
+    (typed-combinator-style-coverage-fragment
+     covered-definition-count
+     function-definition-count
+     minimum-covered-definition-count))
+   (typed-combinator-style-doc-fragment
+    typed-doc-missing?
+    typed-doc-missing-count)
+   (typed-combinator-style-message-fragment
+    quality-repair-triggered?
+    "; parser-owned quality facets require repair toward compact expression-level composition")
    "; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))
 
 ;;; Missing contract count:

@@ -8,7 +8,7 @@
         :parser/support
         (only-in :std/misc/list unique)
         (only-in :std/srfi/1 drop)
-        (only-in :std/srfi/13 string-prefix?))
+        (only-in :std/srfi/13 string-index-right string-prefix?))
 
 (export +definition-heads+
         +declarative-top-level-heads+
@@ -90,6 +90,59 @@
 ;; : (-> Relpath Exprs String LocalTypes CallsFromStxes )
 (def (calls-from-stxes relpath exprs caller local-types)
   (apply append (map (cut calls-from-stx relpath <> caller local-types) exprs)))
+;; : (-> (List ExprStx) (List ExprStx) )
+(def (dot-def-body-stxes items)
+  (if (>= (length items) 2)
+    (drop items 2)
+    '()))
+;; : (-> Relpath (List ExprStx) String LocalTypes CallsFromStx )
+(def (calls-from-body-stxes relpath body caller local-types)
+  (calls-from-stxes relpath body caller local-types))
+;; : (-> Relpath ExprStx Datum String LocalTypes CallsFromStx )
+(def (calls-from-dot-def-stx relpath expr-stx datum caller local-types)
+  (calls-from-body-stxes relpath
+                         (dot-def-body-stxes (stx-list-items expr-stx))
+                         (or (form-caller-name datum) caller)
+                         local-types))
+;; : (-> Relpath ExprStx Head Datum String LocalTypes CallsFromStx )
+(def (calls-from-definition-stx relpath expr-stx head datum caller local-types)
+  (cond
+   ((member head +macro-definition-heads+) '())
+   ((member head '(defclass .defclass defgeneric .defgeneric)) '())
+   (else
+    (calls-from-body-stxes relpath
+                           (stx-form-body-items expr-stx datum)
+                           (or (form-caller-name datum) caller)
+                           local-types))))
+;; : (-> Relpath ExprStx Head Datum String LocalTypes CallsFromStx )
+(def (calls-from-let-stx relpath expr-stx head datum caller local-types)
+  (let* ((bindings (let-binding-datums datum))
+         (body-local-types (let-body-local-types head bindings local-types)))
+    (append
+     (calls-from-let-binding-stxes relpath
+                                   head
+                                   (let-binding-stxes expr-stx head)
+                                   caller
+                                   local-types)
+     (calls-from-body-stxes relpath
+                            (let-body-stxes expr-stx head)
+                            caller
+                            body-local-types))))
+;; : (-> Relpath ExprStx Head Datum String LocalTypes CallsFromStx )
+(def (call-fact-from-stx relpath expr-stx head datum caller local-types)
+  (let* ((args (cdr (stx-list-items expr-stx)))
+         (arg-datums (map syntax->datum args))
+         (loc (stx-source expr-stx))
+         (start (source-start-line loc))
+         (end (source-end-line loc)))
+    (cons (make-call-fact (datum->string head)
+                          (length arg-datums)
+                          relpath start end
+                          (map datum->string arg-datums)
+                          (map (cut argument-type-name <> local-types)
+                               arg-datums)
+                          caller)
+          (calls-from-body-stxes relpath args caller local-types))))
 ;;; Boundary:
 ;;; - calls-from-stx composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -109,63 +162,32 @@
        ((metadata-head? head)
         (calls-from-stxes relpath (cdr items) caller local-types))
        ((eq? head '.def)
-        (calls-from-stxes relpath
-                          (if (>= (length items) 2)
-                            (drop items 2)
-                            '())
-                          (or (form-caller-name datum) caller)
-                          local-types))
+        (calls-from-dot-def-stx relpath expr-stx datum caller local-types))
        ((member head +definition-heads+)
-        (cond
-         ((member head +macro-definition-heads+) '())
-         ((eq? head 'define-type)
-          (calls-from-stxes relpath
-                            (stx-form-body-items expr-stx datum)
-                            (or (form-caller-name datum) caller)
-                            local-types))
-         ((member head '(defclass .defclass defgeneric .defgeneric)) '())
-         (else
-          (calls-from-stxes relpath
-                            (stx-form-body-items expr-stx datum)
-                            (or (form-caller-name datum) caller)
-                            local-types))))
+        (calls-from-definition-stx relpath expr-stx head datum caller local-types))
        ((let-head? head)
-        (let* ((bindings (let-binding-datums datum))
-               (body-local-types (let-body-local-types head bindings local-types)))
-          (append
-           (calls-from-let-binding-stxes relpath
-                                         head
-                                         (let-binding-stxes expr-stx head)
-                                         caller
-                                         local-types)
-           (calls-from-stxes relpath
-                             (let-body-stxes expr-stx head)
-                             caller
-                             body-local-types))))
+        (calls-from-let-stx relpath expr-stx head datum caller local-types))
        ((eq? head 'lambda)
-        (calls-from-stxes relpath (lambda-body-stxes expr-stx) caller local-types))
+        (calls-from-body-stxes relpath
+                               (lambda-body-stxes expr-stx)
+                               caller
+                               local-types))
        ((eq? head 'case-lambda)
-        (calls-from-stxes relpath (case-lambda-body-stxes expr-stx) caller local-types))
+        (calls-from-body-stxes relpath
+                               (case-lambda-body-stxes expr-stx)
+                               caller
+                               local-types))
        ((eq? head 'match)
-        (calls-from-stxes relpath (match-body-stxes expr-stx) caller local-types))
+        (calls-from-body-stxes relpath
+                               (match-body-stxes expr-stx)
+                               caller
+                               local-types))
        ((member head '(syntax-case syntax-rules identifier-rules))
         '())
        ((member head +non-call-heads+)
-        (calls-from-stxes relpath (cdr items) caller local-types))
+        (calls-from-body-stxes relpath (cdr items) caller local-types))
        (else
-        (let* ((args (cdr items))
-               (arg-datums (map syntax->datum args))
-               (loc (stx-source expr-stx))
-               (start (source-start-line loc))
-               (end (source-end-line loc)))
-          (cons (make-call-fact (datum->string head)
-                                (length arg-datums)
-                                relpath start end
-                                (map datum->string arg-datums)
-                                (map (cut argument-type-name <> local-types)
-                                     arg-datums)
-                                caller)
-                (calls-from-stxes relpath args caller local-types))))))))
+        (call-fact-from-stx relpath expr-stx head datum caller local-types))))))
 ;; calls-from-let-binding-stxes
 ;;   : (-> Relpath Head (List BindingStx) String LocalTypes (List CallFact))
 ;;   | doc m%
@@ -683,30 +705,22 @@
 ;;; compact hygienic macro family or table-driven syntax helper.
 ;; : (-> Relpath (List MacroFact) (List MacroFamilyFact) )
 (def (macro-family-facts-from-macros relpath macros)
-  (let loop ((groups (macro-family-groups macros))
-             (facts '()))
-    (cond
-     ((null? groups) (reverse facts))
-     (else
-      (let (fact (macro-family-fact-from-group relpath (car groups)))
-        (loop (cdr groups)
-              (if fact (cons fact facts) facts)))))))
+  (filter-map (lambda (group)
+                (macro-family-fact-from-group relpath group))
+              (macro-family-groups macros)))
 
 ;; : (-> (List MacroFact) (List MacroFamilyGroup) )
 (def (macro-family-groups macros)
-  (let loop ((rest macros)
-             (groups '()))
-    (if (null? rest)
-      (reverse
-       (map (lambda (group)
-              (cons (car group) (reverse (cdr group))))
-            groups))
-      (let* ((macro (car rest))
-             (prefix (macro-family-prefix (macro-fact-name macro))))
-        (loop (cdr rest)
-              (if prefix
-                (macro-family-group-cons prefix macro groups)
-                groups))))))
+  (reverse
+   (map (lambda (group)
+          (cons (car group) (reverse (cdr group))))
+        (foldl (lambda (macro groups)
+                 (let (prefix (macro-family-prefix (macro-fact-name macro)))
+                   (if prefix
+                     (macro-family-group-cons prefix macro groups)
+                     groups)))
+               '()
+               macros))))
 
 ;; : (-> String MacroFact (List MacroFamilyGroup) (List MacroFamilyGroup) )
 (def (macro-family-group-cons prefix macro groups)
@@ -775,14 +789,11 @@
 
 ;; : (-> String (Maybe Integer) )
 (def (macro-family-last-hyphen-index name)
-  (let loop ((index (- (string-length name) 1))
-             (suffix? #f))
-    (cond
-     ((< index 1) #f)
-     ((char=? (string-ref name index) #\-)
-      (and suffix? index))
-     (else
-      (loop (- index 1) #t)))))
+  (let (index (string-index-right name #\-))
+    (and index
+         (> index 0)
+         (< index (- (string-length name) 1))
+         index)))
 
 ;; : (forall (a) (-> (List a) a) )
 (def (macro-family-last items)

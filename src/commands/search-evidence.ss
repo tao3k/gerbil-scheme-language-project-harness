@@ -80,6 +80,59 @@
           (missing (if fact [] ["language-evidence-fact"]))
           (witness (if fact (hash-get fact 'witness) "pending"))
           (next next))))
+;; : (-> Details Key Datum Datum )
+(def (evidence-detail-ref details key default)
+  (if (hash-key? details key)
+    (hash-get details key)
+    default))
+;; : (-> MaybeFact Key Datum Datum )
+(def (evidence-fact-ref fact key default)
+  (if fact
+    (hash-get fact key)
+    default))
+;; : (-> String String (List LanguageEvidenceFact) (Values String String) )
+(def (language-evidence-search-summary namespace query facts)
+  (if (null? facts)
+    (values "unknown" (language-evidence-next namespace query))
+    (values "fact" (hash-get (car facts) 'next))))
+;; : (-> (List String) Quality )
+(def (quality-from-missing missing)
+  (if (null? missing) "verified" "partial"))
+;; : (-> MaybePattern (Values String (List String) String String String) )
+(def (pattern-search-summary pattern)
+  (if pattern
+    (let* ((missing (pattern-missing pattern))
+           (quality (quality-from-missing missing)))
+      (values "fact" missing quality
+              (hash-get pattern 'next)
+              (hash-get pattern 'witness)))
+    (values "unknown"
+            ["extension-fact" "pattern-registry" "runnable-witness"]
+            "insufficient"
+            "search extension <extension>"
+            "pending")))
+;; : (-> (List CompareFact) (Values String String String (List String) String) )
+(def (compare-search-summary facts)
+  (if (null? facts)
+    (values "unknown" "insufficient"
+            "search compare env active documented"
+            ["compare-fact"]
+            "pending")
+    (let (fact (car facts))
+      (values "fact" "verified"
+              (hash-get fact 'next)
+              []
+              (hash-get fact 'witness)))))
+;; : (-> (List String) String )
+(def (chain-text-or-dash values)
+  (if (null? values) "-" (string-join values "->")))
+;; : (-> ImportWitness String )
+(def (import-witness-chain-text witness)
+  (chain-text-or-dash (hash-get witness 'dependencyChain)))
+;; : (-> Pattern MaybeImportWitness )
+(def (pattern-import-witness pattern)
+  (and (hash-key? pattern 'importWitness)
+       (hash-get pattern 'importWitness)))
 ;; runtime-source-acquisition-packet-json
 ;;   : (-> String String String String (List LanguageEvidenceFact) String JsonPacket)
 ;;   | doc m%
@@ -97,24 +150,12 @@
 (def (runtime-source-acquisition-packet-json namespace authority grade query facts next)
   (let* ((fact (and (pair? facts) (car facts)))
          (details (if fact (hash-get fact 'details) (hash)))
-         (runtime (if (and fact (hash-key? details 'runtime))
-                    (hash-get details 'runtime)
-                    #f))
-         (source-ref (if (and fact (hash-key? details 'sourceRef))
-                       (hash-get details 'sourceRef)
-                       #f))
-         (acquisition (if (and fact (hash-key? details 'acquisition))
-                        (hash-get details 'acquisition)
-                        #f))
-         (selector-resolver (if (and fact (hash-key? details 'selectorResolver))
-                              (hash-get details 'selectorResolver)
-                              #f))
-         (source-examples (if (and fact (hash-key? details 'sourceExamples))
-                            (hash-get details 'sourceExamples)
-                            []))
-         (source-comments (if (and fact (hash-key? details 'sourceComments))
-                            (hash-get details 'sourceComments)
-                            [])))
+         (runtime (evidence-detail-ref details 'runtime #f))
+         (source-ref (evidence-detail-ref details 'sourceRef #f))
+         (acquisition (evidence-detail-ref details 'acquisition #f))
+         (selector-resolver (evidence-detail-ref details 'selectorResolver #f))
+         (source-examples (evidence-detail-ref details 'sourceExamples []))
+         (source-comments (evidence-detail-ref details 'sourceComments [])))
     (hash (schemaId +semantic-runtime-source-acquisition-schema-id+)
           (schemaVersion "1")
           (protocolId "agent.semantic-protocols")
@@ -133,10 +174,10 @@
           (sourceExamples source-examples)
           (sourceComments source-comments)
           (facts facts)
-          (failureCases (if fact (hash-get fact 'failureCases) []))
-          (qualitySignals (if fact (hash-get fact 'qualitySignals) []))
+          (failureCases (evidence-fact-ref fact 'failureCases []))
+          (qualitySignals (evidence-fact-ref fact 'qualitySignals []))
           (missing (if fact [] ["runtime-source-fact"]))
-          (witness (if fact (hash-get fact 'witness) "pending"))
+          (witness (evidence-fact-ref fact 'witness "pending"))
           (next next))))
 ;; emit-pattern-search
 ;;   : (-> ProjectIndex (List String) Boolean Integer)
@@ -154,45 +195,36 @@
 (def (emit-pattern-search index args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (string-join positionals " ") "-"))
-         (pattern (pattern-evidence index positionals))
-         (grade (if pattern "fact" "unknown"))
-         (missing (if pattern
-                    (pattern-missing pattern)
-                    ["extension-fact" "pattern-registry" "runnable-witness"]))
-         (quality (cond
-                   ((not pattern) "insufficient")
-                   ((null? missing) "verified")
-                   (else "partial")))
-         (next (if pattern
-                 (hash-get pattern 'next)
-                 "search extension <extension>")))
-    (if json?
-      (write-json-line
-       (hash (schemaId +semantic-extension-pattern-mapping-schema-id+)
-             (schemaVersion "1")
-             (protocolId "agent.semantic-protocols.semantic-language")
-             (protocolVersion "1")
-             (languageId +language-id+)
-             (providerId +provider-id+)
-             (namespace "pattern")
-             (authority (language-evidence-authority "pattern"))
-             (evidenceGrade grade)
-             (quality quality)
-             (query query)
-             (patternMapping (pattern-mapping-json pattern))
-             (missing missing)
-             (witness (if pattern (hash-get pattern 'witness) "pending"))
-             (next next)))
-      (begin
-        (displayln "[gerbil-search-pattern] query=" query
-                   " evidenceGrade=" grade
-                   " authority=" (language-evidence-authority "pattern")
-                   " quality=" quality)
-        (if pattern
-          (emit-pattern-lines pattern)
-          (displayln "|missing " (string-join missing ",")))
-        (displayln "next=" next)))
-    0))
+         (pattern (pattern-evidence index positionals)))
+    (let-values (((grade missing quality next witness)
+                  (pattern-search-summary pattern)))
+      (if json?
+        (write-json-line
+         (hash (schemaId +semantic-extension-pattern-mapping-schema-id+)
+               (schemaVersion "1")
+               (protocolId "agent.semantic-protocols.semantic-language")
+               (protocolVersion "1")
+               (languageId +language-id+)
+               (providerId +provider-id+)
+               (namespace "pattern")
+               (authority (language-evidence-authority "pattern"))
+               (evidenceGrade grade)
+               (quality quality)
+               (query query)
+               (patternMapping (pattern-mapping-json pattern))
+               (missing missing)
+               (witness witness)
+               (next next)))
+        (begin
+          (displayln "[gerbil-search-pattern] query=" query
+                     " evidenceGrade=" grade
+                     " authority=" (language-evidence-authority "pattern")
+                     " quality=" quality)
+          (if pattern
+            (emit-pattern-lines pattern)
+            (displayln "|missing " (string-join missing ",")))
+          (displayln "next=" next)))
+      0)))
 ;; : (-> ProjectIndex (List String) String )
 (def (pattern-evidence index terms)
   (or (poo-pattern-evidence index terms)
@@ -212,9 +244,8 @@
 ;;     %
 (def (emit-pattern-lines pattern)
   (let* ((missing (pattern-missing pattern))
-         (quality (if (null? missing) "verified" "partial"))
-         (via (if (hash-key? pattern 'via) (hash-get pattern 'via) []))
-         (via-text (if (null? via) "-" (string-join via "->"))))
+         (quality (quality-from-missing missing))
+         (via-text (chain-text-or-dash (evidence-detail-ref pattern 'via []))))
     (emit-field-line
      "|pattern"
      [(line-field "id" (hash-get pattern 'id))
@@ -225,17 +256,7 @@
       (line-field "sourceRef" (source-ref-summary (hash-get pattern 'sourceRef)))
       (line-field "witness" (hash-get pattern 'witness))])
     (emit-pattern-agent-guidance pattern quality)
-    (when (hash-key? pattern 'importWitness)
-      (let* ((witness (hash-get pattern 'importWitness))
-             (chain (hash-get witness 'dependencyChain))
-             (chain-text (if (null? chain) "-" (string-join chain "->"))))
-        (emit-field-line
-         "|importWitness"
-         [(line-field "status" (hash-get witness 'status))
-          (line-field "module" (hash-get witness 'module))
-          (line-field "minimalImport" (hash-get witness 'minimalImport))
-          (line-field "evidence" (hash-get witness 'evidence))
-          (line-field "dependencyChain" chain-text)])))
+    (emit-pattern-import-witness pattern)
     (emit-field-line
      "|agentScenario"
      [(line-field "id" (hash-get pattern 'agentScenario))
@@ -271,6 +292,17 @@
       (line-field "selectorCount" (length (hash-get pattern 'selectors)))
       (line-field "formCount" (length (hash-get pattern 'minimalForms)))
       (line-field "failureCaseCount" (length (hash-get pattern 'failureCases)))])))
+;; : (-> Pattern Unit )
+(def (emit-pattern-import-witness pattern)
+  (let (witness (pattern-import-witness pattern))
+    (when witness
+      (emit-field-line
+       "|importWitness"
+       [(line-field "status" (hash-get witness 'status))
+        (line-field "module" (hash-get witness 'module))
+        (line-field "minimalImport" (hash-get witness 'minimalImport))
+        (line-field "evidence" (hash-get witness 'evidence))
+        (line-field "dependencyChain" (import-witness-chain-text witness))]))))
 ;;; Agent-facing renderer:
 ;;; - POO selectors are package logical anchors, not workspace line selectors.
 ;;; - Make the read order explicit so an agent can edit without guessing.
@@ -315,43 +347,38 @@
 (def (emit-compare-search args json?)
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (string-join positionals " ") "-"))
-         (facts (matching-compare-facts positionals))
-         (grade (if (null? facts) "unknown" "fact"))
-         (quality (if (null? facts) "insufficient" "verified"))
-         (next (if (null? facts)
-                 "search compare env active documented"
-                 (hash-get (car facts) 'next))))
-    (if json?
-      (write-json-line
-       (hash (schemaId +semantic-compare-packet-schema-id+)
-             (schemaVersion "1")
-             (protocolId "agent.semantic-protocols.semantic-language")
-             (protocolVersion "1")
-             (languageId +language-id+)
-             (providerId +provider-id+)
-             (namespace "compare")
-             (authority "active-runtime-vs-documented")
-             (evidenceGrade grade)
-             (quality quality)
-             (query query)
-             (comparisons (map compare-fact-json facts))
-             (missing (if (null? facts) ["compare-fact"] []))
-             (witness (if (null? facts)
-                        "pending"
-                        (hash-get (car facts) 'witness)))
-             (next next)))
-      (begin
-        (displayln "[gerbil-search-compare] query=" query
-                   " evidenceGrade=" grade
-                   " authority=active-runtime-vs-documented"
-                   " quality=" quality)
-        (if (null? facts)
-          (begin
-            (displayln "|missing compare-fact")
-            (displayln "|witness pending"))
-          (for-each emit-compare-line facts))
-        (displayln "next=" next)))
-    0))
+         (facts (matching-compare-facts positionals)))
+    (let-values (((grade quality next missing witness)
+                  (compare-search-summary facts)))
+      (if json?
+        (write-json-line
+         (hash (schemaId +semantic-compare-packet-schema-id+)
+               (schemaVersion "1")
+               (protocolId "agent.semantic-protocols.semantic-language")
+               (protocolVersion "1")
+               (languageId +language-id+)
+               (providerId +provider-id+)
+               (namespace "compare")
+               (authority "active-runtime-vs-documented")
+               (evidenceGrade grade)
+               (quality quality)
+               (query query)
+               (comparisons (map compare-fact-json facts))
+               (missing missing)
+               (witness witness)
+               (next next)))
+        (begin
+          (displayln "[gerbil-search-compare] query=" query
+                     " evidenceGrade=" grade
+                     " authority=active-runtime-vs-documented"
+                     " quality=" quality)
+          (if (null? facts)
+            (begin
+              (displayln "|missing compare-fact")
+              (displayln "|witness pending"))
+            (for-each emit-compare-line facts))
+          (displayln "next=" next)))
+      0)))
 ;;; Boundary:
 ;;; - Compare facts are flattened into stable field lines at this command edge.
 ;;; - Keeping left/right projection here avoids leaking output protocol into search evidence builders.
@@ -420,6 +447,29 @@
                " indexOwner=" (hash-get index-hint 'owner)
                " indexBackend=" (hash-get index-hint 'backend)
                " indexPackageManager=" (hash-get index-hint 'packageManager))))
+;; : (-> Namespace Authority Grade Query (List LanguageEvidenceFact) Next Unit )
+(def (emit-language-evidence-json namespace authority grade query facts next)
+  (if (equal? namespace "runtime-source")
+    (write-json-line
+     (runtime-source-acquisition-packet-json
+      namespace authority grade query facts next))
+    (write-json-line
+     (language-evidence-packet-json
+      namespace authority grade query facts next))))
+;; : (-> (U ProjectIndex ProjectRoot) Namespace Query (List LanguageEvidenceFact) Unit )
+(def (emit-language-evidence-facts context namespace query facts)
+  (if (null? facts)
+    (begin
+      (displayln "|missing fact-registry-or-query-match")
+      (displayln "|witness pending")
+      (emit-language-source-index-fallback context namespace query))
+    (for-each emit-language-evidence-line facts)))
+;; : (-> (U ProjectIndex ProjectRoot) Namespace Authority Query Grade (List LanguageEvidenceFact) Next Unit )
+(def (emit-language-evidence-text context namespace authority query grade facts next)
+  (displayln "[gerbil-search-" namespace "] query=" query
+             " evidenceGrade=" grade " authority=" authority)
+  (emit-language-evidence-facts context namespace query facts)
+  (displayln "next=" next))
 
 ;;; Boundary:
 ;;; - emit-language-evidence-search coordinates multiple evidence fields.
@@ -429,30 +479,13 @@
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (string-join positionals " ") "-"))
          (authority (language-evidence-authority namespace))
-         (facts (matching-language-evidence-facts context namespace positionals))
-         (grade (if (null? facts) "unknown" "fact"))
-         (next (if (null? facts)
-                 (language-evidence-next namespace query)
-                 (hash-get (car facts) 'next))))
-    (if json?
-      (if (equal? namespace "runtime-source")
-        (write-json-line
-         (runtime-source-acquisition-packet-json
-          namespace authority grade query facts next))
-        (write-json-line
-         (language-evidence-packet-json
-          namespace authority grade query facts next)))
-      (begin
-        (displayln "[gerbil-search-" namespace "] query=" query
-                   " evidenceGrade=" grade " authority=" authority)
-        (if (null? facts)
-          (begin
-            (displayln "|missing fact-registry-or-query-match")
-            (displayln "|witness pending")
-            (emit-language-source-index-fallback context namespace query))
-          (for-each emit-language-evidence-line facts))
-        (displayln "next=" next)))
-    0))
+         (facts (matching-language-evidence-facts context namespace positionals)))
+    (let-values (((grade next)
+                  (language-evidence-search-summary namespace query facts)))
+      (if json?
+        (emit-language-evidence-json namespace authority grade query facts next)
+        (emit-language-evidence-text context namespace authority query grade facts next))
+      0)))
 
 ;; : (-> (U ProjectIndex ProjectRoot) Namespace Query Unit )
 (def (emit-language-source-index-fallback context namespace query)

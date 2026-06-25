@@ -604,6 +604,10 @@
       (string-trim (substring body 1 (string-length body)))
       body)))
 
+;; : (-> Boolean SignatureReason (List SignatureReason) )
+(def (signature-reason-when condition reason)
+  (if condition [reason] []))
+
 
 ;; : (-> Definition SignatureContract (List SignatureToken) Integer Integer (List SignatureReason) )
 ;;; Structural TypeSpec diagnostics are folded into the same invalid-reason
@@ -613,20 +617,22 @@
 (def (typed-contract-invalid-reasons definition contract contract-output contract-inputs typed-comment tokens arrow-count group-count)
   (unique
    (append
-    (if (string-contains contract ";") ["inline-comment"] [])
-    (if (and (= arrow-count 0)
-             (typed-contract-transform-definition? definition))
-      ["missing-transform-arrow"]
-      [])
-    (if (typed-contract-unknown-token? tokens)
-      ["unknown-or-any-token"]
-      [])
-    (if (typed-contract-placeholder-token-invalid? tokens arrow-count group-count)
-      ["placeholder-type-variable-token"]
-      [])
-    (if (typed-contract-simple-placeholder? tokens arrow-count group-count)
-      ["placeholder-contract-without-domain-or-higher-order-shape"]
-      [])
+    (signature-reason-when
+     (string-contains contract ";")
+     "inline-comment")
+    (signature-reason-when
+     (and (= arrow-count 0)
+          (typed-contract-transform-definition? definition))
+     "missing-transform-arrow")
+    (signature-reason-when
+     (typed-contract-unknown-token? tokens)
+     "unknown-or-any-token")
+    (signature-reason-when
+     (typed-contract-placeholder-token-invalid? tokens arrow-count group-count)
+     "placeholder-type-variable-token")
+    (signature-reason-when
+     (typed-contract-simple-placeholder? tokens arrow-count group-count)
+     "placeholder-contract-without-domain-or-higher-order-shape")
     (typed-contract-structural-invalid-reasons contract-output
                                                contract-inputs
                                                typed-comment

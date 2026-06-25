@@ -25,9 +25,8 @@
 
 ;;; Macro boundary:
 ;;; - Downstream gxtest aggregators call this inside their normal test suite.
-;;; - The expansion captures the file that owns the gxtest policy entry, so the
-;;;   policy check runs as one ordinary gxtest test instead of a build-target
-;;;   pre-pass over the same scope.
+;;; - The expansion produces one ordinary gxtest suite over the build-declared
+;;;   project source coverage, avoiding a separate build-target policy pass.
 ;; make-gxtest-policy-test
 ;;   : (-> Syntax Syntax)
 ;;   | doc m%
@@ -44,19 +43,14 @@
 ;;     %
 (defsyntax (make-gxtest-policy-test stx)
   (let* ((form (syntax->datum stx))
-         (root (and (pair? (cdr form)) (cadr form)))
-         (source (stx-source stx))
-         (file (and source (vector-ref source 0))))
+         (root (and (pair? (cdr form)) (cadr form))))
     (cond
      ((not (and (pair? form) (pair? (cdr form)) (null? (cddr form))))
       (error "bad make-gxtest-policy-test syntax"))
-     ((not (string? file))
-      (error "make-gxtest-policy-test requires a file-backed source location"))
      (else
       (datum->syntax (stx-car stx)
-                     `(gslph/src/policy/gxtest#make-file-policy-test
-                       ,root
-                       ,file))))))
+                     `(gslph/src/policy/gxtest#make-project-policy-test
+                       ,root))))))
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.

@@ -10,6 +10,27 @@
 
 (export capability-posture-facts
         matching-capability-posture-facts)
+;; : (-> MaybePackage (List ImportFact) CapabilityStatus )
+(def (package-module-posture-status package module-imports)
+  (if (or package (pair? module-imports)) "active" "weak"))
+;; : (-> MaybePackage MaybeString )
+(def (capability-package-name package)
+  (and package (project-package-name package)))
+;; : (-> MaybePackage MaybePath )
+(def (capability-package-path package)
+  (and package (project-package-path package)))
+;; : (-> (List Fact) CapabilityStatus )
+(def (active-or-available facts)
+  (if (pair? facts) "active" "available"))
+;; : (-> (List PooFact) Boolean CapabilityStatus )
+(def (poo-posture-status poo-facts poo-active?)
+  (cond
+   ((pair? poo-facts) "active")
+   (poo-active? "dependency-active")
+   (else "inactive")))
+;; : (-> (List Selector) (List Selector) )
+(def (capability-selector-preview selectors)
+  (take selectors (min 8 (length selectors))))
 ;;; Boundary:
 ;;; - matching-capability-posture-facts composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -34,25 +55,25 @@
          (poo-active? (or (pair? poo-facts)
                           (dependency-contains? dependencies "gerbil-poo"))))
     [(capability-posture-fact
-      "package-module-posture"
-      "package-module"
-      (if (or package (pair? module-imports)) "active" "weak")
+     "package-module-posture"
+     "package-module"
+      (package-module-posture-status package module-imports)
       "Gerbil package/module/namespace/import facts should preserve project module shape instead of flattening into small-Scheme files."
       "parser-owned-package-and-module-facts"
       "search owner <path> --workspace . --view seeds"
       ["capability" "posture" "package" "module" "namespace" "import" "export"]
       (hash (files (length files))
-            (package (if package (project-package-name package) #f))
-            (packagePath (if package (project-package-path package) #f))
+            (package (capability-package-name package))
+            (packagePath (capability-package-path package))
             (imports (length module-imports)))
       []
       ["package-module-style"]
       "agent-edits-gerbil-package-module"
       "keep-package-namespace-import-export-style-and-query-owner-before-editing")
      (capability-posture-fact
-      "macro-posture"
-      "macro"
-      (if (pair? macro-facts) "active" "available")
+     "macro-posture"
+     "macro"
+      (active-or-available macro-facts)
       "Macro edits require parser facts plus runtime-source witness; do not write transformers from dialect memory."
       "parser-owned-macro-facts-and-runtime-source-route"
       "search runtime-source macro sugar"
@@ -60,18 +81,15 @@
       (hash (macros (length macro-facts))
             (macroSelectors
              (let (selectors (map macro-fact-selector macro-facts))
-               (take selectors (min 8 (length selectors))))))
+               (capability-selector-preview selectors))))
       ["GERBIL-SCHEME-AGENT-R011"]
       ["macro-runtime-source-witness" "parser-owned-macro-heads"]
       "agent-edits-macro-or-syntax-transformer"
       "cite-runtime-source-and-parser-macro-fact-before-changing-transformers")
      (capability-posture-fact
-      "poo-posture"
-      "poo"
-      (cond
-       ((pair? poo-facts) "active")
-       (poo-active? "dependency-active")
-       (else "inactive"))
+     "poo-posture"
+     "poo"
+      (poo-posture-status poo-facts poo-active?)
       "POO dependency or parser POO forms should steer object modeling toward defclass/defgeneric/defmethod/protocol evidence."
       "package-dependency-and-parser-owned-poo-facts"
       "search pattern poo class"
@@ -80,15 +98,15 @@
             (pooForms (length poo-facts))
             (pooSelectors
              (let (selectors (map poo-form-fact-selector poo-facts))
-               (take selectors (min 8 (length selectors))))))
+               (capability-selector-preview selectors))))
       ["GERBIL-SCHEME-AGENT-R008" "GERBIL-SCHEME-AGENT-R012"]
       ["poo-method-shape" "protocol-evidence" "manual-object-encoding-opportunity"]
       "agent-models-objects-or-protocols-in-gerbil"
       "prefer-defclass-defgeneric-defmethod-or-protocol-when-poo-capability-is-active")
      (capability-posture-fact
-      "higher-order-posture"
-      "higher-order"
-      (if (pair? higher-order-facts) "active" "available")
+     "higher-order-posture"
+     "higher-order"
+      (active-or-available higher-order-facts)
       "Pure data transforms should prefer Gerbil higher-order and functional combinators before introducing manual loops."
       "parser-owned-higher-order-facts"
       "search structural --workspace . --view seeds"
@@ -96,15 +114,15 @@
       (hash (higherOrderForms (length higher-order-facts))
             (higherOrderSelectors
              (let (selectors (map higher-order-fact-selector higher-order-facts))
-               (take selectors (min 8 (length selectors))))))
+               (capability-selector-preview selectors))))
       ["GERBIL-SCHEME-AGENT-R009"]
       ["functional-data-transform" "typed-combinator-style"]
       "agent-writes-data-transform-or-loop"
       "use-map-filter-fold-for-fold-cut-for-pure-transforms")
      (capability-posture-fact
-      "control-flow-posture"
-      "control-flow"
-      (if (pair? control-flow-facts) "active" "available")
+     "control-flow-posture"
+     "control-flow"
+      (active-or-available control-flow-facts)
       "Named control-flow facts identify where loops are IO/state/generator drivers rather than pure data transforms."
       "parser-owned-control-flow-facts"
       "search structural --workspace . --view seeds"
@@ -112,7 +130,7 @@
       (hash (controlFlowForms (length control-flow-facts))
             (controlFlowSelectors
              (let (selectors (map control-flow-fact-selector control-flow-facts))
-               (take selectors (min 8 (length selectors))))))
+               (capability-selector-preview selectors))))
       ["GERBIL-SCHEME-AGENT-R009"]
       ["manual-loop-functional-advice" "stateful-driver-exception"]
       "agent-edits-loop-or-driver"

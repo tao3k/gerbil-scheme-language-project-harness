@@ -100,6 +100,20 @@
 ;;; Preview walker boundary:
 ;;; - Keep the traversal deterministic and stop as soon as the limit is filled.
 ;;; - The local add-file/walk helpers preserve one shared remaining counter.
+;; : (-> Path Boolean )
+(def (source-preview-entry? entry)
+  (not (member entry '("." ".."))))
+;; : (-> Root Path Path (List String) Procedure Procedure Unit )
+(def (scan-source-preview-entry root dir entry ignored-dirs walk add-file)
+  (when (source-preview-entry? entry)
+    (let (path (path-expand entry dir))
+      (cond
+       ((and (source-directory? path)
+             (not (ignored-source-directory? root path entry ignored-dirs)))
+        (walk path))
+       ((gerbil-source-path? path)
+        (add-file path))
+       (else #!void)))))
 ;; : (-> Root (List Path) (List String) Integer (List Path))
 (def (scan-source-files-preview root scan-roots ignored-dirs limit)
   (let ((result '())
@@ -113,16 +127,8 @@
         (for-each
          (lambda (entry)
            (when (> remaining 0)
-             (if (member entry '("." ".."))
-               #!void
-               (let (path (path-expand entry dir))
-                 (cond
-                  ((and (source-directory? path)
-                        (not (ignored-source-directory? root path entry ignored-dirs)))
-                   (walk path))
-                  ((gerbil-source-path? path)
-                   (add-file path))
-                  (else #!void))))))
+             (scan-source-preview-entry
+              root dir entry ignored-dirs walk add-file)))
          (sort (directory-files dir) string<?))))
     (for-each
      (lambda (source-root)

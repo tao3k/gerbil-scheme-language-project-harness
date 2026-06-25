@@ -782,9 +782,17 @@
 
 ;; : (-> ModuleRef Boolean)
 (def (package-shorthand-module-ref? module)
-  (and (string-prefix? ":" module)
-       (not (string-prefix? ":gerbil/" module))
-       (not (string-prefix? ":std/" module))))
+  (and (module-shorthand-ref? module)
+       (not (built-in-module-shorthand-ref? module))))
+
+;; : (-> ModuleRef Boolean)
+(def (module-shorthand-ref? module)
+  (string-prefix? ":" module))
+
+;; : (-> ModuleRef Boolean)
+(def (built-in-module-shorthand-ref? module)
+  (or (string-prefix? ":gerbil/" module)
+      (string-prefix? ":std/" module)))
 
 ;; : (-> Root ModuleRef (Maybe Path))
 (def (test-support-module-path root module)

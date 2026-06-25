@@ -17,6 +17,20 @@
 (def +semantic-type-proof-schema-id+
   "agent.semantic-protocols.semantic-type-proof")
 
+;; : (-> (List TypeProofExample) (Values EvidenceGrade Quality Missing Witness) )
+(def (type-proof-search-summary proofs)
+  (if (null? proofs)
+    (values "unknown" "insufficient" ["type-proof-example"] "pending")
+    (values "fact" "verified" []
+            "typespec-proof-tree-and-compiler-evidence-boundary")))
+;; : (-> (List TypeProofExample) Unit )
+(def (emit-type-proof-examples proofs)
+  (if (null? proofs)
+    (begin
+      (displayln "|missing type-proof-example")
+      (displayln "|witness pending"))
+    (for-each emit-type-proof-example-line proofs)))
+
 ;;; Boundary:
 ;;; - The command layer projects TypeProof values; it never reimplements the
 ;;;   subtype relation.
@@ -27,31 +41,27 @@
   (let* ((positionals (positional-args args))
          (query (if (pair? positionals) (string-join positionals " ") "-"))
          (proofs (matching-type-proof-examples positionals))
-         (grade (if (null? proofs) "unknown" "fact"))
-         (quality (if (null? proofs) "insufficient" "verified"))
          (next "search compiler-evidence optimizer subtype assertion"))
-    (if json?
-      (write-json-line
-       (type-proof-packet-json query grade quality proofs next))
-      (begin
-        (displayln "[gerbil-search-proof] query=" query
-                   " evidenceGrade=" grade
-                   " authority=medium-weight-type-proof"
-                   " quality=" quality)
-        (emit-type-proof-system-lines)
-        (if (null? proofs)
-          (begin
-            (displayln "|missing type-proof-example")
-            (displayln "|witness pending"))
-          (for-each emit-type-proof-example-line proofs))
-        (emit-type-proof-compiler-evidence-line)
-        (for-each emit-type-proof-failure-case-line (type-proof-failure-cases))
-        (for-each emit-type-proof-quality-signal-line (type-proof-quality-signals))
-        (displayln "next=" next)))
-    0))
+    (let-values (((grade quality missing witness)
+                  (type-proof-search-summary proofs)))
+      (if json?
+        (write-json-line
+         (type-proof-packet-json query grade quality proofs missing witness next))
+        (begin
+          (displayln "[gerbil-search-proof] query=" query
+                     " evidenceGrade=" grade
+                     " authority=medium-weight-type-proof"
+                     " quality=" quality)
+          (emit-type-proof-system-lines)
+          (emit-type-proof-examples proofs)
+          (emit-type-proof-compiler-evidence-line)
+          (for-each emit-type-proof-failure-case-line (type-proof-failure-cases))
+          (for-each emit-type-proof-quality-signal-line (type-proof-quality-signals))
+          (displayln "next=" next)))
+      0)))
 
-;; : (-> Query EvidenceGrade Quality (List TypeProofExample) Next JsonPacket)
-(def (type-proof-packet-json query grade quality proofs next)
+;; : (-> Query EvidenceGrade Quality (List TypeProofExample) Missing Witness Next JsonPacket)
+(def (type-proof-packet-json query grade quality proofs missing witness next)
   (hash (schemaId +semantic-type-proof-schema-id+)
         (schemaVersion "1")
         (protocolId "agent.semantic-protocols.semantic-language")
@@ -68,10 +78,8 @@
         (compilerEvidence (type-proof-compiler-evidence-json))
         (failureCases (type-proof-failure-cases))
         (qualitySignals (type-proof-quality-signals))
-        (missing (if (null? proofs) ["type-proof-example"] []))
-        (witness (if (null? proofs)
-                   "pending"
-                   "typespec-proof-tree-and-compiler-evidence-boundary"))
+        (missing missing)
+        (witness witness)
         (next next)))
 
 ;; : (-> Json)

@@ -46,6 +46,45 @@
   (apply append
          (map (cut higher-order-facts-from-stx relpath <> caller)
               exprs)))
+;; : (-> Head Boolean )
+(def (ignored-higher-order-head? head)
+  (or (member head '(quote quasiquote syntax quote-syntax))
+      (metadata-head? head)
+      (member head '(syntax-case syntax-rules identifier-rules))))
+;; : (-> Relpath ExprStx Head Datum String (List HigherOrderFact) )
+(def (maybe-higher-order-head-fact relpath expr-stx head datum caller)
+  (if (member head +higher-order-heads+)
+    [(higher-order-fact-from-stx relpath expr-stx head datum caller)]
+    '()))
+;; : (-> Relpath ExprStx Head Datum String (List HigherOrderFact) )
+(def (higher-order-definition-facts relpath expr-stx head datum caller)
+  (cond
+   ((member head +macro-definition-heads+) '())
+   ((member head '(defclass .defclass defgeneric .defgeneric)) '())
+   (else
+    (append
+     (maybe-higher-order-head-fact relpath expr-stx head datum caller)
+     (higher-order-facts-from-stxes relpath
+                                    (stx-form-body-items expr-stx datum)
+                                    (or (form-caller-name datum) caller))))))
+;; : (-> Relpath ExprStx Head String (List HigherOrderFact) )
+(def (higher-order-let-facts relpath expr-stx head caller)
+  (append
+   (higher-order-facts-from-let-binding-stxes relpath
+                                             (let-binding-stxes expr-stx head)
+                                             caller)
+   (higher-order-facts-from-stxes relpath
+                                  (let-body-stxes expr-stx head)
+                                  caller)))
+;; : (-> Relpath ExprStx Head Datum String (List ExprStx) (List HigherOrderFact) )
+(def (higher-order-head-with-body-facts relpath expr-stx head datum caller body)
+  (cons (higher-order-fact-from-stx relpath expr-stx head datum caller)
+        (higher-order-facts-from-stxes relpath body caller)))
+;; : (-> Relpath ExprStx Head Datum String (List ExprStx) (List HigherOrderFact) )
+(def (higher-order-default-facts relpath expr-stx head datum caller items)
+  (append
+   (maybe-higher-order-head-fact relpath expr-stx head datum caller)
+   (higher-order-facts-from-stxes relpath (cdr items) caller)))
 ;;; Boundary:
 ;;; - higher-order-facts-from-stx coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
@@ -60,54 +99,23 @@
       (cond
        ((not (symbol? head))
         (higher-order-facts-from-stxes relpath items caller))
-       ((member head '(quote quasiquote syntax quote-syntax))
-        '())
-       ((metadata-head? head)
+       ((ignored-higher-order-head? head)
         '())
        ((member head +definition-heads+)
-        (cond
-         ((member head +macro-definition-heads+) '())
-         ((member head '(defclass .defclass defgeneric .defgeneric)) '())
-         (else
-          (let (body-facts
-                (higher-order-facts-from-stxes relpath
-                                               (stx-form-body-items expr-stx datum)
-                                               (or (form-caller-name datum) caller)))
-            (if (member head +higher-order-heads+)
-              (cons (higher-order-fact-from-stx relpath expr-stx head datum caller)
-                    body-facts)
-              body-facts)))))
+        (higher-order-definition-facts relpath expr-stx head datum caller))
        ((let-head? head)
-        (append
-         (higher-order-facts-from-let-binding-stxes relpath
-                                                   (let-binding-stxes expr-stx head)
-                                                   caller)
-         (higher-order-facts-from-stxes relpath
-                                        (let-body-stxes expr-stx head)
-                                        caller)))
+        (higher-order-let-facts relpath expr-stx head caller))
        ((eq? head 'lambda)
-        (cons (higher-order-fact-from-stx relpath expr-stx head datum caller)
-              (higher-order-facts-from-stxes relpath
-                                             (lambda-body-stxes expr-stx)
-                                             caller)))
+        (higher-order-head-with-body-facts relpath expr-stx head datum caller
+                                           (lambda-body-stxes expr-stx)))
        ((eq? head 'case-lambda)
-        (cons (higher-order-fact-from-stx relpath expr-stx head datum caller)
-              (higher-order-facts-from-stxes relpath
-                                             (case-lambda-body-stxes expr-stx)
-                                             caller)))
+        (higher-order-head-with-body-facts relpath expr-stx head datum caller
+                                           (case-lambda-body-stxes expr-stx)))
        ((eq? head 'match)
-        (cons (higher-order-fact-from-stx relpath expr-stx head datum caller)
-              (higher-order-facts-from-stxes relpath
-                                             (match-body-stxes expr-stx)
-                                             caller)))
-       ((member head '(syntax-case syntax-rules identifier-rules))
-        '())
+        (higher-order-head-with-body-facts relpath expr-stx head datum caller
+                                           (match-body-stxes expr-stx)))
        (else
-        (append
-         (if (member head +higher-order-heads+)
-           [(higher-order-fact-from-stx relpath expr-stx head datum caller)]
-           '())
-         (higher-order-facts-from-stxes relpath (cdr items) caller)))))))
+        (higher-order-default-facts relpath expr-stx head datum caller items))))))
 ;;; Boundary:
 ;;; - higher-order-facts-from-let-binding-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

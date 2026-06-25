@@ -303,6 +303,50 @@
 (def (optional-alias-env maybe-env)
   (if (pair? maybe-env) (car maybe-env) (make-type-alias-env)))
 
+;; : (-> Boolean TypeValidationDiagnostic (List TypeValidationDiagnostic) )
+(def (type-diagnostic-when condition diagnostic)
+  (if condition [diagnostic] []))
+;; : (-> TypeSpec TypeAliasEnv (List TypeValidationDiagnostic) )
+(def (values-type-diagnostics type env)
+  (append
+   (type-diagnostic-when
+    (not (pair? (type-values-members type)))
+    (type-diagnostic "values-requires-at-least-one-value" [] "arity" ""))
+   (children-type-diagnostics "values-member"
+                              (type-values-members type)
+                              env)))
+;; : (-> TypeSpec TypeAliasEnv (List TypeValidationDiagnostic) )
+(def (refine-type-diagnostics type env)
+  (append
+   (type-diagnostic-when
+    (equal? (type-refine-predicate type) "unknown")
+    (type-diagnostic "refine-requires-predicate" [] "arity" ""))
+   (child-type-diagnostics "refine-base"
+                           (type-refine-base type)
+                           env)))
+;; : (-> TypeSpec TypeAliasEnv (List TypeValidationDiagnostic) )
+(def (function-variadic-type-diagnostics type env)
+  (append
+   (type-diagnostic-when
+    (not (and (integer? (type-function-variadic-min-arity type))
+              (>= (type-function-variadic-min-arity type) 0)))
+    (type-diagnostic "function-variadic-min-arity-invalid" [] "arity" ""))
+   (child-type-diagnostics "function-variadic-parameter"
+                           (type-function-variadic-param type)
+                           env)
+   (child-type-diagnostics "function-variadic-result"
+                           (type-result type)
+                           env)))
+;; : (-> TypeSpec TypeAliasEnv (List TypeValidationDiagnostic) )
+(def (union-type-diagnostics type env)
+  (append
+   (type-diagnostic-when
+    (not (pair? (type-union-members type)))
+    (type-diagnostic "union-requires-at-least-one-member" [] "arity" ""))
+   (children-type-diagnostics "union-member"
+                              (type-union-members type)
+                              env)))
+
 ;;; Validation dispatcher boundary: every TypeSpec variant delegates to the
 ;;; smallest helper that owns that shape's invariant.
 ;; : (-> TypeSpec TypeAliasEnv (List TypeValidationDiagnostic))
@@ -325,22 +369,9 @@
      (append (child-type-diagnostics "hash-key" (type-hash-key type) env)
              (child-type-diagnostics "hash-value" (type-hash-value type) env)))
     ((values)
-     (append (if (pair? (type-values-members type))
-               []
-               [(type-diagnostic "values-requires-at-least-one-value"
-                                 []
-                                 "arity"
-                                 "")])
-             (children-type-diagnostics "values-member"
-                                        (type-values-members type)
-                                        env)))
+     (values-type-diagnostics type env))
     ((refine)
-     (append (if (equal? (type-refine-predicate type) "unknown")
-               [(type-diagnostic "refine-requires-predicate" [] "arity" "")]
-               [])
-             (child-type-diagnostics "refine-base"
-                                     (type-refine-base type)
-                                     env)))
+     (refine-type-diagnostics type env))
     ((application)
      (append (application-arity-diagnostics type env)
              (children-type-diagnostics "application-parameter"
@@ -358,29 +389,9 @@
                              (type-keyword-parameter-type type)
                              env))
     ((function-variadic)
-     (append (if (and (integer? (type-function-variadic-min-arity type))
-                      (>= (type-function-variadic-min-arity type) 0))
-               []
-               [(type-diagnostic "function-variadic-min-arity-invalid"
-                                 []
-                                 "arity"
-                                 "")])
-             (child-type-diagnostics "function-variadic-parameter"
-                                     (type-function-variadic-param type)
-                                     env)
-             (child-type-diagnostics "function-variadic-result"
-                                     (type-result type)
-                                     env)))
+     (function-variadic-type-diagnostics type env))
     ((union)
-     (append (if (pair? (type-union-members type))
-               []
-               [(type-diagnostic "union-requires-at-least-one-member"
-                                 []
-                                 "arity"
-                                 "")])
-             (children-type-diagnostics "union-member"
-                                        (type-union-members type)
-                                        env)))
+     (union-type-diagnostics type env))
     ((record)
      (append (record-field-diagnostics (type-record-fields type) env)
              (record-required-diagnostics

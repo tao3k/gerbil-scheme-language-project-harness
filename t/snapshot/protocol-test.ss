@@ -2,7 +2,7 @@
 ;;; Protocol snapshot checks.
 
 (import :std/test
-        :unit/snapshot/extension
+        :unit/snapshot/extension-test
         :unit/snapshot/runtime-source
         :unit/snapshot/language-evidence
         :unit/snapshot/compare)
@@ -40,4 +40,3 @@
       (check-compare-snapshot-fields))
     (test-case "compare snapshot fixtures cover active documented runtime"
       (check-compare-snapshot-fixtures))))
-

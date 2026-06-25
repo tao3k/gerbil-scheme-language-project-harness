@@ -80,6 +80,45 @@
   (apply append
          (map (cut control-flow-facts-from-stx relpath <> caller)
               exprs)))
+;; : (-> Head Boolean )
+(def (ignored-control-flow-head? head)
+  (or (member head '(quote quasiquote syntax quote-syntax))
+      (metadata-head? head)
+      (eq? head 'begin-syntax)
+      (member head '(syntax-case syntax-rules identifier-rules))))
+;; : (-> Relpath ExprStx Datum String (List ControlFlowFact) )
+(def (control-flow-definition-facts relpath expr-stx datum caller)
+  (let (head (car datum))
+    (cond
+     ((member head +macro-definition-heads+) '())
+     ((member head '(defclass .defclass defgeneric .defgeneric)) '())
+     (else
+      (control-flow-facts-from-stxes relpath
+                                     (stx-form-body-items expr-stx datum)
+                                     (or (form-caller-name datum) caller))))))
+;; : (-> Relpath ExprStx Head String (List ControlFlowFact) )
+(def (named-let-control-flow-facts relpath expr-stx head caller)
+  (if (named-let-stx? expr-stx head)
+    [(named-let-control-flow-fact relpath expr-stx caller)]
+    '()))
+;; : (-> Relpath ExprStx Head String (List ControlFlowFact) )
+(def (let-control-flow-facts relpath expr-stx head caller)
+  (append
+   (named-let-control-flow-facts relpath expr-stx head caller)
+   (control-flow-facts-from-let-binding-stxes relpath
+                                             (let-binding-stxes expr-stx head)
+                                             caller)
+   (control-flow-facts-from-stxes relpath
+                                  (let-body-stxes expr-stx head)
+                                  caller)))
+;; : (-> Relpath ExprStx Head String (List ExprStx) (List ControlFlowFact) )
+(def (generic-head-control-flow-facts relpath expr-stx head caller items)
+  (cons (generic-control-flow-fact relpath expr-stx head caller)
+        (control-flow-facts-from-stxes relpath (cdr items) caller)))
+;; : (-> Relpath ExprStx String (List ControlFlowFact) )
+(def (match-control-flow-facts relpath expr-stx caller)
+  (cons (match-control-flow-fact relpath expr-stx caller)
+        (control-flow-facts-from-stxes relpath (match-body-stxes expr-stx) caller)))
 ;;; Boundary:
 ;;; - control-flow-facts-from-stx coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
@@ -94,39 +133,16 @@
       (cond
        ((not (symbol? head))
         (control-flow-facts-from-stxes relpath items caller))
-       ((member head '(quote quasiquote syntax quote-syntax))
-        '())
-       ((metadata-head? head)
-        '())
-       ((eq? head 'begin-syntax)
+       ((ignored-control-flow-head? head)
         '())
        ((member head +definition-heads+)
-        (cond
-         ((member head +macro-definition-heads+) '())
-         ((member head '(defclass .defclass defgeneric .defgeneric)) '())
-         (else
-          (control-flow-facts-from-stxes relpath
-                                         (stx-form-body-items expr-stx datum)
-                                         (or (form-caller-name datum) caller)))))
+        (control-flow-definition-facts relpath expr-stx datum caller))
        ((let-head? head)
-        (append
-         (if (named-let-stx? expr-stx head)
-           [(named-let-control-flow-fact relpath expr-stx caller)]
-           '())
-         (control-flow-facts-from-let-binding-stxes relpath
-                                                   (let-binding-stxes expr-stx head)
-                                                   caller)
-         (control-flow-facts-from-stxes relpath
-                                        (let-body-stxes expr-stx head)
-                                        caller)))
+        (let-control-flow-facts relpath expr-stx head caller))
        ((control-flow-head? head)
-        (cons (generic-control-flow-fact relpath expr-stx head caller)
-              (control-flow-facts-from-stxes relpath (cdr items) caller)))
+        (generic-head-control-flow-facts relpath expr-stx head caller items))
        ((eq? head 'match)
-        (cons (match-control-flow-fact relpath expr-stx caller)
-              (control-flow-facts-from-stxes relpath (match-body-stxes expr-stx) caller)))
-       ((member head '(syntax-case syntax-rules identifier-rules))
-        '())
+        (match-control-flow-facts relpath expr-stx caller))
        (else
         (control-flow-facts-from-stxes relpath (cdr items) caller))))))
 ;; control-flow-facts-from-let-binding-stxes

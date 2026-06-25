@@ -78,21 +78,24 @@
 ;;       ```
 ;;     %
 (def (bench-step name iterations thunk)
-  (let loop ((remaining iterations)
-             (elapsed-ms 0))
-    (if (fxzero? remaining)
-      (hash (name name)
-            (iterations iterations)
-            (durationMs elapsed-ms)
-            (averageMicros (average-duration-micros elapsed-ms iterations))
-            (averageMs (average-duration-ms elapsed-ms iterations)))
-      (begin
-        (stabilize-bench-runtime!)
-        (let (start (monotonic-ms))
-          (thunk)
-          (loop (fx1- remaining)
-                (+ elapsed-ms
-                   (duration-ms start (monotonic-ms)))))))))
+  (let (elapsed-ms (bench-total-duration-ms iterations thunk))
+    (hash (name name)
+          (iterations iterations)
+          (durationMs elapsed-ms)
+          (averageMicros (average-duration-micros elapsed-ms iterations))
+          (averageMs (average-duration-ms elapsed-ms iterations)))))
+;; : (-> Integer Thunk Integer)
+(def (bench-total-duration-ms iterations thunk)
+  (foldl (lambda (_ elapsed-ms)
+           (+ elapsed-ms (bench-iteration-duration-ms thunk)))
+         0
+         (make-list iterations #!void)))
+;; : (-> Thunk Integer)
+(def (bench-iteration-duration-ms thunk)
+  (stabilize-bench-runtime!)
+  (let (start (monotonic-ms))
+    (thunk)
+    (duration-ms start (monotonic-ms))))
 ;; : (-> Thunk Void)
 (def (bench-silenced thunk)
   (let (value #!void)
@@ -208,12 +211,24 @@
              best))
          (car benchmarks)
          (cdr benchmarks)))
-;; : (-> Hash Symbol Any Any)
+;; : (-> Hash Key Datum Datum)
 (def (hash-get/default table key default)
   (if (hash-key? table key)
     (hash-get table key)
     default))
-;; : (-> CollectProfile String (U #f Hash))
+;; collect-profile-phase
+;;   : (-> CollectProfile String (U #f Hash))
+;;   | doc m%
+;;       `collect-profile-phase collect-profile name` returns the first
+;;       aggregate profile phase with the requested name.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (collect-profile-phase profile "parse-source-files")
+;;       ;; => phase hash or #f
+;;       ```
+;;     %
 (def (collect-profile-phase collect-profile name)
   (let loop ((rest (hash-get/default collect-profile 'phases '())))
     (match rest
@@ -270,7 +285,20 @@
                     (exceededByMs (- duration-ms max-file-ms))))))
      (hash-get/default collect-profile 'slowestFiles '()))
     '()))
-;; : (-> CollectProfile MaxPhaseMs (List TypeFinding))
+;; bench-phase-findings
+;;   : (-> CollectProfile MaxPhaseMs (List TypeFinding))
+;;   | doc m%
+;;       `bench-phase-findings collect-profile max-phase-ms` returns threshold
+;;       findings for parse phases whose measured duration exceeds the phase
+;;       budget.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (bench-phase-findings profile 50)
+;;       ;; => phase threshold findings
+;;       ```
+;;     %
 (def (bench-phase-findings collect-profile max-phase-ms)
   (if (and collect-profile max-phase-ms)
     (let loop-files ((files (hash-get/default collect-profile 'slowestFiles '()))

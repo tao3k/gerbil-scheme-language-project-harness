@@ -297,28 +297,33 @@
                          (string-join
                           (owner-package-agent-disabled-rules form) ",")))))))
 
+;; : (-> Boolean (List String) (List String) )
+(def (owner-package-policy-key-group enabled? keys)
+  (if enabled? keys '()))
+;; : (-> PackageForm (List String) )
+(def (owner-package-policy-query-key-groups form)
+  [(owner-package-policy-key-group
+    (package-test-directory-policy form)
+    ["test-directory" "test-directories" "allowed-test-directories"])
+   (owner-package-policy-key-group
+    (package-macro-governance-policy form)
+    ["macro-governance" "allow-generated"])
+   (owner-package-policy-key-group
+    (package-source-scope-policy form)
+    ["source-scope" "source-roots" "runtime-roots" "exclude-directories"])
+   (owner-package-policy-key-group
+    (package-agent-policy form)
+    ["agent-policy" "disabled-rules"])])
 ;; : (-> PackageForm (List String) )
 (def (owner-package-policy-query-keys form)
-  (append
-   (if (package-test-directory-policy form)
-     ["test-directory" "test-directories"
-      "allowed-test-directories"]
-     '())
-   (if (package-macro-governance-policy form)
-     ["macro-governance" "allow-generated"]
-     '())
-   (if (package-source-scope-policy form)
-     ["source-scope" "source-roots" "runtime-roots"
-      "exclude-directories"]
-     '())
-   (if (package-agent-policy form)
-     ["agent-policy" "disabled-rules"]
-     '())
-   (owner-package-test-directories form)
-   (owner-package-source-roots form)
-   (owner-package-runtime-roots form)
-   (owner-package-exclude-directories form)
-   (owner-package-agent-disabled-rules form)))
+  (apply append
+         (append
+          (owner-package-policy-query-key-groups form)
+          [(owner-package-test-directories form)
+           (owner-package-source-roots form)
+           (owner-package-runtime-roots form)
+           (owner-package-exclude-directories form)
+           (owner-package-agent-disabled-rules form)])))
 
 ;; : (-> PackageForm MaybeString )
 (def (owner-package-form-name form)

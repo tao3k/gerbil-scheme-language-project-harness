@@ -2,7 +2,8 @@
 ;;; Shared parser support helpers for Gerbil syntax facts.
 
 (import :gerbil/expander
-        :gerbil/gambit)
+        :gerbil/gambit
+        (only-in :std/sugar cut match ormap))
 
 (export flatten
         flatten-with-pairs
@@ -59,21 +60,8 @@
     (reverse out)))
 ;; : (-> Obj Symbol Boolean )
 (def (tree-contains-symbol? obj symbol)
-  (let ((todo (list obj))
-        (found? #f))
-    (while (and (not found?) (pair? todo))
-      (let ((item (car todo))
-            (rest (cdr todo)))
-        (cond
-         ((null? item)
-          (set! todo rest))
-         ((pair? item)
-          (set! todo (cons (car item) (cons (cdr item) rest))))
-         (else
-          (when (eq? item symbol)
-            (set! found? #t))
-          (set! todo rest)))))
-    found?))
+  (ormap (cut eq? <> symbol)
+         (flatten obj)))
 ;; datum-list-items
 ;;   : (-> Obj (List Obj))
 ;;   | doc m%
@@ -116,7 +104,9 @@
 ;;       ```
 ;;     %
 (def (list-safe-cadr items)
-  (and (pair? items) (pair? (cdr items)) (cadr items)))
+  (match items
+    ([_ second . _] second)
+    (else #f)))
 ;; list-safe-caddr
 ;;   : (forall (a) (-> (List a) (U #f a)))
 ;;   | doc m%
@@ -131,7 +121,9 @@
 ;;       ```
 ;;     %
 (def (list-safe-caddr items)
-  (and (pair? items) (pair? (cdr items)) (pair? (cddr items)) (caddr items)))
+  (match items
+    ([_ _ third . _] third)
+    (else #f)))
 ;; : (-> Head Boolean )
 (def (metadata-head? head)
   (member head '(package package: prelude: namespace: import export include)))
@@ -158,10 +150,14 @@
     (cdr rest)))
 ;; : (-> Obj SafeCadr )
 (def (safe-cadr obj)
-  (and (pair? obj) (pair? (cdr obj)) (cadr obj)))
+  (match obj
+    ([_ second . _] second)
+    (else #f)))
 ;; : (-> Obj SafeCaddr )
 (def (safe-caddr obj)
-  (and (pair? obj) (pair? (cdr obj)) (pair? (cddr obj)) (caddr obj)))
+  (match obj
+    ([_ _ third . _] third)
+    (else #f)))
 ;; : (-> Obj SafeCdr )
 (def (safe-cdr obj)
   (if (pair? obj) (cdr obj) '()))

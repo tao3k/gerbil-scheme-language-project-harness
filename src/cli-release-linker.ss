@@ -16,6 +16,7 @@
 ;;; - The launcher keeps cold commands behind load-module.
 ;;; - This module exists only as the compile-exe root so the release binary
 ;;;   links the cold command modules into Gerbil's static module table.
+;; : (List CommandMain)
 (def release-command-mains
   [search-main
    query-main
@@ -25,5 +26,6 @@
    guide-main
    info-main])
 
+;; : (-> Args Integer)
 (def (main . args)
   (apply cli-main args))

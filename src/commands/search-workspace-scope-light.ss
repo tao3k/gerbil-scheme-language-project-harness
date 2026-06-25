@@ -55,6 +55,21 @@
 ;;; Packet rendering boundary:
 ;;; - Workspace-scope output is a compact package/source-policy receipt.
 ;;; - Source indexing and dependency graph expansion remain ASP-owned.
+;; : (-> MaybePackage String )
+(def (workspace-scope-status package)
+  (if package "ready" "missing-anchor"))
+;; : (-> MaybePackage Path )
+(def (workspace-scope-package-path package)
+  (if package (project-package-path package) "missing"))
+;; : (-> MaybePackage String )
+(def (workspace-scope-package-manager package)
+  (if package (project-package-manager package) "gxpkg"))
+;; : (-> MaybePackage String )
+(def (workspace-scope-package-name package)
+  (or (and package (project-package-name package)) "-"))
+;; : (-> SourceClass SourceKind )
+(def (workspace-scope-source-kind source-class)
+  (if (equal? source-class "config") "config" "source"))
 ;; : (-> Root MaybePackage (List Path) Unit )
 (def (emit-workspace-scope-lines-light root package files)
   (let* ((policy (and package
@@ -63,15 +78,15 @@
          (runtime-roots (workspace-runtime-roots policy))
          (scope-included-dirs (workspace-scope-included-dirs source-roots
                                                              runtime-roots))
-         (status (if package "ready" "missing-anchor")))
+         (status (workspace-scope-status package)))
     (displayln "[gerbil-workspace-scope] root=" root
                " status=" status
                " filePreview=" (length files)
                " scopeOwner=" +provider-id+
                " indexOwner=asp-rust-sql-source-index")
-    (displayln "|anchor path=" (if package (project-package-path package) "missing")
-               " packageManager=" (if package (project-package-manager package) "gxpkg")
-               " packageName=" (or (and package (project-package-name package)) "-"))
+    (displayln "|anchor path=" (workspace-scope-package-path package)
+               " packageManager=" (workspace-scope-package-manager package)
+               " packageName=" (workspace-scope-package-name package))
     (displayln "|coverage configFiles=" (join-or-dash +workspace-scope-config-files+)
                " sourceExtensions=" (join-or-dash +workspace-scope-source-extensions+)
                " sourceRoots=" (join-or-dash source-roots)
@@ -83,9 +98,7 @@
               (source-class (source-path-class owner)))
          (displayln "|file path=" owner
                     " sourceClass=" source-class
-                    " sourceKind=" (if (equal? source-class "config")
-                                      "config"
-                                      "source"))))
+                    " sourceKind=" (workspace-scope-source-kind source-class))))
      (take-up-to files 24))
     (displayln "nextCommand=asp cache source-index refresh")))
 
