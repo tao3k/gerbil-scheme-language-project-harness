@@ -187,6 +187,11 @@
   (list (list 'kind (hash-get details 'kind))
         (list 'caller (hash-get details 'caller))
         (list 'advice (hash-get details 'advice))
+        (list 'basicSyntaxSmells (hash-get details 'basicSyntaxSmells))
+        (list 'nativeRepairContract
+              (hash-get details 'nativeRepairContract))
+        (list 'designFeaturePriority
+              (hash-get details 'designFeaturePriority))
         (list 'sequenceIdioms (hash-get details 'sequenceIdioms))
         (list 'predicateIdioms (hash-get details 'predicateIdioms))
         (list 'compositionIdioms (hash-get details 'compositionIdioms))

@@ -30,6 +30,8 @@
   "gerbil-utils/base.ss#lambda-match")
  (expectedQualitySignals
   "list-combinator-boundary"
+  "basic-syntax-scaffold"
+  "gerbil-gambit-native-repair-contract"
   "manual-loop-drift"
   "pure-loop-driver-combinator-boundary"
   "fold-reducer-boundary"
@@ -38,6 +40,6 @@
   "lambda-match-destructuring")
  (learnedStyleSources "gerbil://" "gerbil-utils")
  (antiAiScaffoldIntent . "reject hand-written traversal and anonymous destructuring when fold, cut/curry pipeline, or lambda-match exposes the data flow")
- (scenarioQualityAxes "functional-idiom" "loop-driver-combinator-boundary" "anti-ai-scaffold")
+ (scenarioQualityAxes "functional-idiom" "gerbil-gambit-native-idiom" "loop-driver-combinator-boundary" "anti-ai-scaffold")
  (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
- (tags "style" "functional" "fold" "pipeline" "lambda-match" "anti-scaffold"))
+ (tags "style" "functional" "gerbil-idiom" "gambit-control" "fold" "pipeline" "lambda-match" "anti-scaffold"))
