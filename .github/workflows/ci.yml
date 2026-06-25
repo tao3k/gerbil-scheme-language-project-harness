@@ -180,16 +180,16 @@ jobs:
             nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2
           }
           GERBIL_BUILD_CORES="$(build_cores)" gxpkg env ./build.ss compile --release --optimized
-          test -x .gerbil/bin/gslph
+          test -x .bin/gslph
 
       - name: Smoke canonical search subcommands
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          .gerbil/bin/gslph search prime --view seeds --workspace . | tee /tmp/gslph-prime.txt
+          .bin/gslph search prime --view seeds --workspace . | tee /tmp/gslph-prime.txt
           grep -q 'filePreview=' /tmp/gslph-prime.txt
-          .gerbil/bin/gslph search workspace-scope --workspace . | tee /tmp/gslph-workspace-scope.txt
+          .bin/gslph search workspace-scope --workspace . | tee /tmp/gslph-workspace-scope.txt
           grep -q 'filePreview=' /tmp/gslph-workspace-scope.txt
 
       - name: Run harness check
@@ -197,7 +197,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          .gerbil/bin/gslph check --full .
+          .bin/gslph check --full .
 
       - name: Run harness verification bench
         if: runner.os == 'Linux'
@@ -206,7 +206,7 @@ jobs:
           set -euo pipefail
           max_total_ms=60000
           bench_output="$(mktemp)"
-          if ! .gerbil/bin/gslph bench --json --iterations 1 --max-total-ms "$max_total_ms" --max-interface-ms 500 . > "$bench_output"; then
+          if ! .bin/gslph bench --json --iterations 1 --max-total-ms "$max_total_ms" --max-interface-ms 500 . > "$bench_output"; then
             cat "$bench_output"
             exit 1
           fi
@@ -229,7 +229,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          .gerbil/bin/gslph search prime --json . \
+          .bin/gslph search prime --json . \
             | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
             .extensions[0].name == "poo" and
