@@ -32,7 +32,10 @@
      ((not (string? file))
       (error "make-current-file-policy-test requires a file-backed source location"))
      (else
-      (datum->syntax (stx-car stx) `(make-file-policy-test ,root ,file))))))
+      (datum->syntax (stx-car stx)
+                     `(gslph/src/policy/gxtest#make-file-policy-test
+                       ,root
+                       ,file))))))
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.
