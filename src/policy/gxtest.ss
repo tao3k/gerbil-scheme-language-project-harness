@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Tiny gxtest adapter for downstream packages that depend on this harness.
 
-(import :constants
+(import :gerbil/gambit
+        :constants
         (for-syntax :gerbil/expander
                     :std/stxutil)
         :parser/facade
@@ -21,6 +22,24 @@
         project-policy-report
         display-project-policy-report)
 
+;;; Macro boundary:
+;;; - The expansion captures the source file that owns the shared policy test.
+;;; - Build/test integration passes the actual test entry scope through
+;;;   `policy-report`; this macro remains a file-local convenience, not a
+;;;   runtime argument inference bridge.
+;; make-current-file-policy-test
+;;   : (-> Syntax Syntax)
+;;   | doc m%
+;;       Expand into a file-scoped policy test rooted at the supplied project
+;;       root.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (make-current-file-policy-test ".")
+;;       ;; => gxtest policy test for the current file
+;;       ```
+;;     %
 (defsyntax (make-current-file-policy-test stx)
   (let* ((form (syntax->datum stx))
          (root (and (pair? (cdr form)) (cadr form)))
@@ -39,8 +58,8 @@
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.
-;;; - The caller supplies the gxtest target files, so policy execution follows
-;;;   the test runner scope instead of scanning the whole project.
+;;; - The caller supplies target files explicitly; build/test owners should pass
+;;;   their internal test scope here instead of relying on process argv.
 ;; : (-> Root (List Path) TestSuite )
 (def (make-policy-test root files)
   (test-suite "gerbil scheme scoped policy"
@@ -68,7 +87,7 @@
 
 ;; : (-> Root (List Path) (List TypeFinding) )
 (def (policy-findings root files)
-  (run-policy-checks (collect-source-scope root files)))
+  (run-policy-checks (collect-test-source-scope root files)))
 
 ;; : (-> Root (List Path) String )
 (def (policy-status root files)
@@ -80,7 +99,7 @@
 ;;;   parses files supplied by the test runner.
 ;; : (-> Root (List Path) Json )
 (def (policy-report root files)
-  (let* ((index (collect-source-scope root files))
+  (let* ((index (collect-test-source-scope root files))
          (findings (run-policy-checks index)))
     (project-policy-report-json index findings "files" files)))
 

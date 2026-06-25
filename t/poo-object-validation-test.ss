@@ -94,5 +94,3 @@
         (check-equal? (receipt-ref validation 'valid) #t)
         (check-equal? (length (receipt-ref field-contracts 'fieldValidations))
                       1)))))
-
-(run-tests! poo-object-validation-test)

@@ -5,6 +5,8 @@
         (only-in :std/misc/path directory-files path-directory path-expand path-normalize)
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
+        (only-in :clan/building all-gerbil-modules)
+        "../src/build-api/source-coverage"
         :gerbil/gambit
         (only-in :gerbil/compiler/base __available-cores)
         (only-in :gerbil/compiler/driver compile-exe)
@@ -15,6 +17,9 @@
         cli-binary-build-spec
         configure-build-root!
         dev-launcher-binpath
+        gxtest-policy-warning-files
+        gxtest-test-spec
+        gxtest-test-files
         install-launcher-binpath
         test-target
         package-build-spec)
@@ -22,15 +27,80 @@
 (def package-root #f)
 (def source-root #f)
 (def test-root #f)
+(def package-name #f)
 
+;; : (-> String Void)
 (def (configure-build-root! root)
   (set! package-root (path-normalize root))
   (set! source-root (path-expand "src" package-root))
-  (set! test-root (path-expand "t" package-root)))
+  (set! test-root (path-expand "t" package-root))
+  (set! package-name (read-build-package-name package-root)))
 
+;; : (-> Void)
 (def (ensure-build-root!)
   (unless package-root
     (configure-build-root! (current-directory))))
+
+;; : (-> Path MaybeString)
+(def (read-build-package-name root)
+  (let* ((package-file (path-expand "gerbil.pkg" root))
+         (plist (with-catch
+                 (lambda (_) #f)
+                 (lambda () (call-with-input-file package-file read))))
+         (name (and plist (plist-ref plist 'package: #f))))
+    (cond
+     ((symbol? name) (symbol->string name))
+     ((string? name) name)
+     (else #f))))
+
+;; : (-> List Symbol Datum Datum)
+(def (plist-ref plist key default)
+  (let lp ((rest plist))
+    (if (and (pair? rest) (pair? (cdr rest)))
+      (if (eq? (car rest) key)
+        (cadr rest)
+        (lp (cddr rest)))
+      default)))
+
+;; : (-> String String)
+(def (package-output-prefix root-name)
+  (ensure-build-root!)
+  (unless package-name
+    (error "gerbil.pkg must declare package: for build output prefix"))
+  (string-append package-name "/" root-name))
+
+;; : (-> String)
+(def (package-root-output-prefix)
+  (ensure-build-root!)
+  (unless package-name
+    (error "gerbil.pkg must declare package: for build output prefix"))
+  package-name)
+
+;; : (-> String)
+(def (source-output-prefix)
+  (package-output-prefix "src"))
+
+;; : (-> String)
+(def (test-output-prefix)
+  (package-output-prefix "t"))
+
+;; : (-> (List Path))
+(def (gxtest-test-files)
+  (top-level-test-files))
+
+;; : (-> (List Path))
+(def (gxtest-policy-warning-files)
+  (source-coverage-policy-files))
+
+;; : (-> (List ModulePath))
+(def (gxtest-test-spec)
+  (map gxtest-test-module-path (gxtest-test-files)))
+
+;; : (-> Path ModulePath)
+(def (gxtest-test-module-path path)
+  (if (string-prefix? "t/" path)
+    (substring path 2 (string-length path))
+    path))
 
 (def excluded-library-files
   '("cli.ss"))
@@ -61,69 +131,123 @@
 (def +library-excluded-dirs+
   '("search-fast"))
 
+(def +default-excluded-dirs+
+  '("run" "t" ".git" "_darcs" ".gerbil"))
+
 (def +test-support-dirs+
   '("unit" "snapshot" "policy"))
 
 (def +test-support-warning-rules+
   '("GERBIL-SCHEME-MOD-R007"))
 
+;; : (-> (List BuildSpec))
 (def (cli-binary-spec)
   (append cli-bootstrap-modules cli-spec))
 
+;; : (-> ModulePath Boolean)
 (def (runtime-library-module? module)
   (not (member module excluded-library-files)))
 
+;; : (-> ModulePath Boolean)
 (def (library-module? module)
   (runtime-library-module? module))
 
+;; : (-> (List BuildSpec))
 (def (library-spec)
   (filter library-module? (all-package-gerbil-modules)))
 
+;; : (-> (List BuildSpec))
 (def (runtime-library-spec)
   (filter runtime-library-module? (all-package-gerbil-modules)))
 
+;; : (-> (List BuildSpec))
 (def (test-support-spec)
   (apply append
          (map (lambda (rel-root)
-                (collect-gerbil-module-tree
+                (gerbil-modules-in-directory
                  (path-expand rel-root test-root)
                  rel-root))
               +test-support-dirs+)))
 
+;; : (-> (List BuildSpec))
+(def (build-support-spec)
+  '("build-support/gslph-build.ss"))
+
+;; : (-> (List ModulePath))
 (def (all-package-gerbil-modules)
-  (collect-gerbil-module-tree source-root ""))
+  (apply append
+         (map runtime-root-gerbil-modules
+              (gslph-source-coverage-runtime-roots))))
 
-(def (collect-gerbil-module-tree root rel-root)
-  (let (result '())
-    (def (walk dir rel)
-      (for-each
-       (lambda (entry)
-         (unless (member entry '("." ".."))
-           (let* ((path (path-expand entry dir))
-                  (relpath (if (string=? rel "")
-                             entry
-                             (string-append rel "/" entry))))
-             (cond
-              ((and (source-directory? path)
-                    (not (member entry +library-excluded-dirs+)))
-               (walk path relpath))
-              ((string-suffix? ".ss" entry)
-               (set! result (cons relpath result)))
-              (else #!void)))))
-       (sort (directory-files dir) string<?)))
-    (when (source-directory? root)
-      (walk root rel-root))
-    (reverse result)))
+;; : (-> Path (List ModulePath))
+(def (runtime-root-gerbil-modules root)
+  (cond
+   ((string=? root "src")
+    (gerbil-modules-in-directory source-root ""))
+   (else
+    [])))
 
+;; : (-> (List Path))
+(def (source-coverage-policy-files)
+  (apply append
+         (map source-coverage-root-policy-files
+              (gslph-source-coverage-roots))))
+
+;; : (-> Path (List Path))
+(def (source-coverage-root-policy-files root)
+  (gerbil-modules-under-root root))
+
+;; : (-> (List String))
+(def (coverage-excluded-directories)
+  (append +default-excluded-dirs+
+          +library-excluded-dirs+
+          (gslph-source-coverage-exclude-directories)))
+
+;; : (-> Path (List ModulePath))
+(def (gerbil-modules-under-root root)
+  (ensure-build-root!)
+  (let* ((directory (path-expand root package-root))
+         (prefix (root-module-prefix root)))
+    (gerbil-modules-in-directory directory prefix)))
+
+;; : (-> Path String (List ModulePath))
+(def (gerbil-modules-in-directory directory prefix)
+  (with-directory directory
+    (lambda ()
+      (map (lambda (path)
+             (if (string=? prefix "")
+               path
+               (string-append prefix "/" path)))
+           (all-gerbil-modules
+            exclude-dirs: (coverage-excluded-directories))))))
+
+;; : (-> Path String)
+(def (root-module-prefix root)
+  (if (or (string=? root "")
+          (string=? root "."))
+    ""
+    root))
+
+;; : (-> Path (-> a) a)
+(def (with-directory directory thunk)
+  (let (previous (current-directory))
+    (dynamic-wind
+      (lambda () (current-directory directory))
+      thunk
+      (lambda () (current-directory previous)))))
+
+;; : (-> (List BuildSpec))
 (def (package-build-spec)
   (ensure-build-root!)
   (append (runtime-library-spec) cli-spec))
 
+;; : (-> Boolean (List BuildSpec))
 (def (build-spec release?)
   (if release?
     (cli-binary-spec)
     (library-spec)))
 
+;; : (-> Boolean Boolean Boolean (List BuildSpec))
 (def (compile-spec full? release? binary?)
   (ensure-build-root!)
   (cond
@@ -132,6 +256,7 @@
    (binary? (cli-binary-spec))
    (else cli-bootstrap-modules)))
 
+;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Boolean Void)
 (def (compile-target verbose debug no-optimize optimized release full binary)
   (ensure-build-root!)
   (current-directory package-root)
@@ -152,6 +277,7 @@
                    worker-count))
     #!void))
 
+;; : (-> Boolean Boolean Boolean Boolean Boolean Void)
 (def (install-target verbose debug no-optimize optimized release)
   (ensure-build-root!)
   (current-directory package-root)
@@ -165,6 +291,7 @@
                         worker-count)
     #!void))
 
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Integer Path)
 (def (compile-cli-binary binpath verbose debug build-optimize?
                          release? effective-release? effective-optimized?
                          worker-count)
@@ -174,11 +301,13 @@
                worker-count)
   (compile-cli-launcher-exe binpath verbose debug))
 
+;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-build-spec release?)
   (if release?
     (runtime-library-spec)
     cli-bootstrap-modules))
 
+;; : (-> Path Boolean Boolean Path)
 (def (compile-cli-launcher-exe binpath verbose debug)
   (let (bindir (path-directory binpath))
     (ensure-directory! bindir)
@@ -192,16 +321,20 @@
                   parallel: #f])
     binpath))
 
+;; : (-> Path)
 (def (dev-launcher-binpath)
   (path-expand ".bin/gslph" package-root))
 
+;; : (-> Path)
 (def (install-launcher-binpath)
   (path-expand ".local/bin/gslph" (user-home-directory)))
 
+;; : (-> Path)
 (def (user-home-directory)
   (or (getenv "HOME" #f)
       (error "HOME is required to install gslph into $HOME/.local/bin")))
 
+;; : (-> Path Void)
 (def (ensure-directory! path)
   (unless (file-exists? path)
     (let (parent (path-directory path))
@@ -211,6 +344,7 @@
         (ensure-directory! parent))
       (create-directory path))))
 
+;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Void)
 (def (make-target spec verbose debug build-optimize?
                   effective-release? effective-optimized?
                   worker-count)
@@ -221,8 +355,10 @@
     build-release: effective-release?
     build-optimized: effective-optimized?
     parallelize: worker-count
+    prefix: (source-output-prefix)
     srcdir: source-root))
 
+;; : (-> Integer)
 (def (build-worker-count)
   (let* ((raw (getenv "GERBIL_BUILD_CORES" #f))
          (configured (and raw (string->number raw))))
@@ -232,41 +368,37 @@
       configured
       (max 1 (##cpu-count)))))
 
+;; : (-> Integer)
 (def (sync-build-worker-count!)
   (let (worker-count (build-worker-count))
     (set! __available-cores worker-count)
     worker-count))
 
+;; : (-> Boolean Boolean)
 (def (darwin-release? release?)
   (and release?
        (darwin-host?)))
 
+;; : (-> Boolean)
 (def (darwin-host?)
   (cond-expand
     (darwin #t)
     (else #f)))
 
-(def (source-directory? path)
-  (with-catch
-   (lambda (_) #f)
-   (lambda () (eq? (file-type path) 'directory))))
-
+;; : (-> Path Boolean)
 (def (top-level-test-file? entry)
   (and (string-suffix? "-test.ss" entry)
        (not (member entry '("." "..")))))
 
+;; : (-> (List Path))
 (def (top-level-test-files)
+  (ensure-build-root!)
   (map (lambda (path)
          (string-append "t/" path))
        (filter top-level-test-file?
                (sort (directory-files test-root) string<?))))
 
-(def (policy-scope-test-files tests)
-  (append tests
-          (map (lambda (path)
-                 (string-append "t/" path))
-               (test-support-spec))))
-
+;; : (-> (List Path) Void)
 (def (run-scoped-policy-gate! tests)
   (let (report (policy-report package-root tests))
     (unless (equal? (hash-get report 'status) "pass")
@@ -274,6 +406,7 @@
       (error "gerbil scheme scoped policy failed"
              (hash-get report 'status)))))
 
+;; : (-> (List Path) (List String) Void)
 (def (run-scoped-policy-warning-report! tests rules)
   (let* ((report (policy-report package-root tests))
          (findings
@@ -287,25 +420,30 @@
              (definitions (hash-get report 'definitions))
              (findings findings))))))
 
+;; : (-> String Symbol Procedure)
 (def (runtime-procedure module-id binding-id)
   (load-module module-id)
   (eval binding-id))
 
+;; : (-> Path (List Path) PolicyReport)
 (def (policy-report root files)
   ((runtime-procedure "gslph/src/policy/gxtest"
                       'gslph/src/policy/gxtest#policy-report)
    root files))
 
+;; : (-> PolicyReport Void)
 (def (display-project-policy-report report)
   ((runtime-procedure "gslph/src/policy/gxtest"
                       'gslph/src/policy/gxtest#display-project-policy-report)
    report))
 
+;; : (-> TypeFinding String)
 (def (type-finding-rule-id finding)
   ((runtime-procedure "gslph/src/types/findings"
                       'gslph/src/types/findings#type-finding-rule-id)
    finding))
 
+;; : (-> Void)
 (def (test-target)
   (ensure-build-root!)
   (current-directory package-root)
@@ -313,19 +451,31 @@
     (make (library-spec)
       optimize: #f
       parallelize: worker-count
+      prefix: (source-output-prefix)
       srcdir: source-root)
+    (make (build-support-spec)
+      optimize: #f
+      parallelize: worker-count
+      prefix: (package-root-output-prefix)
+      srcdir: package-root)
     (let (support-spec (test-support-spec))
       (unless (null? support-spec)
         (make support-spec
           optimize: #f
           parallelize: worker-count
-          srcdir: test-root))))
-  (let (tests (top-level-test-files))
+          prefix: (test-output-prefix)
+          srcdir: test-root)))
+    (make (gxtest-test-spec)
+      optimize: #f
+      parallelize: worker-count
+      prefix: (test-output-prefix)
+      srcdir: test-root))
+  (let (tests (gxtest-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")
       (begin
         (run-scoped-policy-gate! tests)
         (run-scoped-policy-warning-report!
-         (policy-scope-test-files tests)
+         (gxtest-policy-warning-files)
          +test-support-warning-rules+)
         (apply gxtest-main tests)))))

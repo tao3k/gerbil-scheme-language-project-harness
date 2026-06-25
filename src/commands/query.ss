@@ -41,48 +41,64 @@
      ((and from-hook (equal? from-hook "direct-source-read") (not selector))
       (error "direct-source-read requires --selector"))
      (selector
-      (let (code (read-selector workspace selector))
-        (if json?
-          (write-json-line (hash (selector selector) (code code)))
-          (display code)))
-      0)
+      (emit-query-selector workspace selector json?))
      (else
-      (let* ((positionals (positional-args (drop-project-root args)))
-             (owner (and (pair? positionals) (car positionals)))
-             (terms (options "--term" args)))
-        (if (and (not owner) (poo-registered-extension-query? terms))
-          (begin
-            (emit-registered-poo-query-route terms json?)
-            0)
-        (if (and (not owner) names-only? (pair? terms))
-          (begin
-            (displayln "query --names-only requires an owner selector; workspace term discovery is `search fzf '<term>' owner --workspace <workspace-root> --view seeds`")
-            2)
-          (begin
-            (unless owner (error "query requires an owner path"))
-            (if (not (owner-path-exists? workspace owner))
-              (begin
-                (displayln "query owner path does not exist under --workspace: "
-                           owner
-                           " workspace="
-                           workspace)
-                2)
-              (let* ((file (query-owner-source-file workspace owner)))
-                (let (matches (matching-definitions (source-file-definitions file) terms))
-                  (cond
-                   (json?
-                    (write-json-line (hash (owner (source-file-path file))
-                                           (matches (map definition-json matches)))))
-                   (code?
-                    (for-each (lambda (defn)
-                                (display (read-definition-code workspace defn)))
-                              matches))
-                   (names-only?
-                    (for-each (lambda (defn) (displayln (definition-name defn))) matches))
-                   (else
-                    (emit-owner-items file matches))))
-                0))))))))))
-;; : (-> ProjectIndex String Boolean )
+      (query-main/owner-route workspace json? code? names-only? args)))))
+
+;; : (-> ProjectRoot Selector Boolean Integer)
+(def (emit-query-selector workspace selector json?)
+  (let (code (read-selector workspace selector))
+    (if json?
+      (write-json-line (hash (selector selector) (code code)))
+      (display code)))
+  0)
+
+;; : (-> ProjectRoot Boolean Boolean Boolean (List String) Integer)
+(def (query-main/owner-route workspace json? code? names-only? args)
+  (let* ((positionals (positional-args (drop-project-root args)))
+         (owner (and (pair? positionals) (car positionals)))
+         (terms (options "--term" args)))
+    (cond
+     ((and (not owner) (poo-registered-extension-query? terms))
+      (emit-registered-poo-query-route terms json?)
+      0)
+     ((and (not owner) names-only? (pair? terms))
+      (displayln "query --names-only requires an owner selector; workspace term discovery is `search fzf '<term>' owner --workspace <workspace-root> --view seeds`")
+      2)
+     ((not owner)
+      (error "query requires an owner path"))
+     ((not (owner-path-exists? workspace owner))
+      (emit-query-owner-missing workspace owner))
+     (else
+      (query-main/owner workspace owner terms json? code? names-only?)))))
+
+;; : (-> ProjectRoot OwnerPath Integer)
+(def (emit-query-owner-missing workspace owner)
+  (displayln "query owner path does not exist under --workspace: "
+             owner
+             " workspace="
+             workspace)
+  2)
+
+;; : (-> ProjectRoot OwnerPath Terms Boolean Boolean Boolean Integer)
+(def (query-main/owner workspace owner terms json? code? names-only?)
+  (let* ((file (query-owner-source-file workspace owner))
+         (matches (matching-definitions (source-file-definitions file) terms)))
+    (cond
+     (json?
+      (write-json-line (hash (owner (source-file-path file))
+                             (matches (map definition-json matches)))))
+     (code?
+      (for-each (lambda (defn)
+                  (display (read-definition-code workspace defn)))
+                matches))
+     (names-only?
+      (for-each (lambda (defn) (displayln (definition-name defn))) matches))
+     (else
+      (emit-owner-items file matches)))
+    0))
+
+;; : (-> ProjectRoot String Boolean )
 (def (owner-path-exists? workspace owner)
   (file-exists? (path-expand owner workspace)))
 ;;; Boundary:

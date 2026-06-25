@@ -548,25 +548,41 @@
   (cond
    ((scheme-quoted-symbol? datum) [])
    ((and (pair? datum) (eq? (car datum) 'forall))
-    (if (and (pair? (cdr datum))
-             (list? (cadr datum))
-             (pair? (cddr datum)))
-      (scheme-type-expression-diagnostics
-       (caddr datum)
-       (append (map datum->type-string (cadr datum))
-               bound-vars))
-      []))
+    (scheme-forall-child-diagnostics datum bound-vars))
    ((and (pair? datum) (eq? (car datum) 'Refine))
-    (if (pair? (cdr datum))
-      (scheme-type-expression-diagnostics (cadr datum) bound-vars)
-      []))
+    (scheme-refine-child-diagnostics datum bound-vars))
    ((pair? datum)
-    (if (pair? (cdr datum))
-      (apply append
-             (map (cut scheme-type-expression-diagnostics <> bound-vars)
-                  (cdr datum)))
-      []))
+    (scheme-pair-child-diagnostics datum bound-vars))
    (else [])))
+
+;; : (-> TypeDatum (List TypeVar) (List Diagnostic))
+(def (scheme-forall-child-diagnostics datum bound-vars)
+  (if (scheme-forall-child-shape? datum)
+    (scheme-type-expression-diagnostics
+     (caddr datum)
+     (append (map datum->type-string (cadr datum))
+             bound-vars))
+    []))
+
+;; : (-> TypeDatum Boolean)
+(def (scheme-forall-child-shape? datum)
+  (and (pair? (cdr datum))
+       (list? (cadr datum))
+       (pair? (cddr datum))))
+
+;; : (-> TypeDatum (List TypeVar) (List Diagnostic))
+(def (scheme-refine-child-diagnostics datum bound-vars)
+  (if (pair? (cdr datum))
+    (scheme-type-expression-diagnostics (cadr datum) bound-vars)
+    []))
+
+;; : (-> TypeDatum (List TypeVar) (List Diagnostic))
+(def (scheme-pair-child-diagnostics datum bound-vars)
+  (if (pair? (cdr datum))
+    (apply append
+           (map (cut scheme-type-expression-diagnostics <> bound-vars)
+                (cdr datum)))
+    []))
 
 ;; : (-> Datum Boolean)
 (def (scheme-quoted-symbol? datum)

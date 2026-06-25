@@ -12,6 +12,7 @@
         collect-project
         collect-project/profile
         collect-source-scope
+        collect-test-source-scope
         collect-project-package-only
         collect-source-files
         gerbil-source-path?

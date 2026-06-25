@@ -44,19 +44,32 @@
           ;; Runtime predicates such as `procedure?` are valid contract atoms
           ;; even when static type-expression diagnostics would classify them
           ;; as unbound type variables. TypeSpec validation is the boundary.
-          (valid (and (not (pair? diagnostics))
-                      (runtime-contract-type-spec-valid? type-json)))
+          (valid (runtime-contract-valid? diagnostics type-json))
           (typeSpec (and type-json (hash-get type-json 'typeSpec)))
-          (inputPredicates (if (and items (>= (length items) 2))
-                             (map runtime-contract-datum->string
-                                  (drop-right items 1))
-                             []))
-          (outputPredicate (if (and items (>= (length items) 2))
-                             (runtime-contract-datum->string
-                              (last items))
-                             #f))
+          (inputPredicates (runtime-contract-input-predicates items))
+          (outputPredicate (runtime-contract-output-predicate items))
           (predicateCount (if items (length items) 0))
           (diagnostics diagnostics))))
+
+;; : (-> (List Diagnostic) Json Boolean)
+(def (runtime-contract-valid? diagnostics type-json)
+  (and (not (pair? diagnostics))
+       (runtime-contract-type-spec-valid? type-json)))
+
+;; : (-> (Maybe (List TypeDatum)) Boolean)
+(def (runtime-contract-arrow-ready? items)
+  (and items (>= (length items) 2)))
+
+;; : (-> (Maybe (List TypeDatum)) (List TypeExpr))
+(def (runtime-contract-input-predicates items)
+  (if (runtime-contract-arrow-ready? items)
+    (map runtime-contract-datum->string (drop-right items 1))
+    []))
+
+;; : (-> (Maybe (List TypeDatum)) (Maybe TypeExpr))
+(def (runtime-contract-output-predicate items)
+  (and (runtime-contract-arrow-ready? items)
+       (runtime-contract-datum->string (last items))))
 
 ;;; Validation bridge: runtime predicate names stay contract atoms while the
 ;;; normalized arrow container still uses TypeSpec child-shape validation.

@@ -54,5 +54,3 @@
                => "shape")
         (check (type-validation-diagnostic-message diagnostic)
                => "hash-value:unknown-type")))))
-
-(run-tests! type-validation-facade-test)

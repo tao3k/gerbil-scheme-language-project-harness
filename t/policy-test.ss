@@ -16,6 +16,7 @@
         :policy/agent-style-test
         :policy/agent-dependency-adapter-test
         :policy/agent-poo-test
+        :policy/downstream-gxtest-policy-scope-test
         :policy/scenario-benchmark-test
         :policy/detection-test
         :policy/gerbil-utils-source-test)
@@ -36,6 +37,7 @@
     agent-style-policy-test
     agent-dependency-adapter-policy-test
     agent-poo-policy-test
+    downstream-gxtest-policy-scope-test
     scenario-benchmark-policy-test
     detection-policy-test
     gerbil-utils-source-policy-test))

@@ -5,9 +5,11 @@
         (only-in :commands/bench-light bench-light-main)
         (only-in :constants +help+)
         (only-in :search-light-launcher try-search-light-main)
-        (only-in :std/misc/path path-expand path-normalize)
+        (only-in :std/misc/path directory-files path-expand path-normalize)
         (only-in :std/misc/ports read-all-as-string)
-        (only-in :std/srfi/13 string-index string-index-right string-prefix?))
+        (only-in :std/sort sort)
+        (only-in :std/srfi/13 string-index string-index-right string-prefix?)
+        (only-in :std/sugar filter foldl))
 (export main
         command-line-args
         provider-command-line-args)
@@ -35,7 +37,14 @@
     ("guide" "gslph/src/commands/guide" gslph/src/commands/guide#guide-main)
     ("info" "gslph/src/commands/info" gslph/src/commands/info#info-main)))
 
-(def +check-cache-version+ "check-full-output-cache.v1")
+(def +check-cache-version+ "check-full-output-cache.v3")
+
+(def +launcher-check-cache-fnv64-offset+ 14695981039346656037)
+(def +launcher-check-cache-fnv64-prime+ 1099511628211)
+(def +launcher-check-cache-fnv64-modulus+ 18446744073709551616)
+
+(def +launcher-check-cache-ignored-dirs+
+  '(".devenv" ".git" ".cache" ".run" ".gerbil" "build" "dist" "target" "src/gambit" "tree-sitter"))
 
 ;;; Launcher argv boundary:
 ;;; - Keep this tiny normalization local so the release launcher does not
@@ -184,22 +193,85 @@
           (car (reverse positionals))
           "."))))
 
-;; : (-> (List String) (List String))
+;; launcher-positionals
+;;   : (-> (List String) (List String))
+;;   | doc m%
+;;       Return positional launcher arguments while skipping option values that
+;;       belong to launcher-owned flags.
+;;
+;;       The fold state is `(skip-next? . reversed-positionals)` so option
+;;       value skipping stays explicit without a handwritten accumulator loop.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (launcher-positionals '("--workspace" "." "src"))
+;;       ;; => ("src")
+;;       ```
+;;     %
 (def (launcher-positionals args)
-  (let loop ((rest args) (out []))
+  (reverse
+   (cdr (foldl launcher-positionals-step (cons #f []) args))))
+
+;; : (-> String PositionalsState PositionalsState)
+(def (launcher-positionals-step arg state)
+  (let ((skip-next? (car state))
+        (out (cdr state)))
     (cond
-     ((null? rest) (reverse out))
-     ((member (car rest) '("--workspace" "--whitelist"))
-      (loop (if (pair? (cdr rest)) (cddr rest) []) out))
-     ((string-prefix? "-" (car rest))
-      (loop (cdr rest) out))
+     (skip-next?
+      (cons #f out))
+     ((member arg '("--workspace" "--whitelist"))
+      (cons #t out))
+     ((string-prefix? "-" arg)
+      (cons #f out))
      (else
-      (loop (cdr rest) (cons (car rest) out))))))
+      (cons #f (cons arg out))))))
 
 ;; : (-> String String String)
 (def (launcher-check-cache-path root mode)
   (path-expand (string-append mode ".sexp")
                (path-expand ".cache/agent-semantic-protocol/gerbil-scheme/check" root)))
+
+;; : (-> Integer Integer Integer)
+(def (launcher-check-cache-fnv64-step hash byte)
+  (modulo (* (bitwise-xor hash byte) +launcher-check-cache-fnv64-prime+)
+          +launcher-check-cache-fnv64-modulus+))
+
+;; : (-> String Integer)
+(def (launcher-check-cache-file-hash path)
+  (call-with-input-file path
+    (lambda (in)
+      (let loop ((hash +launcher-check-cache-fnv64-offset+))
+        (let (byte (read-u8 in))
+          (if (eof-object? byte)
+            hash
+            (loop (launcher-check-cache-fnv64-step hash byte))))))))
+
+;; : (-> String String (List Datum))
+(def (launcher-check-cache-directory-fingerprint relpath path)
+  ['directory
+   (filter (lambda (entry)
+             (launcher-check-cache-visible-directory-entry? relpath entry))
+           (sort (directory-files path) string<?))])
+
+;; : (-> String String Boolean)
+(def (launcher-check-cache-visible-directory-entry? relpath entry)
+  (not (or (member entry '("." ".."))
+           (launcher-check-cache-ignored-directory-entry? relpath entry))))
+
+;; : (-> String String Boolean)
+(def (launcher-check-cache-ignored-directory-entry? relpath entry)
+  (let (child (launcher-check-cache-child-relpath relpath entry))
+    (or (member entry +launcher-check-cache-ignored-dirs+)
+        (member child +launcher-check-cache-ignored-dirs+))))
+
+;; : (-> String String String)
+(def (launcher-check-cache-child-relpath relpath entry)
+  (if (or (string=? relpath "")
+          (string=? relpath ".")
+          (string=? relpath "./"))
+    entry
+    (string-append relpath "/" entry)))
 
 ;; : (-> String String (List Datum))
 (def (launcher-check-cache-file-fingerprint root path)
@@ -208,9 +280,12 @@
    (lambda ()
      (let* ((fullpath (path-expand path root))
             (info (file-info fullpath)))
-       [path
-        (file-info-size info)
-        (time->seconds (file-info-last-modification-time info))]))))
+       (if (eq? (file-type fullpath) 'directory)
+         (cons path (launcher-check-cache-directory-fingerprint path fullpath))
+         [path
+          'file
+          (file-info-size info)
+          (launcher-check-cache-file-hash fullpath)])))))
 
 ;; : (-> String Datum (U #f (List Pair)))
 (def (launcher-check-cache-state root cache)
@@ -304,7 +379,21 @@
               [path end end]))))
       [selector #f #f])))
 
-;; : (-> String Integer Integer String)
+;; launcher-read-line-range
+;;   : (-> String Integer Integer String)
+;;   | doc m%
+;;       Read the inclusive one-based line range from `path`.
+;;
+;;       This is intentionally local to the launcher fast path so hook source
+;;       reads do not import the full parser/check command graph.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (launcher-read-line-range "src/cli.ss" 1 2)
+;;       ;; => first two source lines
+;;       ```
+;;     %
 (def (launcher-read-line-range path start end)
   (call-with-input-file path
     (lambda (port)

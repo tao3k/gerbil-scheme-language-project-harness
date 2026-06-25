@@ -19,7 +19,7 @@
         (only-in :std/misc/list unique)
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-prefix? string-tokenize)
-        (only-in :std/sugar cut filter ormap)
+        (only-in :std/sugar cut filter foldl ormap)
         :support/args
         :support/time
         (only-in :types/core
@@ -29,7 +29,7 @@
 
 (export check-main)
 
-(def +check-cache-version+ "check-full-output-cache.v2")
+(def +check-cache-version+ "check-full-output-cache.v3")
 
 (def +check-cache-fnv64-offset+ 14695981039346656037)
 (def +check-cache-fnv64-prime+ 1099511628211)
@@ -81,7 +81,21 @@
 (def (check-cache-path root mode)
   (path-expand (string-append mode ".sexp") (check-cache-dir root)))
 
-;; : (-> String Void)
+;; trim-trailing-slashes
+;;   : (-> String String)
+;;   | doc m%
+;;       Return `path` without trailing slashes, while preserving root `/`.
+;;
+;;       This normalization is shared by cache directory creation and parent
+;;       directory fingerprinting, so callers compare stable relative paths.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (trim-trailing-slashes "src/parser///")
+;;       ;; => "src/parser"
+;;       ```
+;;     %
 (def (trim-trailing-slashes path)
   (let loop ((end (string-length path)))
     (if (and (> end 1)
@@ -108,7 +122,21 @@
   (modulo (* (bitwise-xor hash byte) +check-cache-fnv64-prime+)
           +check-cache-fnv64-modulus+))
 
-;; : (-> String Integer)
+;; check-cache-file-hash
+;;   : (-> String Integer)
+;;   | doc m%
+;;       Compute the stable FNV-1a file hash used by the full-check output cache.
+;;
+;;       The byte loop stays local to the cache boundary so callers only deal in
+;;       source fingerprints, not port state.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (check-cache-file-hash "src/commands/check.ss")
+;;       ;; => integer fingerprint
+;;       ```
+;;     %
 (def (check-cache-file-hash path)
   (call-with-input-file path
     (lambda (in)
@@ -118,9 +146,31 @@
             hash
             (loop (check-cache-fnv64-step hash byte))))))))
 
-;; : (-> String (List Datum))
-(def (check-cache-directory-fingerprint path)
-  ['directory (sort (directory-files path) string<?)])
+;; : (-> String String (List Datum))
+(def (check-cache-directory-fingerprint relpath path)
+  ['directory
+   (filter (lambda (entry)
+             (check-cache-visible-directory-entry? relpath entry))
+           (sort (directory-files path) string<?))])
+
+;; : (-> String String Boolean)
+(def (check-cache-visible-directory-entry? relpath entry)
+  (not (or (member entry '("." ".."))
+           (check-cache-ignored-directory-entry? relpath entry))))
+
+;; : (-> String String Boolean)
+(def (check-cache-ignored-directory-entry? relpath entry)
+  (let (child (check-cache-child-relpath relpath entry))
+    (or (member entry +ignored-dirs+)
+        (member child +ignored-dirs+))))
+
+;; : (-> String String String)
+(def (check-cache-child-relpath relpath entry)
+  (if (or (string=? relpath "")
+          (string=? relpath ".")
+          (string=? relpath "./"))
+    entry
+    (string-append relpath "/" entry)))
 
 ;; : (-> String String (List Datum))
 (def (check-cache-file-fingerprint root path)
@@ -130,7 +180,7 @@
      (let* ((fullpath (path-expand path root))
             (info (file-info fullpath)))
        (if (eq? (file-type fullpath) 'directory)
-         (cons path (check-cache-directory-fingerprint fullpath))
+         (cons path (check-cache-directory-fingerprint path fullpath))
          [path
           'file
           (file-info-size info)
@@ -147,13 +197,25 @@
 ;; : (-> String (U #f String) (List Pair))
 (def (check-cache-state/from-source root whitelist-path)
   (let* ((package (read-project-package root))
-         (files (sort (collect-source-files root package) string<?))
+         (files (sort (map (cut check-cache-relative-input root <>)
+                           (collect-source-files root package))
+                      string<?))
          (inputs (sort (if whitelist-path
-                         (cons whitelist-path files)
+                         (cons (check-cache-relative-input root whitelist-path)
+                               files)
                          files)
                        string<?))
          (directories (check-cache-input-directories inputs)))
     (check-cache-state/from-inputs root inputs directories)))
+
+;; : (-> String String String)
+(def (check-cache-relative-input root path)
+  (let* ((root* (trim-trailing-slashes (path-normalize root)))
+         (path* (path-normalize path))
+         (prefix (string-append root* "/")))
+    (if (string-prefix? prefix path*)
+      (substring path* (string-length prefix) (string-length path*))
+      path*)))
 
 ;; : (-> String (List String) (List String) (List Pair))
 (def (check-cache-state/from-inputs root inputs directories)
@@ -169,29 +231,72 @@
           (cons 'inputs inputs)
           (cons 'directories directories))))
 
-;; : (-> (List String) (List String))
+;; check-cache-input-directories
+;;   : (-> (List String) (List String))
+;;   | doc m%
+;;       Return the sorted unique parent directories that can affect cached
+;;       source discovery for `inputs`.
+;;
+;;       The fold keeps the path-to-parent expansion declarative while preserving
+;;       the cache state shape expected by the native launcher fast path.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (check-cache-input-directories ["src/commands/check.ss"])
+;;       ;; => ("." "src" "src/commands")
+;;       ```
+;;     %
 (def (check-cache-input-directories inputs)
-  (let loop ((rest inputs) (directories []))
-    (if (null? rest)
-      (sort (unique directories) string<?)
-      (loop (cdr rest)
-            (append (check-cache-path-directories (car rest)) directories)))))
+  (sort (unique
+         (foldl (lambda (path directories)
+                  (append (check-cache-path-directories path) directories))
+                []
+                inputs))
+        string<?))
 
-;; : (-> String (List String))
+;; check-cache-path-directories
+;;   : (-> String (List String))
+;;   | doc m%
+;;       Return relative parent directories for `path`, including `"."`.
+;;
+;;       Directory fingerprints make full-check cache hits sensitive to source
+;;       file additions and removals, not only file content changes.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (check-cache-path-directories "src/parser/core.ss")
+;;       ;; => ("." "src" "src/parser")
+;;       ```
+;;     %
 (def (check-cache-path-directories path)
-  (let loop ((dir (trim-trailing-slashes (or (path-directory path) ".")))
-             (directories []))
-    (cond
-     ((or (string=? dir "") (string=? dir ".") (string=? dir "./"))
-      (cons "." directories))
-     (else
-      (let (parent (trim-trailing-slashes (or (path-directory dir) ".")))
-        (if (or (string=? parent dir)
-                (string=? parent "")
-                (string=? parent ".")
-                (string=? parent "./"))
-          (cons "." (cons dir directories))
-          (loop parent (cons dir directories))))))))
+  (check-cache-directory-chain
+   (trim-trailing-slashes (or (path-directory path) "."))
+   []))
+
+;; : (-> String (List String) (List String))
+(def (check-cache-directory-chain dir directories)
+  (cond
+   ((check-cache-root-directory? dir)
+    (cons "." directories))
+   (else
+    (check-cache-directory-parent-chain
+     dir
+     (trim-trailing-slashes (or (path-directory dir) "."))
+     directories))))
+
+;; : (-> String String (List String) (List String))
+(def (check-cache-directory-parent-chain dir parent directories)
+  (if (check-cache-root-directory? parent)
+    (cons "." (cons dir directories))
+    (check-cache-directory-chain parent (cons dir directories))))
+
+;; : (-> String Boolean)
+(def (check-cache-root-directory? dir)
+  (or (string=? dir "")
+      (string=? dir ".")
+      (string=? dir "./")))
 
 ;; : (-> String (U #f Datum))
 (def (read-check-cache cache-path)
@@ -325,49 +430,88 @@
                (matching-check-cache existing-cache cache-fingerprint))))
     (if cache-hit
       (emit-cached-check cache-hit)
-      (let* ((whitelist (if whitelist-path
-                          (load-call-whitelist whitelist-path)
+      (check-main/cache-miss total-start-ms
+                             root
+                             json?
+                             profile-json?
+                             scope
+                             whitelist-path
+                             cache-enabled?
+                             cache-path
+                             cache-state))))
+
+;; check-main/cache-miss
+;;   : (-> Integer String Boolean Boolean String MaybePath Boolean MaybePath MaybeCacheState Integer)
+;;   | doc m%
+;;       Run the non-cached check path after argv parsing and cache lookup have
+;;       finished.
+;;
+;;       Keeping the miss path separate makes the top-level `check-main`
+;;       dispatch readable: parse/check cache, emit hit, or run this pipeline.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (check-main/cache-miss start "." #f #f "changed" #f #f #f #f)
+;;       ;; => process status
+;;       ```
+;;     %
+(def (check-main/cache-miss total-start-ms root json? profile-json? scope
+                            whitelist-path cache-enabled? cache-path cache-state)
+  (let* ((whitelist (if whitelist-path
+                      (load-call-whitelist whitelist-path)
+                      '()))
+         (changed-paths (if (equal? scope "changed")
+                          (changed-project-paths root)
                           '()))
-             (changed-paths (if (equal? scope "changed")
-                              (changed-project-paths root)
-                              '()))
-             ((values index collect-profile)
-              (collect-project/check root scope changed-paths profile-json?))
-             ((values type-findings type-phase)
-              (timed-check-value
-               "type-check"
-               (lambda () (run-type-checks/whitelist index '() whitelist))))
-             ((values policy-findings policy-phase)
-              (timed-check-value
-               "policy-check"
-               (lambda () (run-policy-checks index))))
-             ((values findings findings-phase)
-              (timed-check-value
-               "filter-findings"
-               (lambda ()
-                 (let (all-findings (append type-findings policy-findings))
-                   (deduplicate-findings
-                    (if (equal? scope "changed")
-                      (filter-changed-findings all-findings changed-paths)
-                      all-findings))))))
-             (status (type-status findings))
-             (exit-status (if (equal? status "pass") 0 1))
-             (output (render-check-report total-start-ms
-                                          json?
-                                          profile-json?
-                                          scope
-                                          changed-paths
-                                          index
-                                          collect-profile
-                                          type-phase
-                                          policy-phase
-                                          findings-phase
-                                          findings
-                                          status)))
-        (display output)
-        (when cache-enabled?
-          (write-check-cache cache-path cache-state exit-status output))
-        exit-status))))
+         ((values index collect-profile)
+          (collect-project/check root scope changed-paths profile-json?))
+         ((values type-findings type-phase)
+          (timed-check-value
+           "type-check"
+           (lambda () (run-type-checks/whitelist index '() whitelist))))
+         ((values policy-findings policy-phase)
+          (timed-check-value
+           "policy-check"
+           (lambda () (run-policy-checks index))))
+         ((values findings findings-phase)
+          (timed-check-value
+           "filter-findings"
+           (lambda ()
+             (check-main/filter-findings scope
+                                         changed-paths
+                                         type-findings
+                                         policy-findings))))
+         (status (type-status findings))
+         (exit-status (if (equal? status "pass") 0 1))
+         (output (render-check-report total-start-ms
+                                      json?
+                                      profile-json?
+                                      scope
+                                      changed-paths
+                                      index
+                                      collect-profile
+                                      type-phase
+                                      policy-phase
+                                      findings-phase
+                                      findings
+                                      status)))
+    (display output)
+    (when cache-enabled?
+      (write-check-cache cache-path cache-state exit-status output))
+    exit-status))
+
+;; : (-> String (List String) (List TypeFinding) (List TypeFinding) (List TypeFinding))
+(def (check-main/filter-findings scope changed-paths type-findings policy-findings)
+  (let (all-findings (append type-findings policy-findings))
+    (deduplicate-findings
+     (check-main/scope-findings scope changed-paths all-findings))))
+
+;; : (-> String (List String) (List TypeFinding) (List TypeFinding))
+(def (check-main/scope-findings scope changed-paths findings)
+  (if (equal? scope "changed")
+    (filter-changed-findings findings changed-paths)
+    findings))
 ;; : (-> (List String) String)
 (def (check-scope args)
   (if (and (flag? "--changed" args)

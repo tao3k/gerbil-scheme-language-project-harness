@@ -62,7 +62,7 @@ Create a small test owner such as =t/project-policy-test.ss=:
 (export project-policy-test)
 
 (def project-policy-test
-  (make-project-policy-test "."))
+  (make-policy-test "." ["t/project-policy-test.ss"]))
 #+end_src
 
 Run it with:
@@ -104,14 +104,20 @@ The downstream test surface is:
 
 | API | Use |
 |-----+-----|
-| =make-project-policy-test= | Minimal =gxtest= suite for package policy. |
+| =make-policy-test= | Minimal =gxtest= suite for the files supplied by the build/test owner. |
+| =make-current-file-policy-test= | File-local convenience for simple policy wiring tests. |
+| =policy-findings= | Raw =TypeFinding= values for a files-scoped custom test. |
+| =policy-status= | =pass= or =fail= status for a files-scoped custom test. |
+| =policy-report= | Structured files-scoped report with status, file count, definition count, agent repair, and raw findings. |
+| =make-project-policy-test= | Explicit full-project audit suite. Do not use as the default gxtest path. |
 | =project-policy-findings= | Raw =TypeFinding= values for custom tests. |
 | =project-policy-status= | =pass= or =fail= status for a project root. |
 | =project-policy-report= | Structured report with status, file count, definition count, agent repair, and raw findings. |
 | =display-project-policy-report= | Compact human-readable report for custom failure paths. |
 
-Use =project-policy-report= when a downstream package wants custom assertions
-without losing the same repair metadata that the CLI emits.
+Use =policy-report= when a downstream package wants custom assertions for the
+same file scope that =gxtest= is running. Use =project-policy-report= only for an
+explicit full-project audit.
 
 * Agent Contract
 Agents integrating the harness downstream should follow this order:

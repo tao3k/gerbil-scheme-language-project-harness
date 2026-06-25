@@ -67,5 +67,3 @@
                  => #t)
           (check (and (string-contains output "GERBIL-SCHEME-AGENT-R026") #t)
                  => #t))))))
-
-(run-tests! cli-test)

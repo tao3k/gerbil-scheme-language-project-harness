@@ -4,11 +4,11 @@
 (import :gerbil/gambit
         :std/sort
         :std/test
-        (only-in :gslph/src/commands/check check-main)
-        (rename-in :gslph/src/cli-launcher (main launcher-main))
+        (only-in :commands/check check-main)
+        (rename-in :cli-launcher (main launcher-main))
         (only-in :std/sugar ormap)
-        (only-in :gslph/src/support/time monotonic-ms duration-ms)
-        :gslph/src/benchmark/gate)
+        (only-in :support/time monotonic-ms duration-ms)
+        :benchmark/gate)
 
 (export benchmark-gate-test)
 
@@ -161,7 +161,7 @@
    "(package: check-cache-gate)\n")
   (write-text-file
    (path-expand "src/core.ss" +check-cache-gate-root+)
-   ";;; -*- Gerbil -*-\n(import :gerbil/gambit)\n(export add1*)\n;; : (-> Integer Integer)\n(def (add1* n) (+ n 1))\n"))
+   ";;; -*- Gerbil -*-\n;;; Boundary: tiny cache fixture must stay policy-clean so benchmark timing measures cache replay, not repair-report rendering.\n(import :gerbil/gambit)\n(export add1*)\n;; : (-> Integer Integer)\n(def (add1* n) (+ n 1))\n"))
 
 ;; : (-> (-> Integer) Alist)
 (def (run-check-command/silent thunk)
@@ -281,24 +281,18 @@
         (check (benchmark-fixture-ref receipt 'maxTotalMs) => 0)
         (check (benchmark-receipt-pass? receipt) => #f)))
 
-    (test-case "check full warm cache stays in millisecond budget"
+    (test-case "check full cache stays in millisecond budget"
       (prepare-check-cache-gate-project!)
       (let* ((cold (run-check-full/silent +check-cache-gate-root+))
-             (warm (run-check-full/silent +check-cache-gate-root+)))
-        (check (integer? (benchmark-fixture-ref cold 'status)) => #t)
-        (check (integer? (benchmark-fixture-ref warm 'status)) => #t)
+             (warm (run-check-full/silent +check-cache-gate-root+))
+             (launcher-warm
+              (run-launcher-check-full/silent +check-cache-gate-root+)))
+        (check (benchmark-fixture-ref cold 'status) => 0)
+        (check (benchmark-fixture-ref warm 'status) => 0)
+        (check (benchmark-fixture-ref launcher-warm 'status) => 0)
         (check (< (benchmark-fixture-ref warm 'elapsedMs)
                   +check-cache-gate-max-warm-ms+)
-               => #t)))
-
-    (test-case "launcher check full warm cache stays in millisecond budget"
-      (prepare-check-cache-gate-project!)
-      (let* ((cold (run-check-full/silent +check-cache-gate-root+))
-             (prime (run-launcher-check-full/silent +check-cache-gate-root+))
-             (warm (run-launcher-check-full/silent +check-cache-gate-root+)))
-        (check (integer? (benchmark-fixture-ref cold 'status)) => #t)
-        (check (integer? (benchmark-fixture-ref prime 'status)) => #t)
-        (check (integer? (benchmark-fixture-ref warm 'status)) => #t)
-        (check (< (benchmark-fixture-ref warm 'elapsedMs)
+               => #t)
+        (check (< (benchmark-fixture-ref launcher-warm 'elapsedMs)
                   +check-cache-gate-max-launcher-warm-ms+)
                => #t)))))

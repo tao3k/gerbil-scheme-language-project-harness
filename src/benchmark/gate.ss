@@ -2,7 +2,7 @@
 ;;; Boundary: reusable benchmark fixtures and performance gate receipts.
 
 (import :support/time
-        (only-in :std/sugar andmap))
+        (only-in :std/sugar andmap ormap))
 
 (export benchmark-default-max-total-ms
         benchmark-default-max-collect-ms
@@ -30,19 +30,19 @@
 ;;       Default wall-clock budget for policy scenario benchmark receipts.
 ;;     %
 (def benchmark-default-max-total-ms 1000)
-;; Integer
+;; : Integer
 (def benchmark-default-max-collect-ms 1000)
-;; Integer
+;; : Integer
 (def benchmark-default-max-parse-ms 750)
-;; Integer
+;; : Integer
 (def benchmark-default-max-file-ms 250)
-;; Integer
+;; : Integer
 (def benchmark-default-max-phase-ms 100)
-;; Integer
+;; : Integer
 (def benchmark-default-max-rss-mb 512)
-;; Symbol
+;; : Symbol
 (def benchmark-default-memory-metric 'resident-set-size)
-;; String
+;; : String
 (def benchmark-default-memory-unit "MB")
 
 ;; benchmark-fixture-required-keys
@@ -73,6 +73,10 @@
     expectedRepair
     measurementPhases
     tags))
+
+;; : (List Symbol)
+(def +benchmark-positive-integer-fields+
+  '(maxTotalMs maxCollectMs maxParseMs maxFileMs maxPhaseMs iterations))
 
 ;; make-benchmark-fixture
 ;;   : (-> Symbol Symbol String String String (List Symbol) Alist)
@@ -127,10 +131,46 @@
   (filter (lambda (key) (not (assoc key fixture)))
           benchmark-fixture-required-keys))
 
-;; : (-> (List Value) Symbol Boolean)
+;; benchmark-fixture-phase-present?
+;;   : (-> (List Value) Symbol Boolean)
+;;   | doc m%
+;;       Return `#t` when a phase appears either as its symbol or string form.
+;;
+;;       Scenario fixtures sometimes cross JSON boundaries, so this predicate
+;;       accepts both representations without branching at each call site.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (benchmark-fixture-phase-present? '(prepare-fixture) 'prepare-fixture)
+;;       ;; => #t
+;;       ```
+;;     %
 (def (benchmark-fixture-phase-present? phases phase)
-  (or (member phase phases)
-      (member (symbol->string phase) phases)))
+  (ormap (lambda (candidate) (member candidate phases))
+         [phase (symbol->string phase)]))
+
+;; : (-> Integer Boolean)
+(def (benchmark-positive-integer? value)
+  (and (integer? value) (> value 0)))
+
+;; : (-> Integer Boolean)
+(def (benchmark-non-negative-integer? value)
+  (and (integer? value) (>= value 0)))
+
+;; : (-> Alist Symbol Boolean)
+(def (benchmark-fixture-positive-integer-field-pass? fixture key)
+  (benchmark-positive-integer? (benchmark-fixture-ref fixture key)))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-positive-integer-fields-pass? fixture)
+  (andmap (lambda (key)
+            (benchmark-fixture-positive-integer-field-pass? fixture key))
+          +benchmark-positive-integer-fields+))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-unit-contract-pass? fixture)
+  (equal? (benchmark-fixture-ref fixture 'unit) "ms"))
 
 ;; benchmark-fixture-memory-contract-pass?
 ;;   : (-> Alist Boolean)
@@ -150,8 +190,7 @@
                (memory-metric (cdr memory-metric-entry))
                (memory-unit (cdr memory-unit-entry))
                (measurement-phases (cdr measurement-phases-entry)))
-           (and (integer? max-rss-mb)
-                (> max-rss-mb 0)
+           (and (benchmark-positive-integer? max-rss-mb)
                 (eq? memory-metric benchmark-default-memory-metric)
                 (equal? memory-unit benchmark-default-memory-unit)
                 (not (not (benchmark-fixture-phase-present?
@@ -179,12 +218,9 @@
                (regression-budget-ms (cdr regression-budget-entry))
                (observed-timings (cdr observed-timings-entry))
                (target-rationale (cdr target-rationale-entry)))
-           (and (integer? observed-total-ms)
-                (>= observed-total-ms 0)
-                (integer? target-total-ms)
-                (> target-total-ms 0)
-                (integer? regression-budget-ms)
-                (>= regression-budget-ms 0)
+           (and (benchmark-non-negative-integer? observed-total-ms)
+                (benchmark-positive-integer? target-total-ms)
+                (benchmark-non-negative-integer? regression-budget-ms)
                 (string? target-rationale)
                 (list? observed-timings)
                 (not (null? observed-timings))
@@ -201,8 +237,7 @@
               (let ((name (cdr name-entry))
                     (duration-ms (cdr duration-entry)))
                 (and (or (symbol? name) (string? name))
-                     (integer? duration-ms)
-                     (>= duration-ms 0)))))))
+                     (benchmark-non-negative-integer? duration-ms)))))))
 
 ;; benchmark-fixture-contract-pass?
 ;;   : (-> Alist Boolean)
@@ -211,28 +246,10 @@
 ;;     %
 (def (benchmark-fixture-contract-pass? fixture)
   (and (null? (benchmark-fixture-missing-keys fixture))
-       (let ((max-total-ms (benchmark-fixture-ref fixture 'maxTotalMs))
-             (max-collect-ms (benchmark-fixture-ref fixture 'maxCollectMs))
-             (max-parse-ms (benchmark-fixture-ref fixture 'maxParseMs))
-             (max-file-ms (benchmark-fixture-ref fixture 'maxFileMs))
-             (max-phase-ms (benchmark-fixture-ref fixture 'maxPhaseMs))
-             (iterations (benchmark-fixture-ref fixture 'iterations))
-             (unit (benchmark-fixture-ref fixture 'unit)))
-         (and (integer? max-total-ms)
-              (> max-total-ms 0)
-              (integer? max-collect-ms)
-              (> max-collect-ms 0)
-              (integer? max-parse-ms)
-              (> max-parse-ms 0)
-              (integer? max-file-ms)
-              (> max-file-ms 0)
-              (integer? max-phase-ms)
-              (> max-phase-ms 0)
-              (integer? iterations)
-              (> iterations 0)
-              (equal? unit "ms")
-              (benchmark-fixture-observed-timings-contract-pass? fixture)
-              (benchmark-fixture-memory-contract-pass? fixture)))))
+       (benchmark-fixture-positive-integer-fields-pass? fixture)
+       (benchmark-fixture-unit-contract-pass? fixture)
+       (benchmark-fixture-observed-timings-contract-pass? fixture)
+       (benchmark-fixture-memory-contract-pass? fixture)))
 
 ;; benchmark-elapsed-ms
 ;;   : (-> (-> Value) Integer)

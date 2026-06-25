@@ -50,6 +50,9 @@
 (def +poo-declarative-definition-kinds+
   '(".def" "define-type" "defclass" ".defclass" "defmethod" ".defmethod"
     "defgeneric" ".defgeneric" "defprotocol" ".defprotocol"))
+
+;; : Nat
+(def +typed-combinator-style-file-evidence-floor+ 5)
 ;;; Entry boundary: emit at most one typed-combinator finding per owner so repair stays file-scoped.
 ;; : (-> ProjectIndex (List TypeFinding) )
 (def (typed-combinator-style-findings index)
@@ -118,6 +121,7 @@
                 function-definition-count
                 covered-definition-count
                 minimum-covered-definition-count
+                implementation-evidence-count
                 valid-typed-comment-count
                 invalid-typed-comment-count
                 missing-count
@@ -387,16 +391,30 @@
 ;;; - Ordinary public constructors and accessors may keep the short `;; :` form.
 ;;; Coverage threshold boundary:
 ;;; - Valid typed contracts are necessary before coverage warnings fire.
-;;; - Module engineering comments may explain ownership, but they no longer
-;;;   waive Gerbil-native idiom coverage.  Boundary prose is not a substitute
-;;;   for parser-owned expression evidence.
-;; : (-> Nat Nat Nat Nat Nat Nat Boolean )
-(def (typed-combinator-style-implementation-coverage-insufficient? function-definition-count covered-definition-count minimum-covered-definition-count valid-typed-comment-count invalid-typed-comment-count missing-count module-engineering-comment?)
+;;; - Module engineering comments may waive coverage-ratio pressure for
+;;;   declarative or boundary modules, but never waive missing contracts,
+;;;   invalid contracts, missing evidence, or parser-owned quality repairs.
+;; : (-> Nat Nat Nat Nat Nat Nat Nat Boolean )
+(def (typed-combinator-style-implementation-coverage-insufficient? function-definition-count covered-definition-count minimum-covered-definition-count implementation-evidence-count valid-typed-comment-count invalid-typed-comment-count missing-count module-engineering-comment?)
   (and (> function-definition-count 2)
        (> valid-typed-comment-count 0)
        (= invalid-typed-comment-count 0)
        (= missing-count 0)
-       (< covered-definition-count minimum-covered-definition-count)))
+       (not module-engineering-comment?)
+       (< covered-definition-count minimum-covered-definition-count)
+       (< implementation-evidence-count
+          (typed-combinator-style-minimum-file-evidence-count
+           minimum-covered-definition-count))))
+
+;;; Absolute evidence floor:
+;;; - Large orchestration/parser owners should not fail solely because every
+;;;   tiny wrapper lacks its own combinator witness when the file already has
+;;;   several parser-owned Gerbil-native idiom witnesses.
+;;; - Sparse owners still fail, preserving the policy's repair signal.
+;; : (-> Nat Nat)
+(def (typed-combinator-style-minimum-file-evidence-count minimum-covered-definition-count)
+  (min minimum-covered-definition-count
+       +typed-combinator-style-file-evidence-floor+))
 
 ;;; Minimum coverage boundary:
 ;;; - Require roughly two thirds of arity-bearing helpers to have Gerbil-native

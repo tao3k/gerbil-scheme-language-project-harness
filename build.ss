@@ -9,8 +9,9 @@
 (configure-build-root! (path-directory (this-source-file)))
 
 (gslph-source-coverage
- roots: '("src" "build-support")
- runtime-roots: '("src" "build-support")
+ roots: '("src" "build-support" "t")
+ runtime-roots: '("src")
+ exclude-directories: '("scenarios" "snapshots")
  explanation: "GSLPH source coverage declared by build.ss.")
 
 (def compile-getopt
