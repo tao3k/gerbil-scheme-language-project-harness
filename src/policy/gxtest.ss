@@ -2,10 +2,10 @@
 ;;; Tiny gxtest adapter for downstream packages that depend on this harness.
 
 (import :constants
-        (for-syntax :gerbil/expander)
+        (for-syntax :gerbil/expander
+                    :std/stxutil)
         :parser/facade
         :policy/facade
-        :std/sugar
         (only-in :std/test check test-case test-suite)
         :types/facade)
 
@@ -21,12 +21,18 @@
         project-policy-report
         display-project-policy-report)
 
-(defsyntax-call (make-current-file-policy-test ctx root)
-  (let* ((source (stx-source ctx))
+(defsyntax (make-current-file-policy-test stx)
+  (let* ((form (syntax->datum stx))
+         (root (and (pair? (cdr form)) (cadr form)))
+         (source (stx-source stx))
          (file (and source (vector-ref source 0))))
-    (unless (string? file)
+    (cond
+     ((not (and (pair? form) (pair? (cdr form)) (null? (cddr form))))
+      (error "bad make-current-file-policy-test syntax"))
+     ((not (string? file))
       (error "make-current-file-policy-test requires a file-backed source location"))
-    `(make-file-policy-test ,root ,file)))
+     (else
+      (datum->syntax (stx-car stx) `(make-file-policy-test ,root ,file))))))
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.
