@@ -7,8 +7,7 @@
          (guidance
           ((kind "named-let")
            (caller "total")
-           (advice
-            "replace basic Scheme scaffolding with parser-owned Gerbil/Gambit idioms for pure transforms")
+           (advice "replace basic Scheme scaffolding with parser-owned Gerbil/Gambit idioms for pure transforms")
            (basicSyntaxSmells
             ("named-let rest/accumulator traversal"
              "manual null?/car/cdr branch over a list"
@@ -51,7 +50,7 @@
             "asp gerbil-scheme guide --code --topic typed-combinator-style --intent style")
            (detectedControlContexts ())
            (keepNamedLetWhen
-           "IO/stateful control flow, C3-style fixpoint selection, or generator/continuation driver")
+            "IO/stateful control flow, C3-style fixpoint selection, or generator/continuation driver")
            (learnedFrom
             "gerbil:// and gerbil-utils/base.ss expose λ/lambda-match/compose/!>/curry/rcurry/fun for compact higher-order helpers; Gambit values/call-with-values and dynamic-wind keep tuple/control protocols explicit; gerbil-poo/fun.ss models Category./Functor./ParametricFunctor. algebra; table.ss methods.table shows protocol slots plus derived table/list/sexp/json/marshal capability; named let remains valid for C3 selection, reader IO, and coroutine control"))))
  (after (r009Findings ())))

@@ -44,6 +44,7 @@
         write-large-policy-source
         write-large-policy-test
         write-padded-policy-test
+        write-ledger-padded-policy-test
         write-complex-policy-test)
 ;; : (-> RuleId (List XX) FilterRule )
 (def (filter-rule rule-id findings)
@@ -505,6 +506,22 @@
         (let lp ((index 0))
           (when (fx< index padding-line-count)
             (display ";; generated replay padding\n" port)
+            (lp (fx1+ index))))))))
+;; : (-> String OwnerName PaddingLineCount Unit )
+(def (write-ledger-padded-policy-test root owner-name padding-line-count)
+  (let* ((test-dir (string-append root "/t"))
+         (source-path (string-append test-dir "/" owner-name "-test.ss")))
+    (ensure-dir ".run")
+    (ensure-dir root)
+    (ensure-dir test-dir)
+    (delete-file-if-exists source-path)
+    (call-with-output-file source-path
+      (lambda (port)
+        (display ";;; -*- Gerbil -*-\n(import :std/test)\n" port)
+        (display ";;; typed-combinator-style ledger\n" port)
+        (let lp ((index 0))
+          (when (fx< index padding-line-count)
+            (display ";; generated replay padding after ledger\n" port)
             (lp (fx1+ index))))))))
 ;; : (-> String OwnerName TestCaseCount Unit )
 (def (write-complex-policy-test root owner-name test-case-count)

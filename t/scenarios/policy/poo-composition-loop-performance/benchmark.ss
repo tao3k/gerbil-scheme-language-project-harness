@@ -2,11 +2,14 @@
  (observedTotalMs . 4)
  (targetTotalMs . 15)
  (regressionBudgetMs . 21)
- (observedTimings ((collect-before . 2)
-                   (collect-after . 1)
-                   (policy-before . 1)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 4ms for poo-composition-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 1))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 4ms for poo-composition-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly composing POO objects")
  (expectedRepair . "accumulate scalar state and apply one final composition")
  (hotPathExemption . "poo-composition-hot-loop")
- (hotPathEvidence "manual-loop" "poo-composition" "single-boundary-object" "benchmark-contract")
- (styleRewriteBoundary . "do not rewrite measured loop-local composition into a generic pipeline without preserving the one-boundary object construction")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "poo-composition"
+  "single-boundary-object"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not rewrite measured loop-local composition into a generic pipeline without preserving the one-boundary object construction")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "composition"))

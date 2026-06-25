@@ -4,6 +4,7 @@
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :gerbil/gambit
         :std/test
+        (only-in :std/sugar andmap)
         :checker/facade
         :parser/facade
         :types/facade)
@@ -176,9 +177,8 @@
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
          (whitelist-path (string-append root "/allowed-calls.txt")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(def (safe x) (allowed x))\n(def (unsafe x) (danger x))\n")
     (write-text whitelist-path
@@ -188,9 +188,8 @@
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
          (signature-path (string-append root "/type-signatures.scm")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(package: sample/checker)\n;; : (-> Number Number Number)\n(def (sum-two x y)\n  (+ x y))\n")
     (write-text signature-path
@@ -199,9 +198,8 @@
 (def (write-harness-macro-project root)
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(define-syntax unsafe-macro #f)\n(syntax-case input () ((_ x) #'x))\n(def (safe x) x)\n")))
 ;; : (-> String MaybePackageSource Unit )
@@ -209,9 +207,8 @@
   (let* ((generated (string-append root "/generated"))
          (source-path (string-append generated "/sample.ss"))
          (package-path (string-append root "/gerbil.pkg")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir generated)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root generated])
     (if (pair? maybe-package-source)
       (write-text package-path (car maybe-package-source))
       (delete-file-if-exists package-path))
@@ -222,9 +219,8 @@
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
          (signature-path (string-append root "/type-signatures.scm")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-number n) (needs-string n))\n(def (use-string s) (needs-string s))\n")
     (write-text signature-path
@@ -234,9 +230,8 @@
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
          (signature-path (string-append root "/type-signatures.scm")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def good (needs-string \"ok\"))\n(def bad (needs-string 10))\n")
     (write-text signature-path
@@ -246,9 +241,8 @@
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
          (signature-path (string-append root "/type-signatures.scm")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let)\n  (let ((value \"ok\") (bad 10))\n    (needs-string value)\n    (needs-string bad)))\n")
     (write-text signature-path
@@ -258,9 +252,8 @@
   (let* ((src (string-append root "/src"))
          (source-path (string-append src "/sample.ss"))
          (signature-path (string-append root "/type-signatures.scm")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text source-path
                 ";;; -*- Gerbil -*-\n(def (needs-string value) value)\n(def (use-let-star)\n  (let* ((value \"ok\")\n         (alias value)\n         (bad 10)\n         (bad-alias bad))\n    (needs-string alias)\n    (needs-string bad-alias)))\n")
     (write-text signature-path

@@ -6,6 +6,12 @@ The implementation is pure Gerbil/Scheme. Parser authority comes from Gerbil's n
 - `syntax->datum` is used only as the compact projection layer for search and query packets.
 - Future export/type enrichment should use `import-module` and module-context facts, following Gerbil's own `gxtags` pattern.
 No Python parser is part of this harness.
+## Policy Philosophy
+Gerbil policy is the project mechanism for helping an agent become a better Gerbil Scheme programmer. It is not a hardcoded rewrite table. A good policy exposes parser-owned evidence, points at Gerbil/Gambit idioms, and gives the agent enough context to choose a high-quality repair.
+
+The policy layer should therefore prefer facts over string guesses, scenarios over slogans, and misuse guards over one-off style preferences. When several idiomatic repairs are valid, diagnostics should teach the boundary and leave the final code shape to the agent.
+
+The full policy direction is documented in `docs/50-59-policy/51.00-policy-philosophy.org`.
 ## Commands
 Build the repository-local provider wrapper from the harness root:
 ```sh

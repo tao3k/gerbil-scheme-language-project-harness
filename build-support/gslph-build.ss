@@ -8,7 +8,12 @@
         :gerbil/gambit
         (only-in :gerbil/compiler/base __available-cores)
         (only-in :gerbil/compiler/driver compile-exe)
-        (rename-in :gerbil/tools/gxtest (main gxtest-main)))
+        (rename-in :gerbil/tools/gxtest (main gxtest-main))
+        (only-in :gslph/src/policy/gxtest
+                 display-project-policy-report
+                 policy-report)
+        (only-in :gslph/src/types/facade
+                 type-finding-rule-id))
 (export compile-target
         install-target
         compile-spec
@@ -60,6 +65,12 @@
 (def +library-excluded-dirs+
   '("search-fast"))
 
+(def +test-support-dirs+
+  '("unit" "snapshot" "policy"))
+
+(def +test-support-warning-rules+
+  '("GERBIL-SCHEME-MOD-R007"))
+
 (def (cli-binary-spec)
   (append cli-bootstrap-modules cli-spec))
 
@@ -74,6 +85,14 @@
 
 (def (runtime-library-spec)
   (filter runtime-library-module? (all-package-gerbil-modules)))
+
+(def (test-support-spec)
+  (apply append
+         (map (lambda (rel-root)
+                (collect-gerbil-module-tree
+                 (path-expand rel-root test-root)
+                 rel-root))
+              +test-support-dirs+)))
 
 (def (all-package-gerbil-modules)
   (collect-gerbil-module-tree source-root ""))
@@ -246,6 +265,32 @@
        (filter top-level-test-file?
                (sort (directory-files test-root) string<?))))
 
+(def (policy-scope-test-files tests)
+  (append tests
+          (map (lambda (path)
+                 (string-append "t/" path))
+               (test-support-spec))))
+
+(def (run-scoped-policy-gate! tests)
+  (let (report (policy-report package-root tests))
+    (unless (equal? (hash-get report 'status) "pass")
+      (display-project-policy-report report)
+      (error "gerbil scheme scoped policy failed"
+             (hash-get report 'status)))))
+
+(def (run-scoped-policy-warning-report! tests rules)
+  (let* ((report (policy-report package-root tests))
+         (findings
+          (filter (lambda (finding)
+                    (member (type-finding-rule-id finding) rules))
+                  (hash-get report 'findings))))
+    (unless (null? findings)
+      (display-project-policy-report
+       (hash (status "warning")
+             (files (hash-get report 'files))
+             (definitions (hash-get report 'definitions))
+             (findings findings))))))
+
 (def (test-target)
   (ensure-build-root!)
   (current-directory package-root)
@@ -253,8 +298,19 @@
     (make (library-spec)
       optimize: #f
       parallelize: worker-count
-      srcdir: source-root))
+      srcdir: source-root)
+    (let (support-spec (test-support-spec))
+      (unless (null? support-spec)
+        (make support-spec
+          optimize: #f
+          parallelize: worker-count
+          srcdir: test-root))))
   (let (tests (top-level-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")
-      (apply gxtest-main tests))))
+      (begin
+        (run-scoped-policy-gate! tests)
+        (run-scoped-policy-warning-report!
+         (policy-scope-test-files tests)
+         +test-support-warning-rules+)
+        (apply gxtest-main tests)))))

@@ -1,0 +1,42 @@
+* 51.00 Gerbil Policy Philosophy
+
+Gerbil policy is the project mechanism for helping an agent write higher
+quality Gerbil Scheme. It is not a hardcoded rewrite table and should not
+collapse into fixed source templates.
+
+The durable goal is to improve the model's coding judgment. A rule should make
+Gerbil and Gambit language features visible, expose parser-owned evidence, and
+teach the boundary where an idiom applies. When several repairs are valid, the
+diagnostic should help the agent reason rather than force one spelling.
+
+** 51.00.1 Evidence Before Preference
+
+Policy rules must start from native facts: control-flow roles, higher-order
+facts, typed contracts, macro facts, resource scopes, actor boundaries,
+continuation boundaries, and state-machine evidence. Source names, comments,
+or downstream dependency names can support an explanation, but they must not be
+the rule trigger.
+
+** 51.00.2 Scenario As Reasoning Harness
+
+Scenarios are the evidence loop for this philosophy. A style scenario should
+show:
+
+- the low-quality agent-authored shape
+- one idiomatic repair
+- a preservation or misuse boundary when the idiom could overreach
+- benchmark metadata for timing, memory, optimization focus, quality axes, and
+  misuse guards
+
+The expected fixture is an example repair, not a mandate that all downstream
+code use the exact same template.
+
+** 51.00.3 No Hardcoded Rewrite Tables
+
+The harness should reject private heuristics and source-name special cases. A
+policy is ready only when parser-owned evidence can explain why a better
+Gerbil abstraction applies and why known preservation boundaries remain safe.
+
+This is the core direction for future Gerbil policy work: help the agent become
+a stronger Scheme programmer instead of replacing the agent's reasoning with a
+fixed rewrite catalog.

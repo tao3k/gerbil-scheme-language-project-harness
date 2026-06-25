@@ -2,11 +2,14 @@
  (observedTotalMs . 7)
  (targetTotalMs . 15)
  (regressionBudgetMs . 18)
- (observedTimings ((collect-before . 2)
-                   (collect-after . 2)
-                   (policy-before . 1)
-                   (policy-after . 2)))
- (targetRationale . "observed baseline 7ms for controlled-branch-higher-order-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 2)))
+ (targetRationale
+  .
+  "observed baseline 7ms for controlled-branch-higher-order-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -22,5 +25,11 @@
  (optimizationFocus . "higher-order branch repair")
  (inputShape . "conditional dispatch helper with repeated branch bodies")
  (expectedRepair . "source-backed fun/compose/curry style")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "higher-order" "branch"))

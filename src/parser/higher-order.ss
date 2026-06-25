@@ -16,9 +16,10 @@
 ;; (List HigherOrderFact)
 (def +higher-order-heads+
   '(lambda case-lambda
+    match match* with with*
     lambda-match λ-match lambda-ematch λ-ematch
     cut cute
-    curry rcurry compose compose1 rcompose !> !!>
+    curry rcurry compose compose1 rcompose !> !!> chain
     funcall constantly iterate-function iterated-function
     fun fn defn %app
     stx-apply stx-call stx-lambda def-stx defsyntax-stx defsyntax-stx/form
@@ -95,7 +96,10 @@
                                              (case-lambda-body-stxes expr-stx)
                                              caller)))
        ((eq? head 'match)
-        (higher-order-facts-from-stxes relpath (match-body-stxes expr-stx) caller))
+        (cons (higher-order-fact-from-stx relpath expr-stx head datum caller)
+              (higher-order-facts-from-stxes relpath
+                                             (match-body-stxes expr-stx)
+                                             caller)))
        ((member head '(syntax-case syntax-rules identifier-rules))
         '())
        (else
@@ -145,12 +149,14 @@
     "eta-wrapper-lambda")
    ((member head '(lambda-match λ-match lambda-ematch λ-ematch))
     "pattern-matching-function")
+   ((member head '(match match* with with*))
+    "pattern-matching-function")
    ((eq? head 'lambda) "anonymous-function")
    ((eq? head 'case-lambda) "multi-arity-function")
    ((member head '(cut cute)) "partial-application")
    ((member head '(curry rcurry)) "function-curry")
    ((member head '(compose compose1 rcompose)) "function-composition")
-   ((member head '(!> !!>)) "pipeline-composition")
+   ((member head '(!> !!> chain)) "pipeline-composition")
    ((member head '(funcall constantly iterate-function iterated-function))
     "higher-order-combinator")
    ((eq? head 'fun) "named-lambda-abstraction")

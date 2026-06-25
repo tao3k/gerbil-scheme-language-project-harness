@@ -2,11 +2,14 @@
  (observedTotalMs . 4)
  (targetTotalMs . 15)
  (regressionBudgetMs . 21)
- (observedTimings ((collect-before . 1)
-                   (collect-after . 1)
-                   (policy-before . 1)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 4ms for poo-integer-range-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 1))
+  ((name . collect-after) (durationMs . 1))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 4ms for poo-integer-range-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -20,10 +23,24 @@
  (feature . "poo-loop-integer-range-type-construction")
  (rule . "GERBIL-SCHEME-AGENT-R034")
  (optimizationFocus . "loop-local integer range type construction")
- (inputShape . "manual loop repeatedly constructing stable IntegerRange type objects")
+ (inputShape
+  .
+  "manual loop repeatedly constructing stable IntegerRange type objects")
  (expectedRepair . "hoist stable IntegerRange type object to a named binding")
  (hotPathExemption . "numeric-type-construction-hot-loop")
- (hotPathEvidence "manual-loop" "numeric-type-object" "hoisted-type-binding" "benchmark-contract")
- (styleRewriteBoundary . "do not rebuild integer range numeric type objects inside a measured loop; keep stable type objects hoisted")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "numeric-type-object"
+  "hoisted-type-binding"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not rebuild integer range numeric type objects inside a measured loop; keep stable type objects hoisted")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "type" "integer-range"))

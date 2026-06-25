@@ -2,11 +2,14 @@
  (observedTotalMs . 14)
  (targetTotalMs . 19)
  (regressionBudgetMs . 15)
- (observedTimings ((collect-before . 4)
-                   (collect-after . 8)
-                   (policy-before . 0)
-                   (policy-after . 2)))
- (targetRationale . "observed baseline 14ms for slot-lens-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 4))
+  ((name . collect-after) (durationMs . 8))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 2)))
+ (targetRationale
+  .
+  "observed baseline 14ms for slot-lens-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -20,8 +23,12 @@
  (feature . "slot-lens-boundary")
  (rule . "GERBIL-SCHEME-AGENT-R013")
  (optimizationFocus . "local slot descriptor and lens boundary")
- (inputShape . "single exported function mixes Slot, Lens, Get, Set, Modify, and Validate responsibilities")
- (expectedRepair . "local slot/lens helpers split get, set, modify, and validation without adding gerbil-poo or gerbil-utils dependencies")
+ (inputShape
+  .
+  "single exported function mixes Slot, Lens, Get, Set, Modify, and Validate responsibilities")
+ (expectedRepair
+  .
+  "local slot/lens helpers split get, set, modify, and validation without adding gerbil-poo or gerbil-utils dependencies")
  (expectedReferencePattern . "slot-lens-boundary")
  (expectedReferenceExamples
   "gerbil-poo/mop.ss#slot-checker"
@@ -32,7 +39,15 @@
   "lens-get-set-modify-boundary"
   "local-lens-helper")
  (learnedStyleSources "gerbil-poo")
- (antiAiScaffoldIntent . "reject repeated slot access scaffolding when contract categories prove a lens boundary")
+ (antiAiScaffoldIntent
+  .
+  "reject repeated slot access scaffolding when contract categories prove a lens boundary")
  (scenarioQualityAxes "slot-lens-boundary" "anti-ai-scaffold")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "slot" "lens" "descriptor-boundary"))

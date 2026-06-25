@@ -10,8 +10,8 @@
 (export agent-build-policy-test)
 
 ;; PolicyTest
-(def agent-build-policy-test
-  (test-suite "gerbil scheme harness agent build policy"
+(def agent-build-runtime-policy-test
+  (test-suite "gerbil scheme harness agent build runtime policy"
     (test-case "agent policy rejects package build CLI routing"
           (let ((root ".run/policy-package-build-routing"))
             (ensure-dir ".run")
@@ -194,7 +194,12 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
-              (check matching => []))))
+              (check matching => [])))))
+)
+
+;; PolicyTest
+(def agent-build-package-rejection-policy-test
+  (test-suite "gerbil scheme harness package build rejection policy"
     (test-case "agent policy rejects package build shell pipelines"
           (let ((root ".run/policy-package-build-shell-pipeline"))
             (reset-fixture-root root)
@@ -329,7 +334,12 @@
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
               (check (hash-get details 'legacyBuildImport) => ":std/make")
-              (check (hash-get details 'manualEnvironmentSetup) => "apply"))))
+              (check (hash-get details 'manualEnvironmentSetup) => "apply")))))
+)
+
+;; PolicyTest
+(def agent-build-canonical-acceptance-policy-test
+  (test-suite "gerbil scheme harness package build canonical acceptance policy"
     (test-case "agent policy accepts clan/building package build"
           (let ((root ".run/policy-package-build-canonical-clan-building"))
             (reset-fixture-root root)
@@ -419,3 +429,10 @@
                     (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
               (check build-support-matches => [])
               (check package-build-matches => []))))))
+
+;; PolicyTest
+(def agent-build-policy-test
+  (test-suite "gerbil scheme harness agent build policy"
+    agent-build-runtime-policy-test
+    agent-build-package-rejection-policy-test
+    agent-build-canonical-acceptance-policy-test))

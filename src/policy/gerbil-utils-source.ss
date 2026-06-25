@@ -231,13 +231,31 @@
      "gerbil-poo/fun.ss#Wrapper."
      "gerbil-poo/fun.ss#Wrap."
      "gerbil-poo/fun.ss#Wrap^."]
-    ["typeclass-algebra-boundary"
+   ["typeclass-algebra-boundary"
      "functor-map-ap-boundary"
      "wrapper-adapter-lift"
      "wrap-unwrap-boundary"
      "method-protocol-lift"
      "cut-backed-runtime-parameterization"]
     "gerbil-poo/fun.ss study: wrapper and functor quality comes from keeping wrap/unwrap as the only representation crossing, lifting IO/JSON/bytes/marshal methods through local adapters, and preserving map/ap algebra without requiring a gerbil-poo dependency")
+   (make-gerbil-utils-source-profile
+    'compiler-method-pass-boundary
+    "gerbil-compiler-method-pass-boundary"
+    ["gerbil://gerbil/compiler/method.ss#defcompile-method"
+     "gerbil://gerbil/compiler/method.ss#compile-e"
+     "gerbil://gerbil/compiler/method.ss#apply-begin%"
+     "gerbil://gerbil/compiler/method.ss#xform-wrap-source"
+     "gerbil://gerbil/compiler/optimize-top.ss#apply-collect-type-info"
+     "gerbil://gerbil/compiler/optimize-top.ss#dispatch-lambda-form?"
+     "gerbil://gerbil/compiler/optimize-top.ss#lift-case-lambda-clauses"]
+    ["method-table-pass-boundary"
+     "ast-case-shape-dispatch"
+     "delayed-method-binding"
+     "sealed-compile-method-class"
+     "source-preserving-transform"
+     "typed-pass-pipeline"
+     "dispatch-lambda-delegate-boundary"]
+    "gerbil:// compiler study: method-table quality comes from table-driven AST pass methods, delayed method binding, ast-case shape predicates, source-preserving transforms, and typed pass pipelines instead of broad cond dispatch or ad hoc method bodies")
    (make-gerbil-utils-source-profile
    'concurrency-control-boundary
    "concurrency-control-boundary"
@@ -293,7 +311,12 @@
    (make-gerbil-utils-source-profile
     'macro-helper
     "gerbil-utils-controlled-macro-helper"
-    ["gerbil://gerbil/compiler/method.ss#ast-case-with-syntax-map-cut"
+   ["gerbil://gerbil/compiler/method.ss#ast-case-with-syntax-map-cut"
+    "gerbil://gerbil/expander/core.ss#current-expander-context"
+    "gerbil://gerbil/expander/core.ss#core-apply-user-macro"
+    "gerbil://gerbil/expander/core.ss#core-context-shift"
+    "gerbil://gerbil/expander/module.ss#core-expand-module-begin"
+    "gerbil://gerbil/expander/module.ss#core-expand-import%"
      "gerbil-utils/syntax.ss#defsyntax-stx"
      "gerbil-utils/syntax.ss#syntax-case"
      "gerbil-utils/syntax.ss#begin-syntax parse-formals"
@@ -302,6 +325,10 @@
      "gerbil-utils/base.ss#left-to-right"]
     ["controlled-macro-helper"
      "macro-hygiene-boundary"
+     "parameterized-expander-state"
+     "typed-context-record-boundary"
+     "phase-shift-context-boundary"
+     "source-aware-syntax-error"
      "ast-case-transformer-boundary"
      "with-syntax-reconstruction-boundary"
      "syntax-case-with-local-parser"
@@ -309,7 +336,7 @@
      "thin-syntax-bridge"
      "runtime-helper-boundary"
      "expansion-contract-doc"]
-    "gerbil:// source corpus and gerbil-utils study: macros are allowed when they are thin hygienic syntax wrappers, use ast-case/syntax-case or syntax-rules for local parsing, reconstruct with with-syntax, and keep reusable runtime behavior outside the transformer")
+    "gerbil:// source corpus and gerbil-utils study: macros are allowed when they are thin hygienic syntax wrappers, use ast-case/syntax-case or syntax-rules for local parsing, reconstruct with with-syntax, parameterize expander phase/context state instead of mutating globals, and keep reusable runtime behavior outside the transformer")
    (make-gerbil-utils-source-profile
     'default
     "gerbil-utils-quality-pattern"
@@ -402,6 +429,12 @@
      quality-facets
      ["poo-typeclass-algebra-boundary"])
     'typeclass-wrapper-adapter)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["method-table-combinator-body"
+      "method-table-lambda-drift"
+      "method-table-low-level-body"])
+    'compiler-method-pass-boundary)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["concurrency-control-boundary"])

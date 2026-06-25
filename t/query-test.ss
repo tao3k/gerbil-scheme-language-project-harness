@@ -251,28 +251,26 @@
 ;;; Query result accessor:
 ;;; - query-output returns one compatibility pair at the process boundary.
 ;;; - Tests use named accessors so result shape changes stay local.
-;; : (-> QueryOutput ExitCode )
+;; : (-> QueryOutput ExitCode)
 (def (query-result-exit-code result)
   (car result))
 
 ;;; Query result accessor:
 ;;; - Captured output is a named field, not an anonymous cdr at call sites.
 ;;; - This mirrors gerbil-utils style: one bridge helper, composed at use sites.
-;; : (-> QueryOutput String )
+;; : (-> QueryOutput String)
 (def (query-result-output result)
-  (let (rest (cdr result))
-    (if (pair? rest)
-      (car rest)
-      rest)))
+  (match (cdr result)
+    ([output . _] output)
+    (output output)))
 
-;; : (-> NativeQueryOutput Milliseconds )
+;; : (-> NativeQueryOutput Milliseconds)
 (def (query-result-duration-ms result)
-  (let (rest (cdr result))
-    (if (pair? rest)
-      (cadr rest)
-      0)))
+  (match (cdr result)
+    ([_ duration . _] duration)
+    (_ 0)))
 
-;; : (-> (List XX) QueryOutput )
+;; : (-> (List String) QueryOutput)
 (def (query-output args)
   (let (exit-code #f)
     (let (output
@@ -282,7 +280,7 @@
                (set! exit-code (query-main args))))))
       (cons exit-code output))))
 
-;; : (-> (List XX) NativeQueryOutput )
+;; : (-> (List String) NativeQueryOutput)
 (def (native-query-output args)
   (let* ((command (cons (native-query-binary) args))
          (start (monotonic-ms))
@@ -304,7 +302,7 @@
 ;;; - Tests default to the package-local `.bin` produced by build-native.ss.
 ;;; - ASP_PROVIDER_BIN_DIR remains an explicit override for installed-provider
 ;;;   smoke tests, but root workspace wrappers are not implicit fallbacks here.
-;; : (-> Path )
+;; : (-> Path)
 (def (native-provider-bin-dir)
   (let (override (getenv "ASP_PROVIDER_BIN_DIR" #f))
     (if (and override (not (equal? override "")))
@@ -314,7 +312,7 @@
 ;;; Provider launcher path:
 ;;; - `gslph` is still required so tests verify the public installed command
 ;;;   exists beside any fast-path sibling.
-;; : (-> Path )
+;; : (-> Path)
 (def (native-provider-binary)
   (path-expand "gslph" (native-provider-bin-dir)))
 
@@ -322,16 +320,26 @@
 ;;; - Performance assertions run only when the dedicated query sibling exists.
 ;;; - This prevents a source fallback from satisfying availability while still
 ;;;   measuring as native fast path.
-;; : (-> Path )
+;; : (-> Path)
 (def (native-query-binary)
   (path-expand "gslph-query" (native-provider-bin-dir)))
 
-;; : (-> Boolean )
+;; : (-> Boolean)
 (def (native-provider-binary-available?)
   (and (file-exists? (native-provider-binary))
        (file-exists? (native-query-binary))))
 
-;; : (-> Port String )
+;; read-port-as-string
+;;   : (-> Port String)
+;;   | doc m%
+;;       `read-port-as-string port` drains a process output port into one
+;;       string so native-query timing assertions can inspect stdout/stderr.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (call-with-input-string "ok" read-port-as-string) ; => "ok"
+;;       ```
+;;     %
 (def (read-port-as-string port)
   (call-with-output-string ""
     (lambda (out)

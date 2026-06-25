@@ -2,11 +2,14 @@
  (observedTotalMs . 4)
  (targetTotalMs . 15)
  (regressionBudgetMs . 21)
- (observedTimings ((collect-before . 1)
-                   (collect-after . 2)
-                   (policy-before . 1)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 4ms for higher-order-composition-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 1))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 4ms for higher-order-composition-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -31,7 +34,15 @@
   "cut-prefix-predicate"
   "thin-wrapper-elimination")
  (learnedStyleSources "gerbil://" "gerbil-utils")
- (antiAiScaffoldIntent . "reject repeated wrapper-lambda scaffolding when compose/cut expresses the data flow")
+ (antiAiScaffoldIntent
+  .
+  "reject repeated wrapper-lambda scaffolding when compose/cut expresses the data flow")
  (scenarioQualityAxes "higher-order-composition" "anti-ai-scaffold")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "higher-order" "composition"))

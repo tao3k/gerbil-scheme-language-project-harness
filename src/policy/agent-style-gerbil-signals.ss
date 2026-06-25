@@ -15,6 +15,9 @@
         typed-combinator-style-list-combinator-quality-facets
         typed-combinator-style-list-combinator-signals
         typed-combinator-style-list-combinator-targets
+        typed-combinator-style-std-sugar-flow-quality-facets
+        typed-combinator-style-std-sugar-flow-signals
+        typed-combinator-style-std-sugar-flow-targets
         typed-combinator-style-loop-driver-quality-facets
         typed-combinator-style-loop-driver-signals
         typed-combinator-style-loop-driver-targets
@@ -68,12 +71,19 @@
    "fun named lambda abstraction"
    "!>/!!> pipeline"
    "apply compose"
+   "std/sugar chain flow"
+   "if-let/when-let early-failure conditionals"
    "cut/curry/rcurry"
    "case-lambda arity specialization"
    "match/lambda-match shape dispatch"
    "values/call-with-values tuple projection"
    "parameterize/dynamic-wind control boundary"
+   "parameterized expander/control state boundary"
    "syntax-case/syntax-rules hygienic macro boundary"
+   "defclass/defstruct typed descriptor boundary"
+   "using typed object/interface slot access"
+   "parse/validate/generate split for syntax owners"
+   "method-table/cache state boundary"
    "map/filter/filter-map/fold"
    "andmap/ormap/every/any predicate folds"
    "with-list-builder"])
@@ -85,7 +95,9 @@
 (def +gerbil-contract-projection-signals+
   ["legacy contracts split at top-level <-, not nested arrows"
    "Gerbil contract projection ;; : (forall (a) (-> ...)) blocks carry type aliases, runtime contracts, requires, warning, rationale, and doc sections"
-   "higher-order contracts may use placeholder-looking Gerbil utility variables when the arrow/group evidence is higher-order"])
+   "higher-order contracts may use placeholder-looking Gerbil utility variables when the arrow/group evidence is higher-order"
+   "using (value :- Type) is the native boundary for repeated class/interface slot access when parser facts prove a local typed descriptor"
+   "interface/slot contracts normalize once at the projection boundary; downstream helpers should not repeat get/set/validate scaffolding"])
 
 ;;; Facet helper boundary:
 ;;; - Converts proven parser facts into one public quality facet.
@@ -179,6 +191,129 @@
   (typed-combinator-style-facts->targets
    (typed-combinator-style-list-combinator-facts file)
    typed-contract-fact-definition-name))
+
+;;; Std sugar flow boundary:
+;;; - std/sugar.ss teaches `chain` for expression flow and `if-let`/`when-let`
+;;;   for early-failure conditionals.
+;;; - Emit only when typed contracts mark flow/workflow ownership and parser
+;;;   control-flow facts prove repeated conditional scaffolding in that owner.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-std-sugar-flow-quality-facets file)
+  (typed-combinator-style-facts->quality-facet
+   (typed-combinator-style-std-sugar-flow-facts file)
+   "std-sugar-flow-boundary"))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-std-sugar-flow-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-std-sugar-flow-facts file)
+   ["replace nested let/if flow scaffolding with std/sugar chain when the data path is linear"
+    "use if-let or when-let when a conditional branch is just an early-failure binding"
+    "keep std/sugar flow local to expression-level transforms; do not hide IO or state-machine boundaries"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-std-sugar-flow-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-std-sugar-flow-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-std-sugar-flow-facts file)
+  (filter (lambda (fact)
+            (typed-combinator-style-std-sugar-flow-fact? file fact))
+          (source-file-typed-contract-facts file)))
+
+;; : (-> SourceFile TypedContractFact Boolean )
+(def (typed-combinator-style-std-sugar-flow-fact? file fact)
+  (let (definition-name (typed-contract-fact-definition-name fact))
+    (and (typed-combinator-style-std-sugar-flow-contract? fact)
+         (typed-combinator-style-std-sugar-flow-profile?
+          file
+          definition-name)
+         (typed-combinator-style-caller-uses-early-failure-lookup?
+          file
+          definition-name)
+         (>= (typed-combinator-style-conditional-branch-count
+              file
+              definition-name)
+             2)
+         (not (typed-combinator-style-caller-uses-std-sugar-flow?
+               file
+               definition-name)))))
+
+;; : (-> SourceFile DefinitionName Boolean )
+(def (typed-combinator-style-std-sugar-flow-profile? file definition-name)
+  (ormap (lambda (profile)
+           (and (equal? (function-quality-profile-name profile)
+                        definition-name)
+                (typed-combinator-style-std-sugar-flow-profile-facets?
+                 (function-quality-profile-quality-facets profile))))
+         (source-file-function-quality-profiles file)))
+
+;; : (-> (List QualityFacet) Boolean )
+(def (typed-combinator-style-std-sugar-flow-profile-facets? facets)
+  (and (member "control-flow:conditional-branch" facets)
+       (not (typed-combinator-style-std-sugar-flow-preserved-boundary? facets))
+       (not (typed-combinator-style-std-sugar-flow-composed-boundary? facets))))
+
+;; : (-> (List QualityFacet) Boolean )
+(def (typed-combinator-style-std-sugar-flow-preserved-boundary? facets)
+  (ormap (cut member <> facets)
+         ["control-flow:protected-control"
+          "control-flow:resource-scope"
+          "preserve-named-let-driver"
+          "io-state-boundary"
+          "state-driver-candidate"
+          "higher-order-boundary"
+          "macro-runtime-source-witness"
+          "poo-protocol-evidence"]))
+
+;; : (-> (List QualityFacet) Boolean )
+(def (typed-combinator-style-std-sugar-flow-composed-boundary? facets)
+  (ormap (cut member <> facets)
+         ["higher-order-used"
+          "combinator-backed"
+          "higher-order-transform"
+          "combinator-composition"
+          "function-specialization-abstraction"
+          "expression-level-composition"
+          "base-style-combinator-composition"
+          "pipeline-composition"]))
+
+;; : (-> SourceFile DefinitionName Boolean )
+(def (typed-combinator-style-caller-uses-early-failure-lookup? file definition-name)
+  (ormap (lambda (call)
+           (and (equal? (or (call-fact-caller call) "")
+                        definition-name)
+                (member (call-fact-callee call)
+                        ["assq" "assv" "assoc" "hash-get" "table-ref"
+                         "alist-ref" "agetq" "getq"])))
+         (source-file-calls file)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-std-sugar-flow-contract? fact)
+  (typed-contract-fact-mentions-any?
+   fact
+   ["Flow" "flow" "Workflow" "workflow" "Pipeline" "pipeline"
+    "Decision" "decision" "Maybe" "maybe" "Optional" "optional"]))
+
+;; : (-> SourceFile DefinitionName Integer )
+(def (typed-combinator-style-conditional-branch-count file definition-name)
+  (length
+   (filter (lambda (fact)
+             (and (equal? (or (control-flow-fact-caller fact) "")
+                          definition-name)
+                  (equal? (control-flow-fact-role fact)
+                          "conditional-branch")))
+           (source-file-control-flow-forms file))))
+
+;; : (-> SourceFile DefinitionName Boolean )
+(def (typed-combinator-style-caller-uses-std-sugar-flow? file definition-name)
+  (ormap (lambda (call)
+           (and (equal? (or (call-fact-caller call) "") definition-name)
+                (member (call-fact-callee call)
+                        ["chain" "if-let" "when-let" "awhen"])))
+         (source-file-calls file)))
 
 ;;; Loop-driver boundary:
 ;;; - Pure named-let loops are parser-owned evidence even when older code lacks
@@ -420,6 +555,8 @@
    ["introduce local slot descriptor or lens helpers"
     "centralize get/set/modify around the slot boundary"
     "keep validation attached to the slot update boundary"
+    "use Gerbil `using (value :- Type)` when repeated slot access has a known local class or interface descriptor"
+    "model descriptor state as a small defclass/defstruct before adding ad hoc get/set branches"
     "preserve reader/writer symmetry without gerbil-poo or gerbil-utils dependencies"]))
 
 ;;; Target boundary:
@@ -683,6 +820,7 @@
    (source-file-macro-family-facts file)
    ["collapse repeated same-prefix macro wrappers into one macro family helper"
     "prefer a syntax-rules family table or stx helper over copy-pasted defrules"
+    "split shared macro parsing from syntax generation when the family has more than one expansion shape"
     "keep runtime semantics in ordinary helpers and make macro expansion a thin surface"]))
 
 ;;; Target projection names the macro family prefix, not each repeated wrapper.
@@ -712,6 +850,11 @@
    ["syntax-case/with-syntax transformer shape"
     "syntax-rules thin macro DSL"
     "hygienic macro boundary"
+    "parameterize phase/context state instead of mutating global macro state"
+    "typed context records for macro/import/export state"
+    "raise-syntax-error keeps source-aware failure paths"
+    "parse complex syntax into a small local IR before generating output"
+    "separate syntax validation, pattern parsing, and output reconstruction helpers"
     "stx-lambda or def-stx helper boundary"
     "macro syntax stays a thin hygienic syntax wrapper"
     "runtime behavior remains in ordinary helpers"

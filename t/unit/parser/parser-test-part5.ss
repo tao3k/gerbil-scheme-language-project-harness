@@ -98,8 +98,8 @@
   (call-with-output-file path
     (lambda (port) (display text port))))
 ;; TestSuite
-(def parser-test-part-5
-  (test-suite "gerbil scheme harness parser part 5"
+(def parser-test-part-5-higher-order-control
+  (test-suite "gerbil scheme harness parser part 5 higher-order control"
     (test-case "native reader captures higher-order syntax facts"
           (let* ((root (path-normalize "."))
                  (file (parse-source-file root "t/fixtures/parser/higher-order.ss"))
@@ -297,6 +297,11 @@
             (check (not (not (member "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
                                       (hash-get repair-evidence 'allowedMoves))))
                    => #t)))
+  ))
+
+;; TestSuite
+(def parser-test-part-5-quality-shape
+  (test-suite "gerbil scheme harness parser part 5 quality shape"
     (test-case "native reader keeps quality-shape parser facts stable"
           (let* ((root (path-normalize "."))
                  (file (parse-source-file root "src/parser/quality-shape.ss")))
@@ -377,3 +382,9 @@
             (check (selector-owner? (projection-burst-fact-selector burst)
                                     "t/fixtures/parser/projection-burst.ss")
                    => #t)))))
+
+;; TestSuite
+(def parser-test-part-5
+  (test-suite "gerbil scheme harness parser part 5"
+    parser-test-part-5-higher-order-control
+    parser-test-part-5-quality-shape))

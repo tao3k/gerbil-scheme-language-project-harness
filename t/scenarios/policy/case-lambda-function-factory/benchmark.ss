@@ -2,11 +2,14 @@
  (observedTotalMs . 6)
  (targetTotalMs . 15)
  (regressionBudgetMs . 19)
- (observedTimings ((collect-before . 2)
-                   (collect-after . 3)
-                   (policy-before . 1)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 6ms for case-lambda-function-factory; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 3))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 6ms for case-lambda-function-factory; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -21,16 +24,25 @@
  (rule . "GERBIL-SCHEME-AGENT-R013")
  (optimizationFocus . "case-lambda arity-specialized function factory")
  (inputShape . "single wrapper-lambda factory hiding distinct arity variants")
- (expectedRepair . "case-lambda factory with explicit arity branches and typed documentation")
+ (expectedRepair
+  .
+  "case-lambda factory with explicit arity branches and typed documentation")
  (expectedReferencePattern . "gerbil-utils-higher-order-expression")
- (expectedReferenceExamples
-  "gerbil-utils/base.ss#case-lambda specializers")
+ (expectedReferenceExamples "gerbil-utils/base.ss#case-lambda specializers")
  (expectedQualitySignals
   "function-specialization-abstraction"
   "multi-arity-abstraction"
   "thin-wrapper-elimination")
  (learnedStyleSources "gerbil-utils")
- (antiAiScaffoldIntent . "reject one-size wrapper-lambda factories when case-lambda expresses real arity variants")
+ (antiAiScaffoldIntent
+  .
+  "reject one-size wrapper-lambda factories when case-lambda expresses real arity variants")
  (scenarioQualityAxes "case-lambda-function-factory" "anti-ai-scaffold")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "higher-order" "case-lambda" "arity"))

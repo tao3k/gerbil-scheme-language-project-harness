@@ -438,11 +438,12 @@
         (max-definition-span (modularity-max-test-definition-span policy)))
     (filter-map
      (lambda (file)
-       (let* ((effective-line-count (source-leaf-effective-line-count index file))
+       (let* ((effective-line-count (test-leaf-effective-line-count file))
               (test-case-count (test-leaf-test-case-count file))
               (definition-span (test-leaf-max-definition-span file)))
          (and (project-gerbil-test-path? (source-file-path file))
-              (or (and (fx>= effective-line-count max-line-count)
+              (or (fx>= effective-line-count +hard-max-leaf-line-count+)
+                  (and (fx>= effective-line-count max-line-count)
                        (fx>= (length (source-file-definitions file))
                              min-definition-count))
                   (fx>= test-case-count max-test-case-count)
@@ -527,6 +528,13 @@
       (read-file-lines
        (path-expand (source-file-path file)
                     (project-index-root index)))))))
+
+;;; Test owners are modularity leaves, not typed-ledger source ledgers.
+;;; Physical line count is the hard signal so large tests cannot hide below a
+;;; typed-combinator-style ledger marker.
+;; : (-> SourceFile Integer )
+(def (test-leaf-effective-line-count file)
+  (source-file-line-count file))
 ;;; Invariant:
 ;;; - typed-ledger-effective-line-count owns branch/iteration semantics.
 ;;; - Preserve exit conditions and fallback order.

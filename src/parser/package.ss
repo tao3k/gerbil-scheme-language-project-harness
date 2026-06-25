@@ -3,8 +3,7 @@
 
 (import :gerbil/gambit
         (only-in :parser/support datum-list-items safe-cadr)
-        (only-in :std/misc/list unique)
-        (only-in :std/srfi/13 string-index))
+        (only-in :std/misc/list unique))
 
 (export read-project-package
         project-package-path
@@ -110,14 +109,9 @@
    (lambda ()
      (let* ((path (path-expand "build.ss" root))
             (forms (read-package-forms path))
-            (targets (build-script-targets forms))
-            (runtime-roots (build-target-source-roots targets)))
-       (and (pair? runtime-roots)
-            (make-source-scope-policy
-             '()
-             runtime-roots
-             '()
-             "Inferred from build.ss defbuild-script targets."))))))
+            (entry (build-source-coverage-entry forms)))
+       (and entry
+            (build-source-coverage-policy entry))))))
 ;;; Boundary:
 ;;; - read-package-forms composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -332,46 +326,42 @@
   (if (and primary (pair? primary))
     primary
     (or fallback '())))
-;;; Boundary:
-;;; Package forms have at most one build script declaration for harness scope.
-;;; The find combinator makes that single-owner lookup explicit and leaves the
-;;; target value decoder responsible for quoted/list/string normalization.
-;; : (-> (List String) BuildScriptTargets )
-(def (build-script-targets forms)
-  (let (form (find build-script-form? forms))
-    (if form
-      (build-script-target-value (safe-cadr form))
-      '())))
-;; : (-> Datum Boolean )
-(def (build-script-form? datum)
-  (and (pair? datum) (eq? (car datum) 'defbuild-script)))
-;;; Boundary:
-;;; - build-script-target-value composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; : (-> Datum BuildScriptTargetValue )
-(def (build-script-target-value datum)
-  (cond
-   ((not datum) '())
-   ((quoted-datum? datum) (build-script-target-value (safe-cadr datum)))
-   ((or (string? datum) (symbol? datum)) [(datum->string datum)])
-   (else (filter-map datum->string (datum-list-items datum)))))
 ;; : (-> Datum Boolean )
 (def (quoted-datum? datum)
   (and (pair? datum) (eq? (car datum) 'quote)))
+
 ;;; Boundary:
-;;; - build-target-source-roots composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; : (-> Targets (List String) )
-(def (build-target-source-roots targets)
-  (unique (filter-map build-target-source-root targets)))
-;; : (-> Target BuildTargetSourceRoot )
-(def (build-target-source-root target)
-  (let (slash (and target (string-index target #\/)))
-    (cond
-     ((not target) #f)
-     ((not slash) ".")
-     ((fx= slash 0) ".")
-     (else (substring target 0 slash)))))
+;;; `build.ss` owns the project source coverage universe through an explicit
+;;; no-op API call. The parser reads the datum only; execution scope still comes
+;;; from gxtest files, changed files, or explicit full-project gates.
+;; : (-> (List Datum) BuildSourceCoverageEntry )
+(def (build-source-coverage-entry forms)
+  (find build-source-coverage-form? forms))
+
+;; : (-> Datum Boolean )
+(def (build-source-coverage-form? datum)
+  (and (pair? datum)
+       (eq? (car datum) 'gslph-source-coverage)))
+
+;; : (-> Datum SourceScopePolicy )
+(def (build-source-coverage-policy entry)
+  (let* ((roots (or (policy-string-list-field entry 'roots:)
+                    (policy-string-list-field entry 'source-roots:)
+                    (policy-string-list-field entry 'source-root:)
+                    '()))
+         (runtime-roots (or (policy-string-list-field entry 'runtime-roots:)
+                            (policy-string-list-field entry 'runtime-root:)
+                            roots)))
+    (and (or (pair? roots) (pair? runtime-roots))
+         (make-source-scope-policy
+          roots
+          runtime-roots
+          (or (policy-string-list-field entry 'exclude-directories:)
+              (policy-string-list-field entry 'excluded-directories:)
+              (policy-string-list-field entry 'ignore-directories:)
+              '())
+          (or (policy-string-field entry 'explanation:)
+              "Declared by build.ss gslph-source-coverage.")))))
 ;; : (-> Datum PackageAgentPolicy )
 (def (package-agent-policy datum)
   (let (policy (package-field-value datum 'policy:))
@@ -407,10 +397,15 @@
 ;; : (-> Datum String String )
 (def (policy-string-list-field datum field)
   (let (value (package-field-value datum field))
-    (cond
-     ((not value) #f)
-     ((or (string? value) (symbol? value)) [(datum->string value)])
-     (else (unique (filter-map datum->string (datum-list-items value)))))))
+    (policy-string-list-value value)))
+
+;; : (-> Datum StringListField )
+(def (policy-string-list-value value)
+  (cond
+   ((not value) #f)
+   ((quoted-datum? value) (policy-string-list-value (safe-cadr value)))
+   ((or (string? value) (symbol? value)) [(datum->string value)])
+   (else (unique (filter-map datum->string (datum-list-items value))))))
 ;; : (-> Datum String String )
 (def (policy-string-field datum field)
   (let (value (package-field-value datum field))

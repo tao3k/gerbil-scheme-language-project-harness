@@ -2,11 +2,14 @@
  (observedTotalMs . 6)
  (targetTotalMs . 15)
  (regressionBudgetMs . 19)
- (observedTimings ((collect-before . 2)
-                   (collect-after . 2)
-                   (policy-before . 1)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 6ms for generator-control-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 6ms for generator-control-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -21,7 +24,9 @@
  (rule . "GERBIL-SCHEME-AGENT-R013")
  (optimizationFocus . "push/pull generator control inversion boundary")
  (inputShape . "manual pull generator loop behind a Generating contract")
- (expectedRepair . "local generator reducer boundary with full typed documentation")
+ (expectedRepair
+  .
+  "local generator reducer boundary with full typed documentation")
  (expectedReferencePattern . "gerbil-utils-generator-control")
  (expectedReferenceExamples
   "gerbil-utils/generator.ss#generating<-for-each"
@@ -30,7 +35,15 @@
   "push-pull-control-inversion"
   "call/cc-yield-boundary")
  (learnedStyleSources "gerbil-utils")
- (antiAiScaffoldIntent . "reject hand-written producer-loop scaffolding when generator contracts prove a combinator boundary")
+ (antiAiScaffoldIntent
+  .
+  "reject hand-written producer-loop scaffolding when generator contracts prove a combinator boundary")
  (scenarioQualityAxes "generator-combinator-boundary" "anti-ai-scaffold")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "generator" "control-inversion"))

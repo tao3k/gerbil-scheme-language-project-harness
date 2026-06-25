@@ -2,11 +2,14 @@
  (observedTotalMs . 3)
  (targetTotalMs . 15)
  (regressionBudgetMs . 22)
- (observedTimings ((collect-before . 1)
-                   (collect-after . 2)
-                   (policy-before . 0)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 3ms for poo-debug-instrumentation-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 1))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 3ms for poo-debug-instrumentation-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly wrapping trace-poo instrumentation")
  (expectedRepair . "hoist trace-poo outside the loop")
  (hotPathExemption . "debug-instrumentation-hot-loop")
- (hotPathEvidence "manual-loop" "debug-wrapper" "hoisted-setup-boundary" "benchmark-contract")
- (styleRewriteBoundary . "do not introduce repeated debug wrappers inside a measured loop; keep instrumentation at one setup boundary")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "debug-wrapper"
+  "hoisted-setup-boundary"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not introduce repeated debug wrappers inside a measured loop; keep instrumentation at one setup boundary")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "debug"))

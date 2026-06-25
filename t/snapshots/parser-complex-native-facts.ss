@@ -260,6 +260,16 @@
             (selector "t/fixtures/parser/complex-syntax.ss:30-36"))))
  (higherOrderForms
   ((higherOrderForm
+    (name "match")
+    (kind "match")
+    (role "pattern-matching-function")
+    (operandCount 3)
+    (arities ())
+    (formals ())
+    (caller "dispatch")
+    (qualityFacets ("lambda-match-destructuring"))
+    (selector "t/fixtures/parser/complex-syntax.ss:44-46"))
+   (higherOrderForm
     (name "case-lambda")
     (kind "case-lambda")
     (role "multi-arity-function")
@@ -550,7 +560,7 @@
     (typedContractQuality "domain-transform")
     (commentQuality "weak")
     (controlFlowRoles ("pattern-branch"))
-    (higherOrderRoles ())
+    (higherOrderRoles ("pattern-matching-function"))
     (predicateFamilyRefs ())
     (fieldAccessPatternRefs ())
     (loopDriverRefs ())
@@ -570,13 +580,16 @@
       "aligned"
       "arity-bearing-definition"
       "call-backed"
-      "combinator-candidate"
+      "higher-order-used"
+      "combinator-backed"
       "control-flow:pattern-branch"
       "contract-only-is-not-engineering-comment"
-      "pattern-branch"))
+      "pattern-branch"
+      "pattern-matching-function"
+      "lambda-match-destructuring"))
     (preservationReasons ())
     (suggestedRepairClass "engineering-comment-quality")
-    (parserConfidence "medium")
+    (parserConfidence "high")
     (advice "write as many adjacent engineering comment lines as the parser evidence needs after code shape is stable")
     (selector "t/fixtures/parser/complex-syntax.ss:43-46"))
    (functionQualityProfile
@@ -813,14 +826,9 @@
       (matchedCalls
        ((repairCall
          (kind "call")
-         (name ":render")
+         (name "displayln")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:36-36"))
-        (repairCall
-         (kind "call")
-         (name "open-input-string")
-         (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+         (selector "t/fixtures/parser/complex-syntax.ss:34-34"))
         (repairCall
          (kind "call")
          (name "read-json")
@@ -828,9 +836,14 @@
          (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
         (repairCall
          (kind "call")
-         (name "displayln")
+         (name "open-input-string")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:34-34"))))
+         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+        (repairCall
+         (kind "call")
+         (name ":render")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:36-36"))))
       (matchedHigherOrder ())
       (matchedControlFlow ())
       (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
@@ -932,14 +945,9 @@
       (matchedCalls
        ((repairCall
          (kind "call")
-         (name ":render")
+         (name "displayln")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:36-36"))
-        (repairCall
-         (kind "call")
-         (name "open-input-string")
-         (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+         (selector "t/fixtures/parser/complex-syntax.ss:34-34"))
         (repairCall
          (kind "call")
          (name "read-json")
@@ -947,9 +955,14 @@
          (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
         (repairCall
          (kind "call")
-         (name "displayln")
+         (name "open-input-string")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:34-34"))))
+         (selector "t/fixtures/parser/complex-syntax.ss:35-35"))
+        (repairCall
+         (kind "call")
+         (name ":render")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:36-36"))))
       (matchedHigherOrder ())
       (matchedControlFlow ())
       (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
@@ -1008,14 +1021,14 @@
       (matchedCalls
        ((repairCall
          (kind "call")
-         (name "make-<Widget>")
-         (arity 2)
-         (selector "t/fixtures/parser/complex-syntax.ss:41-41"))
-        (repairCall
-         (kind "call")
          (name "with-widget")
          (arity 2)
-         (selector "t/fixtures/parser/complex-syntax.ss:40-41"))))
+         (selector "t/fixtures/parser/complex-syntax.ss:40-41"))
+        (repairCall
+         (kind "call")
+         (name "make-<Widget>")
+         (arity 2)
+         (selector "t/fixtures/parser/complex-syntax.ss:41-41"))))
       (matchedHigherOrder ())
       (matchedControlFlow ())
       (allowedMoves
@@ -1052,7 +1065,8 @@
       "aligned"
       "arity-bearing-definition"
       "call-backed"
-      "combinator-candidate"
+      "higher-order-used"
+      "combinator-backed"
       "control-flow:pattern-branch"))
     (repairEvidence
      (repairEvidence
@@ -1074,20 +1088,27 @@
         "aligned"
         "arity-bearing-definition"
         "call-backed"
-        "combinator-candidate"
+        "higher-order-used"
+        "combinator-backed"
         "control-flow:pattern-branch"))
       (matchedCalls
        ((repairCall
          (kind "call")
          (name "make-widget")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:46-46"))
+         (selector "t/fixtures/parser/complex-syntax.ss:45-45"))
         (repairCall
          (kind "call")
          (name "make-widget")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:45-45"))))
-      (matchedHigherOrder ())
+         (selector "t/fixtures/parser/complex-syntax.ss:46-46"))))
+      (matchedHigherOrder
+       ((repairHigherOrder
+         (kind "higher-order")
+         (name "match")
+         (role "pattern-matching-function")
+         (operandCount 3)
+         (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
       (matchedControlFlow
        ((repairControlFlow
          (kind "control-flow")
@@ -1096,10 +1117,7 @@
          (bindingCount 0)
          (bodyFormCount 2)
          (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
-      (allowedMoves
-       ("add-or-expand-adjacent-typed-contract-block"
-        "extract-predicate-mapper-or-reducer-helper"
-        "compose-with-map-filter-fold-cut-curry-or-compose"))
+      (allowedMoves ("add-or-expand-adjacent-typed-contract-block"))
       (forbiddenMoves
        ("change-public-export-without-policy-evidence"
         "rewrite-io-or-runtime-boundary-without-witness"
@@ -1157,14 +1175,14 @@
       (matchedCalls
        ((repairCall
          (kind "call")
-         (name "dispatch")
-         (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:51-51"))
-        (repairCall
-         (kind "call")
          (name "make-widget")
          (arity 1)
-         (selector "t/fixtures/parser/complex-syntax.ss:50-50"))))
+         (selector "t/fixtures/parser/complex-syntax.ss:50-50"))
+        (repairCall
+         (kind "call")
+         (name "dispatch")
+         (arity 1)
+         (selector "t/fixtures/parser/complex-syntax.ss:51-51"))))
       (matchedHigherOrder
        ((repairHigherOrder
          (kind "higher-order")
@@ -1221,7 +1239,8 @@
     (context "macro")
     (commentKind "contract-only")
     (quality "weak")
-    (required #t)
+    (required
+     ("defrule" "defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
     (reasons ("contract-only-is-not-engineering-comment"))
     (commentLines (": (-> Value SourceLine String )"))
     (targetStart 14)
@@ -1265,7 +1284,7 @@
     (context "macro")
     (commentKind "contract-only")
     (quality "weak")
-    (required #t)
+    (required ("defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
     (reasons ("contract-only-is-not-engineering-comment"))
     (commentLines (": (-> Stx CaptureSafe )"))
     (targetStart 18)
@@ -1312,7 +1331,7 @@
     (context "poo")
     (commentKind "weak")
     (quality "weak")
-    (required #t)
+    (required ("defclass" "defgeneric" "defmethod" "defprotocol"))
     (reasons ("weak-engineering-comment"))
     (commentLines ("String"))
     (targetStart 24)
@@ -1359,7 +1378,7 @@
     (context "poo")
     (commentKind "weak")
     (quality "weak")
-    (required #t)
+    (required ("defgeneric" "defmethod" "defprotocol"))
     (reasons ("weak-engineering-comment"))
     (commentLines ("Integer"))
     (targetStart 26)
@@ -1380,19 +1399,6 @@
        ((matchedFact
          (factKind "poo")
          (name ":render")
-         (formKind "defgeneric")
-         (role "generic")
-         (generic ":render")
-         (receiver "")
-         (receiverType "")
-         (supers ())
-         (slots ())
-         (specializers ())
-         (specializerTypes ())
-         (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
-        (matchedFact
-         (factKind "poo")
-         (name ":render")
          (formKind "defmethod")
          (role "method")
          (generic ":render")
@@ -1402,7 +1408,20 @@
          (slots ())
          (specializers ("widget:<Widget>"))
          (specializerTypes ("<Widget>"))
-         (selector "t/fixtures/parser/complex-syntax.ss:30-36"))))
+         (selector "t/fixtures/parser/complex-syntax.ss:30-36"))
+        (matchedFact
+         (factKind "poo")
+         (name ":render")
+         (formKind "defgeneric")
+         (role "generic")
+         (generic ":render")
+         (receiver "")
+         (receiverType "")
+         (supers ())
+         (slots ())
+         (specializers ())
+         (specializerTypes ())
+         (selector "t/fixtures/parser/complex-syntax.ss:26-26"))))
       (commentFocus
        "object/protocol/generic invariant, method specializers, and runtime witness boundary")
       (commentQuestions
@@ -1419,7 +1438,7 @@
     (context "poo")
     (commentKind "weak")
     (quality "weak")
-    (required #t)
+    (required ("defprotocol"))
     (reasons ("weak-engineering-comment"))
     (commentLines ("Integer"))
     (targetStart 28)
@@ -1466,7 +1485,7 @@
     (context "poo")
     (commentKind "weak")
     (quality "weak")
-    (required #t)
+    (required ("defmethod" "defprotocol"))
     (reasons ("weak-engineering-comment"))
     (commentLines ("Integer"))
     (targetStart 30)
@@ -1487,19 +1506,6 @@
        ((matchedFact
          (factKind "poo")
          (name ":render")
-         (formKind "defgeneric")
-         (role "generic")
-         (generic ":render")
-         (receiver "")
-         (receiverType "")
-         (supers ())
-         (slots ())
-         (specializers ())
-         (specializerTypes ())
-         (selector "t/fixtures/parser/complex-syntax.ss:26-26"))
-        (matchedFact
-         (factKind "poo")
-         (name ":render")
          (formKind "defmethod")
          (role "method")
          (generic ":render")
@@ -1509,7 +1515,20 @@
          (slots ())
          (specializers ("widget:<Widget>"))
          (specializerTypes ("<Widget>"))
-         (selector "t/fixtures/parser/complex-syntax.ss:30-36"))))
+         (selector "t/fixtures/parser/complex-syntax.ss:30-36"))
+        (matchedFact
+         (factKind "poo")
+         (name ":render")
+         (formKind "defgeneric")
+         (role "generic")
+         (generic ":render")
+         (receiver "")
+         (receiverType "")
+         (supers ())
+         (slots ())
+         (specializers ())
+         (specializerTypes ())
+         (selector "t/fixtures/parser/complex-syntax.ss:26-26"))))
       (commentFocus
        "object/protocol/generic invariant, method specializers, and runtime witness boundary")
       (commentQuestions
@@ -1557,10 +1576,10 @@
    (commentQualityFact
     (targetKind "definition")
     (targetName "dispatch")
-    (context "control-flow")
+    (context "higher-order")
     (commentKind "contract-only")
     (quality "weak")
-    (required #t)
+    (required #f)
     (reasons ("contract-only-is-not-engineering-comment"))
     (commentLines (": (-> Value Dispatch )"))
     (targetStart 43)
@@ -1574,11 +1593,21 @@
       (definitionFormals ("value"))
       (definitionArity 1)
       (lineSpan 4)
-      (context "control-flow")
+      (context "higher-order")
       (existingCommentLineCount 1)
-      (matchedFactCount 1)
+      (matchedFactCount 2)
       (matchedFacts
        ((matchedFact
+         (factKind "higher-order")
+         (name "match")
+         (formKind "match")
+         (role "pattern-matching-function")
+         (operandCount 3)
+         (arities ())
+         (formals ())
+         (caller "dispatch")
+         (selector "t/fixtures/parser/complex-syntax.ss:44-46"))
+        (matchedFact
          (factKind "control-flow")
          (name "match")
          (formKind "match")
@@ -1588,11 +1617,11 @@
          (bodyFormCount 2)
          (selector "t/fixtures/parser/complex-syntax.ss:44-46"))))
       (commentFocus
-       "state/control driver, branch invariants, loop or continuation reason, and exit conditions")
+       "expression-level data flow, combinator choice, arity shape, and why the transform is safe")
       (commentQuestions
-       ("What state, IO, generator, branch, or continuation driver requires explicit control flow?"
-        "Which binding and body-shape facts bound the loop or match nesting?"
-        "What exit or fallback condition should repairs preserve?"))
+       ("What data-flow transform does this expression-level combinator encode?"
+        "Which arity/formal evidence makes map/filter/fold/cut/compose appropriate?"
+        "What invariant would be hidden if this became a hand-written loop?"))
       (agentRepairMode
        "write as many adjacent comment lines as needed from these parser witnesses; preserve typed-contract comments as shape evidence, not rationale")
       (selector "t/fixtures/parser/complex-syntax.ss:43-46")))
@@ -1603,7 +1632,7 @@
     (context "higher-order")
     (commentKind "contract-only")
     (quality "weak")
-    (required #t)
+    (required #f)
     (reasons ("contract-only-is-not-engineering-comment"))
     (commentLines (": (-> Value Widget )"))
     (targetStart 48)

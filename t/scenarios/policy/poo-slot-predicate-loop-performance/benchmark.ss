@@ -2,11 +2,14 @@
  (observedTotalMs . 8)
  (targetTotalMs . 15)
  (regressionBudgetMs . 17)
- (observedTimings ((collect-before . 4)
-                   (collect-after . 4)
-                   (policy-before . 0)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 8ms for poo-slot-predicate-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 4))
+  ((name . collect-after) (durationMs . 4))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 8ms for poo-slot-predicate-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -21,9 +24,23 @@
  (rule . "GERBIL-SCHEME-AGENT-R037")
  (optimizationFocus . "loop-local slot predicate")
  (inputShape . "manual loop repeatedly checking stable slot predicates")
- (expectedRepair . "hoist predicate result or predicate closure outside the loop")
+ (expectedRepair
+  .
+  "hoist predicate result or predicate closure outside the loop")
  (hotPathExemption . "poo-slot-predicate-hot-loop")
- (hotPathEvidence "manual-loop" "slot-predicate" "hoisted-predicate-boundary" "benchmark-contract")
- (styleRewriteBoundary . "do not recompute stable slot predicate closures inside a measured loop")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "slot-predicate"
+  "hoisted-predicate-boundary"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not recompute stable slot predicate closures inside a measured loop")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "predicate"))

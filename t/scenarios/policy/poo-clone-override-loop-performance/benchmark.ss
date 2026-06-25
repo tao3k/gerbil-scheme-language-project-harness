@@ -2,11 +2,14 @@
  (observedTotalMs . 5)
  (targetTotalMs . 15)
  (regressionBudgetMs . 20)
- (observedTimings ((collect-before . 3)
-                   (collect-after . 1)
-                   (policy-before . 0)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 5ms for poo-clone-override-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 3))
+  ((name . collect-after) (durationMs . 1))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 5ms for poo-clone-override-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly cloning POO state")
  (expectedRepair . "accumulate scalar loop state and apply one final clone")
  (hotPathExemption . "poo-loop-state-mutation")
- (hotPathEvidence "manual-loop" "clone-override" "scalar-state-accumulation" "benchmark-contract")
- (styleRewriteBoundary . "do not replace measured scalar loop accumulation with higher-order composition unless a benchmark proves it is no slower")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "clone-override"
+  "scalar-state-accumulation"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not replace measured scalar loop accumulation with higher-order composition unless a benchmark proves it is no slower")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "clone"))

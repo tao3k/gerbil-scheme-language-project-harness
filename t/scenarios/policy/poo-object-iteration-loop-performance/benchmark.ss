@@ -2,11 +2,14 @@
  (observedTotalMs . 6)
  (targetTotalMs . 15)
  (regressionBudgetMs . 19)
- (observedTimings ((collect-before . 3)
-                   (collect-after . 2)
-                   (policy-before . 0)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 6ms for poo-object-iteration-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 3))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 6ms for poo-object-iteration-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly iterating a POO object")
  (expectedRepair . "iterate from a boundary snapshot or direct slot access")
  (hotPathExemption . "poo-object-iteration-hot-loop")
- (hotPathEvidence "manual-loop" "object-iteration" "single-boundary-snapshot" "benchmark-contract")
- (styleRewriteBoundary . "do not introduce repeated object iteration snapshots inside a measured loop")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "object-iteration"
+  "single-boundary-snapshot"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not introduce repeated object iteration snapshots inside a measured loop")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "iteration"))

@@ -2,11 +2,14 @@
  (observedTotalMs . 5)
  (targetTotalMs . 15)
  (regressionBudgetMs . 20)
- (observedTimings ((collect-before . 3)
-                   (collect-after . 2)
-                   (policy-before . 0)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 5ms for poo-slot-projection-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 3))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 5ms for poo-slot-projection-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly projecting POO slots")
  (expectedRepair . "project once at a boundary or use direct slot access")
  (hotPathExemption . "poo-slot-projection-hot-loop")
- (hotPathEvidence "manual-loop" "slot-projection" "direct-slot-boundary" "benchmark-contract")
- (styleRewriteBoundary . "do not materialize broad slot projections inside a measured loop when direct slot reads or one projection boundary preserve behavior")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "slot-projection"
+  "direct-slot-boundary"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not materialize broad slot projections inside a measured loop when direct slot reads or one projection boundary preserve behavior")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "projection"))

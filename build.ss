@@ -3,9 +3,15 @@
 
 (import (only-in :std/cli/getopt flag)
         (only-in :std/cli/multicall define-entry-point define-multicall-main)
+        "src/build-api/source-coverage"
         "build-support/gslph-build")
 
 (configure-build-root! (path-directory (this-source-file)))
+
+(gslph-source-coverage
+ roots: '("src" "build-support")
+ runtime-roots: '("src" "build-support")
+ explanation: "GSLPH source coverage declared by build.ss.")
 
 (def compile-getopt
   [(flag 'verbose "-V" "--verbose"
@@ -54,5 +60,6 @@
   (install-target verbose debug no-optimize optimized release))
 
 (define-entry-point (test)
-  (help: "Compile the package and run top-level gxtest files")
+  (help: "Compile the package and run top-level gxtest files"
+   getopt: [])
   (test-target))

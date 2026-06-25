@@ -2,11 +2,14 @@
  (observedTotalMs . 9)
  (targetTotalMs . 15)
  (regressionBudgetMs . 16)
- (observedTimings ((collect-before . 4)
-                   (collect-after . 3)
-                   (policy-before . 1)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 9ms for protocol-serialization-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 4))
+  ((name . collect-after) (durationMs . 3))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 9ms for protocol-serialization-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -20,8 +23,12 @@
  (feature . "protocol-serialization-boundary")
  (rule . "GERBIL-SCHEME-AGENT-R013")
  (optimizationFocus . "local JSON/string/bytes/marshal adapter boundary")
- (inputShape . "single exported function mixes JSON, String, Bytes, and Marshal representation layers")
- (expectedRepair . "local protocol helpers split representation layers without adding gerbil-poo or gerbil-utils dependencies")
+ (inputShape
+  .
+  "single exported function mixes JSON, String, Bytes, and Marshal representation layers")
+ (expectedRepair
+  .
+  "local protocol helpers split representation layers without adding gerbil-poo or gerbil-utils dependencies")
  (expectedReferencePattern . "protocol-serialization-boundary")
  (expectedReferenceExamples
   "gerbil-poo/io.ss#marshal"
@@ -33,7 +40,15 @@
   "local-protocol-adapter"
   "protocol-layer-scaffold-collapse")
  (learnedStyleSources "gerbil-poo" "gerbil-utils")
- (antiAiScaffoldIntent . "reject one-owner serialization scaffolding that collapses JSON, string, bytes, and marshal layers")
+ (antiAiScaffoldIntent
+  .
+  "reject one-owner serialization scaffolding that collapses JSON, string, bytes, and marshal layers")
  (scenarioQualityAxes "protocol-serialization-boundary" "anti-ai-scaffold")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "serialization" "protocol-boundary"))

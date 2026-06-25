@@ -37,7 +37,9 @@
 (def +typed-combinator-style-call-heads+
   '("!>" "!!>" "left-to-right" "rcompose" "compose" "compose1"
     "fun" "lambda-match" "λ" "λ-match"
-    "curry" "rcurry" "cut" "cute" "map" "filter" "filter-map"
+    "match" "match*" "with" "with*" "ast-case"
+    "curry" "rcurry" "cut" "cute" "chain" "if-let" "when-let"
+    "map" "filter" "filter-map"
     "append-map" "fold" "foldl" "foldr" "fold-left" "fold-right"
     "andmap" "ormap" "every" "any" "find" "list-index"
     "with-list-builder"
@@ -224,6 +226,10 @@
          "at least two thirds of arity-bearing definitions must have parser-owned Gerbil-native idiom evidence")
         (gerbilNativeIdiomPriority
          ["lambda-match/match at destructuring boundaries"
+          "with/with* for local destructuring boundaries"
+          "alet/alet* for dependent maybe-value chains"
+          "case for closed symbolic/datum dispatch"
+          "ast-case/syntax-case only for real syntax-object or AST owners"
           "cut/curry/rcurry for partial application"
           "case-lambda only for real arity specialization"
           "values/call-with-values instead of anonymous vector/list tuple protocols"
@@ -246,6 +252,10 @@
          (typed-combinator-style-list-combinator-signals file))
         (listCombinatorBoundaryTargets
          (typed-combinator-style-list-combinator-targets file))
+        (stdSugarFlowBoundarySignals
+         (typed-combinator-style-std-sugar-flow-signals file))
+        (stdSugarFlowBoundaryTargets
+         (typed-combinator-style-std-sugar-flow-targets file))
         (loopDriverCombinatorSignals
          (typed-combinator-style-loop-driver-signals file))
         (loopDriverCombinatorTargets
@@ -465,6 +475,7 @@
     (typed-combinator-style-generator-quality-facets file)
     (typed-combinator-style-anti-ai-scaffold-quality-facets file)
     (typed-combinator-style-list-combinator-quality-facets file)
+    (typed-combinator-style-std-sugar-flow-quality-facets file)
     (typed-combinator-style-loop-driver-quality-facets file)
     (typed-combinator-style-destructuring-quality-facets file)
     (typed-combinator-style-serialization-boundary-quality-facets file)
@@ -516,7 +527,12 @@
                                 "method-table-lambda-drift"
                                 "anti-ai-scaffold-boundary"
                                 "list-combinator-boundary"
+                                "std-sugar-flow-boundary"
                                 "destructuring-combinator-boundary"
+                                "gerbil-native-pattern-boundary"
+                                "match-with-destructuring-boundary"
+                                "pair-tuple-projection-boundary"
+                                "values-tuple-protocol"
                                 "result-index-scaffold"
                                 "slot-lens-boundary"
                                 "concurrency-control-boundary"

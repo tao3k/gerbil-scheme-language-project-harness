@@ -1,12 +1,60 @@
 ;;; -*- Gerbil -*-
-;;; Events facade.
+;;; Agent-authored event facade with repeated alist probing.
 (package: sample/events)
-(export render-event)
+(export summarize-agent-event route-agent-event event-archive-key)
 
-;; String <- Event Alist Entry Pair
-(def (render-event event)
-  (let* ((kind (cdr (assq 'kind event)))
-         (payload (cdr (assq 'payload event))))
-    (if (equal? kind "error")
-      (string-append "error:" payload)
-      (string-append kind ":" payload))))
+;; Summary <- EventRecord Alist Entry Pair
+(def (summarize-agent-event event)
+  (let* ((id-entry (assq 'id event))
+         (command-entry (assq 'command event))
+         (status-entry (assq 'status event))
+         (priority-entry (assq 'priority event))
+         (owner-entry (assq 'owner event))
+         (payload-size-entry (assq 'payload-size event))
+         (id (if id-entry (cdr id-entry) "missing"))
+         (command (if command-entry (cdr command-entry) "unknown"))
+         (status (if status-entry (cdr status-entry) "new"))
+         (priority (if priority-entry (cdr priority-entry) "normal"))
+         (owner (if owner-entry (cdr owner-entry) "agent"))
+         (payload-size (if payload-size-entry (cdr payload-size-entry) 0)))
+    (cond
+     ((and (equal? command "archive")
+           (equal? status "done"))
+      (list 'archive id owner payload-size))
+     ((equal? priority "high")
+      (list 'attention id owner status))
+     ((equal? command "plan")
+      (list 'plan id owner payload-size))
+     (else
+      (list 'observe id command status)))))
+
+;; Route <- EventRecord Alist Entry Pair
+(def (route-agent-event event)
+  (let* ((command-entry (assq 'command event))
+         (status-entry (assq 'status event))
+         (priority-entry (assq 'priority event))
+         (owner-entry (assq 'owner event))
+         (command (if command-entry (cdr command-entry) "unknown"))
+         (status (if status-entry (cdr status-entry) "new"))
+         (priority (if priority-entry (cdr priority-entry) "normal"))
+         (owner (if owner-entry (cdr owner-entry) "agent")))
+    (cond
+     ((and (equal? command "archive")
+           (equal? status "done"))
+      'archive)
+     ((equal? priority "high")
+      'review)
+     ((equal? owner "codex")
+      'session)
+     (else
+      'queue))))
+
+;; Key <- EventRecord Alist Entry Pair
+(def (event-archive-key event)
+  (let* ((id-entry (assq 'id event))
+         (owner-entry (assq 'owner event))
+         (status-entry (assq 'status event))
+         (id (if id-entry (cdr id-entry) "missing"))
+         (owner (if owner-entry (cdr owner-entry) "agent"))
+         (status (if status-entry (cdr status-entry) "new")))
+    (string-append owner "/" id "/" status)))

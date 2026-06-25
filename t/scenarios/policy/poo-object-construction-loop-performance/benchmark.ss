@@ -2,11 +2,14 @@
  (observedTotalMs . 7)
  (targetTotalMs . 15)
  (regressionBudgetMs . 18)
- (observedTimings ((collect-before . 4)
-                   (collect-after . 2)
-                   (policy-before . 1)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 7ms for poo-object-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 4))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 7ms for poo-object-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly constructing POO objects")
  (expectedRepair . "hoist stable construction or build one final object")
  (hotPathExemption . "object-construction-hot-loop")
- (hotPathEvidence "manual-loop" "object-construction" "single-boundary-object" "benchmark-contract")
- (styleRewriteBoundary . "do not construct stable POO objects inside a measured loop when scalar/list/hash accumulation can preserve one final boundary")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "object-construction"
+  "single-boundary-object"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not construct stable POO objects inside a measured loop when scalar/list/hash accumulation can preserve one final boundary")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "construction"))

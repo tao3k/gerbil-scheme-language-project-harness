@@ -7,14 +7,37 @@
         (only-in :std/test check test-case test-suite)
         :types/facade)
 
-(export make-project-policy-test
+(export make-policy-test
+        make-file-policy-test
+        policy-findings
+        policy-status
+        policy-report
+        make-project-policy-test
         project-policy-findings
         project-policy-status
         project-policy-report
         display-project-policy-report)
+
 ;;; Boundary:
-;;; - make-project-policy-test is the minimal gxtest bridge for package policy.
-;;; - Policy ownership stays in gerbil.pkg and optional external config files.
+;;; - make-policy-test is the default gxtest bridge for downstream packages.
+;;; - The caller supplies the gxtest target files, so policy execution follows
+;;;   the test runner scope instead of scanning the whole project.
+;; : (-> Root (List Path) TestSuite )
+(def (make-policy-test root files)
+  (test-suite "gerbil scheme scoped policy"
+    (test-case "package policy passes for test scope"
+      (let (report (policy-report root files))
+        (when (not (equal? (hash-get report 'status) "pass"))
+          (display-project-policy-report report))
+        (check (hash-get report 'status) => "pass")))))
+
+;; : (-> Root Path TestSuite )
+(def (make-file-policy-test root file)
+  (make-policy-test root [file]))
+
+;;; Boundary:
+;;; - make-project-policy-test is the explicit full-project gate.
+;;; - Regular gxtest targets should use make-policy-test with their file scope.
 ;; : (-> Root TestSuite )
 (def (make-project-policy-test root)
   (test-suite "gerbil scheme project policy"
@@ -23,6 +46,25 @@
         (when (not (equal? (hash-get report 'status) "pass"))
           (display-project-policy-report report))
         (check (hash-get report 'status) => "pass")))))
+
+;; : (-> Root (List Path) (List TypeFinding) )
+(def (policy-findings root files)
+  (run-policy-checks (collect-project/files root files)))
+
+;; : (-> Root (List Path) String )
+(def (policy-status root files)
+  (type-status (policy-findings root files)))
+
+;;; Boundary:
+;;; - policy-report is the stable files-scoped downstream gxtest data surface.
+;;; - Project coverage metadata is still read, but execution only parses files
+;;;   supplied by the test runner.
+;; : (-> Root (List Path) Json )
+(def (policy-report root files)
+  (let* ((index (collect-project/files root files))
+         (findings (run-policy-checks index)))
+    (project-policy-report-json index findings "files" files)))
+
 ;; : (-> Root (List TypeFinding) )
 (def (project-policy-findings root)
   (run-policy-checks (collect-project root)))
@@ -36,15 +78,21 @@
 (def (project-policy-report root)
   (let* ((index (collect-project root))
          (findings (run-policy-checks index)))
+    (project-policy-report-json index findings "project" #f)))
+
+;; : (-> ProjectIndex (List TypeFinding) String MaybePaths Json )
+(def (project-policy-report-json index findings scope requested-files)
     (hash (schemaId "agent.semantic-protocols.gerbil-scheme-harness-gxtest-report")
           (schemaVersion "1")
           (languageId +language-id+)
           (providerId +provider-id+)
+          (scope scope)
+          (requestedFiles (or requested-files []))
           (status (type-status findings))
           (files (length (project-index-files index)))
           (definitions (length (project-definitions index)))
           (agentRepair (agent-repair-report-json findings))
-          (findings findings))))
+          (findings findings)))
 ;;; Boundary:
 ;;; - display-project-policy-report mirrors check output for failing gxtest runs.
 ;;; - Keep the line protocol compact so downstream CI logs stay readable.

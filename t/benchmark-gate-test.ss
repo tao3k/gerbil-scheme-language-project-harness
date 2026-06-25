@@ -6,6 +6,7 @@
         :std/test
         (only-in :gslph/src/commands/check check-main)
         (rename-in :gslph/src/cli-launcher (main launcher-main))
+        (only-in :std/sugar ormap)
         (only-in :gslph/src/support/time monotonic-ms duration-ms)
         :gslph/src/benchmark/gate)
 
@@ -68,7 +69,9 @@
 
 ;; : (-> String Boolean)
 (def (benchmark-gate-scenario-entry? entry)
-  (not (member entry '("." ".."))))
+  (not (ormap (lambda (blocked)
+                (equal? entry blocked))
+              '("." ".."))))
 
 ;; : (-> Path (List Path))
 (def (benchmark-gate-scenario-benchmark-paths/root root)
@@ -96,9 +99,22 @@
 
 ;; : (-> Path Alist)
 (def (benchmark-gate-read-fixture path)
-  (call-with-input-file path read))
+  (call-with-input-file path
+    (lambda (port)
+      (read port))))
 
-;; : (-> String String)
+;; trim-trailing-slashes
+;;   : (-> String String)
+;;   | doc m%
+;;       `trim-trailing-slashes path` normalizes a directory path before the
+;;       recursive fixture creator checks parents.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (trim-trailing-slashes "tmp/cache/")
+;;       ;; => "tmp/cache"
+;;       ```
+;;     %
 (def (trim-trailing-slashes path)
   (let loop ((end (string-length path)))
     (if (and (> end 1)
@@ -147,25 +163,27 @@
    (path-expand "src/core.ss" +check-cache-gate-root+)
    ";;; -*- Gerbil -*-\n(import :gerbil/gambit)\n(export add1*)\n;; : (-> Integer Integer)\n(def (add1* n) (+ n 1))\n"))
 
-;; : (-> Path Alist)
-(def (run-check-full/silent root)
+;; : (-> (-> Integer) Alist)
+(def (run-check-command/silent thunk)
   (let* ((start-ms (monotonic-ms))
          (status
           (parameterize ((current-output-port (open-output-string)))
-            (check-main ["--workspace" root "--full"])))
+            (thunk)))
          (elapsed-ms (duration-ms start-ms (monotonic-ms))))
     (list (cons 'status status)
           (cons 'elapsedMs elapsed-ms))))
 
 ;; : (-> Path Alist)
+(def (run-check-full/silent root)
+  (run-check-command/silent
+   (lambda ()
+     (check-main ["--workspace" root "--full"]))))
+
+;; : (-> Path Alist)
 (def (run-launcher-check-full/silent root)
-  (let* ((start-ms (monotonic-ms))
-         (status
-          (parameterize ((current-output-port (open-output-string)))
-            (apply launcher-main ["check" "--workspace" root "--full"])))
-         (elapsed-ms (duration-ms start-ms (monotonic-ms))))
-    (list (cons 'status status)
-          (cons 'elapsedMs elapsed-ms))))
+  (run-check-command/silent
+   (lambda ()
+     (apply launcher-main ["check" "--workspace" root "--full"]))))
 
 ;; : TestSuite
 (def benchmark-gate-test

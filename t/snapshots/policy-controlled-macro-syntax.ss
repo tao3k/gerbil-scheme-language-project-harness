@@ -8,13 +8,13 @@
                  (expectedCommentShape
                   "adjacent Gerbil contract projection block such as ;; : (forall (a) (-> (-> a a Order) (List a) (List a) Order))")
                  (compositionShape
-                  "compact expression-level helper or combinator chain; prefer map/filter/fold/cut/curry/compose when behavior fits")
+                  "Gerbil-native expression shape; prefer lambda-match/match for shape dispatch, cut/curry/rcurry for specialization, case-lambda for real arity boundaries, values/call-with-values for tuple projection, and map/filter/filter-map/fold/andmap/ormap for sequence transforms")
                  (functionShape
                   "single-purpose expression-returning helper; one visible data-flow shape per function")
                  (agentRepairStandard
-                  "rewrite toward gerbil-utils style: small algebraic helpers, dense but readable composition, minimal let*/mutation scaffolding")
+                  "rewrite toward learned Gerbil/Gambit style: small algebraic helpers, lambda-match/match where shape is the boundary, cut/curry/case-lambda for specialization, values for tuple protocols, and minimal let*/mutation scaffolding")
                  (expressionLevelRewrite
-                  "extract predicate/mapper/reducer helpers, then compose with filter-map/map/fold/andmap/ormap/cut/curry/compose when behavior fits")
+                  "extract predicate/mapper/reducer helpers, then compose with lambda-match/match/cut/curry/case-lambda/values/filter-map/map/fold/andmap/ormap when behavior fits")
                  (definitionCount 1)
                  (typedCommentCount 0)
                  (missingTypedCommentCount 1)
@@ -26,12 +26,20 @@
                    "!>/!!> pipeline"
                    "apply compose"
                    "cut/curry/rcurry"
+                   "case-lambda arity specialization"
+                   "match/lambda-match shape dispatch"
+                   "values/call-with-values tuple projection"
+                   "parameterize/dynamic-wind control boundary"
+                   "syntax-case/syntax-rules hygienic macro boundary"
                    "map/filter/filter-map/fold"
+                   "andmap/ormap/every/any predicate folds"
                    "with-list-builder"))
                  (generatorCombinatorSignals ())
                  (generatorContractTargets ())
                  (controlledMacroSyntaxSignals
                   ("syntax-case/with-syntax transformer shape"
+                   "syntax-rules thin macro DSL"
+                   "hygienic macro boundary"
                    "stx-lambda or def-stx helper boundary"
                    "macro syntax stays a thin hygienic syntax wrapper"
                    "runtime behavior remains in ordinary helpers"

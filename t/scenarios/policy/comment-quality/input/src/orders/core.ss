@@ -1,5 +1,4 @@
 ;;; -*- Gerbil -*-
-;;; Fixture has module intent so only definition comment quality is tested.
 (package: sample/orders)
 (export order-total order-totals)
 

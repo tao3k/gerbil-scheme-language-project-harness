@@ -2,11 +2,14 @@
  (observedTotalMs . 6)
  (targetTotalMs . 15)
  (regressionBudgetMs . 19)
- (observedTimings ((collect-before . 4)
-                   (collect-after . 2)
-                   (policy-before . 0)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 6ms for poo-z-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 4))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 6ms for poo-z-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -23,7 +26,19 @@
  (inputShape . "manual loop repeatedly constructing stable Z/ type objects")
  (expectedRepair . "hoist stable Z/ type object to a named binding")
  (hotPathExemption . "numeric-type-construction-hot-loop")
- (hotPathEvidence "manual-loop" "numeric-type-object" "hoisted-type-binding" "benchmark-contract")
- (styleRewriteBoundary . "do not rebuild modular numeric type objects inside a measured loop; keep stable type objects hoisted")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "numeric-type-object"
+  "hoisted-type-binding"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not rebuild modular numeric type objects inside a measured loop; keep stable type objects hoisted")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "type" "modular"))

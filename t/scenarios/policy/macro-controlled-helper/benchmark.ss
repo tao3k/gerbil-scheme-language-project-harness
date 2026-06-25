@@ -2,11 +2,14 @@
  (observedTotalMs . 7)
  (targetTotalMs . 15)
  (regressionBudgetMs . 18)
- (observedTimings ((collect-before . 0)
-                   (collect-after . 4)
-                   (policy-before . 2)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 7ms for macro-controlled-helper; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 0))
+  ((name . collect-after) (durationMs . 4))
+  ((name . policy-before) (durationMs . 2))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 7ms for macro-controlled-helper; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -22,5 +25,11 @@
  (optimizationFocus . "controlled macro helper boundary")
  (inputShape . "macro transformer without local parser helper")
  (expectedRepair . "syntax-case transformer with local syntax error helper")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "style" "macro" "runtime-boundary"))

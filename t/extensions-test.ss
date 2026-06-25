@@ -6,9 +6,11 @@
         :extensions/poo-patterns
         :parser/facade
         :snapshot/facade
-        :std/test)
+        :std/test
+        (only-in :std/sugar andmap)
+        (only-in :std/srfi/13 string-join))
 (export extensions-test)
-;; ExtensionsTest
+;; : TestSuite
 (def extensions-test
   (test-suite "gerbil scheme harness extensions"
     (test-case "poo extension packet matches snapshot"
@@ -231,14 +233,13 @@
         (check (poo-extension-active? index) => #f)
         (check (project-extension-json index) => '())
         (check (project-extension-search-lines index) => '())))))
-;; : (-> String PackageName (List XX) Unit )
+;; : (-> Path PackageName (List DependencyName) Unit)
 (def (write-extension-project root package-name dependencies)
   (let* ((src (string-append root "/src"))
          (package-path (string-append root "/gerbil.pkg"))
          (source-path (string-append src "/main.ss")))
-    (ensure-dir ".run")
-    (ensure-dir root)
-    (ensure-dir src)
+    (andmap (lambda (path) (ensure-dir path) #t)
+            [".run" root src])
     (write-text package-path
                 (string-append
                  "(package: "
@@ -253,12 +254,11 @@
   (string-append "(" (quoted-string-list-source dependencies) ")"))
 ;; : (-> (List DependencyName) QuotedStringListSource )
 (def (quoted-string-list-source dependencies)
-  (match dependencies
-    ([] "")
-    ([dependency] (string-append "\"" dependency "\""))
-    ([dependency . more]
-     (string-append "\"" dependency "\" "
-                    (quoted-string-list-source more)))))
+  (string-join
+   (map (lambda (dependency)
+          (string-append "\"" dependency "\""))
+        dependencies)
+   " "))
 ;; : (-> String EnsureDir )
 (def (ensure-dir path)
   (with-catch

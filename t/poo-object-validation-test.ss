@@ -7,6 +7,7 @@
 
 (export poo-object-validation-test)
 
+;; : SourceRef
 (def source-ref
   (hash (kind "dependency")
         (manager "gerbil.pkg")
@@ -18,6 +19,7 @@
         (pathPolicy "package-dependency")
         (selectorScheme "gerbil-poo")))
 
+;; : FieldContract
 (def good-field
   (hash (field 'backend)
         (valueKind 'Symbol)
@@ -25,6 +27,7 @@
         (default 'nono)
         (metadata '((scope . sandbox)))))
 
+;; : FieldContract
 (def bad-field
   (hash (field 'broken)
         (valueKind '(List String Symbol))
@@ -32,9 +35,11 @@
         (default 42)
         (metadata 'not-an-alist)))
 
+;; : (-> Receipt Key Value)
 (def (receipt-ref receipt key)
   (hash-get receipt key))
 
+;; : TestSuite
 (def poo-object-validation-test
   (test-suite "poo object contract validation facade"
     (test-case "exports poo pattern structural validation downstream"

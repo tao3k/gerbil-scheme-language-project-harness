@@ -6,9 +6,10 @@
         :parser/typed-contract-scheme
         :types/facade)
 (export types-test)
-;; TypeSpec
-(def types-test
-  (test-suite "gerbil scheme harness types"
+
+;; : TestSuite
+(def types-reader-env-test
+  (test-suite "gerbil scheme harness types reader env"
     (test-case "reader errors become type pipeline findings"
       (let* ((root (path-normalize "."))
              (file (parse-source-file root "t/fixtures/invalid-read.fixture"))
@@ -90,7 +91,11 @@
         (check (map type-param-binding-name param-bindings)
                => ["x" "y"])
         (check (map type->string (map type-param-binding-type param-bindings))
-               => ["number" "number"])))
+               => ["number" "number"])))))
+
+;; : TestSuite
+(def types-parser-shape-test
+  (test-suite "gerbil scheme harness type parser shapes"
     (test-case "signature parser supports structured native type forms"
       (let* ((signatures (load-type-signatures "t/fixtures/type-signatures.scm"))
              (pair-type (signature-type-for "pair-value" signatures))
@@ -179,7 +184,11 @@
         (check (type->string application-arrow-type)
                => "(function ((NonEmptyList a)) a)")
         (check (type-kind (car (type-params application-arrow-type)))
-               => 'application)))
+               => 'application)))))
+
+;; : TestSuite
+(def types-subtyping-proof-test
+  (test-suite "gerbil scheme harness type subtyping proofs"
     (test-case "type specs validate structurally and support subtyping"
       (let* ((number-type (parse-type-contract "Number"))
              (string-type (parse-type-contract "String"))
@@ -314,7 +323,11 @@
           (check (hash-get record-profile 'nodeCount) => 4)
           (check (hash-get record-json 'rule) => "record")
           (check (hash-get (car (hash-get record-json 'premises)) 'rule)
-                 => "record-field"))))
+                 => "record-field"))))))
+
+;; : TestSuite
+(def types-runtime-contract-test
+  (test-suite "gerbil scheme harness runtime contracts"
     (test-case "runtime contract arrows project to formal TypeSpec"
       (let* ((nickel-contract
               (scheme-runtime-contract-json "Dyn -> NonEmpty -> Dyn"))
@@ -397,3 +410,11 @@
              (second (make-type-binding "answer" "definition" (make-type-unknown)
                                         '() 0 "second.ss" "second.ss:2-2")))
         (check (duplicate-type-bindings [first second]) => '())))))
+
+;; : TestSuite
+(def types-test
+  (test-suite "gerbil scheme harness types"
+    types-reader-env-test
+    types-parser-shape-test
+    types-subtyping-proof-test
+    types-runtime-contract-test))

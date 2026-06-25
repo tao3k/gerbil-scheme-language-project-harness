@@ -2,11 +2,14 @@
  (observedTotalMs . 3)
  (targetTotalMs . 15)
  (regressionBudgetMs . 22)
- (observedTimings ((collect-before . 1)
-                   (collect-after . 2)
-                   (policy-before . 0)
-                   (policy-after . 0)))
- (targetRationale . "observed baseline 3ms for poo-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 1))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "observed baseline 3ms for poo-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -20,10 +23,24 @@
  (feature . "poo-loop-type-construction")
  (rule . "GERBIL-SCHEME-AGENT-R034")
  (optimizationFocus . "loop-local type construction")
- (inputShape . "manual loop repeatedly constructing stable POO/MOP type objects")
+ (inputShape
+  .
+  "manual loop repeatedly constructing stable POO/MOP type objects")
  (expectedRepair . "hoist stable type object to a named binding")
  (hotPathExemption . "type-object-construction-hot-loop")
- (hotPathEvidence "manual-loop" "type-object" "hoisted-type-binding" "benchmark-contract")
- (styleRewriteBoundary . "do not rebuild stable type objects inside a measured loop; keep named type bindings outside the loop")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (hotPathEvidence
+  "manual-loop"
+  "type-object"
+  "hoisted-type-binding"
+  "benchmark-contract")
+ (styleRewriteBoundary
+  .
+  "do not rebuild stable type objects inside a measured loop; keep named type bindings outside the loop")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
  (tags "poo" "loop" "type"))

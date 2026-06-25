@@ -2,11 +2,14 @@
  (observedTotalMs . 4)
  (targetTotalMs . 15)
  (regressionBudgetMs . 21)
- (observedTimings ((collect-before . 1)
-                   (collect-after . 2)
-                   (policy-before . 0)
-                   (policy-after . 1)))
- (targetRationale . "observed baseline 4ms for functional-idiom; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+ (observedTimings
+  ((name . collect-before) (durationMs . 1))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 0))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed baseline 4ms for functional-idiom; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
  (maxCollectMs . 1000)
  (maxParseMs . 750)
  (maxFileMs . 250)
@@ -19,9 +22,15 @@
  (purpose . "R013 functional idiom scenario keeps manual fold and local destructuring repair within the scenario-owned timing gate")
  (feature . "functional-idiom")
  (rule . "GERBIL-SCHEME-AGENT-R013")
- (optimizationFocus . "manual recursion to fold/pipeline and lambda-match boundary")
- (inputShape . "single exported function uses named-let, cdr/car traversal, and an accumulator over a list")
- (expectedRepair . "foldl total, !>/curry pipeline, and named lambda-match classifier with full typed documentation")
+ (optimizationFocus
+  .
+  "manual recursion to fold/pipeline and lambda-match boundary")
+ (inputShape
+  .
+  "single exported function uses named-let, cdr/car traversal, and an accumulator over a list")
+ (expectedRepair
+  .
+  "foldl total, !>/curry pipeline, and named lambda-match classifier with full typed documentation")
  (expectedReferencePattern . "loop-driver-combinator-boundary")
  (expectedReferenceExamples
   "gerbil://std/actor-v13/rpc/proto/cipher.ss#foldl-chunk-accumulator"
@@ -39,7 +48,26 @@
   "map-fold-boundary"
   "lambda-match-destructuring")
  (learnedStyleSources "gerbil://" "gerbil-utils")
- (antiAiScaffoldIntent . "reject hand-written traversal and anonymous destructuring when fold, cut/curry pipeline, or lambda-match exposes the data flow")
- (scenarioQualityAxes "functional-idiom" "gerbil-gambit-native-idiom" "loop-driver-combinator-boundary" "anti-ai-scaffold")
- (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
- (tags "style" "functional" "gerbil-idiom" "gambit-control" "fold" "pipeline" "lambda-match" "anti-scaffold"))
+ (antiAiScaffoldIntent
+  .
+  "reject hand-written traversal and anonymous destructuring when fold, cut/curry pipeline, or lambda-match exposes the data flow")
+ (scenarioQualityAxes
+  "functional-idiom"
+  "gerbil-gambit-native-idiom"
+  "loop-driver-combinator-boundary"
+  "anti-ai-scaffold")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
+ (tags "style"
+       "functional"
+       "gerbil-idiom"
+       "gambit-control"
+       "fold"
+       "pipeline"
+       "lambda-match"
+       "anti-scaffold"))
