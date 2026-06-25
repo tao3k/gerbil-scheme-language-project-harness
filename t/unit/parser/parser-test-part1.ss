@@ -153,7 +153,7 @@
                      => ["GERBIL-SCHEME-MOD-R007"])
               (check (modularity-policy-explanation policy)
                      => "Large generated replay tests stay package-local while policy config remains out of the test owner."))))
-    (test-case "collect-project/files parses only named changed owners"
+    (test-case "collect-source-scope parses only named changed owners"
           (let* ((root ".run/parser-changed-project-files")
                  (src (string-append root "/src"))
                  (generated (string-append root "/src/generated")))
@@ -172,7 +172,7 @@
             (write-text (string-append root "/README.md")
                         "not Gerbil source\n")
             (let* ((index
-                    (collect-project/files
+                    (collect-source-scope
                      root
                      ["src/changed.ss"
                       "src/generated/ignored.ss"

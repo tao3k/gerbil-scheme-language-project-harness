@@ -4,9 +4,6 @@
 ;;; - Keep individual policy test files under modularity limits.
 
 (import :std/test
-        (only-in :std/misc/path directory-files)
-        (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-suffix?)
         :policy/gxtest
         :policy/modularity-test
         :policy/agent-basic-test
@@ -24,25 +21,10 @@
         :policy/gerbil-utils-source-test)
 (export policy-test)
 
-;;; Policy gate scope:
-;;; - The file list follows the same top-level gxtest files as build.ss test.
-;;; - Source coverage metadata defines membership; this list defines execution scope.
-;; : (-> Path Boolean)
-(def (top-level-policy-test-file? entry)
-  (and (string-suffix? "-test.ss" entry)
-       (not (member entry '("." "..")))))
-
-;; : (-> (List Path))
-(def (top-level-policy-test-files)
-  (map (lambda (path)
-         (string-append "t/" path))
-       (filter top-level-policy-test-file?
-               (sort (directory-files "t") string<?))))
-
 ;; : TestSuite
 (def policy-test
   (test-suite "gerbil scheme harness policy"
-    (make-policy-test "." (top-level-policy-test-files))
+    (make-current-file-policy-test ".")
     modularity-policy-test
     agent-basic-policy-test
     agent-alist-access-policy-test

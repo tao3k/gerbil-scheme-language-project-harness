@@ -11,7 +11,7 @@
         +ignored-dirs+
         collect-project
         collect-project/profile
-        collect-project/files
+        collect-source-scope
         collect-project-package-only
         collect-source-files
         gerbil-source-path?

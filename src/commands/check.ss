@@ -8,6 +8,8 @@
         :checker/facade
         :constants
         :parser/facade
+        (rename-in :parser/core
+                   (collect-project/profile collect-project-profile))
         (only-in :parser/package read-project-package project-package-name)
         :policy/core
         :policy/repair
@@ -48,14 +50,14 @@
 (def (collect-project/check root scope changed-paths profile?)
   (cond
    ((and profile? (equal? scope "full"))
-      (let* ((collect-report (collect-project/profile root))
+      (let* ((collect-report (collect-project-profile root))
              (index (hash-get collect-report 'index))
              (profile (hash-get collect-report 'profile)))
         (values index profile)))
    ((equal? scope "changed")
-    (timed-check-value "collect-project/files"
+    (timed-check-value "collect-source-scope"
                        (lambda ()
-                         (collect-project/files root changed-paths))))
+                         (collect-source-scope root changed-paths))))
    (else
     (timed-check-value "collect-project"
                        (lambda ()

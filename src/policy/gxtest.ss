@@ -2,13 +2,16 @@
 ;;; Tiny gxtest adapter for downstream packages that depend on this harness.
 
 (import :constants
+        (for-syntax :gerbil/expander)
         :parser/facade
         :policy/facade
+        :std/sugar
         (only-in :std/test check test-case test-suite)
         :types/facade)
 
 (export make-policy-test
         make-file-policy-test
+        make-current-file-policy-test
         policy-findings
         policy-status
         policy-report
@@ -17,6 +20,13 @@
         project-policy-status
         project-policy-report
         display-project-policy-report)
+
+(defsyntax-call (make-current-file-policy-test ctx root)
+  (let* ((source (stx-source ctx))
+         (file (and source (vector-ref source 0))))
+    (unless (string? file)
+      (error "make-current-file-policy-test requires a file-backed source location"))
+    `(make-file-policy-test ,root ,file)))
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.
@@ -49,7 +59,7 @@
 
 ;; : (-> Root (List Path) (List TypeFinding) )
 (def (policy-findings root files)
-  (run-policy-checks (collect-project/files root files)))
+  (run-policy-checks (collect-source-scope root files)))
 
 ;; : (-> Root (List Path) String )
 (def (policy-status root files)
@@ -57,11 +67,11 @@
 
 ;;; Boundary:
 ;;; - policy-report is the stable files-scoped downstream gxtest data surface.
-;;; - Project coverage metadata is still read, but execution only parses files
-;;;   supplied by the test runner.
+;;; - Package metadata is read for policy configuration, but execution only
+;;;   parses files supplied by the test runner.
 ;; : (-> Root (List Path) Json )
 (def (policy-report root files)
-  (let* ((index (collect-project/files root files))
+  (let* ((index (collect-source-scope root files))
          (findings (run-policy-checks index)))
     (project-policy-report-json index findings "files" files)))
 

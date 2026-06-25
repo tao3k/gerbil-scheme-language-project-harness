@@ -34,7 +34,7 @@
         +ignored-dirs+
         collect-project
         collect-project/profile
-        collect-project/files
+        collect-source-scope
         collect-project-package-only
         collect-source-files
         gerbil-source-path?
@@ -660,18 +660,18 @@
                 (slowestFiles slowest-files))))
     (hash (index index)
           (profile profile))))
-;; collect-project/files
+;; collect-source-scope
 ;;   : (-> String (List String) ProjectIndex)
 ;;   | doc m%
-;;       `collect-project/files root paths` reads package metadata and parses
-;;       only the existing Gerbil/config files named by `paths`.
+;;       `collect-source-scope root paths` reads package metadata and parses only
+;;       the existing Gerbil/config files named by `paths`.
 ;;       # Examples
 ;;       ```scheme
-;;       (project-index-files (collect-project/files "." '("src/core.ss")))
+;;       (project-index-files (collect-source-scope "." '("src/core.ss")))
 ;;       ;; => changed source-file facts
 ;;       ```
 ;;     %
-(def (collect-project/files root paths)
+(def (collect-source-scope root paths)
   (let* ((root (path-normalize root))
          (package (read-project-package root))
          (files (sort (changed-source-files root package paths) string<?)))
