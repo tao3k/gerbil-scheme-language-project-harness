@@ -21,6 +21,7 @@
         gxtest-test-spec
         gxtest-test-files
         install-launcher-binpath
+        project-policy-warning-files
         test-target
         package-build-spec)
 
@@ -90,6 +91,10 @@
 
 ;; : (-> (List Path))
 (def (gxtest-policy-warning-files)
+  (gxtest-test-files))
+
+;; : (-> (List Path))
+(def (project-policy-warning-files)
   (source-coverage-policy-files))
 
 ;; : (-> (List ModulePath))
