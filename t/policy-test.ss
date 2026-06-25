@@ -20,12 +20,16 @@
         :policy/scenario-benchmark-test
         :policy/detection-test
         :policy/gerbil-utils-source-test)
-(export policy-test)
+(export policy-test
+        project-policy-test)
+
+;; : TestSuite
+(def project-policy-test
+  (make-gxtest-policy-test "."))
 
 ;; : TestSuite
 (def policy-test
   (test-suite "gerbil scheme harness policy"
-    (make-gxtest-policy-test ".")
     modularity-policy-test
     agent-basic-policy-test
     agent-alist-access-policy-test

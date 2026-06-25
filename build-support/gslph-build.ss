@@ -17,11 +17,9 @@
         cli-binary-build-spec
         configure-build-root!
         dev-launcher-binpath
-        gxtest-policy-warning-files
         gxtest-test-spec
         gxtest-test-files
         install-launcher-binpath
-        project-policy-warning-files
         test-target
         package-build-spec)
 
@@ -88,14 +86,6 @@
 ;; : (-> (List Path))
 (def (gxtest-test-files)
   (top-level-test-files))
-
-;; : (-> (List Path))
-(def (gxtest-policy-warning-files)
-  (gxtest-test-files))
-
-;; : (-> (List Path))
-(def (project-policy-warning-files)
-  (source-coverage-policy-files))
 
 ;; : (-> (List ModulePath))
 (def (gxtest-test-spec)
@@ -191,16 +181,6 @@
     (gerbil-modules-in-directory source-root ""))
    (else
     [])))
-
-;; : (-> (List Path))
-(def (source-coverage-policy-files)
-  (apply append
-         (map source-coverage-root-policy-files
-              (gslph-source-coverage-roots))))
-
-;; : (-> Path (List Path))
-(def (source-coverage-root-policy-files root)
-  (gerbil-modules-under-root root))
 
 ;; : (-> (List String))
 (def (coverage-excluded-directories)

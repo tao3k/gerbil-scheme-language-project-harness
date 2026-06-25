@@ -91,32 +91,35 @@ Use the fast wiring check during normal development:
 gxtest t/self-apply-test.ss
 #+end_src
 
-Run the full harness self-apply gate explicitly when auditing source-policy debt:
+Run the standalone self-apply gate explicitly when auditing source-policy debt
+outside the package's normal =build.ss test= path:
 #+begin_src shell
 gxtest t/self-apply-full-gate.ss
 #+end_src
 
-The full gate intentionally performs whole-project source analysis and can take
-substantially longer than ordinary Gerbil semantic tests. It should fail with a
-compact debt summary instead of dumping full snapshot reports.
+The standalone gate performs the same source-policy analysis as the project
+policy suite, but it is kept as a focused diagnostic entrypoint. Normal package
+tests should mount policy through =gxtest= so test execution and policy
+execution stay on the same upstream test path.
 * Programmatic API
 The downstream test surface is:
 
 | API | Use |
 |-----+-----|
-| =make-gxtest-policy-test= | Default downstream =gxtest= suite entry. Add this to the normal test aggregator so policy runs once with ordinary tests. |
+| =make-gxtest-policy-test= | Default downstream =gxtest= suite entry. Add this to the normal test aggregator so policy covers the entry file once with ordinary tests. |
 | =make-policy-test= | Minimal =gxtest= suite for the files supplied by the build/test owner. |
 | =policy-findings= | Raw =TypeFinding= values for a files-scoped custom test. |
 | =policy-status= | =pass= or =fail= status for a files-scoped custom test. |
 | =policy-report= | Structured files-scoped report with status, file count, definition count, agent repair, and raw findings. |
-| =make-project-policy-test= | Explicit full-project audit suite. Do not use as the default gxtest path. |
+| =make-project-policy-test= | Explicit full-project audit suite following the build-declared source coverage. |
 | =project-policy-findings= | Raw =TypeFinding= values for custom tests. |
 | =project-policy-status= | =pass= or =fail= status for a project root. |
 | =project-policy-report= | Structured report with status, file count, definition count, agent repair, and raw findings. |
 | =display-project-policy-report= | Compact human-readable report for custom failure paths. |
 
-Use =policy-report= when a downstream package wants custom assertions for the
-same file scope that =gxtest= is running. Use =project-policy-report= only for an
+Use =make-gxtest-policy-test= for the package's default =gxtest= integration.
+Use =policy-report= when a downstream package intentionally wants custom
+assertions over an explicit file scope. Use =project-policy-report= only for an
 explicit full-project audit.
 
 * Agent Contract

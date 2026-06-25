@@ -24,25 +24,43 @@
     '()
     (let ((head (car datum))
           (second (safe-cadr datum)))
-      (cond
-       ((member head '(def def* define define-type))
-        (cond
-         ((symbol? second) [second])
-         ((and (pair? second) (symbol? (car second))) [(car second)])
-         (else '())))
-       ((eq? head 'define-values)
-        (if (list? second) (filter symbol? second) '()))
-       ((eq? head 'defmethod)
-        (definition-method-name-datums second))
-       ((member head '(defclass .defclass defgeneric .defgeneric
-                       .defmethod defsyntax defsyntax-for-match
-                       defsyntax-for-import defsyntax-for-export
-                       defsyntax-for-import-export
-                       defrules defrule
-                       defn def-stx defsyntax-stx defsyntax-stx/form))
-        (definition-method-name-datums second))
-       ((symbol? second) [second])
-       (else '())))))
+      (definition-name-datums* head second))))
+
+;; : (-> Datum Datum (List Symbol))
+(def (definition-name-datums* head second)
+  (cond
+   ((definition-value-name-head? head)
+    (definition-value-name-datums second))
+   ((eq? head 'define-values)
+    (definition-values-name-datums second))
+   ((definition-method-name-head? head)
+    (definition-method-name-datums second))
+   ((symbol? second) [second])
+   (else '())))
+
+;; : (-> Datum Boolean)
+(def (definition-value-name-head? head)
+  (member head '(def def* define define-type)))
+
+;; : (-> Datum Boolean)
+(def (definition-method-name-head? head)
+  (member head '(defmethod defclass .defclass defgeneric .defgeneric
+                 .defmethod defsyntax defsyntax-for-match
+                 defsyntax-for-import defsyntax-for-export
+                 defsyntax-for-import-export
+                 defrules defrule
+                 defn def-stx defsyntax-stx defsyntax-stx/form)))
+
+;; : (-> Datum (List Symbol))
+(def (definition-value-name-datums second)
+  (cond
+   ((symbol? second) [second])
+   ((and (pair? second) (symbol? (car second))) [(car second)])
+   (else '())))
+
+;; : (-> Datum (List Symbol))
+(def (definition-values-name-datums second)
+  (if (list? second) (filter symbol? second) '()))
 
 ;;; Boundary:
 ;;; - Gerbil POO method heads may wrap the generic name in @method syntax.
@@ -146,8 +164,30 @@
    ((null? tail) '())
    ((symbol? tail) [tail])
    ((pair? tail)
-    (let (head (car tail))
-      (if (and (symbol? head) (not (eq? head '...)))
-        (cons head (formal-tail-datums (cdr tail)))
-        (formal-tail-datums (cdr tail)))))
+    (formal-tail-pair-datums (car tail) (cdr tail)))
    (else '())))
+
+;; : (-> Datum (List Datum) (List Symbol))
+(def (formal-tail-pair-datums head rest)
+  (cond
+   ((keyword? head) (keyword-formal-tail-datums rest))
+   ((and (symbol? head) (not (eq? head '...)))
+    (cons head (formal-tail-datums rest)))
+   (else
+    (formal-tail-datums rest))))
+
+;; : (-> (List Datum) (List Symbol))
+(def (keyword-formal-tail-datums rest)
+  (if (pair? rest)
+    (let (formal (keyword-formal-datum (car rest)))
+      (if formal
+        (cons formal (formal-tail-datums (cdr rest)))
+        (formal-tail-datums rest)))
+    '()))
+
+;; : (-> Datum (Maybe Symbol))
+(def (keyword-formal-datum datum)
+  (cond
+   ((symbol? datum) datum)
+   ((and (pair? datum) (symbol? (car datum))) (car datum))
+   (else #f)))

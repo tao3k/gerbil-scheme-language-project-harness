@@ -25,25 +25,13 @@
         (check (member "t/parser-test.ss" files) ? true)
         (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
       (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
-    (test-case "gxtest policy warning files stay within gxtest scope"
+    (test-case "source coverage files follow the build declaration"
       (configure-build-root! (current-directory))
       (gslph-source-coverage
        roots: '("src" "build-support" "t")
        runtime-roots: '("src")
        exclude-directories: '("scenarios" "snapshots"))
-      (let (files (gxtest-policy-warning-files))
-        (check (member "t/policy-test.ss" files) ? true)
-        (check (member "t/parser-test.ss" files) ? true)
-        (check (member "t/policy/agent-source-scope-test.ss" files) => #f)
-        (check (member "src/policy/gxtest.ss" files) => #f)
-        (check (member "build-support/gslph-build.ss" files) => #f)))
-    (test-case "project policy warning files use source coverage declaration"
-      (configure-build-root! (current-directory))
-      (gslph-source-coverage
-       roots: '("src" "build-support" "t")
-       runtime-roots: '("src")
-       exclude-directories: '("scenarios" "snapshots"))
-      (let (files (project-policy-warning-files))
+      (let (files (gslph-source-coverage-files (current-directory)))
         (check (member "t/policy-test.ss" files) ? true)
         (check (member "t/policy/agent-source-scope-test.ss" files) ? true)
         (check (member "src/policy/gxtest.ss" files) ? true)

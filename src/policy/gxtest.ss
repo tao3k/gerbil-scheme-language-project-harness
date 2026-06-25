@@ -2,6 +2,7 @@
 ;;; Tiny gxtest adapter for downstream packages that depend on this harness.
 
 (import :gerbil/gambit
+        :build-api/source-coverage
         :constants
         (for-syntax :gerbil/expander
                     :std/stxutil)
@@ -38,6 +39,7 @@
 ;;       (test-suite "project tests"
 ;;         (make-gxtest-policy-test ".")
 ;;         project-unit-tests)
+;;       ;; => TestSuite
 ;;       ```
 ;;     %
 (defsyntax (make-gxtest-policy-test stx)
@@ -105,18 +107,23 @@
 
 ;; : (-> Root (List TypeFinding) )
 (def (project-policy-findings root)
-  (run-policy-checks (collect-project root)))
+  (run-policy-checks (project-policy-index root)))
 ;; : (-> Root String )
 (def (project-policy-status root)
   (type-status (project-policy-findings root)))
 ;;; Boundary:
 ;;; - project-policy-report is the stable downstream gxtest data surface.
-;;; - Findings stay as TypeFinding values so test code can inspect rich details.
+;;; - Coverage follows the build.ss source coverage declaration instead of a
+;;;   separate whole-repository scan.
 ;; : (-> Root Json )
 (def (project-policy-report root)
-  (let* ((index (collect-project root))
+  (let* ((index (project-policy-index root))
          (findings (run-policy-checks index)))
     (project-policy-report-json index findings "project" #f)))
+
+;; : (-> Root ProjectIndex)
+(def (project-policy-index root)
+  (collect-source-scope root (gslph-source-coverage-files root)))
 
 ;; : (-> ProjectIndex (List TypeFinding) String MaybePaths Json )
 (def (project-policy-report-json index findings scope requested-files)
@@ -174,7 +181,7 @@
                 (display part))
               parts)
     (newline)))
-;; ConfigConstant
+;; : (List Key)
 (def +project-policy-finding-detail-keys+
   '(advice next keepNamedLetWhen styleGuide styleCommand
     expectedCommentShape signatureShape typedCommentMigrationNeeded

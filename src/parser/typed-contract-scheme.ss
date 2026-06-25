@@ -74,7 +74,8 @@
 (def (scheme-contract-inputs contract)
   (let (items (scheme-contract-arrow-items contract))
     (and (pair? items)
-         (map datum->type-string (drop-right items 1)))))
+         (map datum->type-string
+              (scheme-arrow-input-type-datums (drop-right items 1))))))
 
 ;;; Boundary:
 ;;; - JSON preserves legacy arrow fields for existing consumers.
@@ -312,6 +313,19 @@
    (else
     (cons (scheme-type-expression-json* (car items) bound-vars)
           (scheme-arrow-input-jsons (cdr items) bound-vars)))))
+
+;; : (-> (List TypeDatum) (List TypeDatum))
+(def (scheme-arrow-input-type-datums items)
+  (cond
+   ((null? items) [])
+   ((scheme-keyword-marker? (car items))
+    (if (pair? (cdr items))
+      (cons (cadr items)
+            (scheme-arrow-input-type-datums (cddr items)))
+      ['unknown]))
+   (else
+    (cons (car items)
+          (scheme-arrow-input-type-datums (cdr items))))))
 
 ;; : (-> TypeDatum TypeDatum (List TypeVariable) Json)
 (def (scheme-keyword-parameter-json marker value bound-vars)

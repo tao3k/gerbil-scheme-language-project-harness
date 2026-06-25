@@ -4,6 +4,7 @@
 (import :std/test
         :extensions/facade
         :parser/facade
+        :parser/formals
         :parser/typed-contract-scheme
         :protocol/json
         :protocol/structural-facts
@@ -103,4 +104,31 @@
             (check (hash-get application-param 'kind) => "application")
             (check (hash-get application-param 'display)
                    => "(NonEmptyList a)")))
+(test-case "scheme typed contracts group keyword parameter inputs"
+          (let* ((contract
+                  "(-> roots: (List Path) runtime-roots: (Maybe (List Path)) exclude-directories: (List Path) explanation: MaybeString Unit)")
+                 (inputs (scheme-contract-inputs contract))
+                 (signature (scheme-type-signature-json contract))
+                 (arrow (hash-get signature 'arrow))
+                 (arrow-inputs (hash-get arrow 'inputs))
+                 (roots-input (car arrow-inputs)))
+            (check inputs
+                   => ["(List Path)"
+                       "(Maybe (List Path))"
+                       "(List Path)"
+                       "MaybeString"])
+            (check (length inputs) => 4)
+            (check (hash-get arrow 'inputCount) => 4)
+            (check (hash-get roots-input 'kind) => "keyword-parameter")
+            (check (hash-get roots-input 'name) => "roots")))
+(test-case "definition arity counts keyword default formals"
+          (let (datum
+                '(def (configure-source-coverage roots: (roots '())
+                                                 runtime-roots: (runtime-roots #f)
+                                                 explanation: (explanation #f))
+                   #!void))
+            (check (definition-formal-arity datum 'configure-source-coverage)
+                   => 3)
+            (check (definition-formal-names datum 'configure-source-coverage)
+                   => ["roots" "runtime-roots" "explanation"])))
   ))
