@@ -7,6 +7,7 @@
         (only-in :std/sort sort))
 
 (export gslph-source-coverage
+        gslph-load-source-coverage
         gslph-source-coverage-roots
         gslph-source-coverage-runtime-roots
         gslph-source-coverage-exclude-directories
@@ -31,6 +32,14 @@
   (set! current-source-coverage-runtime-roots runtime-roots)
   (set! current-source-coverage-exclude-directories exclude-directories)
   #!void)
+
+;; : (-> Root Unit)
+(def (gslph-load-source-coverage root)
+  (let (build-file (path-expand "build.ss" root))
+    (when (file-exists? build-file)
+      (with-directory root
+        (lambda ()
+          (load build-file))))))
 
 ;; : (-> (List Path))
 (def (gslph-source-coverage-roots)

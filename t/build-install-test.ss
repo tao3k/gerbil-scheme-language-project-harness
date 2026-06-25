@@ -51,4 +51,12 @@
         (check (member "t/policy-test.ss" files) ? true)
         (check (member "t/policy/agent-source-scope-test.ss" files) ? true)
         (check (member "src/policy/gxtest.ss" files) ? true)
-        (check (member "build-support/gslph-build.ss" files) ? true)))))
+        (check (member "build-support/gslph-build.ss" files) ? true)))
+    (test-case "source coverage loads from build.ss"
+      (configure-build-root! (current-directory))
+      (gslph-source-coverage roots: '("src"))
+      (gslph-load-source-coverage (current-directory))
+      (let (files (gslph-source-coverage-files (current-directory)))
+        (check (member "build-support/gslph-build.ss" files) ? true)
+        (check (member "t/policy-test.ss" files) ? true)
+        (check (member "src/policy/gxtest.ss" files) ? true)))))
