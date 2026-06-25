@@ -12,7 +12,7 @@
 
 (export make-policy-test
         make-file-policy-test
-        make-current-file-policy-test
+        make-gxtest-policy-test
         policy-findings
         policy-status
         policy-report
@@ -23,33 +23,33 @@
         display-project-policy-report)
 
 ;;; Macro boundary:
-;;; - The expansion captures the source file that owns the shared policy test.
-;;; - Build/test integration passes the actual test entry scope through
-;;;   `policy-report`; this macro remains a file-local convenience, not a
-;;;   runtime argument inference bridge.
-;; make-current-file-policy-test
+;;; - Downstream gxtest aggregators call this inside their normal test suite.
+;;; - The expansion captures the file that owns the gxtest policy entry, so the
+;;;   policy check runs as one ordinary gxtest test instead of a build-target
+;;;   pre-pass over the same scope.
+;; make-gxtest-policy-test
 ;;   : (-> Syntax Syntax)
 ;;   | doc m%
-;;       Expand into a file-scoped policy test rooted at the supplied project
-;;       root.
+;;       Expand into a gxtest policy test rooted at the supplied project root.
 ;;
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (make-current-file-policy-test ".")
-;;       ;; => gxtest policy test for the current file
+;;       (test-suite "project tests"
+;;         (make-gxtest-policy-test ".")
+;;         project-unit-tests)
 ;;       ```
 ;;     %
-(defsyntax (make-current-file-policy-test stx)
+(defsyntax (make-gxtest-policy-test stx)
   (let* ((form (syntax->datum stx))
          (root (and (pair? (cdr form)) (cadr form)))
          (source (stx-source stx))
          (file (and source (vector-ref source 0))))
     (cond
      ((not (and (pair? form) (pair? (cdr form)) (null? (cddr form))))
-      (error "bad make-current-file-policy-test syntax"))
+      (error "bad make-gxtest-policy-test syntax"))
      ((not (string? file))
-      (error "make-current-file-policy-test requires a file-backed source location"))
+      (error "make-gxtest-policy-test requires a file-backed source location"))
      (else
       (datum->syntax (stx-car stx)
                      `(gslph/src/policy/gxtest#make-file-policy-test

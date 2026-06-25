@@ -25,7 +25,7 @@
 ;; : TestSuite
 (def policy-test
   (test-suite "gerbil scheme harness policy"
-    (make-current-file-policy-test ".")
+    (make-gxtest-policy-test ".")
     modularity-policy-test
     agent-basic-policy-test
     agent-alist-access-policy-test

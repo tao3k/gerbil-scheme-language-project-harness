@@ -403,51 +403,6 @@
        (filter top-level-test-file?
                (sort (directory-files test-root) string<?))))
 
-;; : (-> (List Path) Void)
-(def (run-scoped-policy-gate! tests)
-  (let (report (policy-report package-root tests))
-    (unless (equal? (hash-get report 'status) "pass")
-      (display-project-policy-report report)
-      (error "gerbil scheme scoped policy failed"
-             (hash-get report 'status)))))
-
-;; : (-> (List Path) (List String) Void)
-(def (run-scoped-policy-warning-report! tests rules)
-  (let* ((report (policy-report package-root tests))
-         (findings
-          (filter (lambda (finding)
-                    (member (type-finding-rule-id finding) rules))
-                  (hash-get report 'findings))))
-    (unless (null? findings)
-      (display-project-policy-report
-       (hash (status "warning")
-             (files (hash-get report 'files))
-             (definitions (hash-get report 'definitions))
-             (findings findings))))))
-
-;; : (-> String Symbol Procedure)
-(def (runtime-procedure module-id binding-id)
-  (load-module module-id)
-  (eval binding-id))
-
-;; : (-> Path (List Path) PolicyReport)
-(def (policy-report root files)
-  ((runtime-procedure "gslph/src/policy/gxtest"
-                      'gslph/src/policy/gxtest#policy-report)
-   root files))
-
-;; : (-> PolicyReport Void)
-(def (display-project-policy-report report)
-  ((runtime-procedure "gslph/src/policy/gxtest"
-                      'gslph/src/policy/gxtest#display-project-policy-report)
-   report))
-
-;; : (-> TypeFinding String)
-(def (type-finding-rule-id finding)
-  ((runtime-procedure "gslph/src/types/findings"
-                      'gslph/src/types/findings#type-finding-rule-id)
-   finding))
-
 ;; : (-> Void)
 (def (test-target)
   (ensure-build-root!)
@@ -478,9 +433,4 @@
   (let (tests (gxtest-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")
-      (begin
-        (run-scoped-policy-gate! tests)
-        (run-scoped-policy-warning-report!
-         (gxtest-policy-warning-files)
-         +test-support-warning-rules+)
-        (apply gxtest-main tests)))))
+      (apply gxtest-main tests))))

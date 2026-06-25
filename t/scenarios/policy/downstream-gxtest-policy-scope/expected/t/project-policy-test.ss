@@ -4,4 +4,4 @@
 (export project-policy-test)
 
 (def project-policy-test
-  (make-current-file-policy-test "."))
+  (make-gxtest-policy-test "."))
