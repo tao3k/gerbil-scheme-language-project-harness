@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Boundary: reusable benchmark fixtures and performance gate receipts.
 
-(import :support/time)
+(import :support/time
+        (only-in :std/sugar andmap))
 
 (export benchmark-default-max-total-ms
         benchmark-default-max-collect-ms
@@ -16,6 +17,7 @@
         benchmark-fixture-ref
         benchmark-fixture-missing-keys
         benchmark-fixture-memory-contract-pass?
+        benchmark-fixture-observed-timings-contract-pass?
         benchmark-fixture-contract-pass?
         benchmark-elapsed-ms
         benchmark-best-elapsed-ms
@@ -54,6 +56,11 @@
     maxParseMs
     maxFileMs
     maxPhaseMs
+    observedTotalMs
+    targetTotalMs
+    regressionBudgetMs
+    observedTimings
+    targetRationale
     maxRssMb
     memoryMetric
     memoryUnit
@@ -79,6 +86,13 @@
         (cons 'maxParseMs benchmark-default-max-parse-ms)
         (cons 'maxFileMs benchmark-default-max-file-ms)
         (cons 'maxPhaseMs benchmark-default-max-phase-ms)
+        (cons 'observedTotalMs benchmark-default-max-total-ms)
+        (cons 'targetTotalMs benchmark-default-max-total-ms)
+        (cons 'regressionBudgetMs 0)
+        (cons 'observedTimings
+              '(((name . measure-best) (durationMs . 1000))))
+        (cons 'targetRationale
+              "default generated benchmark fixture target")
         (cons 'maxRssMb benchmark-default-max-rss-mb)
         (cons 'memoryMetric benchmark-default-memory-metric)
         (cons 'memoryUnit benchmark-default-memory-unit)
@@ -144,6 +158,52 @@
                            measurement-phases
                            'assert-memory-gate))))))))
 
+;; benchmark-fixture-observed-timings-contract-pass?
+;;   : (-> Alist Boolean)
+;;   | doc m%
+;;       Validate observed timing baseline fields carried by benchmark fixtures.
+;;     %
+(def (benchmark-fixture-observed-timings-contract-pass? fixture)
+  (let ((observed-total-entry (assoc 'observedTotalMs fixture))
+        (target-total-entry (assoc 'targetTotalMs fixture))
+        (regression-budget-entry (assoc 'regressionBudgetMs fixture))
+        (observed-timings-entry (assoc 'observedTimings fixture))
+        (target-rationale-entry (assoc 'targetRationale fixture)))
+    (and observed-total-entry
+         target-total-entry
+         regression-budget-entry
+         observed-timings-entry
+         target-rationale-entry
+         (let ((observed-total-ms (cdr observed-total-entry))
+               (target-total-ms (cdr target-total-entry))
+               (regression-budget-ms (cdr regression-budget-entry))
+               (observed-timings (cdr observed-timings-entry))
+               (target-rationale (cdr target-rationale-entry)))
+           (and (integer? observed-total-ms)
+                (>= observed-total-ms 0)
+                (integer? target-total-ms)
+                (> target-total-ms 0)
+                (integer? regression-budget-ms)
+                (>= regression-budget-ms 0)
+                (string? target-rationale)
+                (list? observed-timings)
+                (not (null? observed-timings))
+                (andmap benchmark-observed-timing-contract-pass?
+                        observed-timings))))))
+
+;; : (-> Alist Boolean)
+(def (benchmark-observed-timing-contract-pass? timing)
+  (and (list? timing)
+       (let ((name-entry (assoc 'name timing))
+             (duration-entry (assoc 'durationMs timing)))
+         (and name-entry
+              duration-entry
+              (let ((name (cdr name-entry))
+                    (duration-ms (cdr duration-entry)))
+                (and (or (symbol? name) (string? name))
+                     (integer? duration-ms)
+                     (>= duration-ms 0)))))))
+
 ;; benchmark-fixture-contract-pass?
 ;;   : (-> Alist Boolean)
 ;;   | doc m%
@@ -171,6 +231,7 @@
               (integer? iterations)
               (> iterations 0)
               (equal? unit "ms")
+              (benchmark-fixture-observed-timings-contract-pass? fixture)
               (benchmark-fixture-memory-contract-pass? fixture)))))
 
 ;; benchmark-elapsed-ms
@@ -216,6 +277,16 @@
                 (benchmark-fixture-ref fixture 'expectedRepair))
           (cons 'elapsedMs elapsed-ms)
           (cons 'maxTotalMs max-total-ms)
+          (cons 'observedTotalMs
+                (benchmark-fixture-ref fixture 'observedTotalMs))
+          (cons 'targetTotalMs
+                (benchmark-fixture-ref fixture 'targetTotalMs))
+          (cons 'regressionBudgetMs
+                (benchmark-fixture-ref fixture 'regressionBudgetMs))
+          (cons 'observedTimings
+                (benchmark-fixture-ref fixture 'observedTimings))
+          (cons 'targetRationale
+                (benchmark-fixture-ref fixture 'targetRationale))
           (cons 'maxCollectMs (benchmark-fixture-ref fixture 'maxCollectMs))
           (cons 'maxParseMs (benchmark-fixture-ref fixture 'maxParseMs))
           (cons 'maxFileMs (benchmark-fixture-ref fixture 'maxFileMs))

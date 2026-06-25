@@ -189,16 +189,16 @@
         (typedCommentMigration
          "rewrite legacy ;; Output <- Input comments to Gerbil contract projection ;; : (-> Input Output) blocks; add ;; | type aliases for Order, Refine, or finite enum names")
         (contractLinePolicy "multi-line typed-combinator-style contracts are allowed when needed to preserve precision")
-        (compositionShape "compact expression-level helper or combinator chain; prefer map/filter/fold/cut/curry/compose when behavior fits")
+        (compositionShape "Gerbil-native expression shape; prefer lambda-match/match for shape dispatch, cut/curry/rcurry for specialization, case-lambda for real arity boundaries, values/call-with-values for tuple projection, and map/filter/filter-map/fold/andmap/ormap for sequence transforms")
         (qualityReferenceCorpus "gerbil-reference-corpus")
         (qualityReference
          (typed-combinator-style-quality-reference-details
           file
           quality-facets))
         (functionShape "single-purpose expression-returning helper; one visible data-flow shape per function")
-        (agentRepairStandard "rewrite toward learned Gerbil style: small algebraic helpers, dense but readable composition, minimal let*/mutation scaffolding")
-        (expressionLevelRewrite "extract predicate/mapper/reducer helpers, then compose with filter-map/map/fold/andmap/ormap/cut/curry/compose when behavior fits")
-        (antiPattern "procedural let* pipeline, broad named-let accumulator, or nested match body when a small selector/helper would expose the data flow")
+        (agentRepairStandard "rewrite toward learned Gerbil/Gambit style: small algebraic helpers, lambda-match/match where shape is the boundary, cut/curry/case-lambda for specialization, values for tuple protocols, and minimal let*/mutation scaffolding")
+        (expressionLevelRewrite "extract predicate/mapper/reducer helpers, then compose with lambda-match/match/cut/curry/case-lambda/values/filter-map/map/fold/andmap/ormap when behavior fits")
+        (antiPattern "basic Scheme scaffolding: procedural let* pipeline, broad named-let accumulator, repeated car/cdr/list-ref projection, or nested conditional body when a Gerbil-native helper, match, selector, or combinator would expose the data flow")
         (passiveRepairFlow "policy-finding -> agentRepair -> guide-code -> bounded edit")
         (implementationEvidenceCount implementation-evidence-count)
         (implementationEvidence
@@ -221,7 +221,14 @@
         (implementationCoverageInsufficient
          implementation-coverage-insufficient?)
         (minimumImplementationCoverage
-         "at least half of arity-bearing definitions must have parser-owned expression-level evidence")
+         "at least two thirds of arity-bearing definitions must have parser-owned Gerbil-native idiom evidence")
+        (gerbilNativeIdiomPriority
+         ["lambda-match/match at destructuring boundaries"
+          "cut/curry/rcurry for partial application"
+          "case-lambda only for real arity specialization"
+          "values/call-with-values instead of anonymous vector/list tuple protocols"
+          "map/filter/filter-map/fold/andmap/ormap for sequence transforms"
+          "parameterize/dynamic-wind when control state or cleanup is the boundary"])
         (gerbilUtilsImplementationSignals +gerbil-utils-implementation-signals+)
         (generatorCombinatorSignals
          (typed-combinator-style-generator-combinator-signals file))
@@ -370,24 +377,26 @@
 ;;; - Ordinary public constructors and accessors may keep the short `;; :` form.
 ;;; Coverage threshold boundary:
 ;;; - Valid typed contracts are necessary before coverage warnings fire.
-;;; - Module engineering comments can intentionally explain sparse evidence.
+;;; - Module engineering comments may explain ownership, but they no longer
+;;;   waive Gerbil-native idiom coverage.  Boundary prose is not a substitute
+;;;   for parser-owned expression evidence.
 ;; : (-> Nat Nat Nat Nat Nat Nat Boolean )
 (def (typed-combinator-style-implementation-coverage-insufficient? function-definition-count covered-definition-count minimum-covered-definition-count valid-typed-comment-count invalid-typed-comment-count missing-count module-engineering-comment?)
   (and (> function-definition-count 2)
        (> valid-typed-comment-count 0)
        (= invalid-typed-comment-count 0)
        (= missing-count 0)
-       (not module-engineering-comment?)
        (< covered-definition-count minimum-covered-definition-count)))
 
 ;;; Minimum coverage boundary:
-;;; - Require roughly half of arity-bearing helpers to have expression evidence.
+;;; - Require roughly two thirds of arity-bearing helpers to have Gerbil-native
+;;;   expression evidence.
 ;;; - Zero-definition owners stay valid and do not force artificial witnesses.
 ;; : (-> Nat Nat )
 (def (typed-combinator-style-minimum-covered-definition-count function-definition-count)
   (if (zero? function-definition-count)
     0
-    (quotient (+ function-definition-count 1) 2)))
+    (quotient (+ (* function-definition-count 2) 2) 3)))
 ;;; Coverage denominator: constants are excluded so only arity-bearing helpers need expression evidence.
 ;; : (-> SourceFile (List Definition) )
 (def (typed-combinator-style-function-definitions file)

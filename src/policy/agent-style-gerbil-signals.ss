@@ -69,8 +69,13 @@
    "!>/!!> pipeline"
    "apply compose"
    "cut/curry/rcurry"
+   "case-lambda arity specialization"
+   "match/lambda-match shape dispatch"
+   "values/call-with-values tuple projection"
+   "parameterize/dynamic-wind control boundary"
    "syntax-case/syntax-rules hygienic macro boundary"
    "map/filter/filter-map/fold"
+   "andmap/ormap/every/any predicate folds"
    "with-list-builder"])
 
 ;;; Projection boundary:

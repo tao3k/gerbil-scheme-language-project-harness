@@ -26,6 +26,21 @@
   (cons (cons 'maxTotalMs 0)
         (cdr benchmark-gate-fixture)))
 
+;; : (-> Symbol Alist Alist)
+(def (benchmark-gate-without key fixture)
+  (filter (lambda (entry) (not (eq? (car entry) key)))
+          fixture))
+
+;; : Alist
+(def benchmark-gate-missing-observed-fixture
+  (benchmark-gate-without 'observedTimings benchmark-gate-fixture))
+
+;; : Alist
+(def benchmark-gate-invalid-observed-fixture
+  (cons (cons 'observedTimings
+              '(((name . measure-best) (durationMs . -1))))
+        (benchmark-gate-without 'observedTimings benchmark-gate-fixture)))
+
 ;; Relpath
 (def +benchmark-gate-scenario-root+ "t/scenarios/policy")
 
@@ -164,6 +179,16 @@
              => 'resident-set-size)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryUnit)
              => "MB")
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTotalMs)
+             => 1000)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'targetTotalMs)
+             => 1000)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'regressionBudgetMs)
+             => 0)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTimings)
+             => '(((name . measure-best) (durationMs . 1000))))
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'targetRationale)
+             => "default generated benchmark fixture target")
       (check (member 'assert-memory-gate
                      (benchmark-fixture-ref benchmark-gate-fixture
                                             'measurementPhases))
@@ -174,7 +199,27 @@
       (check (benchmark-fixture-missing-keys benchmark-gate-fixture) => [])
       (check (benchmark-fixture-memory-contract-pass? benchmark-gate-fixture)
              => #t)
+      (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-fixture)
+             => #t)
       (check (benchmark-fixture-contract-pass? benchmark-gate-fixture) => #t))
+
+    (test-case "observed timing baseline is required by the gate contract"
+      (check (benchmark-fixture-missing-keys
+              benchmark-gate-missing-observed-fixture)
+             => '(observedTimings))
+      (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-missing-observed-fixture)
+             => #f)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-missing-observed-fixture)
+             => #f)
+      (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-invalid-observed-fixture)
+             => #f)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-invalid-observed-fixture)
+             => #f))
 
     (test-case "scenario benchmark fixtures satisfy the shared gate contract"
       (let (paths (benchmark-gate-scenario-benchmark-paths))
@@ -199,6 +244,16 @@
                => 'resident-set-size)
         (check (benchmark-fixture-ref receipt 'memoryUnit)
                => "MB")
+        (check (benchmark-fixture-ref receipt 'observedTotalMs)
+               => 1000)
+        (check (benchmark-fixture-ref receipt 'targetTotalMs)
+               => 1000)
+        (check (benchmark-fixture-ref receipt 'regressionBudgetMs)
+               => 0)
+        (check (benchmark-fixture-ref receipt 'observedTimings)
+               => '(((name . measure-best) (durationMs . 1000))))
+        (check (benchmark-fixture-ref receipt 'targetRationale)
+               => "default generated benchmark fixture target")
         (check (benchmark-receipt-pass? receipt) => #t)))
 
     (test-case "run returns fail receipt at zero threshold"

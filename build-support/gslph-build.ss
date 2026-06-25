@@ -54,6 +54,7 @@
     "cli-launcher.ss"
     "cli-release-linker.ss"
     "support/time.ss"
+    "benchmark/gate.ss"
     "commands/bench-light.ss"))
 
 (def +library-excluded-dirs+
