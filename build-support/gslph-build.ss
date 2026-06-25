@@ -240,7 +240,7 @@
    (full? (library-spec))
    (release? (cli-binary-spec))
    (binary? (cli-binary-spec))
-   (else cli-bootstrap-modules)))
+   (else (library-spec))))
 
 ;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Boolean Void)
 (def (compile-target verbose debug no-optimize optimized release full binary)

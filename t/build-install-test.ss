@@ -25,9 +25,17 @@
         (check (member "t/parser-test.ss" files) ? true)
         (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
       (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
-    (test-case "bootstrap spec includes downstream gxtest support"
+    (test-case "default package spec exposes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #f))
+        (check (member "parser/facade.ss" stage) ? true)
+        (check (member "policy/facade.ss" stage) ? true)
+        (check (member "types/facade.ss" stage) ? true)
+        (check (member "build-api/source-coverage.ss" stage) ? true)
+        (check (member "policy/gxtest.ss" stage) ? true)))
+    (test-case "binary bootstrap spec includes downstream gxtest support"
+      (configure-build-root! (current-directory))
+      (let (stage (compile-spec #f #f #t))
         (check (member "build-api/source-coverage.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) ? true)
         (check (member "policy/gxtest.ss"
