@@ -40,6 +40,7 @@
     (test-case "release build spec uses native exe linker root"
       (let (spec (compile-spec #f #t #f))
         (check (member "cli-release-linker.ss" spec) => #f)
+        (check (member "cli-launcher.ss" spec) ? true)
         (check (ormap (lambda (entry)
                         (match entry
                           ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
@@ -55,6 +56,7 @@
     (test-case "release binary builds runtime module graph"
       (let (spec (cli-binary-build-spec #t))
         (check (member "cli-release-linker.ss" spec) => #f)
+        (check (member "cli-launcher.ss" spec) ? true)
         (check (ormap (lambda (entry)
                         (match entry
                           ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)

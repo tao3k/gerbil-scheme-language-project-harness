@@ -165,6 +165,9 @@
     "benchmark/gate.ss"
     "commands/bench-light.ss"))
 
+(def cli-release-static-modules
+  '("cli-launcher.ss"))
+
 (def +library-excluded-dirs+
   '("search-fast"))
 
@@ -248,8 +251,13 @@
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-module-spec release?)
   (if release?
-    (runtime-library-spec)
+    (cli-release-module-spec)
     cli-bootstrap-modules))
+
+;; : (-> (List BuildSpec))
+(def (cli-release-module-spec)
+  (append (runtime-library-spec)
+          cli-release-static-modules))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-exe-spec release?)
@@ -339,7 +347,7 @@
 ;; : (-> (List BuildSpec))
 (def (package-build-spec)
   (ensure-build-root!)
-  (append (runtime-library-spec) (cli-release-spec)))
+  (append (cli-release-module-spec) (cli-release-spec)))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (build-spec release?)
