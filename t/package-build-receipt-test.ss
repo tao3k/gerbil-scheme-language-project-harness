@@ -14,16 +14,25 @@
                (current-directory)))
 
 ;; : (-> String Void)
+(def (package-build-receipt-strip-trailing-slashes path)
+  (let loop ((end (string-length path)))
+    (if (and (> end 1)
+             (char=? (string-ref path (- end 1)) #\/))
+      (loop (- end 1))
+      (substring path 0 end))))
+
+;; : (-> String Void)
 (def (package-build-receipt-ensure-directory* path)
-  (when path
-    (unless (or (string=? path "")
-                (string=? path ".")
-                (file-exists? path))
-      (let (parent (path-directory path))
-        (when (and parent (not (string=? parent path)))
-          (package-build-receipt-ensure-directory* parent)))
-      (unless (file-exists? path)
-        (create-directory path)))))
+  (let (path (and path (package-build-receipt-strip-trailing-slashes path)))
+    (when path
+      (unless (or (string=? path "")
+                  (string=? path ".")
+                  (file-exists? path))
+        (let (parent (path-directory path))
+          (when (and parent (not (string=? parent path)))
+            (package-build-receipt-ensure-directory* parent)))
+        (unless (file-exists? path)
+          (create-directory path))))))
 
 ;; : (-> Path String Void)
 (def (package-build-receipt-write-file path content)
@@ -43,6 +52,10 @@
 
 (def package-build-receipt-test
   (test-suite "package build receipt api"
+    (test-case "creates nested cache directories from a fresh parent"
+      (let (fresh (package-build-receipt-path "fresh-parent/nested/leaf"))
+        (package-build-receipt-ensure-directory* fresh)
+        (check (file-exists? fresh) => #t)))
     (test-case "reports current when sources and outputs match the receipt"
       (package-build-receipt-reset!)
       (let* ((source (package-build-receipt-path "current/source.ss"))
