@@ -141,8 +141,7 @@
   (cli-exe-spec optimized-exe: "cli-install-linker"))
 
 (def (cli-install-module-spec)
-  (append (runtime-library-spec)
-          '("cli-launcher.ss")))
+  (runtime-library-spec))
 
 (def cli-bootstrap-modules
   '("constants.ss"
