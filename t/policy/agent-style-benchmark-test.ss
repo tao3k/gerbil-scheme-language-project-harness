@@ -62,6 +62,52 @@
                       "replace anonymous vector-ref result/index protocols with values binding, named records, or a small domain object boundary"
                       (hash-get details 'qualityFacetSteering))
                      => #t))))
+(test-case "agent policy validates gerbil upstream idiom performance scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "gerbil-upstream-idiom-performance"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference
+                  (hash-get details 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "gerbil-upstream-idiom-performance"
+             "gerbil-upstream-idiom-performance")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://" "harness-self-apply"]
+             ["gerbil-upstream-idiom-boundary"
+              "match-shape-dispatch"
+              "eq-hash-index-hot-path"
+              "cut-helper-plumbing"
+              "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'observedTotalMs)
+                   => 8.5)
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "basic Scheme route scaffolding to match dispatch, one eq-hash index, and cut-specialized traversal")
+            (check (agent-style-member?
+                    "gerbil-upstream-idiom-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "precompute make-hash-table-eq indexes when symbol or identifier lookup repeats in a hot traversal"
+                    (hash-get details 'gerbilUpstreamIdiomSignals))
+                   => #t)
+            (check (agent-style-member?
+                    "route-events"
+                    (hash-get details 'gerbilUpstreamIdiomTargets))
+                   => #t)
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-upstream-idiom-performance")
+            (check (agent-style-member?
+                    "gerbil://gerbil/compiler/optimize-spec.ss#make-hash-table-eq-method-calls"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "eq-hash-index-hot-path"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)))
 (test-case "agent policy validates controlled macro syntax scenario under performance gate"
           (let* ((context
                   (agent-style-policy-r013-scenario-context

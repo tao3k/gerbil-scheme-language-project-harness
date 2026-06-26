@@ -10,6 +10,7 @@
         :unit/policy/poo-scenarios)
 (export #t)
 
+;; (List PooGuidanceCorpusScenario)
 (def +poo-guidance-corpus-scenarios+
   '(("poo-type-descriptor" . "t/scenarios/policy/poo-type-descriptor")
     ("poo-method-family-serialization" . "t/scenarios/policy/poo-method-family-serialization")
@@ -17,6 +18,7 @@
     ("poo-domain-algebra" . "t/scenarios/policy/poo-domain-algebra")
     ("poo-boundary-accessors" . "t/scenarios/policy/poo-boundary-accessors")))
 
+;; (List RuleId)
 (def +poo-guidance-target-rule-ids+
   ["GERBIL-SCHEME-AGENT-R006"
    "GERBIL-SCHEME-AGENT-R007"
@@ -25,6 +27,7 @@
    "GERBIL-SCHEME-AGENT-R017"
    "GERBIL-SCHEME-AGENT-R026"])
 
+;; : (-> ScenarioId Root PolicyScenarioSnapshot )
 (def (poo-guidance-scenario-policy-snapshot id root)
   (let* ((scenario (make-policy-scenario id root))
          (result (policy-scenario-run scenario)))
@@ -35,6 +38,7 @@
           (list 'after
                 (poo-guidance-phase-snapshot result 'after)))))
 
+;; : (-> PolicyScenarioResult Symbol PolicyPhaseSnapshot )
 (def (poo-guidance-phase-snapshot result phase)
   (let (index (policy-scenario-index result phase))
     (list 'phase
@@ -44,12 +48,14 @@
           (list 'pooForms
                 (poo-guidance-poo-form-snapshots index)))))
 
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (poo-guidance-target-findings index)
   (filter (lambda (finding)
             (member (type-finding-rule-id finding)
                     +poo-guidance-target-rule-ids+))
           (run-agent-policy index)))
 
+;; : (-> ProjectIndex (List PooFormSnapshot) )
 (def (poo-guidance-poo-form-snapshots index)
   (apply append
          (map (lambda (file)
@@ -57,6 +63,7 @@
                      (source-file-poo-forms file)))
               (project-index-files index))))
 
+;; : (-> PooFormFact PooFormSnapshot )
 (def (poo-guidance-poo-form-snapshot fact)
   (list 'pooForm
         (list 'name (poo-form-fact-name fact))
@@ -66,6 +73,7 @@
         (list 'options (poo-form-fact-options fact))
         (list 'selector (poo-form-fact-selector fact))))
 
+;; : (-> PolicyDetails FunctionalIdiomGuidanceSnapshot )
 (def (functional-idiom-guidance-snapshot details)
   (list (list 'kind (hash-get details 'kind))
         (list 'caller (hash-get details 'caller))
@@ -88,6 +96,7 @@
         (list 'keepNamedLetWhen (hash-get details 'keepNamedLetWhen))
         (list 'learnedFrom (hash-get details 'learnedFrom))))
 
+;; : (-> PolicyDetails ControlledBranchShapeGuidanceSnapshot )
 (def (controlled-branch-shape-guidance-snapshot details)
   (list (list 'caller (hash-get details 'caller))
         (list 'shape (hash-get details 'shape))
@@ -110,6 +119,7 @@
         (list 'expressionLevelRewrite
               (hash-get details 'expressionLevelRewrite))))
 
+;; : (-> ScenarioId Root PolicyScenarioSnapshot )
 (def (typed-combinator-style-scenario-policy-snapshot id root)
   (let* ((scenario
           (make-policy-scenario
@@ -139,6 +149,7 @@
                 (list 'r013Findings
                       (map finding-snapshot after-findings))))))
 
+;; : (-> PolicyDetails TypedCombinatorStyleGuidanceSnapshot )
 (def (typed-combinator-style-guidance-snapshot details)
   (list (list 'styleGuide (hash-get details 'styleGuide))
         (list 'expectedCommentShape
@@ -175,6 +186,7 @@
         (list 'qualityFacetSteering
               (hash-get details 'qualityFacetSteering))))
 
+;; : (-> TypeFinding FindingSnapshot )
 (def (finding-snapshot-copy finding)
   [(type-finding-rule-id finding)
    (and (type-finding-path finding)
@@ -184,6 +196,7 @@
    (and (type-finding-message finding)
         (string-copy (type-finding-message finding)))])
 
+;; : (-> PolicyDetails CommentQualityGuidanceSnapshot )
 (def (comment-quality-guidance-snapshot details)
   (let* ((examples (hash-get details 'weakCommentExamples))
          (example (and (pair? examples) (car examples))))
@@ -211,6 +224,7 @@
           (list 'exampleQuality (hash-get example 'quality))
           (list 'exampleReasons (hash-get example 'reasons)))))
 
+;; : (-> ProjectPackage PackageAgentPolicySnapshot )
 (def (package-agent-policy-snapshot package)
   (let (policy (and package (project-package-agent-policy package)))
     (list (list 'dependencies
@@ -221,6 +235,7 @@
           (list 'explanation
                 (and policy (agent-policy-explanation policy))))))
 
+;; : (-> PolicyDetails MacroControlledHelperGuidanceSnapshot )
 (def (macro-controlled-helper-guidance-snapshot details)
   (let ((runtime (hash-get details 'runtimeSourceRequirement))
         (reference (hash-get details 'qualityReference)))
@@ -238,6 +253,7 @@
           (list 'escapeConstraint
                 (hash-get details 'agentEscapeConstraint)))))
 
+;; : (-> PolicyDetails PredicateCombinatorProfileSnapshot )
 (def (predicate-combinator-profile-snapshot details)
   (let ((reference (hash-get details 'qualityReference)))
     (list (list 'styleGuide (hash-get details 'styleGuide))
@@ -253,6 +269,7 @@
           (list 'repairStandard
                 (hash-get details 'agentRepairStandard)))))
 
+;; : (-> PolicyDetails PackageBuildCanonicalShapeSnapshot )
 (def (package-build-canonical-shape-snapshot details)
   (list (list 'kind (hash-get details 'kind))
         (list 'nativeBuildImport
@@ -271,6 +288,7 @@
         (list 'nativeFactSource (hash-get details 'nativeFactSource))
         (list 'next (hash-get details 'next))))
 
+;; : (-> ScenarioId Root PolicyScenarioSnapshot )
 (def (build-runtime-quality-policy-snapshot id root)
   (let* ((scenario
           (make-policy-scenario
@@ -298,6 +316,7 @@
                 (list 'r020Findings
                       (map finding-snapshot after-findings))))))
 
+;; : (-> PolicyDetails BuildRuntimeQualitySnapshot )
 (def (build-runtime-quality-snapshot details)
   (list (list 'kind (hash-get details 'kind))
         (list 'detectionCombiner (hash-get details 'detectionCombiner))
@@ -312,6 +331,7 @@
         (list 'disallowedShape (hash-get details 'disallowedShape))
         (list 'next (hash-get details 'next))))
 
+;; : (-> ScenarioId Root PolicyScenarioSnapshot )
 (def (dependency-adapter-policy-snapshot id root)
   (let* ((scenario
           (make-policy-scenario
@@ -339,6 +359,7 @@
                 (list 'r017Findings
                       (map finding-snapshot after-findings))))))
 
+;; : (-> PolicyDetails DependencyAdapterProfileSnapshot )
 (def (dependency-adapter-profile-snapshot details)
   (list (list 'styleGuide (hash-get details 'styleGuide))
         (list 'dependency (hash-get details 'dependency))
@@ -364,6 +385,7 @@
         (list 'agentRepairStandard
               (hash-get details 'agentRepairStandard))))
 
+;; : (-> MacroFact MacroFactSnapshot )
 (def (macro-fact-snapshot fact)
   (list (list 'macro (macro-fact-name fact))
         (list 'transformer (macro-fact-transformer fact))

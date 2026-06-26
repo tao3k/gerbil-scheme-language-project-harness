@@ -256,6 +256,10 @@
          (typed-combinator-style-list-combinator-signals file))
         (listCombinatorBoundaryTargets
          (typed-combinator-style-list-combinator-targets file))
+        (gerbilUpstreamIdiomSignals
+         (typed-combinator-style-gerbil-upstream-idiom-signals file))
+        (gerbilUpstreamIdiomTargets
+         (typed-combinator-style-gerbil-upstream-idiom-targets file))
         (stdSugarFlowBoundarySignals
          (typed-combinator-style-std-sugar-flow-signals file))
         (stdSugarFlowBoundaryTargets
@@ -506,6 +510,7 @@
                 (source-file-function-quality-profiles file)))
     (typed-combinator-style-generator-quality-facets file)
     (typed-combinator-style-anti-ai-scaffold-quality-facets file)
+    (typed-combinator-style-gerbil-upstream-idiom-quality-facets file)
     (typed-combinator-style-list-combinator-quality-facets file)
     (typed-combinator-style-std-sugar-flow-quality-facets file)
     (typed-combinator-style-loop-driver-quality-facets file)
@@ -558,6 +563,7 @@
                                ["manual-loop-drift"
                                 "method-table-lambda-drift"
                                 "anti-ai-scaffold-boundary"
+                                "gerbil-upstream-idiom-boundary"
                                 "list-combinator-boundary"
                                 "std-sugar-flow-boundary"
                                 "destructuring-combinator-boundary"

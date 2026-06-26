@@ -1,0 +1,259 @@
+;;; -*- Gerbil -*-
+;;; Test source-scope expansion and package-local import resolution.
+
+(import :gerbil/gambit
+        :parser/model
+        :parser/package
+        :parser/parse-workers
+        :parser/source-file
+        :parser/source-scope
+        (only-in :std/sort sort)
+        (only-in :std/srfi/13
+                 string-index-right
+                 string-prefix?))
+
+(export +test-source-scope-import-depth+
+        collect-source-scope
+        collect-test-source-scope
+        test-source-scope-files
+        test-source-scope-import-entries
+        package-local-import-source-paths
+        package-local-import-source-path
+        package-qualified-module-ref?
+        test-runtime-shorthand-import?
+        package-shorthand-module-ref?
+        module-shorthand-ref?
+        built-in-module-shorthand-ref?
+        test-support-module-path
+        test-runtime-relative-import?
+        relative-module-ref?
+        test-source-owner?
+        relative-module-suffix
+        source-owner-directory
+        module-source-path
+        package-source-roots
+        module-source-path/candidates
+        module-source-path/candidate
+        collect-project-package-only)
+
+;; : Integer
+(def +test-source-scope-import-depth+ 2)
+
+;; collect-source-scope
+;;   : (-> String (List String) ProjectIndex)
+;;   | doc m%
+;;       `collect-source-scope root paths` reads package metadata and parses only
+;;       the existing Gerbil/config files named by `paths`.
+;;       # Examples
+;;       ```scheme
+;;       (project-index-files (collect-source-scope "." '("src/core.ss")))
+;;       ;; => changed source-file facts
+;;       ```
+;;     %
+(def (collect-source-scope root paths)
+  (let* ((root (path-normalize root))
+         (package (read-project-package root))
+         (files (sort (changed-source-files root package paths) string<?)))
+    (make-project-index root
+                        (parse-source-files root files)
+                        package)))
+
+;; collect-test-source-scope
+;;   : (-> String (List String) ProjectIndex)
+;;   | doc m%
+;;       `collect-test-source-scope root paths` keeps gxtest policy scoped to
+;;       the supplied test/source entry files, then follows package-local
+;;       imports so tested owners are checked without scanning the whole project.
+;;     %
+(def (collect-test-source-scope root paths)
+  (let* ((root (path-normalize root))
+         (package (read-project-package root))
+         (files (sort (test-source-scope-files root package paths) string<?)))
+    (make-project-index root
+                        (parse-source-files root files)
+                        package)))
+
+;;; Gxtest scope expansion:
+;;; - Start from the runner-supplied files, not the whole package.
+;;; - Follow only imports under the same Gerbil package prefix.
+;;; - Re-apply source-scope filtering to every discovered source path.
+;; : (-> Root MaybePackage (List Path) (List Path))
+(def (test-source-scope-files root package paths)
+  (let loop ((seen '())
+             (queue (map (lambda (path) [path 0])
+                         (changed-source-files root package paths))))
+    (match queue
+      ([]
+       (reverse seen))
+      ([entry . rest]
+       (let ((path (car entry))
+             (depth (cadr entry)))
+       (let* ((file (parse-source-file root path))
+              (relpath (source-file-path file)))
+         (if (member relpath seen)
+           (loop seen rest)
+           (loop (cons relpath seen)
+                 (append rest
+                         (test-source-scope-import-entries
+                          root package relpath depth
+                          (source-file-imports file)))))))))))
+
+;; : (-> Root MaybePackage Path Integer (List ModuleRef) (List ScopeEntry))
+(def (test-source-scope-import-entries root package owner-path depth imports)
+  (if (>= depth +test-source-scope-import-depth+)
+    []
+    (map (lambda (path) [path (fx1+ depth)])
+          (changed-source-files
+           root package
+           (package-local-import-source-paths
+           root package owner-path depth imports)))))
+
+;; : (-> Root MaybePackage Path Integer (List ModuleRef) (List Path))
+(def (package-local-import-source-paths root package owner-path depth imports)
+  (let (paths '())
+    (for-each
+     (lambda (module)
+       (let (path (package-local-import-source-path root package owner-path depth module))
+         (when path
+           (set! paths (cons path paths)))))
+     imports)
+    (reverse paths)))
+
+;; : (-> Root MaybePackage Path Integer ModuleRef (Maybe Path))
+(def (package-local-import-source-path root package owner-path depth module)
+  (and (string? module)
+       (cond
+        ((package-qualified-module-ref? package module)
+         (module-source-path
+          root package
+          (substring module
+                     (string-length
+                      (string-append ":" (project-package-name package) "/"))
+                     (string-length module))))
+        ((test-runtime-shorthand-import? root owner-path depth module)
+         (module-source-path root package
+                             (substring module 1 (string-length module))))
+        ((test-runtime-relative-import? owner-path depth module)
+         (module-source-path root package
+                             (relative-module-suffix owner-path module)))
+        (else #f))))
+
+;; : (-> MaybePackage ModuleRef Boolean)
+(def (package-qualified-module-ref? package module)
+  (and package
+       (project-package-name package)
+       (string-prefix?
+        (string-append ":" (project-package-name package) "/")
+        module)))
+
+;; : (-> Root Path Integer ModuleRef Boolean)
+(def (test-runtime-shorthand-import? root owner-path depth module)
+  (and (= depth 0)
+       (test-source-owner? owner-path)
+       (package-shorthand-module-ref? module)
+       (not (test-support-module-path root module))))
+
+;; : (-> ModuleRef Boolean)
+(def (package-shorthand-module-ref? module)
+  (and (module-shorthand-ref? module)
+       (not (built-in-module-shorthand-ref? module))))
+
+;; : (-> ModuleRef Boolean)
+(def (module-shorthand-ref? module)
+  (string-prefix? ":" module))
+
+;; : (-> ModuleRef Boolean)
+(def (built-in-module-shorthand-ref? module)
+  (or (string-prefix? ":gerbil/" module)
+      (string-prefix? ":std/" module)))
+
+;; : (-> Root ModuleRef (Maybe Path))
+(def (test-support-module-path root module)
+  (and (package-shorthand-module-ref? module)
+       (module-source-path/candidates
+        root
+        [(string-append "t/" (substring module 1 (string-length module)))])))
+
+;; : (-> Path Integer ModuleRef Boolean)
+(def (test-runtime-relative-import? owner-path depth module)
+  (and (= depth 0)
+       (test-source-owner? owner-path)
+       (relative-module-ref? module)
+       (not (test-source-owner? (relative-module-suffix owner-path module)))))
+
+;; : (-> ModuleRef Boolean)
+(def (relative-module-ref? module)
+  (or (string-prefix? "./" module)
+      (string-prefix? "../" module)))
+
+;; : (-> Path Boolean)
+(def (test-source-owner? path)
+  (string-prefix? "t/" path))
+
+;; : (-> Path ModuleRef ModuleSuffix)
+(def (relative-module-suffix owner-path module)
+  (path-normalize
+   (string-append (source-owner-directory owner-path) "/" module)))
+
+;; : (-> Path Path)
+(def (source-owner-directory path)
+  (let (ix (string-index-right path #\/))
+    (if ix
+      (substring path 0 ix)
+      ".")))
+
+;; : (-> Root MaybePackage ModuleSuffix (Maybe Path))
+(def (module-source-path root package suffix)
+  (or (module-source-path/candidates root [suffix])
+      (module-source-path/candidates
+       root
+       (map (lambda (source-root)
+              (string-append source-root "/" suffix))
+            (package-source-roots package)))))
+
+;; : (-> MaybePackage (List Path))
+(def (package-source-roots package)
+  (let (policy (and package (project-package-source-scope-policy package)))
+    (if policy
+      (source-scope-policy-roots policy)
+      ["src"])))
+
+;; : (-> Root (List ModuleSuffix) (Maybe Path))
+(def (module-source-path/candidates root candidates)
+  (let find-candidate ((rest candidates))
+    (match rest
+      ([]
+       #f)
+      ([candidate . more]
+       (or (module-source-path/candidate root candidate)
+           (find-candidate more))))))
+
+;; : (-> Root ModuleSuffix (Maybe Path))
+(def (module-source-path/candidate root suffix)
+  (let find-extension ((extensions +source-extensions+))
+    (match extensions
+      ([]
+       #f)
+      ([extension . rest]
+       (let (candidate (string-append suffix extension))
+         (if (file-exists? (path-expand candidate root))
+           candidate
+           (find-extension rest)))))))
+
+;; collect-project-package-only
+;;   : (-> String ProjectIndex )
+;;   | doc m%
+;;       `collect-project-package-only root` returns package metadata without
+;;       parsing source owners, which keeps package-policy checks lightweight.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (project-index-files (collect-project-package-only "."))
+;;       ;; => ()
+;;       ```
+;;     %
+;; : (-> String ProjectIndex)
+(def (collect-project-package-only root)
+  (let* ((root (path-normalize root))
+         (package (read-project-package root)))
+    (make-project-index root '() package)))

@@ -15,7 +15,7 @@
 ;; : (-> Table Key Json )
 (def (json-get table key)
   (hash-get table key))
-;; : (-> (List XX) SearchOutput )
+;; : (-> (List String) String )
 (def (search-output args)
   (let* ((status #f)
          (output
@@ -35,7 +35,7 @@
                 (set! status (guide-main args)))))))
     (check status => 0)
     output))
-;; : (-> (List XX) InfoOutput )
+;; : (-> (List String) String )
 (def (info-output args)
   (let* ((status #f)
          (output

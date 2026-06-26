@@ -46,7 +46,7 @@
         write-padded-policy-test
         write-ledger-padded-policy-test
         write-complex-policy-test)
-;; : (-> RuleId (List XX) FilterRule )
+;; : (-> RuleId (List TypeFinding) FilterRule )
 (def (filter-rule rule-id findings)
   (filter (lambda (finding)
             (equal? (type-finding-rule-id finding) rule-id))
@@ -388,7 +388,7 @@
   (run-git root ["config" "user.name" "Gerbil Harness Test"])
   (run-git root ["add" "."])
   (run-git root ["commit" "-m" "baseline"]))
-;; : (-> String (List XX) RunGit )
+;; : (-> String (List String) Unit )
 (def (run-git root args)
   (void
    (run-process (cons "git" args)

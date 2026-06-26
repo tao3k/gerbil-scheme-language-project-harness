@@ -91,9 +91,11 @@
 (def (policy-rule-present? rule-id findings)
   (if (member rule-id (map type-finding-rule-id findings)) #t #f))
 
+;; : (-> String String )
 (def (poo-performance-scenario-benchmark-path scenario-id)
   (string-append "t/scenarios/policy/" scenario-id "/benchmark.ss"))
 
+;; : (-> (List String) (List String) )
 (def (missing-poo-performance-scenario-benchmarks scenario-ids)
   (cond
    ((null? scenario-ids) [])

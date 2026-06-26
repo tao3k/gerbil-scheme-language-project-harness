@@ -19,7 +19,7 @@
 ;; : (-> Table Key Json )
 (def (json-get table key)
   (hash-get table key))
-;; : (-> (List XX) Json )
+;; : (-> (List String) Json )
 (def (search-json args)
   (let* ((status #f)
          (output
@@ -29,7 +29,7 @@
                 (set! status (search-main args)))))))
     (check status => 0)
     (call-with-input-string output read-json)))
-;; : (-> (List XX) Json )
+;; : (-> (List String) Json )
 (def (info-json args)
   (let* ((status #f)
          (output
@@ -300,7 +300,7 @@
                    (equal? (json-get fact "name") name)))
             facts)
       (error "syntax fact not found" kind name)))
-;; : (-> (List XX) String String String Expected FindSyntaxFactField )
+;; : (-> (List SyntaxFactJson) String String String Expected FindSyntaxFactField )
 (def (find-syntax-fact-field facts kind name field expected)
   (or (find (lambda (fact)
               (and (equal? (json-get fact "kind") kind)

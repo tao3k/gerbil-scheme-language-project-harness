@@ -6,6 +6,7 @@
         :std/test
         (only-in :commands/check check-main)
         (rename-in :cli-launcher (main launcher-main))
+        (only-in :std/misc/process run-process)
         (only-in :std/sugar ormap)
         (only-in :support/time monotonic-ms duration-ms)
         :benchmark/gate)
@@ -32,6 +33,11 @@
   (filter (lambda (entry) (not (eq? (car entry) key)))
           fixture))
 
+;; : (-> Symbol Value Alist Alist)
+(def (benchmark-gate-with key value fixture)
+  (cons (cons key value)
+        (benchmark-gate-without key fixture)))
+
 ;; : Alist
 (def benchmark-gate-missing-observed-fixture
   (benchmark-gate-without 'observedTimings benchmark-gate-fixture))
@@ -41,6 +47,26 @@
   (cons (cons 'observedTimings
               '(((name . measure-best) (durationMs . -1))))
         (benchmark-gate-without 'observedTimings benchmark-gate-fixture)))
+
+;; : Alist
+(def benchmark-gate-subsecond-fixture
+  (benchmark-gate-with
+   'maxTotalMs
+   0.75
+   (benchmark-gate-with
+    'observedTotalMs
+    0.25
+    (benchmark-gate-with
+     'targetTotalMs
+     0.5
+     (benchmark-gate-with
+      'regressionBudgetMs
+      0.25
+      (benchmark-gate-with
+       'observedTimings
+       '(((name . collect-before) (durationMs . 0.125))
+         ((name . policy-before) (durationMs . 0.125)))
+       benchmark-gate-fixture))))))
 
 ;; Relpath
 (def +benchmark-gate-scenario-root+ "t/scenarios/policy")
@@ -55,11 +81,21 @@
   (path-expand ".cache/agent-semantic-protocol/gerbil-scheme/check/text.sexp"
                +check-cache-gate-root+))
 
+(def +changed-empty-gate-root+
+  (path-expand ".cache/agent-semantic-protocol/test/check-changed-empty-gate"
+               (current-directory)))
+
 ;; Integer
 (def +check-cache-gate-max-warm-ms+ 100)
 
 ;; Integer
 (def +check-cache-gate-max-launcher-warm-ms+ 100)
+
+;;; Boundary:
+;;; - Empty changed-scope launcher checks measured 135-191ms on the package
+;;;   runtime path; keep the gate subsecond while avoiding scheduler noise.
+;; : Integer
+(def +check-cache-gate-max-launcher-changed-ms+ 250)
 
 ;; : (-> Path Boolean)
 (def (benchmark-gate-directory? path)
@@ -163,6 +199,18 @@
    (path-expand "src/core.ss" +check-cache-gate-root+)
    ";;; -*- Gerbil -*-\n;;; Boundary: tiny cache fixture must stay policy-clean so benchmark timing measures cache replay, not repair-report rendering.\n(import :gerbil/gambit)\n(export add1*)\n;; : (-> Integer Integer)\n(def (add1* n) (+ n 1))\n"))
 
+;; : (-> Void)
+(def (prepare-changed-empty-gate-project!)
+  (ensure-directory* +changed-empty-gate-root+)
+  (write-text-file
+   (path-expand "README.md" +changed-empty-gate-root+)
+   "non-gerbil change\n")
+  (run-process ["git" "init"]
+               directory: +changed-empty-gate-root+
+               stdout-redirection: #t
+               stderr-redirection: #t
+               check-status: void))
+
 ;; : (-> (-> Integer) Alist)
 (def (run-check-command/silent thunk)
   (let* ((start-ms (monotonic-ms))
@@ -172,6 +220,35 @@
          (elapsed-ms (duration-ms start-ms (monotonic-ms))))
     (list (cons 'status status)
           (cons 'elapsedMs elapsed-ms))))
+
+;; run-check-command/silent/best
+;;   : (-> Integer (-> Integer) Alist)
+;;   | doc m%
+;;       `run-check-command/silent/best attempts thunk` returns the fastest
+;;       successful timing receipt from a small repeated benchmark window.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (benchmark-fixture-ref
+;;        (run-check-command/silent/best 3 (lambda () 0))
+;;        'status)
+;;       ;; => 0
+;;       ```
+;;     %
+(def (run-check-command/silent/best attempts thunk)
+  (if (<= attempts 0)
+    (error "check benchmark attempts must be positive" attempts)
+    (let loop ((remaining attempts) (best #f))
+      (if (zero? remaining)
+        best
+        (let (receipt (run-check-command/silent thunk))
+          (loop (- remaining 1)
+                (if (or (not best)
+                        (< (benchmark-fixture-ref receipt 'elapsedMs)
+                           (benchmark-fixture-ref best 'elapsedMs)))
+                  receipt
+                  best)))))))
 
 ;; : (-> Path Alist)
 (def (run-check-full/silent root)
@@ -184,6 +261,13 @@
   (run-check-command/silent
    (lambda ()
      (apply launcher-main ["check" "--workspace" root "--full"]))))
+
+;; : (-> Path Alist)
+(def (run-launcher-check-changed/silent root)
+  (run-check-command/silent/best
+   3
+   (lambda ()
+     (apply launcher-main ["check" "changed" "--view" "seeds" root]))))
 
 ;; : TestSuite
 (def benchmark-gate-test
@@ -238,6 +322,20 @@
       (check (benchmark-fixture-contract-pass?
               benchmark-gate-invalid-observed-fixture)
              => #f))
+
+    (test-case "subsecond timing baselines satisfy the gate contract"
+      (check (benchmark-fixture-ref benchmark-gate-subsecond-fixture
+                                    'maxTotalMs)
+             => 0.75)
+      (check (benchmark-fixture-ref benchmark-gate-subsecond-fixture
+                                    'observedTotalMs)
+             => 0.25)
+      (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-subsecond-fixture)
+             => #t)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-subsecond-fixture)
+             => #t))
 
     (test-case "scenario benchmark fixtures satisfy the shared gate contract"
       (let (paths (benchmark-gate-scenario-benchmark-paths))
@@ -295,4 +393,12 @@
                => #t)
         (check (< (benchmark-fixture-ref launcher-warm 'elapsedMs)
                   +check-cache-gate-max-launcher-warm-ms+)
+               => #t)))
+
+    (test-case "check changed empty Gerbil scope stays in launcher millisecond budget"
+      (prepare-changed-empty-gate-project!)
+      (let (changed (run-launcher-check-changed/silent +changed-empty-gate-root+))
+        (check (benchmark-fixture-ref changed 'status) => 0)
+        (check (< (benchmark-fixture-ref changed 'elapsedMs)
+                  +check-cache-gate-max-launcher-changed-ms+)
                => #t)))))

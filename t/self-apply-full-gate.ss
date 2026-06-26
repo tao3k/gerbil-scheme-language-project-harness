@@ -58,7 +58,7 @@
       (let (findings (run-type-checks (self-apply-index)))
         (set! +self-apply-findings-cache+ findings)
         findings)))
-;; : (-> (List XX) SelfApplyDebtViolations )
+;; : (-> (List TypeFinding) SelfApplyDebtViolations )
 (def (self-apply-debt-violations findings)
   (let (counts (finding-rule-counts findings))
     (append (unexpected-self-apply-rule-violations counts)

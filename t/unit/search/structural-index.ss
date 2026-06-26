@@ -82,7 +82,7 @@
    "t/fixtures/parser/poo-slot-cache-inheritance.ss"
    "t/fixtures/parser/poo-method-dispatch.ss"])
 
-;; (List (List Kind Name Fields QueryKeys))
+;; (List PooStructuralSpec)
 (def +poo-structural-specs+
   [["custom" "point"
     [['role "object"]
@@ -281,7 +281,7 @@
               (check-poo-structural-spec facts-packet spec))
             +poo-structural-specs+))
 
-;; : (-> Packet (List Kind Name Fields QueryKeys) Unit )
+;; : (-> Packet PooStructuralSpec Unit )
 (def (check-poo-structural-spec facts-packet spec)
   (match spec
     ([kind name fields query-keys]
@@ -295,7 +295,7 @@
                         => #t))
                query-keys))))
 
-;; : (-> Packet Kind Name (List Field Expected) Unit )
+;; : (-> Packet Kind Name PooStructuralFieldSpec Unit )
 (def (check-poo-structural-field facts-packet kind name spec)
   (match spec
     ([field expected]

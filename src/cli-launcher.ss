@@ -7,9 +7,10 @@
         (only-in :search-light-launcher try-search-light-main)
         (only-in :std/misc/path directory-files path-expand path-normalize)
         (only-in :std/misc/ports read-all-as-string)
+        (only-in :std/misc/process run-process)
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-index string-index-right string-prefix?)
-        (only-in :std/sugar filter foldl))
+        (only-in :std/sugar filter foldl ormap))
 (export main
         command-line-args
         provider-command-line-args)
@@ -164,17 +165,102 @@
 ;; : (-> String (List String) (U Integer #f))
 (def (try-native-check-cache-command command rest)
   (and (equal? command "check")
-       (launcher-check-cache-eligible? rest)
-       (let* ((root (path-normalize (path-expand (launcher-check-root rest))))
-              (mode (launcher-check-output-mode rest))
-              (cache-path (launcher-check-cache-path root mode))
-              (cache (launcher-read-check-cache cache-path)))
-         (and cache
-              (let* ((state (launcher-check-cache-state root cache))
-                     (fingerprint (launcher-check-cache-ref state 'fingerprint))
-                     (hit (launcher-matching-check-cache cache fingerprint)))
-                (and hit
-                     (launcher-emit-cached-check hit)))))))
+       (or (try-native-empty-changed-check rest)
+           (and (launcher-check-cache-eligible? rest)
+                (let* ((root (path-normalize (path-expand (launcher-check-root rest))))
+                       (mode (launcher-check-output-mode rest))
+                       (cache-path (launcher-check-cache-path root mode))
+                       (cache (launcher-read-check-cache cache-path)))
+                  (and cache
+                       (let* ((state (launcher-check-cache-state root cache))
+                              (fingerprint (launcher-check-cache-ref state 'fingerprint))
+                              (hit (launcher-matching-check-cache cache fingerprint)))
+                         (and hit
+                              (launcher-emit-cached-check hit)))))))))
+
+;; : (-> (List String) (U Integer #f))
+(def (try-native-empty-changed-check args)
+  (and (launcher-empty-changed-check-eligible? args)
+       (let (root (path-normalize (path-expand (launcher-check-root args))))
+         (and (not (launcher-has-gerbil-changed-paths? root))
+              (begin
+                (displayln "[gerbil-check] status=pass scope=changed files=0 definitions=0 findings=0")
+                0)))))
+
+;; : (-> (List String) Boolean)
+(def (launcher-empty-changed-check-eligible? args)
+  (and (launcher-changed-check-scope? args)
+       (not (launcher-flag? "--full" args))
+       (not (launcher-check-output-requested? args))
+       (not (launcher-option "--whitelist" args))))
+
+;; : (-> (List String) Boolean)
+(def (launcher-changed-check-scope? args)
+  (or (launcher-flag? "--changed" args)
+      (launcher-flag? "changed" args)))
+
+;; : (-> (List String) Boolean)
+(def (launcher-check-output-requested? args)
+  (ormap (lambda (flag) (launcher-flag? flag args))
+         '("--json" "--profile-json" "--receipt-json")))
+
+;; : (-> String Boolean)
+(def (launcher-has-gerbil-changed-paths? root)
+  (and (launcher-root-has-gerbil-source? root)
+       (file-exists? (path-expand ".git" root))
+       (not (string=? (launcher-git-output
+                       root
+                       ["git" "status" "--porcelain" "--untracked-files=all" "--"
+                        ":(glob)**/*.ss"
+                        ":(glob)**/*.scm"
+                        ":(glob)**/gerbil.pkg"
+                        "gerbil.pkg"])
+                      ""))))
+
+;; : (-> String Boolean)
+(def (launcher-root-has-gerbil-source? root)
+  (let loop ((relpath ".") (path root))
+    (with-catch
+     (lambda (_) #f)
+     (lambda ()
+       (ormap
+        (lambda (entry)
+          (and (launcher-check-cache-visible-directory-entry? relpath entry)
+               (let* ((child-relpath (launcher-check-cache-child-relpath relpath entry))
+                      (child-path (path-expand entry path)))
+                 (or (launcher-gerbil-source-entry? entry)
+                     (and (eq? (file-type child-path) 'directory)
+                          (loop child-relpath child-path))))))
+        (directory-files path))))))
+
+;; : (-> String Boolean)
+(def (launcher-gerbil-source-entry? entry)
+  (or (string=? entry "gerbil.pkg")
+      (launcher-string-suffix? entry ".ss")
+      (launcher-string-suffix? entry ".scm")))
+
+;; : (-> String String Boolean)
+(def (launcher-string-suffix? text suffix)
+  (let ((text-length (string-length text))
+        (suffix-length (string-length suffix)))
+    (and (>= text-length suffix-length)
+         (string=? (substring text (- text-length suffix-length) text-length)
+                   suffix))))
+
+;; : (-> String (List String) String)
+(def (launcher-git-output root command)
+  (let (status 0)
+    (with-catch
+     (lambda (_) "")
+     (lambda ()
+       (let (output
+             (run-process command
+                          directory: root
+                          stderr-redirection: #t
+                          check-status:
+                          (lambda (exit-status _settings)
+                            (set! status exit-status))))
+         (if (zero? status) output ""))))))
 
 ;; : (-> (List String) Boolean)
 (def (launcher-check-cache-eligible? args)

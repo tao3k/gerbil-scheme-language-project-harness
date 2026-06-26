@@ -145,11 +145,11 @@
             (equal? (type-finding-path finding) path))
           (typed-combinator-style-findings index)))
 
-;; : (-> Any (List Any) Boolean )
+;; : (forall (a) (-> a (List a) Boolean ))
 (def (agent-style-member? item items)
   (if (member item items) #t #f))
 
-;; : (-> (List Any) (List Any) Boolean )
+;; : (forall (a) (-> (List a) (List a) Boolean ))
 (def (agent-style-all-members? items candidates)
   (cond
    ((null? items) #t)
@@ -157,7 +157,7 @@
     (agent-style-all-members? (cdr items) candidates))
    (else #f)))
 
-;; : (-> (List Any) (List Integer) (List Any) )
+;; : (forall (a) (-> (List a) (List Integer) (List a) ))
 (def (agent-style-select-indexes items indexes)
   (map (lambda (index) (list-ref items index)) indexes))
 

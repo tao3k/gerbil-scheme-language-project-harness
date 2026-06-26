@@ -6,7 +6,7 @@
         :commands/search
         (only-in :std/srfi/13 string-contains))
 (export search-test-part-23)
-;; : (-> (List XX) SearchOutput )
+;; : (-> (List String) String )
 (def (search-output args)
   (let* ((status #f)
          (output

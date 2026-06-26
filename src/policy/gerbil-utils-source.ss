@@ -78,7 +78,7 @@
      "gerbil://std/actor-v18/executor.ss#cut-prefix-predicate"
      "gerbil-utils/base.ss#case-lambda specializers"
      "gerbil-utils/generator.ss#compose-backed-generating-map"]
-    ["lambda-match-destructuring"
+   ["lambda-match-destructuring"
      "lambda-match-rewrite-opportunity"
      "named-lambda-helper"
      "function-specialization-abstraction"
@@ -89,6 +89,21 @@
      "multi-arity-abstraction"
      "generator-composition"]
     "gerbil-utils and gerbil:// study: prefer real higher-order expression idioms before inventing helper-only rewrites")
+   (make-gerbil-utils-source-profile
+    'gerbil-upstream-idiom-performance
+    "gerbil-upstream-idiom-performance"
+    ["gerbil://gerbil/core/match.ss#match/match*"
+     "gerbil://gerbil/core/match.ss#with/with*"
+     "gerbil://gerbil/compiler/optimize-spec.ss#make-hash-table-eq-method-calls"
+     "gerbil://gerbil/compiler/optimize-spec.ss#cut-compile-e"
+     "gerbil://gerbil/compiler/optimize-top.ss#optimizer-cache-facts"]
+    ["gerbil-upstream-idiom-boundary"
+     "match-shape-dispatch"
+     "with-destructuring-boundary"
+     "eq-hash-index-hot-path"
+     "cut-helper-plumbing"
+     "hash-index-outside-traversal"]
+    "gerbil:// core/compiler study: high-value AI-scaffold repair starts with match/with shape dispatch, precomputed eq hash indexes for repeated symbol or identifier lookups, and cut/curry helper plumbing instead of broad manual loops or wrapper lambdas")
    (make-gerbil-utils-source-profile
     'list-combinator-boundary
     "list-combinator-boundary"
@@ -447,6 +462,10 @@
      quality-facets
      ["generator-combinator-boundary"])
     'generator-control)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["gerbil-upstream-idiom-boundary"])
+    'gerbil-upstream-idiom-performance)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["list-combinator-boundary"])

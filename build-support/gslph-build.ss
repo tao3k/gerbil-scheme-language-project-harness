@@ -2,7 +2,7 @@
 ;;; Build support for the gslph package.
 
 (import (only-in :std/make make)
-        (only-in :std/misc/path directory-files path-directory path-expand path-normalize)
+        (only-in :std/misc/path directory-files path-directory path-expand path-normalize path-strip-directory)
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
         (only-in :clan/building all-gerbil-modules)
@@ -246,8 +246,6 @@
 (def (compile-target verbose debug no-optimize optimized release full binary)
   (ensure-build-root!)
   (current-directory package-root)
-  (when (darwin-release? release)
-    (error "Darwin release binary build is disabled because Gerbil compile-exe does not complete reliably on macOS; use the Linux release builder or a pinned GitHub release artifact"))
   (let* ((build-optimize? (and optimized (not no-optimize)))
          (effective-release? release)
          (effective-optimized? optimized)
@@ -267,8 +265,6 @@
 (def (install-target verbose debug no-optimize optimized release)
   (ensure-build-root!)
   (current-directory package-root)
-  (when (darwin-release? release)
-    (error "Darwin release binary build is disabled because Gerbil compile-exe does not complete reliably on macOS; install the pinned GitHub release artifact with asp install language"))
   (let* ((build-optimize? (and optimized (not no-optimize)))
          (worker-count (sync-build-worker-count!)))
     (compile-cli-binary (install-launcher-binpath)
@@ -285,7 +281,7 @@
                verbose debug build-optimize?
                effective-release? effective-optimized?
                worker-count)
-  (compile-cli-launcher-exe binpath verbose debug))
+  (compile-cli-launcher-exe binpath verbose debug build-optimize?))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-build-spec release?)
@@ -293,8 +289,8 @@
     (runtime-library-spec)
     cli-bootstrap-modules))
 
-;; : (-> Path Boolean Boolean Path)
-(def (compile-cli-launcher-exe binpath verbose debug)
+;; : (-> Path Boolean Boolean Boolean Path)
+(def (compile-cli-launcher-exe binpath verbose debug build-optimize?)
   (let (bindir (path-directory binpath))
     (ensure-directory! bindir)
     (compile-exe (path-expand "cli-release-linker.ss" source-root)
@@ -303,9 +299,28 @@
                   keep-scm: #f
                   verbose: (and verbose 9)
                   debug: (and debug 'env)
-                  full-program-optimization: #f
+                  full-program-optimization: build-optimize?
                   parallel: #f])
+    (cleanup-compile-exe-artifacts! binpath)
     binpath))
+
+;; : (-> Path Void)
+(def (delete-file* path)
+  (with-catch
+   (lambda (_) #!void)
+   (lambda ()
+     (when (file-exists? path)
+       (delete-file path)))))
+
+;; : (-> Path Void)
+(def (cleanup-compile-exe-artifacts! binpath)
+  (let* ((bindir (path-directory binpath))
+         (name (path-strip-directory binpath))
+         (prefix (string-append name "__exe")))
+    (for-each
+     (lambda (suffix)
+       (delete-file* (path-expand (string-append prefix suffix) bindir)))
+     '(".c" "_.c" ".scm"))))
 
 ;; : (-> Path)
 (def (dev-launcher-binpath)

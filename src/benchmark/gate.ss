@@ -75,8 +75,12 @@
     tags))
 
 ;; : (List Symbol)
+(def +benchmark-positive-duration-fields+
+  '(maxTotalMs maxCollectMs maxParseMs maxFileMs maxPhaseMs))
+
+;; : (List Symbol)
 (def +benchmark-positive-integer-fields+
-  '(maxTotalMs maxCollectMs maxParseMs maxFileMs maxPhaseMs iterations))
+  '(iterations))
 
 ;; make-benchmark-fixture
 ;;   : (-> Symbol Symbol String String String (List Symbol) Alist)
@@ -150,6 +154,14 @@
   (ormap (lambda (candidate) (member candidate phases))
          [phase (symbol->string phase)]))
 
+;; : (-> Number Boolean)
+(def (benchmark-positive-number? value)
+  (and (number? value) (> value 0)))
+
+;; : (-> Number Boolean)
+(def (benchmark-non-negative-number? value)
+  (and (number? value) (>= value 0)))
+
 ;; : (-> Integer Boolean)
 (def (benchmark-positive-integer? value)
   (and (integer? value) (> value 0)))
@@ -157,6 +169,16 @@
 ;; : (-> Integer Boolean)
 (def (benchmark-non-negative-integer? value)
   (and (integer? value) (>= value 0)))
+
+;; : (-> Alist Symbol Boolean)
+(def (benchmark-fixture-positive-number-field-pass? fixture key)
+  (benchmark-positive-number? (benchmark-fixture-ref fixture key)))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-positive-duration-fields-pass? fixture)
+  (andmap (lambda (key)
+            (benchmark-fixture-positive-number-field-pass? fixture key))
+          +benchmark-positive-duration-fields+))
 
 ;; : (-> Alist Symbol Boolean)
 (def (benchmark-fixture-positive-integer-field-pass? fixture key)
@@ -218,9 +240,9 @@
                (regression-budget-ms (cdr regression-budget-entry))
                (observed-timings (cdr observed-timings-entry))
                (target-rationale (cdr target-rationale-entry)))
-           (and (benchmark-non-negative-integer? observed-total-ms)
-                (benchmark-positive-integer? target-total-ms)
-                (benchmark-non-negative-integer? regression-budget-ms)
+           (and (benchmark-non-negative-number? observed-total-ms)
+                (benchmark-positive-number? target-total-ms)
+                (benchmark-non-negative-number? regression-budget-ms)
                 (string? target-rationale)
                 (list? observed-timings)
                 (not (null? observed-timings))
@@ -237,7 +259,7 @@
               (let ((name (cdr name-entry))
                     (duration-ms (cdr duration-entry)))
                 (and (or (symbol? name) (string? name))
-                     (benchmark-non-negative-integer? duration-ms)))))))
+                     (benchmark-non-negative-number? duration-ms)))))))
 
 ;; benchmark-fixture-contract-pass?
 ;;   : (-> Alist Boolean)
@@ -246,6 +268,7 @@
 ;;     %
 (def (benchmark-fixture-contract-pass? fixture)
   (and (null? (benchmark-fixture-missing-keys fixture))
+       (benchmark-fixture-positive-duration-fields-pass? fixture)
        (benchmark-fixture-positive-integer-fields-pass? fixture)
        (benchmark-fixture-unit-contract-pass? fixture)
        (benchmark-fixture-observed-timings-contract-pass? fixture)

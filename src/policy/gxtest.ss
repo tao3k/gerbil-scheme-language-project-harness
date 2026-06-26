@@ -4,7 +4,8 @@
 (import :gerbil/gambit
         :build-api/source-coverage
         :constants
-        (for-syntax :gerbil/expander
+        (for-syntax :gerbil/gambit
+                    :gerbil/expander
                     :std/stxutil)
         :parser/facade
         :policy/facade
@@ -43,14 +44,34 @@
 ;;     %
 (defsyntax (make-gxtest-policy-test stx)
   (let* ((form (syntax->datum stx))
-         (root (and (pair? (cdr form)) (cadr form))))
+         (root (and (pair? (cdr form)) (cadr form)))
+         (resolved-root
+          (if (string? root)
+            (let* ((expanded-root
+                    (path-normalize (path-expand root (current-directory))))
+                   (normalized-root
+                    (let trim ((end (string-length expanded-root)))
+                      (if (and (> end 1)
+                               (char=? (string-ref expanded-root (- end 1))
+                                       #\/))
+                        (trim (- end 1))
+                        (substring expanded-root 0 end)))))
+              (let loop ((candidate normalized-root))
+                (let (parent (path-directory candidate))
+                  (cond
+                   ((file-exists? (path-expand "gerbil.pkg" candidate))
+                    candidate)
+                   ((or (not parent) (string=? parent candidate))
+                    normalized-root)
+                   (else (loop parent))))))
+            root)))
     (cond
      ((not (and (pair? form) (pair? (cdr form)) (null? (cddr form))))
       (error "bad make-gxtest-policy-test syntax"))
      (else
       (datum->syntax (stx-car stx)
                      `(gslph/src/policy/gxtest#make-project-policy-test
-                       ,root))))))
+                       ,resolved-root))))))
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.
@@ -101,6 +122,25 @@
          (findings (run-policy-checks index)))
     (project-policy-report-json index findings "files" files)))
 
+;; : (-> Root Root)
+(def (project-policy-root root)
+  (let* ((expanded-root
+          (path-normalize (path-expand root (current-directory))))
+         (normalized-root
+          (let trim ((end (string-length expanded-root)))
+            (if (and (> end 1)
+                     (char=? (string-ref expanded-root (- end 1)) #\/))
+              (trim (- end 1))
+              (substring expanded-root 0 end)))))
+    (let loop ((candidate normalized-root))
+      (let (parent (path-directory candidate))
+        (cond
+         ((file-exists? (path-expand "gerbil.pkg" candidate))
+          candidate)
+         ((or (not parent) (string=? parent candidate))
+          normalized-root)
+         (else (loop parent)))))))
+
 ;; : (-> Root (List TypeFinding) )
 (def (project-policy-findings root)
   (run-policy-checks (project-policy-index root)))
@@ -119,8 +159,9 @@
 
 ;; : (-> Root ProjectIndex)
 (def (project-policy-index root)
-  (gslph-load-source-coverage root)
-  (collect-source-scope root (gslph-source-coverage-files root)))
+  (let (policy-root (project-policy-root root))
+    (gslph-load-source-coverage policy-root)
+    (collect-source-scope policy-root (gslph-source-coverage-files policy-root))))
 
 ;; : (-> ProjectIndex (List TypeFinding) String MaybePaths Json )
 (def (project-policy-report-json index findings scope requested-files)
