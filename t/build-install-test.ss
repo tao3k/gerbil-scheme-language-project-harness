@@ -27,15 +27,25 @@
       (let (files (gxtest-test-files))
         (check (member "t/policy-test.ss" files) ? true)
         (check (member "t/parser-test.ss" files) ? true)
+        (check (member "t/project-policy-test.ss" files) => #f)
         (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
       (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
     (test-case "gxtest build spec stays scoped to top-level test entries"
       (configure-build-root! (current-directory))
       (let (stage (gxtest-test-spec))
         (check (member "policy-test.ss" stage) ? true)
+        (check (member "project-policy-test.ss" stage) => #f)
         (check (member "policy/agent-build-test.ss" stage) => #f)
         (check (member "unit/schema/conformance.ss" stage) => #f)
         (check (member "snapshot/policy.ss" stage) => #f)))
+    (test-case "timing-sensitive gxtest files run outside parallel workers"
+      (let (files ["t/bench-test.ss"
+                   "t/benchmark-gate-test.ss"
+                   "t/policy-test.ss"])
+        (check (serial-gxtest-files files)
+               => ["t/bench-test.ss" "t/benchmark-gate-test.ss"])
+        (check (parallel-gxtest-files files)
+               => ["t/policy-test.ss"])))
     (test-case "test phase receipts are machine parseable"
       (check (test-phase-receipt-line "run-gxtest" 1234)
              => "[gslph-test-phase] name=run-gxtest elapsedMicros=1234 elapsedMs=1\n"))
@@ -50,11 +60,13 @@
         (check (member "policy/facade.ss" stage) ? true)
         (check (member "types/facade.ss" stage) ? true)
         (check (member "build-api/source-coverage.ss" stage) ? true)
+        (check (member "build-api/package-receipt.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) ? true)))
     (test-case "binary bootstrap spec includes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #t))
         (check (member "build-api/source-coverage.ss" stage) ? true)
+        (check (member "build-api/package-receipt.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) ? true)
         (check (member "policy/gxtest.ss"
                        (member "build-api/source-coverage.ss" stage))
