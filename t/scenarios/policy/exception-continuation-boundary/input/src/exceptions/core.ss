@@ -6,7 +6,7 @@
 
 (export run-checked)
 
-;; Outcome <- Exception Continuation Handler Context Raise
+;; : (-> Exception Continuation Handler Context Raise Outcome)
 (def (run-checked thunk label)
   (try
    (thunk)

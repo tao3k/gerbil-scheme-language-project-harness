@@ -36,7 +36,7 @@
 ;;; Boundary:
 ;;; - agent-steering-rule-json coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.
-;;; : (List Hash) <-
+;;; : (-> (List Hash))
 ;; Json
 (def (agent-steering-rule-json)
   [(hash (id (policy-rule-id +agent-poo-direct-writeenv-rule+))

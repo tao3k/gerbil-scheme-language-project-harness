@@ -37,7 +37,9 @@
     with-list-builder))
 ;; : (-> Relpath Form Datum (List HigherOrderFact) )
 (def (higher-order-facts-from-form relpath form datum)
-  (higher-order-facts-from-stx relpath form (form-caller-name datum)))
+  (if (datum-has-head? datum +higher-order-heads+)
+    (higher-order-facts-from-stx relpath form (form-caller-name datum))
+    '()))
 ;;; Boundary:
 ;;; - higher-order-facts-from-stxes composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

@@ -3,7 +3,7 @@
 (package: sample/orders)
 (export render-active-orders)
 
-;; (List String) <- (List Order) Map Filter Fold
+;; : (-> (List Order) Map Filter Fold (List String))
 (def (render-active-orders orders)
   (let loop ((remaining orders) (out '()))
     (if (null? remaining)

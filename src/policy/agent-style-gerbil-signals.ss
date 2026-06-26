@@ -116,7 +116,7 @@
 ;;; - Keep agent guidance tied to projection evidence instead of invented grammar.
 ;; (List String)
 (def +gerbil-contract-projection-signals+
-  ["legacy contracts split at top-level <-, not nested arrows"
+  ["Scheme-native ;; : contract blocks preserve arrow structure without comment-arrow fallback"
    "Gerbil contract projection ;; : (forall (a) (-> ...)) blocks carry type aliases, runtime contracts, requires, warning, rationale, and doc sections"
    "higher-order contracts may use placeholder-looking Gerbil utility variables when the arrow/group evidence is higher-order"
    "using (value :- Type) is the native boundary for repeated class/interface slot access when parser facts prove a local typed descriptor"
@@ -356,7 +356,7 @@
    "manual-loop-drift"))
 
 ;;; Guidance boundary:
-;;; - This is the contract-light repair lane for real legacy owners.
+;;; - This is the combinator repair lane for pure transform owners.
 ;;; - Keep the advice constrained to pure transform loops.
 ;; : (-> SourceFile (List String) )
 (def (typed-combinator-style-loop-driver-signals file)
@@ -421,8 +421,7 @@
 
 ;;; Contract gate:
 ;;; - Require an explicit list traversal contract, not an arbitrary List type.
-;;; - Scenario fixtures may use legacy projection comments while production
-;;;   owners can use typed-combinator-style blocks.
+;;; - Scenario fixtures and production owners use Scheme-native typed blocks.
 ;; : (-> TypedContractFact Boolean )
 (def (typed-combinator-style-list-combinator-fact? fact)
   (and (typed-contract-fact-mentions-any?
@@ -469,7 +468,7 @@
 
 ;;; Boundary:
 ;;; - Generator detection is derived from typed-contract facts.
-;;; - Output, inputs, and tokens are all checked because legacy contracts can
+;;; - Output, inputs, and tokens are all checked because typed blocks can
 ;;;   carry `Generating` at different nesting levels.
 ;; : (-> SourceFile (List TypedContractFact) )
 (def (typed-combinator-style-generator-contract-facts file)
@@ -478,8 +477,8 @@
 
 ;;; Predicate boundary:
 ;;; - A generator contract can mention `Generating` in output, input, or tokens.
-;;; - The ormap path preserves nested legacy contracts without flattening them
-;;;   into raw text heuristics.
+;;; - The ormap path preserves nested typed blocks without flattening them into
+;;;   raw text heuristics.
 ;; : (-> TypedContractFact Boolean )
 (def (typed-combinator-style-generator-contract-fact? fact)
   (or (member "Generating" (typed-contract-fact-tokens fact))

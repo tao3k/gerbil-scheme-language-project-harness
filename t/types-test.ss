@@ -352,36 +352,6 @@
         (check (hash-get bad-contract 'valid) => #f)
         (check (hash-get bad-type 'diagnostics)
                => ["function-parameter[1]:list-element:unknown-type"])))
-    (test-case "legacy higher-order contracts split at the top-level arrow"
-      (let* ((root (path-normalize "."))
-             (file (parse-source-file root "t/fixtures/legacy-contracts.ss"))
-             (facts (source-file-typed-contract-facts file))
-             (sample-curry
-              (car
-               (filter (lambda (fact)
-                         (equal? (typed-contract-fact-definition-name fact)
-                                 "sample-curry"))
-                       facts)))
-             (sample-generating-map
-              (car
-               (filter (lambda (fact)
-                         (equal? (typed-contract-fact-definition-name fact)
-                                 "sample-generating-map"))
-                       facts))))
-        (check (typed-contract-fact-contract-output sample-curry)
-               => "(Z <- YY)")
-        (check (typed-contract-fact-contract-inputs sample-curry)
-               => ["(Z <- XX YY)" "XX"])
-        (check (typed-contract-fact-quality sample-curry)
-               => "higher-order-transform")
-        (check (typed-contract-fact-reasons sample-curry) => [])
-        (check (typed-contract-fact-contract-output sample-generating-map)
-               => "(Generating B)")
-        (check (typed-contract-fact-contract-inputs sample-generating-map)
-               => ["(Generating A)" "(B <- A)"])
-        (check (not (not (member "Generating"
-                                 (typed-contract-fact-tokens sample-generating-map))))
-               => #t)))
     (test-case "duplicate definitions become type env facts"
       (let* ((first (make-type-binding "answer" "definition" (make-type-unknown)
                                        '() 0 "same.ss" "same.ss:1-1"))

@@ -390,8 +390,7 @@
 ;; : (List Symbol)
 (def +finding-detail-keys+
   '(advice next keepNamedLetWhen styleGuide styleCommand
-    expectedCommentShape signatureShape typedCommentMigrationNeeded
-    typedCommentMigration expectedDocShape typedDocRequiredWhen
+    expectedCommentShape signatureShape expectedDocShape typedDocRequiredWhen
     typedDocMissing typedDocMissingCount typedDocMissingTargets
     repairAction guideCodeFlag searchExampleCommand repairCodeCommand codeShapeExemplar
     adapterRepairShape agentRepairStandard

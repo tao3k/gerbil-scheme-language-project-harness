@@ -131,6 +131,7 @@
                       (> invalid-typed-comment-count 0)
                       missing-implementation-evidence?
                       implementation-coverage-insufficient?
+                      typed-doc-missing?
                       quality-repair-triggered?])
               (make-type-finding
                (policy-rule-id +agent-typed-combinator-style-rule+)
@@ -189,11 +190,6 @@
         (typedDocMissingTargets
          (take typed-doc-missing-targets
                (min 12 (length typed-doc-missing-targets))))
-        (typedCommentMigrationNeeded
-         (quality-facet-present? quality-facets
-                                 "gerbil-contract-projection-migration"))
-        (typedCommentMigration
-         "rewrite legacy ;; Output <- Input comments to Gerbil contract projection ;; : (-> Input Output) blocks; add ;; | type aliases for Order, Refine, or finite enum names")
         (contractLinePolicy "multi-line typed-combinator-style contracts are allowed when needed to preserve precision")
         (compositionShape "Gerbil-native expression shape; prefer lambda-match/match for shape dispatch, cut/curry/rcurry for specialization, case-lambda for real arity boundaries, values/call-with-values for tuple projection, and map/filter/filter-map/fold/andmap/ormap for sequence transforms")
         (qualityReferenceCorpus "gerbil-reference-corpus")
@@ -333,7 +329,7 @@
 ;;; Scope boundary:
 ;;; - Runtime source and real tests must keep typed-combinator contracts.
 ;;; - t/scenarios contains fixture projects that intentionally encode bad shapes.
-;; Boolean <- ProjectIndex SourceFile
+;; : (-> ProjectIndex SourceFile Boolean)
 ;;; Source-class scope guard:
 ;;; - Parser source classes own fixture/scenario/generated classification.
 ;;; - Policy only decides which parser-owned classes are actionable.
@@ -526,7 +522,7 @@
 
 ;;; R015 consumes only the profile facets that steer gerbil-utils/base.ss style
 ;;; abstraction.  Broader profile facts stay available to search/report without
-;;; turning every legacy contract migration hint into an actionable warning.
+;;; turning every typed-block shape hint into an actionable warning.
 ;; : (-> FunctionQualityProfile (List QualityFacet) )
 (def (typed-combinator-style-profile-quality-facets profile)
   (filter (lambda (facet)

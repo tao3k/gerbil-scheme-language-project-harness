@@ -56,7 +56,7 @@
 
 ;;; Fact boundary:
 ;;; - Reuse typed-contract facts collected by the parser.
-;;; - This avoids raw text scans while still supporting legacy contract syntax.
+;;; - This avoids raw text scans while staying on Scheme-native typed blocks.
 ;; : (-> SourceFile (List TypedContractFact) )
 (def (typed-combinator-style-serialization-boundary-facts file)
   (filter typed-combinator-style-serialization-boundary-fact?

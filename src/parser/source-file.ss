@@ -299,81 +299,81 @@
            (let* ((form (car rest))
                (datum (car datum-rest))
                (head (form-datum-head datum))
-               (metadata-value
-                (form-metadata-value/from-datums datum datum-rest))
                (next-rest (form-next-rest datum rest))
                (next-datum-rest (form-next-rest datum datum-rest))
-               (top-form (top-form-from relpath form datum))
-               (next-calls (append (calls-from-form relpath form datum) calls))
-               (form-module-imports
-                (if (eq? head 'import)
-                  (module-import-facts-from-form relpath form)
-                  '()))
-               (form-module-exports
-                (if (eq? head 'export)
-                  (module-export-facts-from-form relpath form)
-                  '()))
-               (form-macros (macro-facts-from-form relpath form datum))
-               (form-bindings (binding-facts-from-form relpath form datum))
-               (form-poo-forms (poo-form-facts-from-form relpath form datum))
-               (form-higher-order-forms
-                (higher-order-facts-from-form relpath form datum))
-               (form-control-flow-forms
-                (control-flow-facts-from-form relpath form datum))
-               (form-dependency-adapter-candidates
-                (dependency-adapter-candidates-from-form relpath form datum)))
+               (top-form (top-form-from relpath form datum)))
           (set! top-forms (cons top-form top-forms))
-          (set! control-flow-forms
-            (append form-control-flow-forms control-flow-forms))
-          (set! dependency-adapter-candidates
-            (append form-dependency-adapter-candidates
-                    dependency-adapter-candidates))
           (cond
            ((eq? head 'package:)
-            (set! package (datum->string metadata-value)))
+            (set! package
+              (datum->string
+               (form-metadata-value/from-datums datum datum-rest))))
            ((eq? head 'prelude:)
-            (set! prelude (datum->string metadata-value)))
+            (set! prelude
+              (datum->string
+               (form-metadata-value/from-datums datum datum-rest))))
            ((eq? head 'namespace:)
-            (set! namespace (datum->string metadata-value)))
+            (set! namespace
+              (datum->string
+               (form-metadata-value/from-datums datum datum-rest))))
            ((eq? head 'import)
            (set! imports (append (module-refs datum) imports))
-            (set! module-imports (append form-module-imports module-imports))
-            (set! macros (append form-macros macros))
-            (set! bindings (append form-bindings bindings))
-            (set! poo-forms (append form-poo-forms poo-forms))
-            (set! higher-order-forms
-              (append form-higher-order-forms higher-order-forms)))
+            (set! module-imports
+              (append (module-import-facts-from-form relpath form)
+                      module-imports)))
            ((eq? head 'export)
             (set! exports (append (export-symbols datum) exports))
-            (set! module-exports (append form-module-exports module-exports))
-            (set! macros (append form-macros macros))
-            (set! bindings (append form-bindings bindings))
-            (set! poo-forms (append form-poo-forms poo-forms))
-            (set! higher-order-forms
-              (append form-higher-order-forms higher-order-forms)))
+            (set! module-exports
+              (append (module-export-facts-from-form relpath form)
+                      module-exports)))
            ((eq? head 'include)
-            (set! includes (append (string-datums datum) includes))
-            (set! macros (append form-macros macros))
-            (set! bindings (append form-bindings bindings))
-            (set! poo-forms (append form-poo-forms poo-forms))
-            (set! higher-order-forms
-              (append form-higher-order-forms higher-order-forms)))
+            (set! includes (append (string-datums datum) includes)))
            ((member head +definition-heads+)
-            (set! definitions
-              (append (definitions-from-form relpath form datum) definitions))
-            (set! calls next-calls)
-            (set! macros (append form-macros macros))
-            (set! bindings (append form-bindings bindings))
-            (set! poo-forms (append form-poo-forms poo-forms))
-            (set! higher-order-forms
-              (append form-higher-order-forms higher-order-forms)))
+            (let ((form-calls (calls-from-form relpath form datum))
+                  (form-macros (macro-facts-from-form relpath form datum))
+                  (form-bindings (binding-facts-from-form relpath form datum))
+                  (form-poo-forms (poo-form-facts-from-form relpath form datum))
+                  (form-higher-order-forms
+                   (higher-order-facts-from-form relpath form datum))
+                  (form-control-flow-forms
+                   (control-flow-facts-from-form relpath form datum))
+                  (form-dependency-adapter-candidates
+                   (dependency-adapter-candidates-from-form relpath form datum)))
+              (set! definitions
+                (append (definitions-from-form relpath form datum) definitions))
+              (set! calls (append form-calls calls))
+              (set! macros (append form-macros macros))
+              (set! bindings (append form-bindings bindings))
+              (set! poo-forms (append form-poo-forms poo-forms))
+              (set! higher-order-forms
+                (append form-higher-order-forms higher-order-forms))
+              (set! control-flow-forms
+                (append form-control-flow-forms control-flow-forms))
+              (set! dependency-adapter-candidates
+                (append form-dependency-adapter-candidates
+                        dependency-adapter-candidates))))
            (else
-            (set! calls next-calls)
-            (set! macros (append form-macros macros))
-            (set! bindings (append form-bindings bindings))
-            (set! poo-forms (append form-poo-forms poo-forms))
-            (set! higher-order-forms
-              (append form-higher-order-forms higher-order-forms))))
+            (let ((form-calls (calls-from-form relpath form datum))
+                  (form-macros (macro-facts-from-form relpath form datum))
+                  (form-bindings (binding-facts-from-form relpath form datum))
+                  (form-poo-forms (poo-form-facts-from-form relpath form datum))
+                  (form-higher-order-forms
+                   (higher-order-facts-from-form relpath form datum))
+                  (form-control-flow-forms
+                   (control-flow-facts-from-form relpath form datum))
+                  (form-dependency-adapter-candidates
+                   (dependency-adapter-candidates-from-form relpath form datum)))
+              (set! calls (append form-calls calls))
+              (set! macros (append form-macros macros))
+              (set! bindings (append form-bindings bindings))
+              (set! poo-forms (append form-poo-forms poo-forms))
+              (set! higher-order-forms
+                (append form-higher-order-forms higher-order-forms))
+              (set! control-flow-forms
+                (append form-control-flow-forms control-flow-forms))
+              (set! dependency-adapter-candidates
+                (append form-dependency-adapter-candidates
+                        dependency-adapter-candidates)))))
              (set! rest next-rest)
              (set! datum-rest next-datum-rest)))))
       (let ((ordered-definitions (reverse definitions))

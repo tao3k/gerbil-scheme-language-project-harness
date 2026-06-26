@@ -48,7 +48,7 @@
           (repairOrder "run after grouped structural/style repairs such as typed-combinator, controlled-branch, or predicate-family combinator fixes")
           (expectedCommentPrefix ";;;")
           (commentLinePolicy "split multi-clause engineering rationale across adjacent comment lines when it improves confidence; do not squeeze rationale clauses into one semicolon-separated line")
-          (typedContractBoundary "typed contract comments describe algebraic shape only and may use adjacent multi-line contract blocks when needed")
+          (typedContractBoundary "Scheme-native typed blocks describe algebraic shape only and may use adjacent multi-line contract blocks when needed")
           (expectedEngineeringComment "cover the specific responsibility, invariant, boundary, risk, or optimization exposed by parserEvidence; labels are examples, not required syntax")
           (antiPattern "comment repeats code mechanics, leaves only a type contract, or compresses multiple rationale clauses into one semicolon-separated line")
           (weakCommentCount (length weak-facts))

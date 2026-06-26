@@ -138,7 +138,7 @@ layer used by static comments. Invalid child shapes such as
 =Dyn -> (List) -> Dyn= become parser-owned invalid contract reasons, so policy
 does not need to reparse contract prose.
 
-Legacy =Output <- Input= comments are validated through their projected output
+Scheme-native =;; : (-> Input Output)= blocks are validated through their projected output
 and indexed input expressions. The indexed reason prefix preserves whether the
 malformed type came from the output side or a specific input position, without
 asking policy to reparse comment text.
@@ -177,7 +177,7 @@ Use =| requires= for named preconditions that are important to the helper's beha
 #+end_src
 =Refine= is the preferred type expression when a Scheme predicate narrows a broader type. The refinement expression names the base type first and the predicate second, for example =(Refine Number natural?)=.
 Runtime contracts and preconditions are parser-owned metadata. They should be available to policy and guide output as facets and under the provider-owned =typedComment= structural field.
-They must not change the legacy =contract=, =contractOutput=, or =contractInputs= fields; a future versioned shared schema may standardize the richer typed-comment shape across providers.
+They must preserve the canonical =contract=, =contractOutput=, and =contractInputs= projections; a future versioned shared schema may standardize the richer typed-comment shape across providers.
 The =typedComment= field should expose parser-owned grammar facts, including =signatureType=, local alias =expressionType= facts, =runtimeContractsDetailed= predicate arrows, =requiresDetailed= predicate calls, and =diagnostics= for malformed or underspecified type forms.
 * Warnings And Rationale
 Use =| warning= or =| rationale= only when the contract has a real review consequence:
@@ -191,10 +191,10 @@ Use =| warning= or =| rationale= only when the contract has a real review conseq
 #+end_src
 Do not use these fields as decoration. A block that needs warning/rationale evidence should cite the concrete predicate, call-site witness, macro phase boundary, or runtime boundary that makes the contract safe.
 * Compatibility
-The legacy contract form remains valid during migration:
+Only the Scheme-native typed block form is valid:
 #+begin_src scheme
-;; (List Money) <- (List Order)
+;; : (-> (List Order) (List Money))
 (def (order-totals orders)
   ...)
 #+end_src
-New code should prefer the Gerbil contract projection typed block. Parser support keeps legacy fields populated so existing policy and snapshot consumers keep working while the richer provider-owned =typedComment= field carries local types, runtime contracts, preconditions, warnings, rationale, docs, doc examples, refinements, type grammar shape, and diagnostics.
+Parser support derives the canonical contract projections from the Gerbil contract projection typed block while the richer provider-owned =typedComment= field carries local types, runtime contracts, preconditions, warnings, rationale, docs, doc examples, refinements, type grammar shape, and diagnostics.

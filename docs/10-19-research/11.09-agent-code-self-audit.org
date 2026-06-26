@@ -159,7 +159,7 @@ The harness now reflects that distinction in parser-owned facts:
   lambdas with repeated non-empty formals and lacks case-lambda, sequence,
   generator, driver, curry, or composition witnesses.
 - R015 consumes only the profile facets that steer =gerbil-utils/base.ss= style
-  abstraction.  Broader profile facts, such as legacy contract migration, remain
+  abstraction.  Broader profile facts, such as typed-block shape hints, remain
   searchable evidence and do not become default self-check warnings.
 
 This prevents the previous bad direction where the policy treated callback-heavy

@@ -33,7 +33,7 @@
 
 ;;; Matching boundary:
 ;;; - Match candidate spellings across tokens, output, and inputs.
-;;; - This keeps nested or legacy contract projections from losing evidence.
+;;; - This keeps nested Scheme-native contract projections from losing evidence.
 ;; : (-> TypedContractFact (List String) Boolean )
 (def (typed-contract-fact-mentions-any? fact needles)
   (ormap (lambda (needle)

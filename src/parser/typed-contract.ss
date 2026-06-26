@@ -9,13 +9,12 @@
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/13
                  string-join
-                 string-contains
                  string-empty?
                  string-every
                  string-prefix?
                  string-trim
                  string-trim-both)
-        (only-in :std/srfi/1 iota last take take-while)
+        (only-in :std/srfi/1 last take take-while)
         (only-in :std/misc/list length<=n? unique)
         (only-in :std/sugar cut filter filter-map find foldl hash ormap while with-catch)
         )
@@ -51,16 +50,20 @@
 ;;;   contract extraction reusable without re-reading the file on hot paths.
 ;; : (-> (List SourceLine) Relpath (List Definition) (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (List TypedContractFact) )
 (def (typed-contract-facts-from-lines lines relpath definitions calls higher-order-forms control-flow-forms)
-  (let ((line-vector (list->vector lines))
-        (call-index (index-facts-by-field call-fact-caller calls))
-        (higher-order-index
-         (index-facts-by-field higher-order-fact-caller higher-order-forms))
-        (control-flow-index
-         (index-facts-by-field control-flow-fact-caller control-flow-forms)))
-    (filter-map (cut typed-contract-fact-from-definition/indexed
-                     relpath line-vector <>
-                     call-index higher-order-index control-flow-index)
-                definitions)))
+  (let* ((line-vector (list->vector lines))
+         (entry-index
+          (typed-contract-entry-index/definitions line-vector definitions)))
+    (if (= (typed-contract-entry-index-count entry-index) 0)
+      '()
+      (let ((call-index (index-facts-by-field call-fact-caller calls))
+            (higher-order-index
+             (index-facts-by-field higher-order-fact-caller higher-order-forms))
+            (control-flow-index
+             (index-facts-by-field control-flow-fact-caller control-flow-forms)))
+        (filter-map (cut typed-contract-fact-from-definition/entry-indexed
+                         relpath entry-index <>
+                         call-index higher-order-index control-flow-index)
+                    definitions)))))
 
 ;;; Compatibility wrapper for callers that still pass list-shaped source lines.
 ;; : (-> Relpath (List SourceLine) Definition (List CallFact) (List HigherOrderFact) (List ControlFlowFact) (Maybe TypedContractFact) )
@@ -78,43 +81,63 @@
 ;;; - Source lines and parser witnesses are indexed once per file by the caller.
 ;; : (-> Relpath (Vector SourceLine) Definition HashTable HashTable HashTable (Maybe TypedContractFact) )
 (def (typed-contract-fact-from-definition/indexed relpath line-vector definition call-index higher-order-index control-flow-index)
-  (let (entry (typed-contract-entry-near-definition/indexed line-vector definition))
-    (and entry
-         (let* ((comment-start (car entry))
-                (comment-end (cadr entry))
-                (contract (caddr entry))
-                (block-style (cadddr entry))
-                (block-facets (typed-contract-entry-facets entry))
-                (typed-comment (typed-contract-entry-typed-comment entry))
-                (tokens (typed-contract-tokens contract))
-                (arrow-count (typed-contract-arrow-count contract))
-                (group-count (typed-contract-group-count contract))
-                (contract-output (typed-contract-output contract))
-                (contract-inputs (typed-contract-inputs contract))
-                (contract-input-count (length contract-inputs))
-                (arity-alignment
-                 (typed-contract-arity-alignment definition
-                                                 arrow-count
-                                                 contract-input-count))
-                (reasons (typed-contract-invalid-reasons
-                          definition contract contract-output contract-inputs
-                          typed-comment tokens arrow-count group-count))
-                (quality (typed-contract-quality reasons arrow-count group-count))
-                (matched-calls
-                 (indexed-facts call-index (definition-name definition)))
-                (matched-higher-order
-                 (indexed-facts higher-order-index (definition-name definition)))
-                (matched-control-flow
-                 (indexed-facts control-flow-index (definition-name definition)))
-                (quality-facets
-                (typed-contract-quality-facets
-                 definition quality arity-alignment reasons
-                 matched-calls matched-higher-order matched-control-flow
-                  block-style block-facets))
-                (repair-evidence
-                 (typed-contract-repair-evidence
-                  relpath definition contract quality quality-facets
-                  matched-calls matched-higher-order matched-control-flow)))
+  (typed-contract-fact-from-entry
+   relpath
+   definition
+   (typed-contract-entry-near-definition/indexed line-vector definition)
+   call-index
+   higher-order-index
+   control-flow-index))
+
+;; : (-> Relpath TypedContractEntryIndex Definition HashTable HashTable HashTable (Maybe TypedContractFact) )
+(def (typed-contract-fact-from-definition/entry-indexed relpath entry-index definition call-index higher-order-index control-flow-index)
+  (typed-contract-fact-from-entry
+   relpath
+   definition
+   (typed-contract-entry-for-definition entry-index definition)
+   call-index
+   higher-order-index
+   control-flow-index))
+
+;; : (-> Relpath Definition (Maybe TypedContractEntry) HashTable HashTable HashTable (Maybe TypedContractFact) )
+(def (typed-contract-fact-from-entry relpath definition entry call-index higher-order-index control-flow-index)
+  (and entry
+       (let* ((comment-start (car entry))
+              (comment-end (cadr entry))
+              (contract (caddr entry))
+              (block-style (cadddr entry))
+              (block-facets (typed-contract-entry-facets entry))
+              (typed-comment (typed-contract-entry-typed-comment entry))
+              (tokens (typed-contract-tokens contract))
+              (arrow-count (typed-contract-arrow-count contract))
+              (group-count (typed-contract-group-count contract))
+              (contract-projection (typed-contract-entry-projection entry))
+              (contract-output (car contract-projection))
+              (contract-inputs (cadr contract-projection))
+              (contract-input-count (length contract-inputs))
+              (arity-alignment
+               (typed-contract-arity-alignment definition
+                                               arrow-count
+                                               contract-input-count))
+              (reasons (typed-contract-invalid-reasons
+                        definition contract contract-output contract-inputs
+                        typed-comment tokens arrow-count group-count))
+              (quality (typed-contract-quality reasons arrow-count group-count))
+              (matched-calls
+               (indexed-facts call-index (definition-name definition)))
+              (matched-higher-order
+               (indexed-facts higher-order-index (definition-name definition)))
+              (matched-control-flow
+               (indexed-facts control-flow-index (definition-name definition)))
+              (quality-facets
+               (typed-contract-quality-facets
+                definition quality arity-alignment reasons
+                matched-calls matched-higher-order matched-control-flow
+                block-style block-facets))
+              (repair-evidence
+               (typed-contract-repair-evidence
+                relpath definition contract quality quality-facets
+                matched-calls matched-higher-order matched-control-flow)))
            (make-typed-contract-fact
             (definition-name definition)
             (definition-kind definition)
@@ -137,7 +160,7 @@
             reasons
             quality-facets
             repair-evidence
-            typed-comment)))))
+            typed-comment))))
 
 ;; : (-> (-> Fact Key) (List Fact) HashTable)
 (def (index-facts-by-field accessor facts)
@@ -176,8 +199,9 @@
                 (tokens (typed-contract-tokens contract))
                 (arrow-count (typed-contract-arrow-count contract))
                 (group-count (typed-contract-group-count contract))
-                (contract-output (typed-contract-output contract))
-                (contract-inputs (typed-contract-inputs contract))
+                (contract-projection (typed-contract-entry-projection entry))
+                (contract-output (car contract-projection))
+                (contract-inputs (cadr contract-projection))
                 (contract-input-count (length contract-inputs))
                 (arity-alignment
                  (typed-contract-arity-alignment definition
@@ -422,32 +446,92 @@
 ;;; Do not sort here.
 ;;; Source-order facets make repair payloads easier to trace.
 
+;; : (-> (Vector SourceLine) TypedContractEntryIndex)
+;; : (-> (List Definition) HashTable)
+(def (definition-start-set definitions)
+  (let (table (make-hash-table))
+    (for-each
+     (lambda (definition)
+       (hash-put! table (definition-start definition) #t))
+     definitions)
+    table))
+
+;; : (-> (Maybe HashTable) LineNumber Boolean)
+(def (definition-start-line? definition-starts line)
+  (or (not definition-starts)
+      (hash-key? definition-starts line)))
+
+;; : (-> (Vector SourceLine) (List Definition) TypedContractEntryIndex)
+(def (typed-contract-entry-index/definitions line-vector definitions)
+  (typed-contract-entry-index/selective
+   line-vector
+   (definition-start-set definitions)))
+
+;; : (-> (Vector SourceLine) TypedContractEntryIndex)
+(def (typed-contract-entry-index line-vector)
+  (typed-contract-entry-index/selective line-vector #f))
+
+;; : (-> (Vector SourceLine) (Maybe HashTable) TypedContractEntryIndex)
+(def (typed-contract-entry-index/selective line-vector definition-starts)
+  (let ((table (make-hash-table))
+        (signature-analysis-cache (make-hash-table))
+        (count 0)
+        (line-count (vector-length line-vector))
+        (current 1))
+    (def (put-entry! line entry)
+      (when entry
+        (hash-put! table line entry)
+        (set! count (+ count 1))))
+    (while (<= current line-count)
+      (if (typed-comment-line?
+           (line-vector-at* line-vector (fx1- current)))
+        (let ((block '())
+              (block-line current))
+          (while (and (<= block-line line-count)
+                      (typed-comment-line?
+                       (line-vector-at* line-vector (fx1- block-line))))
+            (set! block
+              (cons [block-line
+                     (typed-comment-text
+                      (line-vector-at* line-vector (fx1- block-line)))]
+                    block))
+            (set! block-line (+ block-line 1)))
+          (when (definition-start-line? definition-starts block-line)
+            (put-entry!
+             block-line
+             (typed-comment-block-signature-entry/cache
+              (reverse block)
+              signature-analysis-cache)))
+          (set! current block-line))
+        (set! current (+ current 1))))
+    (vector table count)))
+
+;; : (-> TypedContractEntryIndex HashTable)
+(def (typed-contract-entry-index-table entry-index)
+  (vector-ref entry-index 0))
+
+;; : (-> TypedContractEntryIndex Integer)
+(def (typed-contract-entry-index-count entry-index)
+  (vector-ref entry-index 1))
+
+;; : (-> TypedContractEntryIndex Definition (Maybe TypedContractEntry))
+(def (typed-contract-entry-for-definition entry-index definition)
+  (let ((table (typed-contract-entry-index-table entry-index))
+        (key (definition-start definition)))
+    (and (hash-key? table key)
+         (hash-get table key))))
+
 ;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
 (def (typed-contract-entry-near-definition lines definition)
-  (or (typed-contract-block-entry lines definition)
-      (typed-contract-legacy-entry lines definition)))
+  (typed-contract-block-entry lines definition))
 
 ;;; Indexed boundary:
 ;;; - The parser hot path already owns a source-line vector. Keep typed-contract
 ;;;   lookup O(1) per line instead of falling back to repeated list-ref scans.
 ;; : (-> (Vector SourceLine) Definition (Maybe TypedContractEntry))
 (def (typed-contract-entry-near-definition/indexed line-vector definition)
-  (or (typed-contract-block-entry/indexed line-vector definition)
-      (typed-contract-legacy-entry/indexed line-vector definition)))
-
-;; : (-> (Vector SourceLine) Definition (Maybe TypedContractEntry))
-(def (typed-contract-legacy-entry/indexed line-vector definition)
-  (let* ((comment-line-number (fx1- (definition-start definition)))
-         (line (line-vector-at* line-vector (fx1- comment-line-number)))
-         (contract (typed-contract-comment-body line)))
-    (and contract
-         [comment-line-number
-          comment-line-number
-          contract
-          "legacy-contract"
-          (typed-contract-legacy-facets contract)
-          (typed-comment-empty-metadata "legacy-contract" contract)])))
+  (typed-contract-block-entry/indexed line-vector definition))
 
 ;; : (-> (Vector SourceLine) Definition (Maybe TypedContractEntry))
 (def (typed-contract-block-entry/indexed line-vector definition)
@@ -459,36 +543,18 @@
 
 ;; : (-> (Vector SourceLine) LineNumber (List TypedCommentLine))
 (def (typed-comment-block-before/indexed line-vector line-number)
-  (map (lambda (current)
-         [current (typed-comment-text
-                   (line-vector-at* line-vector (fx1- current)))])
-       (reverse
-        (take-while
-         (lambda (current)
-           (typed-comment-line?
-            (line-vector-at* line-vector (fx1- current))))
-         (iota line-number line-number -1)))))
-
-;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
-;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
-(def (typed-contract-legacy-entry lines definition)
-  (let* ((comment-line-number (fx1- (definition-start definition)))
-         (line (line-at* lines (fx1- comment-line-number)))
-         (contract (typed-contract-comment-body line)))
-    (and contract
-         [comment-line-number
-          comment-line-number
-          contract
-          "legacy-contract"
-          (typed-contract-legacy-facets contract)
-          (typed-comment-empty-metadata "legacy-contract" contract)])))
-
-;; : (-> SignatureContract (List QualityFacet))
-(def (typed-contract-legacy-facets contract)
-  (if (string-contains contract "<-")
-    ["legacy-typed-contract"
-     "gerbil-contract-projection-migration"]
-    []))
+  (let ((current line-number)
+        (entries '()))
+    (while (and (> current 0)
+                (typed-comment-line?
+                 (line-vector-at* line-vector (fx1- current))))
+      (set! entries
+        (cons [current
+               (typed-comment-text
+                (line-vector-at* line-vector (fx1- current)))]
+              entries))
+      (set! current (fx1- current)))
+    entries))
 
 ;; : (-> TypedContractEntry (List QualityFacet))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet))
@@ -504,7 +570,15 @@
   (let (tail (cddddr entry))
     (if (and (pair? tail) (pair? (cdr tail)))
       (cadr tail)
-      (typed-comment-empty-metadata "legacy-contract" (caddr entry)))))
+      (typed-comment-empty-metadata "scheme-native-block" (caddr entry)))))
+
+;; : (-> TypedContractEntry (Tuple TypeExpr (List TypeExpr)))
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata ContractProjection)
+(def (typed-contract-entry-projection entry)
+  (let (tail (cddddr entry))
+    (if (and (pair? tail) (pair? (cdr tail)) (pair? (cddr tail)))
+      (caddr tail)
+      (typed-contract-projection (caddr entry)))))
 
 ;; : (-> (List SourceLine) Definition (Maybe TypedContractEntry))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
@@ -520,12 +594,16 @@
 ;; : (-> (List SourceLine) LineNumber (List TypedCommentLine))
 ;; | type TypedCommentLine = (Tuple LineNumber TypedCommentText)
 (def (typed-comment-block-before lines line-number)
-  (map (lambda (current)
-         [current (typed-comment-text (line-at* lines (fx1- current)))])
-       (reverse
-        (take-while (lambda (current)
-                      (typed-comment-line? (line-at* lines (fx1- current))))
-                    (iota line-number line-number -1)))))
+  (let ((current line-number)
+        (entries '()))
+    (while (and (> current 0)
+                (typed-comment-line? (line-at* lines (fx1- current))))
+      (set! entries
+        (cons [current
+               (typed-comment-text (line-at* lines (fx1- current)))]
+              entries))
+      (set! current (fx1- current)))
+    entries))
 
 ;; : (-> SourceLine Boolean)
 (def (typed-comment-line? line)
@@ -541,9 +619,16 @@
 ;; : (-> (List TypedCommentLine) (Maybe TypedContractEntry))
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
 (def (typed-comment-block-signature-entry block)
+  (typed-comment-block-signature-entry/cache block #f))
+
+;; : (-> (List TypedCommentLine) (Maybe HashTable) (Maybe TypedContractEntry))
+(def (typed-comment-block-signature-entry/cache block signature-analysis-cache)
   (let (signature-start (find typed-comment-signature-start? block))
     (and signature-start
-         (typed-comment-signature-entry block signature-start))))
+         (typed-comment-signature-entry/cache
+          block
+          signature-start
+          signature-analysis-cache))))
 
 ;; : (-> TypedCommentLine Boolean)
 (def (typed-comment-signature-start? entry)
@@ -552,6 +637,21 @@
 ;; : (-> (List TypedCommentLine) TypedCommentLine TypedContractEntry)
 ;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
 (def (typed-comment-signature-entry block signature-start)
+  (typed-comment-signature-entry/cache block signature-start #f))
+
+;; : (-> HashTable SignatureContract SignatureAnalysis)
+(def (scheme-type-signature-analysis/cached cache signature)
+  (if cache
+    (if (hash-key? cache signature)
+      (hash-get cache signature)
+      (let (analysis (scheme-type-signature-analysis signature))
+        (hash-put! cache signature analysis)
+        analysis))
+    (scheme-type-signature-analysis signature)))
+
+;; : (-> (List TypedCommentLine) TypedCommentLine (Maybe HashTable) TypedContractEntry)
+;; | type TypedContractEntry = (Tuple LineNumber LineNumber SignatureContract BlockStyle (List QualityFacet) TypedCommentMetadata)
+(def (typed-comment-signature-entry/cache block signature-start signature-analysis-cache)
   (let* ((signature-entries
           (cons signature-start
                 (take-while (lambda (entry)
@@ -567,35 +667,30 @@
                             (typed-comment-strip-signature-marker text)
                             text)))
                (and (not (string-empty? part)) part)))
-           signature-entries)))
+           signature-entries))
+         (signature (string-join parts " "))
+         (sections (typed-comment-section-groups section-entries))
+         (signature-analysis
+          (scheme-type-signature-analysis/cached
+           signature-analysis-cache
+           signature))
+         (signature-type (car signature-analysis))
+         (signature-projection
+          (or (cadr signature-analysis)
+              [signature []])))
     [(typed-comment-signature-comment-start block signature-start)
      (typed-comment-block-end-line entries)
-     (string-join parts " ")
+     signature
      "scheme-native-block"
-     (typed-comment-section-facets section-entries)
-     (typed-comment-metadata block
-                             signature-start
-                             (string-join parts " ")
-                             section-entries)]))
+     (typed-comment-section-facets/groups sections)
+     (typed-comment-metadata/groups/signature-type
+      block
+      signature-start
+      signature
+      sections
+      signature-type)
+     signature-projection]))
 
 ;; : (-> (List TypedCommentLine) LineNumber)
 (def (typed-comment-block-end-line entries)
   (car (last entries)))
-
-;; : (-> SourceLine SignatureContract )
-(def (typed-contract-comment-body line)
-  (and (string? line)
-       (let (trimmed (string-trim line))
-         (and (string-prefix? ";;" trimmed)
-              (not (string-prefix? ";;; -*-" trimmed))
-              (let (body (typed-contract-body-text trimmed))
-                (and (not (string-empty? body))
-                     (not (string-prefix? "|" (string-trim body)))
-                     body))))))
-
-;; : (-> SourceLine SignatureContract )
-(def (typed-contract-body-text trimmed)
-  (let (body (string-trim (string-trim trimmed #\;)))
-    (if (string-prefix? ":" body)
-      (string-trim (substring body 1 (string-length body)))
-      body)))

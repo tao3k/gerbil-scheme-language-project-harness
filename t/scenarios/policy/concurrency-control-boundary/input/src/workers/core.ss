@@ -3,7 +3,7 @@
 (package: sample/concurrency)
 (export run-jobs)
 
-;; Result <- Thread Spawn Join Mutex Race Parallel
+;; : (-> Thread Spawn Join Mutex Race Parallel Result)
 (def (run-jobs jobs)
   (let* ((mx (make-mutex "jobs"))
          (done? #f)

@@ -49,7 +49,7 @@
                    "method bodies stay protocol-shaped instead of table-shaped"))
                  (typeclassAlgebraTargets ("OrderFunctor."))
                  (gerbilContractProjectionSignals
-                  ("legacy contracts split at top-level <-, not nested arrows"
+                  ("Scheme-native ;; : contract blocks preserve arrow structure without comment-arrow fallback"
                    "Gerbil contract projection ;; : (forall (a) (-> ...)) blocks carry type aliases, runtime contracts, requires, warning, rationale, and doc sections"
                    "higher-order contracts may use placeholder-looking Gerbil utility variables when the arrow/group evidence is higher-order"))
                  (qualityFacetSteering

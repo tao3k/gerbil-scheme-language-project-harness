@@ -15,7 +15,7 @@
            (and (member "over-abstracted-contract-risk" quality-facets)
                 "replace abstract grouped contracts with concrete domain/result names or add parser-owned callsite evidence")
            (and (member "scheme-native-typed-block-migration" quality-facets)
-                "migrate legacy ;; Output <- Input contract comments to adjacent Scheme-native ;; : (-> Input Output) blocks; add ;; | type aliases for enum/refinement names")
+                "use adjacent Scheme-native ;; : (-> Input Output) blocks; add ;; | type aliases for enum/refinement names")
            (and (member "combinator-composition" quality-facets)
                 "prefer cut/curry/rcurry/compose helper composition when arity evidence already matches")
            (and (member "lambda-local-abstraction" quality-facets)

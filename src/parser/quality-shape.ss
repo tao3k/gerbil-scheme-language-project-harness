@@ -124,7 +124,10 @@
   (append
    (filter-map (cut field-access-pattern-fact-from-group relpath <>)
                (field-access-groups calls))
-   (inline-alist-access-facts-from-source relpath definitions form-datums)))
+   (if (and (calls-include-callee? calls "cdr")
+            (calls-include-callee? calls "assq"))
+     (inline-alist-access-facts-from-source relpath definitions form-datums)
+     [])))
 
 ;;; Field accesses are grouped independently from predicate families so search,
 ;;; snapshot, and policy can each consume the same native fact without
@@ -380,7 +383,15 @@
   (append
    (filter-map (cut boolean-condition-fact-from-definition relpath calls <>)
                (filter boolean-condition-definition? definitions))
-   (boolean-normalization-facts-from-source relpath definitions form-datums)))
+   (if (calls-include-callee? calls "not")
+     (boolean-normalization-facts-from-source relpath definitions form-datums)
+     [])))
+
+;; : (-> Calls Callee Boolean)
+(def (calls-include-callee? calls callee)
+  (ormap (lambda (call)
+           (equal? (call-fact-callee call) callee))
+         calls))
 
 ;;; Boolean normalization facts catch generated scaffold such as nested negation.
 ;;; This is parser-owned evidence from native datum trees, not rendered source

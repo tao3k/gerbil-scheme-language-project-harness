@@ -54,15 +54,15 @@
 ;; : (-> Integer Integer )
 (def (pipeline x)
   (!> x (cut + <> 1) (cut * <> 2)))
-;; : (-> (-> X Y ) (-> Y Z ) (Z <- X) )
+;; : (-> (-> X Y) (-> Y Z) (-> X Z))
 (def (compose-values f g)
   (rcompose f g))
-;; : (-> String String (String <- String) )
+;; : (-> String String (-> String String))
 (def specialized-label
   (case-lambda
     ((prefix) (lambda (text) (string-append prefix text)))
     ((prefix suffix) (lambda (text) (string-append prefix text suffix)))))
-;; : (-> String String (String <- String) )
+;; : (-> String String (-> String String))
 (def (wrapper-label prefix suffix)
   (let ((left (lambda (text) (string-append prefix text)))
         (right (lambda (text) (string-append text suffix))))

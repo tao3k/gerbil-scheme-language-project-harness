@@ -3,7 +3,7 @@
 (package: sample/widgets)
 (export update-widget)
 
-;; Widget <- Interface Contract Slot Get Set Modify Validate
+;; : (-> Interface Contract Slot Get Set Modify Validate Widget)
 (def (update-widget widget slot value)
   (let* ((current (hash-get widget slot))
          (next (if (and value

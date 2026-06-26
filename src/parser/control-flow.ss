@@ -6,8 +6,7 @@
         :parser/support
         :parser/syntax
         (only-in :std/misc/list unique)
-        (only-in :std/srfi/1 drop)
-        (only-in :std/sugar ormap))
+        (only-in :std/srfi/1 drop))
 
 (export control-flow-facts-from-form
         control-flow-quality-facets)
@@ -60,9 +59,18 @@
    +conditional-branch-heads+
    +actor-control-heads+
    +coroutine-control-heads+])
+;; ConfigConstant
+(def +control-flow-heads+
+  (apply append (control-flow-head-groups)))
+;; ConfigConstant
+(def +control-flow-scan-heads+
+  (append +control-flow-heads+
+          '(match let let* letrec let-values let*-values)))
 ;; : (-> Relpath Form Datum (List ControlFlowFact) )
 (def (control-flow-facts-from-form relpath form datum)
-  (control-flow-facts-from-stx relpath form (form-caller-name datum)))
+  (if (datum-has-head? datum +control-flow-scan-heads+)
+    (control-flow-facts-from-stx relpath form (form-caller-name datum))
+    '()))
 ;; control-flow-facts-from-stxes
 ;;   : (-> Relpath (List ExprStx) String (List ControlFlowFact))
 ;;   | doc m%
@@ -199,8 +207,7 @@
 ;;; land in the appropriate group.
 ;; : (-> Head Boolean )
 (def (control-flow-head? head)
-  (ormap (lambda (heads) (member head heads))
-         (control-flow-head-groups)))
+  (member head +control-flow-heads+))
 ;;; Role taxonomy:
 ;;; - Existing roles stay stable for policy compatibility; new roles expose finer runtime boundaries.
 ;;; - Control-flow facets below carry the cross-cutting guidance terms used by search and comments.

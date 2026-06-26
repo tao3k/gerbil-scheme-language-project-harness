@@ -15,29 +15,97 @@
 ;;; profile independent so policy can repair one function boundary at a time.
 ;; : (-> Relpath Exports Definitions TypedContracts CommentFacts ControlFlowFacts HigherOrderFacts PredicateFamilies FieldAccessFacts LoopDrivers MacroFacts PooFacts (List FunctionQualityProfile) )
 (def (function-quality-profiles-from-source relpath exports definitions typed-contracts comment-facts control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
-  (map (cut function-quality-profile-from-definition
-            relpath exports <>
-            typed-contracts comment-facts
-            control-flow-forms higher-order-forms
-            predicate-family-facts field-access-pattern-facts
-            loop-driver-facts macros poo-forms)
-       definitions))
+  (let ((typed-contract-index
+         (function-quality-index-by-field
+          typed-contract-fact-definition-name typed-contracts))
+        (comment-index
+         (function-quality-index-by-field
+          comment-quality-fact-target-name comment-facts))
+        (control-flow-index
+         (function-quality-index-by-field
+          control-flow-fact-caller control-flow-forms))
+        (higher-order-index
+         (function-quality-index-by-field
+          higher-order-fact-caller higher-order-forms))
+        (predicate-family-index
+         (function-quality-index-by-member-field
+          predicate-family-fact-predicate-names predicate-family-facts))
+        (field-access-index
+         (function-quality-index-by-member-field
+          field-access-pattern-fact-callers field-access-pattern-facts))
+        (loop-driver-index
+         (function-quality-index-by-any-field
+          [loop-driver-fact-name loop-driver-fact-caller]
+          loop-driver-facts))
+        (macro-index
+         (function-quality-index-by-field macro-fact-name macros))
+        (poo-index
+         (function-quality-index-by-any-field
+          [poo-form-fact-name
+           poo-form-fact-generic
+           poo-form-fact-receiver]
+          poo-forms)))
+    (map (cut function-quality-profile-from-definition/indexed
+              relpath exports <>
+              typed-contract-index comment-index
+              control-flow-index higher-order-index
+              predicate-family-index field-access-index
+              loop-driver-index macro-index poo-index)
+         definitions)))
 
 ;;; Profile materialization stays parser-owned: policy receives one
 ;;; function-level packet instead of re-joining typed, comment, control-flow,
 ;;; higher-order, POO, macro, and predicate-family evidence.
 ;; : (-> Relpath Exports Definition TypedContracts CommentFacts ControlFlowFacts HigherOrderFacts PredicateFamilies FieldAccessFacts LoopDrivers MacroFacts PooFacts FunctionQualityProfile )
 (def (function-quality-profile-from-definition relpath exports definition typed-contracts comment-facts control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
+  (function-quality-profile-from-definition/indexed
+   relpath exports definition
+   (function-quality-index-by-field
+    typed-contract-fact-definition-name typed-contracts)
+   (function-quality-index-by-field
+    comment-quality-fact-target-name comment-facts)
+   (function-quality-index-by-field
+    control-flow-fact-caller control-flow-forms)
+   (function-quality-index-by-field
+    higher-order-fact-caller higher-order-forms)
+   (function-quality-index-by-member-field
+    predicate-family-fact-predicate-names predicate-family-facts)
+   (function-quality-index-by-member-field
+    field-access-pattern-fact-callers field-access-pattern-facts)
+   (function-quality-index-by-any-field
+    [loop-driver-fact-name loop-driver-fact-caller]
+    loop-driver-facts)
+   (function-quality-index-by-field macro-fact-name macros)
+   (function-quality-index-by-any-field
+    [poo-form-fact-name
+     poo-form-fact-generic
+     poo-form-fact-receiver]
+    poo-forms)))
+
+;;; The indexed path is the hot path for whole-file parsing.  It keeps the
+;;; profile join linear in facts plus definitions instead of scanning every fact
+;;; family for every definition.
+;; : (-> Relpath Exports Definition HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable FunctionQualityProfile )
+(def (function-quality-profile-from-definition/indexed relpath exports definition typed-contract-index comment-index control-flow-index higher-order-index predicate-family-index field-access-index loop-driver-index macro-index poo-index)
   (let* ((name (definition-name definition))
-         (typed-contract (matching-typed-contract name typed-contracts))
-         (comment-fact (matching-comment-quality name comment-facts))
-         (matched-control-flow (matching-control-flow name control-flow-forms))
-         (matched-higher-order (matching-higher-order name higher-order-forms))
-         (matched-predicate-families (matching-predicate-families name predicate-family-facts))
-         (matched-field-access (matching-field-access name field-access-pattern-facts))
-         (matched-loop-drivers (matching-loop-drivers name loop-driver-facts))
-         (matched-macros (matching-macros name macros))
-         (matched-poo (matching-poo-protocols name poo-forms))
+         (typed-contract
+          (function-quality-first-indexed-fact typed-contract-index name))
+         (comment-fact
+          (matching-comment-quality/indexed name comment-index))
+         (matched-control-flow
+          (function-quality-indexed-facts control-flow-index name))
+         (matched-higher-order
+          (function-quality-indexed-facts higher-order-index name))
+         (matched-predicate-families
+          (function-quality-indexed-facts predicate-family-index name))
+         (matched-field-access
+          (function-quality-indexed-facts field-access-index name))
+         (matched-loop-drivers
+          (function-quality-indexed-facts loop-driver-index name))
+         (matched-macros
+          (function-quality-indexed-facts macro-index name))
+         (matched-poo
+          (function-quality-indexed-facts poo-index name))
          (exported? (and (member name exports) #t))
          (role (function-quality-role definition exported?
                                       matched-macros matched-poo
@@ -97,6 +165,65 @@
      parser-confidence
      (function-quality-advice repair-class preservation-reasons quality-facets))))
 
+;;; Index builders keep append-free hot paths: facts are consed during indexing
+;;; and reversed on lookup to preserve source order.  Multi-field facts are
+;;; deduplicated per fact before insertion so a single POO/loop fact cannot
+;;; appear twice for one definition.
+;; : (-> (-> Fact Key) (List Fact) HashTable )
+(def (function-quality-index-by-field accessor facts)
+  (let (table (make-hash-table))
+    (for-each
+     (lambda (fact)
+       (function-quality-index-fact-keys! table fact [(accessor fact)]))
+     facts)
+    table))
+
+;; : (-> (List (-> Fact Key)) (List Fact) HashTable )
+(def (function-quality-index-by-any-field accessors facts)
+  (let (table (make-hash-table))
+    (for-each
+     (lambda (fact)
+       (function-quality-index-fact-keys!
+        table fact
+        (map (lambda (accessor) (accessor fact)) accessors)))
+     facts)
+    table))
+
+;; : (-> (-> Fact (List Key)) (List Fact) HashTable )
+(def (function-quality-index-by-member-field accessor facts)
+  (let (table (make-hash-table))
+    (for-each
+     (lambda (fact)
+       (function-quality-index-fact-keys! table fact (accessor fact)))
+     facts)
+    table))
+
+;; : (-> HashTable Fact (List Key) Void )
+(def (function-quality-index-fact-keys! table fact keys)
+  (for-each
+   (cut function-quality-index-fact-key! table fact <>)
+   (unique (filter identity keys))))
+
+;; : (-> HashTable Fact Key Void )
+(def (function-quality-index-fact-key! table fact key)
+  (when key
+    (let (existing
+          (if (hash-key? table key)
+            (hash-get table key)
+            '()))
+      (hash-put! table key (cons fact existing)))))
+
+;; : (-> HashTable Key (List Fact) )
+(def (function-quality-indexed-facts table key)
+  (if (and key (hash-key? table key))
+    (reverse (hash-get table key))
+    '()))
+
+;; : (-> HashTable Key MaybeFact )
+(def (function-quality-first-indexed-fact table key)
+  (let (facts (function-quality-indexed-facts table key))
+    (and (pair? facts) (car facts))))
+
 ;;; Matching helpers keep correlation parser-owned and local to one name.
 ;;; `find` preserves the first adjacent typed contract fact without inventing
 ;;; fallback evidence from rendered comments or source text.
@@ -112,6 +239,12 @@
           (and (equal? (comment-quality-fact-target-kind fact) "definition")
                (fact-field=? comment-quality-fact-target-name name fact)))
         facts))
+
+;; : (-> DefinitionName HashTable CommentQualityFact )
+(def (matching-comment-quality/indexed name fact-index)
+  (find (fun (definition-comment-fact? fact)
+          (equal? (comment-quality-fact-target-kind fact) "definition"))
+        (function-quality-indexed-facts fact-index name)))
 
 ;;; Control-flow correlation is caller-owned.
 ;;; The filter keeps loops, continuations, and resource scopes attached to the
@@ -372,29 +505,29 @@
 ;;; without treating callback-heavy code as low-quality Scheme.
 ;; : (-> (List HigherOrderFact) (List QualityFacet) )
 (def (function-quality-higher-order-profile-facets higher-order-forms)
-  (let* ((anonymous-count
-          (function-quality-higher-order-role-count
-           higher-order-forms "anonymous-function"))
+  (let* ((roles (map higher-order-fact-role higher-order-forms))
+         (anonymous-formals
+          (function-quality-anonymous-formal-groups higher-order-forms))
+         (anonymous-count (length anonymous-formals))
          (multi-arity?
-          (function-quality-higher-order-role? higher-order-forms
-                                               "multi-arity-function"))
+          (member "multi-arity-function" roles))
          (specializer?
-          (function-quality-higher-order-any-role?
-           higher-order-forms
+          (function-quality-role-list-any?
+           roles
            ["partial-application" "function-curry"]))
          (pipeline?
-          (function-quality-higher-order-any-role?
-           higher-order-forms
+          (function-quality-role-list-any?
+           roles
            ["function-composition" "pipeline-composition"]))
          (sequence?
-          (function-quality-higher-order-any-role?
-           higher-order-forms
+          (function-quality-role-list-any?
+           roles
            ["sequence-map" "sequence-filter" "sequence-filter-map"
             "sequence-append-map" "sequence-predicate" "sequence-search"
             "sequence-fold"]))
          (driver?
-          (function-quality-higher-order-any-role?
-           higher-order-forms
+          (function-quality-role-list-any?
+           roles
            ["generator-transform" "generator-control-inversion"
             "stateful-protocol-wrapper" "loop-fold" "list-builder"]))
          (constructor?
@@ -402,8 +535,7 @@
                (or (> anonymous-count 0) specializer? pipeline?)))
          (wrapper-drift?
           (and (>= anonymous-count 3)
-               (function-quality-repeated-anonymous-formals?
-                higher-order-forms 3)
+               (function-quality-repeated-formals? anonymous-formals 3)
                (not multi-arity?)
                (not specializer?)
                (not pipeline?)
@@ -420,6 +552,33 @@
                   "wrapper-lambda-drift")
              (and wrapper-drift?
                   "function-specialization-opportunity")])))
+
+;; : (-> (List HigherOrderFact) (List (List FormalName)) )
+(def (function-quality-anonymous-formal-groups higher-order-forms)
+  (filter function-quality-informative-formals?
+          (map higher-order-fact-formals
+               (filter (lambda (fact)
+                         (equal? (higher-order-fact-role fact)
+                                 "anonymous-function"))
+                       higher-order-forms))))
+
+;; : (-> (List Role) (List Role) Boolean )
+(def (function-quality-role-list-any? roles expected-roles)
+  (ormap (lambda (role)
+           (member role roles))
+         expected-roles))
+
+;; : (-> (List (List FormalName)) Nat Boolean )
+(def (function-quality-repeated-formals? formal-groups minimum-count)
+  (ormap (lambda (formals)
+           (>= (function-quality-formals-count formal-groups formals)
+               minimum-count))
+         formal-groups))
+
+;; : (-> (List (List FormalName)) (List FormalName) Integer )
+(def (function-quality-formals-count formal-groups formals)
+  (length
+   (filter (cut equal? <> formals) formal-groups)))
 
 ;;; Role counts stay local to one function profile so repeated syntax in another
 ;;; definition cannot accidentally raise a repair signal.

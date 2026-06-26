@@ -7,7 +7,7 @@
   (let (entry (assq 'kind event))
     (if entry (cdr entry) 'unknown)))
 
-;; Route <- EventRecord RouteTable Alist Entry Pair
+;; : (-> EventRecord RouteTable Alist Entry Pair Route)
 (def (route-event event routes)
   (let* ((kind-entry (assq 'kind event))
          (status-entry (assq 'status event))
@@ -24,7 +24,7 @@
       'review)
      (else route))))
 
-;; (List Route) <- (List EventRecord) RouteTable Map Filter Fold HotPath Index
+;; : (-> (List EventRecord) RouteTable Map Filter Fold HotPath Index (List Route))
 (def (route-events events routes)
   (let loop ((rest events) (out '()))
     (if (null? rest)
@@ -32,7 +32,7 @@
       (loop (cdr rest)
             (cons (route-event (car rest) routes) out)))))
 
-;; (List String) <- (List EventRecord) Map Filter Fold
+;; : (-> (List EventRecord) Map Filter Fold (List String))
 (def (event-labels events)
   (let loop ((rest events) (out '()))
     (if (null? rest)

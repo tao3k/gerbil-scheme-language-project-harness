@@ -6,19 +6,16 @@
     "src/events/core.ss"
     "src/events/core.ss"
     "Scheme source owner has 3 definitions but only 3 adjacent typed-combinator-style algebraic contracts; parser-owned expression-level implementation evidence covers 0/3 arity-bearing definitions, below minimum 2; parser-owned quality facets require repair toward compact expression-level composition; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))
-  (destructuring
-   ((qualityFacets
-     ("contract-valid"
-      "legacy-contract"
-      "domain-transform"
-      "input-count-mismatch"
-      "arity-bearing-definition"
-      "call-backed"
-      "combinator-candidate"
-      "legacy-typed-contract"
-      "gerbil-contract-projection-migration"
-      "control-flow:conditional-branch"
-      "destructuring-combinator-boundary"))
+    (destructuring
+     ((qualityFacets
+       ("contract-valid"
+        "domain-transform"
+        "input-count-mismatch"
+        "arity-bearing-definition"
+        "call-backed"
+        "combinator-candidate"
+        "control-flow:conditional-branch"
+        "destructuring-combinator-boundary"))
     (compositionShape
      "Gerbil-native expression shape; prefer lambda-match/match for shape dispatch, cut/curry/rcurry for specialization, case-lambda for real arity boundaries, values/call-with-values for tuple projection, and map/filter/filter-map/fold/andmap/ormap for sequence transforms")
     (destructuringBoundarySignals

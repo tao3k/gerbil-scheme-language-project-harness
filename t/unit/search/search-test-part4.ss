@@ -98,7 +98,7 @@
     (test-case "guide code defaults to one source-backed pure excerpt"
           (let (output (guide-output ["--code"]))
             (check (contains? output ";;; Entry boundary: emit at most one typed-combinator finding per owner") => #t)
-            (check (contains? output ";; (List TypeFinding) <- ProjectIndex") => #t)
+            (check (contains? output ";; : (-> ProjectIndex (List TypeFinding))") => #t)
             (check (contains? output "(def (typed-combinator-style-findings index)") => #t)
             (check (contains? output "(def (typed-combinator-style-function-definitions file)") => #t)
             (check (contains? output "[guide-code]") => #f)

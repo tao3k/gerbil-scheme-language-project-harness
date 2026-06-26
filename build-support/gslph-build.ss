@@ -22,6 +22,8 @@
         gxtest-test-spec
         gxtest-test-files
         install-launcher-binpath
+        parallel-gxtest-files
+        serial-gxtest-files
         test-phase-receipt-line
         test-runner-worker-count
         test-target
@@ -585,6 +587,24 @@
 (def (gxtest-result-elapsed-micros result)
   (list-ref result 3))
 
+;; : (-> Path Boolean)
+(def (timing-sensitive-gxtest-file? file)
+  (let (name (path-strip-directory file))
+    (or (string-prefix? "bench" name)
+        (string-prefix? "benchmark" name))))
+
+;; : (-> Path Boolean)
+(def (parallel-gxtest-file? file)
+  (not (timing-sensitive-gxtest-file? file)))
+
+;; : (-> (List Path) (List Path))
+(def (parallel-gxtest-files files)
+  (filter parallel-gxtest-file? files))
+
+;; : (-> (List Path) (List Path))
+(def (serial-gxtest-files files)
+  (filter timing-sensitive-gxtest-file? files))
+
 ;; : (-> Integer (-> Void) (List Thread))
 (def (spawn-test-workers count thunk)
   (let loop ((remaining count) (threads []))
@@ -592,6 +612,10 @@
       threads
       (loop (- remaining 1)
             (cons (spawn thunk) threads)))))
+
+;; : (-> (List Path) (List GxTestResult))
+(def (serial-gxtest-results files)
+  (map run-gxtest-file/subprocess files))
 
 ;; : (-> (List Path) Integer (List GxTestResult))
 (def (parallel-gxtest-results files worker-count)
@@ -639,13 +663,19 @@
 
 ;; : (-> (List Path) Void)
 (def (run-gxtest-files files)
-  (let* ((worker-count (test-runner-worker-count (length files)))
-         (results (parallel-gxtest-results files worker-count))
+  (let* ((parallel-files (parallel-gxtest-files files))
+         (serial-files (serial-gxtest-files files))
+         (worker-count (test-runner-worker-count (length parallel-files)))
+         (parallel-results (parallel-gxtest-results parallel-files worker-count))
+         (serial-results (serial-gxtest-results serial-files))
+         (results (append parallel-results serial-results))
          (status (first-failure-status results)))
     (display (string-append "[gslph-test-runner] files="
                             (number->string (length files))
                             " jobs="
                             (number->string worker-count)
+                            " serial="
+                            (number->string (length serial-files))
                             "\n"))
     (force-output)
     (for-each display-gxtest-result results)
@@ -667,9 +697,14 @@
     (else #f)))
 
 ;; : (-> Path Boolean)
+(def (explicit-project-policy-test-file? entry)
+  (string=? entry "project-policy-test.ss"))
+
+;; : (-> Path Boolean)
 (def (top-level-test-file? entry)
   (and (string-suffix? "-test.ss" entry)
-       (not (member entry '("." "..")))))
+       (not (member entry '("." "..")))
+       (not (explicit-project-policy-test-file? entry))))
 
 ;; : (-> (List Path))
 (def (top-level-test-files)

@@ -3,7 +3,7 @@
 (package: sample/widgets)
 (export rename-widget)
 
-;; Widget <- Slot Lens Get Set Modify Validate
+;; : (-> Slot Lens Get Set Modify Validate Widget)
 (def (rename-widget widget slot name)
   (let* ((current (hash-get widget slot))
          (next (if (and (string? name) (> (string-length name) 0))

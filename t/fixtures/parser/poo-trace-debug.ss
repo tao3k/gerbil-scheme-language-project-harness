@@ -7,7 +7,7 @@
   value: 1
   label: "base")
 
-;; TraceProbe <- BaseProbe
+;; : (-> BaseProbe TraceProbe)
 (.def (trace-probe @ [base])
   value: => (trace-inherited-slot next-method)
   runner: (traced-function "runner" (lambda (x) x))

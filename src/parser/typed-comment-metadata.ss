@@ -15,8 +15,12 @@
 
 (export typed-comment-empty-metadata
         typed-comment-metadata
+        typed-comment-metadata/groups
+        typed-comment-metadata/groups/signature-type
         typed-comment-signature-comment-start
+        typed-comment-section-groups
         typed-comment-section-facets
+        typed-comment-section-facets/groups
         typed-comment-section-start?
         typed-comment-strip-signature-marker
         join-nonblank-with-space)
@@ -33,11 +37,11 @@
 ;;   : (-> BlockStyle SignatureContract TypedCommentMetadata)
 ;;   | doc m%
 ;;       `typed-comment-empty-metadata block-style signature` returns the
-;;       legacy-compatible metadata envelope for a typed contract block.
+;;       canonical metadata envelope for a typed contract block.
 ;;     %
 (def (typed-comment-empty-metadata block-style signature)
   (hash (kind "typed-comment")
-        (syntax "legacy")
+        (syntax "scheme-native-block")
         (blockStyle block-style)
         (fullForm #f)
         (leadingName #f)
@@ -57,7 +61,7 @@
 
 ;;; Boundary:
 ;;; - Metadata keeps typed comments parser-owned instead of policy-owned.
-;;; - Legacy contract fields stay untouched until a versioned schema replaces them.
+;;; - Contract-related fields remain stable until a versioned schema replaces them.
 ;; typed-comment-metadata
 ;;   : (-> (List TypedCommentLine) TypedCommentLine SignatureContract (List TypedCommentLine) TypedCommentMetadata)
 ;;   | doc m%
@@ -65,8 +69,23 @@
 ;;       extracts full-form name, local type, runtime witness, and doc metadata.
 ;;     %
 (def (typed-comment-metadata block signature-start signature section-entries)
-  (let* ((leading-entry (typed-comment-leading-name-entry block signature-start))
-         (sections (typed-comment-section-groups section-entries)))
+  (typed-comment-metadata/groups block
+                                 signature-start
+                                 signature
+                                 (typed-comment-section-groups section-entries)))
+
+;; : (-> (List TypedCommentLine) TypedCommentLine SignatureContract (List TypedCommentSection) TypedCommentMetadata)
+(def (typed-comment-metadata/groups block signature-start signature sections)
+  (typed-comment-metadata/groups/signature-type
+   block
+   signature-start
+   signature
+   sections
+   (scheme-type-signature-json signature)))
+
+;; : (-> (List TypedCommentLine) TypedCommentLine SignatureContract (List TypedCommentSection) Json TypedCommentMetadata)
+(def (typed-comment-metadata/groups/signature-type block signature-start signature sections signature-type)
+  (let (leading-entry (typed-comment-leading-name-entry block signature-start))
     (hash (kind "typed-comment")
           (syntax "gerbil-contract-projection")
           (blockStyle "gerbil-contract-block")
@@ -74,7 +93,7 @@
           (leadingName (and leading-entry (string-trim (cadr leading-entry))))
           (leadingNameMatchesDefinition #f)
           (signature signature)
-          (signatureType (scheme-type-signature-json signature))
+          (signatureType signature-type)
           (localTypes
            (filter-map typed-comment-type-section-json sections))
           (runtimeContracts
@@ -117,10 +136,14 @@
 ;;       metadata into compact quality facets for existing policy consumers.
 ;;     %
 (def (typed-comment-section-facets entries)
+  (typed-comment-section-facets/groups
+   (typed-comment-section-groups entries)))
+
+;; : (-> (List TypedCommentSection) (List QualityFacet))
+(def (typed-comment-section-facets/groups sections)
   (unique
    (apply append
-          (map typed-comment-section-group-facets
-               (typed-comment-section-groups entries)))))
+          (map typed-comment-section-group-facets sections))))
 
 ;; typed-comment-section-start?
 ;;   : (-> TypedCommentLine Boolean)

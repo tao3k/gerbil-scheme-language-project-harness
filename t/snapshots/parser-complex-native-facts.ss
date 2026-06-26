@@ -396,7 +396,6 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
-      "legacy-contract"
       "declaration-contract"
       "declaration"
       "weak-engineering-comment"))
@@ -431,7 +430,6 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
-      "legacy-contract"
       "declaration-contract"
       "declaration"
       "call-backed"
@@ -468,7 +466,6 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
-      "legacy-contract"
       "declaration-contract"
       "declaration"
       "weak-engineering-comment"))
@@ -503,7 +500,6 @@
       "comment-quality-weak"
       "poo-protocol-evidence"
       "contract-valid"
-      "legacy-contract"
       "declaration-contract"
       "declaration"
       "call-backed"
@@ -752,7 +748,7 @@
     (quality "declaration-contract")
     (reasons ())
     (qualityFacets
-     ("contract-valid" "legacy-contract" "declaration-contract" "declaration"))
+     ("contract-valid" "declaration-contract" "declaration"))
     (repairEvidence
      (repairEvidence
       (factSource "native-parser")
@@ -768,7 +764,6 @@
       (quality "declaration-contract")
       (qualityFacets
        ("contract-valid"
-        "legacy-contract"
         "declaration-contract"
         "declaration"))
       (matchedCalls ())
@@ -800,7 +795,6 @@
     (reasons ())
     (qualityFacets
      ("contract-valid"
-      "legacy-contract"
       "declaration-contract"
       "declaration"
       "call-backed"))
@@ -819,7 +813,6 @@
       (quality "declaration-contract")
       (qualityFacets
        ("contract-valid"
-        "legacy-contract"
         "declaration-contract"
         "declaration"
         "call-backed"))
@@ -871,7 +864,7 @@
     (quality "declaration-contract")
     (reasons ())
     (qualityFacets
-     ("contract-valid" "legacy-contract" "declaration-contract" "declaration"))
+     ("contract-valid" "declaration-contract" "declaration"))
     (repairEvidence
      (repairEvidence
       (factSource "native-parser")
@@ -887,7 +880,6 @@
       (quality "declaration-contract")
       (qualityFacets
        ("contract-valid"
-        "legacy-contract"
         "declaration-contract"
         "declaration"))
       (matchedCalls ())
@@ -919,7 +911,6 @@
     (reasons ())
     (qualityFacets
      ("contract-valid"
-      "legacy-contract"
       "declaration-contract"
       "declaration"
       "call-backed"))
@@ -938,7 +929,6 @@
       (quality "declaration-contract")
       (qualityFacets
        ("contract-valid"
-        "legacy-contract"
         "declaration-contract"
         "declaration"
         "call-backed"))

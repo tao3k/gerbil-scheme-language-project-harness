@@ -165,7 +165,7 @@
 ;;; Token match boundary:
 ;;; - Use substring matching only on typed-contract tokens already emitted by
 ;;;   the parser.
-;;; - This keeps legacy contract comments supported without scanning source
+;;; - This keeps Scheme-native typed blocks supported without scanning source
 ;;;   text outside the parser-owned fact payload.
 ;; : (-> TypedContractFact String Boolean )
 (def (typed-combinator-style-contract-mentions? fact term)

@@ -70,7 +70,7 @@
     (test-case "guide code more progressively adds a second exemplar"
           (let (output (guide-output ["--code" "--more"]))
             (check (contains? output "(def (typed-combinator-style-findings index)") => #t)
-            (check (contains? output ";; (List TypeFinding) <- ProjectIndex") => #t)
+            (check (contains? output ";; : (-> ProjectIndex (List TypeFinding))") => #t)
             (check (contains? output "(def (functional-idiom-advice-findings index)") => #t)
             (check (contains? output "|exemplar") => #f)))
     (test-case "guide code scenario preserves source-quality progressive excerpts"

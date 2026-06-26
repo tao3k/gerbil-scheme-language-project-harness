@@ -3,7 +3,7 @@
 (package: sample/methods)
 (export run-node-pass)
 
-;; NodePass <- AST Method Table Lambda Dispatch
+;; : (-> AST Method Table Lambda Dispatch NodePass)
 (def (run-node-pass node)
   node)
 

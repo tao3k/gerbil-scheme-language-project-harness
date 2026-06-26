@@ -29,6 +29,7 @@
         lambda-body-stxes
         case-lambda-body-stxes
         match-body-stxes
+        datum-has-head?
         top-form-from
         declarative-top-form?
         module-refs

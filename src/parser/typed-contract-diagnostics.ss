@@ -11,14 +11,14 @@
                  string-empty?
                  string-every
                  string-prefix?
-                 string-trim
-                 string-trim-both)
+                 string-trim)
         (only-in :std/sugar cut filter-map find ormap while))
 
 (export typed-contract-invalid-reasons
         typed-contract-quality
         typed-contract-arity-alignment
         typed-contract-tokens
+        typed-contract-projection
         typed-contract-output
         typed-contract-inputs
         line-at*
@@ -63,18 +63,15 @@
     (typed-contract-structural-invalid-reasons contract-output
                                                contract-inputs
                                                typed-comment
-                                               arrow-count
-                                               (string-contains contract "<-")))))
+                                               arrow-count))))
 
 ;;; Full-form `;; :` blocks carry parser-owned TypeSpec diagnostics in
-;;; typed-comment metadata. Legacy `Output <- Input` comments are validated
-;;; through their projected input/output expressions so old fields cannot hide
-;;; malformed type shapes.
-;; : (-> TypeExpr (List TypeExpr) TypedCommentMetadata Integer Boolean (List SignatureReason) )
-(def (typed-contract-structural-invalid-reasons contract-output contract-inputs typed-comment arrow-count legacy-transform?)
+;;; typed-comment metadata; declaration contracts are validated through their
+;;; projected input/output expressions.
+;; : (-> TypeExpr (List TypeExpr) TypedCommentMetadata Integer (List SignatureReason) )
+(def (typed-contract-structural-invalid-reasons contract-output contract-inputs typed-comment arrow-count)
   (append
    (if (and (> arrow-count 0)
-            (not legacy-transform?)
             (typed-comment-signature-type typed-comment))
      (typed-comment-structural-invalid-reasons typed-comment)
      (typed-contract-expression-invalid-reasons contract-output contract-inputs))
@@ -143,9 +140,9 @@
    (string-append "local-type:" (or (hash-get local-type 'name) "<anonymous>"))
    (hash-get local-type 'expressionType)))
 
-;;; Legacy contracts have separate projected output and input strings.
-;;; The indexed map keeps input-position diagnostics stable so agents can fix
-;;; the malformed type expression without guessing which side of `<-` failed.
+;;; Projected contracts have separate output and input expressions. The indexed
+;;; map keeps input-position diagnostics stable so agents can fix malformed type
+;;; expressions without guessing which parameter failed.
 ;; : (-> TypeExpr (List TypeExpr) (List SignatureReason) )
 (def (typed-contract-expression-invalid-reasons contract-output contract-inputs)
   (append
@@ -262,10 +259,9 @@
     #t
     #f))
 
-;;; Placeholder-looking variables in gerbil-utils/base.ss can be real higher-order
-;;; contract variables, for example `(Z <- YY) <- (Z <- XX YY) XX`.
+;;; Placeholder-looking variables can be real higher-order contract variables.
 ;;; Keep the warning for low-information single-arrow comments, but do not mark
-;;; nested/grouped higher-order contracts invalid.
+;;; nested higher-order contracts invalid.
 ;; : (-> (List SignatureToken) Integer Integer Boolean )
 (def (typed-contract-placeholder-token-invalid? tokens arrow-count group-count)
   (and (typed-contract-placeholder-token? tokens)
@@ -274,7 +270,7 @@
 
 ;;; Token-classification boundary:
 ;;; - Short uppercase tokens are treated as polymorphic variables, not domains.
-;;; - Keeping this narrow prevents legacy helper names from becoming fake types.
+;;; - Keeping this narrow prevents helper names from becoming fake types.
 ;; : (-> SignatureToken Boolean )
 (def (typed-contract-type-variable-token? token)
   (and (<= (string-length token) 2)
@@ -309,53 +305,16 @@
 
 ;; : (-> SignatureContract TypeExpr )
 (def (typed-contract-output contract)
-  (let (arrow (typed-contract-main-transform-arrow-index contract))
-    (if arrow
-      (string-trim-both (substring contract 0 arrow))
-      (or (scheme-contract-output contract)
-          contract))))
+  (car (typed-contract-projection contract)))
 
 ;; : (-> SignatureContract (List TypeExpr) )
 (def (typed-contract-inputs contract)
-  (let (arrow (typed-contract-main-transform-arrow-index contract))
-    (if arrow
-      (split-top-level-type-exprs
-       (substring contract
-                  (+ arrow (string-length "<-"))
-                  (string-length contract)))
-      (or (scheme-contract-inputs contract) []))))
+  (cadr (typed-contract-projection contract)))
 
-;;; Legacy `<-` contracts may contain higher-order arrows inside grouped output
-;;; or input positions.  Split the transform at the top-level arrow; fall back to
-;;; the first arrow only for malformed legacy comments without balanced groups.
-;; : (-> SignatureContract (Maybe Index) )
-(def (typed-contract-main-transform-arrow-index contract)
-  (and (string-contains contract "<-")
-       (or (typed-contract-top-level-transform-arrow-index contract)
-           (string-contains contract "<-"))))
-
-;;; Scan the raw contract once while tracking parentheses.  The first top-level
-;;; `<-` is the contract transform boundary.
-;; : (-> SignatureContract (Maybe Index) )
-(def (typed-contract-top-level-transform-arrow-index contract)
-  (let ((length (string-length contract))
-        (index 0)
-        (depth 0)
-        (found #f))
-    (while (and (not found) (< index length))
-      (let (ch (string-ref contract index))
-        (cond
-         ((and (= depth 0)
-               (< index (fx1- length))
-               (char=? ch #\<)
-               (char=? (string-ref contract (fx1+ index)) #\-))
-          (set! found index))
-         ((char=? ch #\()
-          (set! depth (fx1+ depth)))
-         ((char=? ch #\))
-          (set! depth (max 0 (fx1- depth))))))
-      (set! index (fx1+ index)))
-    found))
+;; : (-> SignatureContract (Tuple TypeExpr (List TypeExpr)))
+(def (typed-contract-projection contract)
+  (or (scheme-contract-projection contract)
+      [contract []]))
 
 ;;; Boundary:
 ;;; - line-at* is zero-based and total over malformed indices.

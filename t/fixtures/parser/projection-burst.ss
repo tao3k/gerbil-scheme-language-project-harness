@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 (package: sample/projection-burst)
 
-;; String <- OrderFact
+;; : (-> OrderFact String)
 (def (emit-order-line order)
   (displayln
    (string-append

@@ -21,15 +21,12 @@
                  (implementationEvidenceCount 0)
                  (qualityFacets
                   ("contract-valid"
-                   "legacy-contract"
                    "grouped-transform"
                    "aligned"
                    "arity-bearing-definition"
                    "manual-loop-drift"
                    "combinator-candidate"
                    "over-abstracted-contract-risk"
-                   "legacy-typed-contract"
-                   "gerbil-contract-projection-migration"
                    "control-flow:manual-loop"
                    "generator-combinator-boundary"))
                  (gerbilUtilsImplementationSignals
@@ -60,8 +57,7 @@
                  (typeclassAlgebraSignals ())
                  (typeclassAlgebraTargets ())
                  (gerbilContractProjectionSignals
-                  ("legacy contracts split at top-level <-, not nested arrows"
-                   "Gerbil contract projection ;; : (forall (a) (-> ...)) blocks carry type aliases, runtime contracts, requires, warning, rationale, and doc sections"
+                  ("Gerbil contract projection ;; : (forall (a) (-> ...)) blocks carry type aliases, runtime contracts, requires, warning, rationale, and doc sections"
                    "higher-order contracts may use placeholder-looking Gerbil utility variables when the arrow/group evidence is higher-order"))
                  (qualityFacetSteering
                   ("replace manual loops with map/filter/filter-map/fold pipelines when parser facts show no IO/state/generator witness"

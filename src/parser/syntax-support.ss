@@ -54,6 +54,7 @@
         macro-family-all?
         macro-family-thin-wrapper?
         macro-family-uniform?
+        datum-has-head?
         top-form-from
         top-form-head-name
         declarative-top-form?
@@ -301,6 +302,23 @@
 ;; : (-> Binding BindingValueDatum )
 (def (binding-value-datum binding)
   (and (pair? binding) (pair? (cdr binding)) (cadr binding)))
+
+;; : (-> Datum (List Symbol) Boolean)
+(def (datum-has-head? datum heads)
+  (cond
+   ((pair? datum)
+    (or (and (symbol? (car datum)) (member (car datum) heads))
+        (datum-list-has-head? datum heads)))
+   ((vector? datum)
+    (datum-list-has-head? (vector->list datum) heads))
+   (else #f)))
+
+;; : (-> (List Datum) (List Symbol) Boolean)
+(def (datum-list-has-head? datums heads)
+  (and (pair? datums)
+       (or (datum-has-head? (car datums) heads)
+           (datum-list-has-head? (cdr datums) heads))))
+
 ;; : (-> Datum String )
 (def (macro-transformer-kind datum)
   (cond

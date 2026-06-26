@@ -21,22 +21,6 @@
 ;; PolicyTest
 (def agent-style-typed-evidence-policy-test
   (test-suite "gerbil scheme harness agent style typed evidence policy"
-(test-case "typed-combinator-style keeps legacy typed contract migration passive by default"
-          (let* ((root ".run/policy-typed-combinator-style-legacy-migration")
-                 (src (string-append root "/src"))
-                 (owner (string-append src "/orders")))
-            (ensure-dir ".run")
-            (ensure-dir root)
-            (ensure-dir src)
-            (ensure-dir owner)
-            (write-text (string-append root "/gerbil.pkg")
-                        "(package: sample/orders)\n")
-            (write-text (string-append owner "/core.ss")
-                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; Money <- Order\n(def (order-total order) order)\n")
-            (let* ((index (collect-project root))
-                   (findings (run-policy-checks index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R013" findings)))
-              (check matching => []))))
 (test-case "typed-combinator-style policy rejects sparse implementation coverage"
           (let* ((root ".run/policy-typed-combinator-style-sparse-coverage")
                  (src (string-append root "/src"))
@@ -48,7 +32,7 @@
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/orders)\n")
             (write-text (string-append owner "/core.ss")
-                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; Money <- Order\n(def (order-total order) order)\n;; Tax <- Order\n(def (order-tax order) order)\n;; (List Money) <- (List Order)\n(def (order-totals orders) (map order-total orders))\n;; Money <- Order\n(def (order-net order) order)\n")
+                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; : (-> Order Money)\n(def (order-total order) order)\n;; : (-> Order Tax)\n(def (order-tax order) order)\n;; : (-> (List Order) (List Money))\n(def (order-totals orders) (map order-total orders))\n;; : (-> Order Money)\n(def (order-net order) order)\n")
             (let* ((index (collect-project root))
                    (findings (run-policy-checks index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R013" findings))
@@ -59,7 +43,7 @@
               (check (hash-get details 'implementationCoverageInsufficient) => #t)
               (check (hash-get details 'functionDefinitionCount) => 4)
               (check (hash-get details 'coveredDefinitionCount) => 1)
-              (check (hash-get details 'minimumCoveredDefinitionCount) => 2)
+              (check (hash-get details 'minimumCoveredDefinitionCount) => 3)
               (check (hash-get details 'uncoveredDefinitionCount) => 3)
               (check (agent-style-member?
                       "order-net"
@@ -84,7 +68,7 @@
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/orders)\n")
             (write-text (string-append owner "/core.ss")
-                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; Integer <- (List Number)\n(def (order-total xs)\n  (let loop ((rest xs) (acc 0))\n    (if (null? rest) acc (loop (cdr rest) (+ acc (car rest))))))\n")
+                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; : (-> (List Number) Integer)\n(def (order-total xs)\n  (let loop ((rest xs) (acc 0))\n    (if (null? rest) acc (loop (cdr rest) (+ acc (car rest))))))\n")
             (let* ((index (collect-project root))
                    (findings (run-policy-checks index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R013" findings))
@@ -128,7 +112,7 @@
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/orders)\n")
             (write-text (string-append owner "/core.ss")
-                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; Number <- (Generating Number)\n(def (sum-generated source)\n  (let loop ((next source) (acc 0))\n    acc))\n")
+                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; : (-> (Generating Number) Number)\n(def (sum-generated source)\n  (let loop ((next source) (acc 0))\n    acc))\n")
             (let* ((index (collect-project root))
                    (findings (run-policy-checks index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R013" findings))
@@ -146,7 +130,7 @@
               (check (hash-get details 'generatorContractTargets)
                      => ["sum-generated"])
               (check (agent-style-member?
-                      "when contracts mention Generating, prefer gerbil-utils/generator.ss combinators such as generating-map, generating-fold, generating-partition, and generating-merge before hand-written producer loops"
+                      "when contracts mention Generating, prefer a named generator protocol boundary such as map, fold, partition, or merge style before hand-written producer loops; do not require a downstream gerbil-utils dependency"
                       (hash-get details 'qualityFacetSteering))
                      => #t))))
 (test-case "typed-combinator-style exposes controlled macro syntax steering"

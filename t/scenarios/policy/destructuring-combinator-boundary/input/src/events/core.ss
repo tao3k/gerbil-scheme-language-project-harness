@@ -3,7 +3,7 @@
 (package: sample/events)
 (export summarize-agent-event route-agent-event event-archive-key)
 
-;; Summary <- EventRecord Alist Entry Pair
+;; : (-> EventRecord Alist Entry Pair Summary)
 (def (summarize-agent-event event)
   (let* ((id-entry (assq 'id event))
          (command-entry (assq 'command event))
@@ -28,7 +28,7 @@
      (else
       (list 'observe id command status)))))
 
-;; Route <- EventRecord Alist Entry Pair
+;; : (-> EventRecord Alist Entry Pair Route)
 (def (route-agent-event event)
   (let* ((command-entry (assq 'command event))
          (status-entry (assq 'status event))
@@ -49,7 +49,7 @@
      (else
       'queue))))
 
-;; Key <- EventRecord Alist Entry Pair
+;; : (-> EventRecord Alist Entry Pair Key)
 (def (event-archive-key event)
   (let* ((id-entry (assq 'id event))
          (owner-entry (assq 'owner event))

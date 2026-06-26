@@ -3,7 +3,7 @@
 (package: sample/wrapper)
 (export WrappedCodec.)
 
-;; WrappedCodec <- Wrapper Functor ParametricFunctor Marshal Bytes JSON String Wrap Unwrap
+;; : (-> Wrapper Functor ParametricFunctor Marshal Bytes JSON String Wrap Unwrap WrappedCodec)
 (define-type (WrappedCodec. @ [Wrapper. Wrap. ParametricFunctor.] T .wrap .unwrap)
   .marshal: (lambda (v port) (marshal T (.unwrap v) port))
   .unmarshal: (lambda (port) (.wrap (unmarshal T port)))

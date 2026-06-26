@@ -12,6 +12,50 @@
 (export comment-quality-facts-from-source
         comment-quality-facts-from-lines)
 
+(def +comment-quality-focus/module+
+  "module responsibility, public boundary, package/import/export assumptions, and parser/policy ownership")
+(def +comment-quality-focus/macro+
+  "macro expansion boundary, hygiene assumptions, runtime-source witness, and safe edit constraints")
+(def +comment-quality-focus/poo+
+  "object/protocol/generic invariant, method specializers, and runtime witness boundary")
+(def +comment-quality-focus/higher-order+
+  "expression-level data flow, combinator choice, arity shape, and why the transform is safe")
+(def +comment-quality-focus/control-flow+
+  "state/control driver, branch invariants, loop or continuation reason, and exit conditions")
+(def +comment-quality-focus/long-definition+
+  "large-owner responsibility, branch/risk boundary, and intended optimization or decomposition pressure")
+(def +comment-quality-focus/definition+
+  "definition purpose, stable invariant, and non-obvious edit boundary")
+
+(def +comment-quality-questions/module+
+  ["What responsibility does this module own for the harness?"
+   "Which package/import/export or runtime boundary must future edits preserve?"
+   "Which parser-owned facts or policy outputs should an agent trust from this owner?"])
+(def +comment-quality-questions/macro+
+  ["What expansion or hygiene boundary does this macro enforce?"
+   "Which runtime-source witness should be checked before editing the transformer?"
+   "What generated shape or phase assumption would break downstream policy?"])
+(def +comment-quality-questions/poo+
+  ["What object, generic, method, or protocol contract is being implemented?"
+   "Which receiver, specializer, slot, or protocol evidence constrains the edit?"
+   "What runtime witness proves this is not a loose alist/hash object encoding?"])
+(def +comment-quality-questions/higher-order+
+  ["What data-flow transform does this expression-level combinator encode?"
+   "Which arity/formal evidence makes map/filter/fold/cut/compose appropriate?"
+   "What invariant would be hidden if this became a hand-written loop?"])
+(def +comment-quality-questions/control-flow+
+  ["What state, IO, generator, branch, or continuation driver requires explicit control flow?"
+   "Which binding and body-shape facts bound the loop or match nesting?"
+   "What exit or fallback condition should repairs preserve?"])
+(def +comment-quality-questions/long-definition+
+  ["What large-owner responsibility keeps this definition cohesive?"
+   "Which branch, risk, or optimization boundary should repairs preserve?"
+   "Which parser facts should guide a later split or simplification?"])
+(def +comment-quality-questions/definition+
+  ["What stable responsibility does this definition own?"
+   "Which invariant or boundary is not obvious from the code mechanics?"
+   "What parser fact should an agent use before rewriting this owner?"])
+
 ;;; Boundary:
 ;;; - comment-quality-facts-from-source composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -41,6 +85,7 @@
 (def (comment-quality-facts-from-lines lines relpath definitions macros poo-forms higher-order-forms control-flow-forms)
   (let* ((module-fact (module-comment-quality-fact relpath lines))
          (line-vector (list->vector lines))
+         (comment-index (leading-comment-lines-index line-vector))
          (macro-index (index-facts-by-field macro-fact-name macros))
          (poo-index (index-facts-by-field poo-form-fact-name poo-forms))
          (higher-order-index
@@ -48,8 +93,8 @@
          (control-flow-index
           (index-facts-by-field control-flow-fact-caller control-flow-forms)))
     (cons module-fact
-          (map (cut definition-comment-quality-fact/indexed
-                    relpath line-vector <>
+          (map (cut definition-comment-quality-fact/comment-indexed
+                    relpath comment-index <>
                     macro-index poo-index
                     higher-order-index control-flow-index)
                definitions))))
@@ -85,11 +130,29 @@
 
 ;; : (-> Relpath (Vector SourceLine) Definition HashTable HashTable HashTable HashTable CommentQualityFact )
 (def (definition-comment-quality-fact/indexed relpath line-vector definition macro-index poo-index higher-order-index control-flow-index)
-  (let* ((comments
-          (leading-comment-lines/indexed
-           line-vector
-           (definition-start definition)))
-         (context
+  (definition-comment-quality-fact/from-comments
+   relpath
+   definition
+   (leading-comment-lines/indexed line-vector (definition-start definition))
+   macro-index
+   poo-index
+   higher-order-index
+   control-flow-index))
+
+;; : (-> Relpath HashTable Definition HashTable HashTable HashTable HashTable CommentQualityFact )
+(def (definition-comment-quality-fact/comment-indexed relpath comment-index definition macro-index poo-index higher-order-index control-flow-index)
+  (definition-comment-quality-fact/from-comments
+   relpath
+   definition
+   (indexed-comment-lines comment-index (definition-start definition))
+   macro-index
+   poo-index
+   higher-order-index
+   control-flow-index))
+
+;; : (-> Relpath Definition (List CommentLine) HashTable HashTable HashTable HashTable CommentQualityFact )
+(def (definition-comment-quality-fact/from-comments relpath definition comments macro-index poo-index higher-order-index control-flow-index)
+  (let* ((context
           (definition-comment-context/indexed
            definition macro-index poo-index
            higher-order-index control-flow-index))
@@ -316,19 +379,19 @@
 (def (comment-quality-context-focus context)
   (cond
    ((equal? context "module")
-    "module responsibility, public boundary, package/import/export assumptions, and parser/policy ownership")
+    +comment-quality-focus/module+)
    ((equal? context "macro")
-    "macro expansion boundary, hygiene assumptions, runtime-source witness, and safe edit constraints")
+    +comment-quality-focus/macro+)
    ((equal? context "poo")
-    "object/protocol/generic invariant, method specializers, and runtime witness boundary")
+    +comment-quality-focus/poo+)
    ((equal? context "higher-order")
-    "expression-level data flow, combinator choice, arity shape, and why the transform is safe")
+    +comment-quality-focus/higher-order+)
    ((equal? context "control-flow")
-    "state/control driver, branch invariants, loop or continuation reason, and exit conditions")
+    +comment-quality-focus/control-flow+)
    ((equal? context "long-definition")
-    "large-owner responsibility, branch/risk boundary, and intended optimization or decomposition pressure")
+    +comment-quality-focus/long-definition+)
    (else
-    "definition purpose, stable invariant, and non-obvious edit boundary")))
+    +comment-quality-focus/definition+)))
 
 ;; comment-quality-context-questions
 ;;   : (-> String (List String))
@@ -347,33 +410,19 @@
 (def (comment-quality-context-questions context)
   (cond
    ((equal? context "module")
-    ["What responsibility does this module own for the harness?"
-     "Which package/import/export or runtime boundary must future edits preserve?"
-     "Which parser-owned facts or policy outputs should an agent trust from this owner?"])
+    +comment-quality-questions/module+)
    ((equal? context "macro")
-    ["What expansion or hygiene boundary does this macro enforce?"
-     "Which runtime-source witness should be checked before editing the transformer?"
-     "What generated shape or phase assumption would break downstream policy?"])
+    +comment-quality-questions/macro+)
    ((equal? context "poo")
-    ["What object, generic, method, or protocol contract is being implemented?"
-     "Which receiver, specializer, slot, or protocol evidence constrains the edit?"
-     "What runtime witness proves this is not a loose alist/hash object encoding?"])
+    +comment-quality-questions/poo+)
    ((equal? context "higher-order")
-    ["What data-flow transform does this expression-level combinator encode?"
-     "Which arity/formal evidence makes map/filter/fold/cut/compose appropriate?"
-     "What invariant would be hidden if this became a hand-written loop?"])
+    +comment-quality-questions/higher-order+)
    ((equal? context "control-flow")
-    ["What state, IO, generator, branch, or continuation driver requires explicit control flow?"
-     "Which binding and body-shape facts bound the loop or match nesting?"
-     "What exit or fallback condition should repairs preserve?"])
+    +comment-quality-questions/control-flow+)
    ((equal? context "long-definition")
-    ["What large-owner responsibility keeps this definition cohesive?"
-     "Which branch, risk, or optimization boundary should repairs preserve?"
-     "Which parser facts should guide a later split or simplification?"])
+    +comment-quality-questions/long-definition+)
    (else
-    ["What stable responsibility does this definition own?"
-     "Which invariant or boundary is not obvious from the code mechanics?"
-     "What parser fact should an agent use before rewriting this owner?"])))
+    +comment-quality-questions/definition+)))
 
 ;; : (-> Definition Selector )
 (def (definition-source-selector definition)
@@ -463,6 +512,39 @@
          (map (lambda (line-number)
                 (line-at-vector* line-vector (fx1- line-number)))
               (reverse (iota (max 0 (fx1- start-line)) 1)))))))
+
+;;; Source-line comment index:
+;;; - Build contiguous leading comment blocks once per file.
+;;; - Definition-level quality facts then use an O(1) start-line lookup instead
+;;;   of rebuilding `iota/reverse/map/take-while` for every definition.
+;; : (-> (Vector SourceLine) HashTable)
+(def (leading-comment-lines-index line-vector)
+  (let ((table (make-hash-table))
+        (line-count (vector-length line-vector))
+        (block-rev '()))
+    (def (flush! next-line)
+      (when (pair? block-rev)
+        (hash-put! table next-line (reverse block-rev))
+        (set! block-rev '())))
+    (let loop ((line-number 1))
+      (if (> line-number line-count)
+        (begin
+          (flush! (fx1+ line-count))
+          table)
+        (let (line (line-at-vector* line-vector (fx1- line-number)))
+          (if (comment-line? line)
+            (begin
+              (set! block-rev (cons (comment-body line) block-rev))
+              (loop (fx1+ line-number)))
+            (begin
+              (flush! line-number)
+              (loop (fx1+ line-number)))))))))
+
+;; : (-> HashTable SourceLineNumber (List CommentLine))
+(def (indexed-comment-lines comment-index start-line)
+  (if (hash-key? comment-index start-line)
+    (hash-get comment-index start-line)
+    '()))
 
 ;; : (-> Definition (List MacroFact) (List PooFormFact) (List HigherOrderFact) (List ControlFlowFact) String )
 (def (definition-comment-context definition macros poo-forms higher-order-forms control-flow-forms)

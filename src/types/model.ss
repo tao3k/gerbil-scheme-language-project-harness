@@ -472,7 +472,7 @@
    (parse-record-fields* (type-sexpr-first-operand sexpr) bound-vars)
    (parse-required-fields (type-sexpr-second-operand sexpr))))
 
-;;; Arrow parser boundary: grouped legacy arrows and Gerbil contract arrows both
+;;; Arrow parser boundary: grouped Function forms and Gerbil contract arrows
 ;;; normalize to parameter list plus result while preserving the caller's
 ;;; lexical type-variable environment for every slot.
 ;; : (-> ArrowDatum (List TypeVariable) TypeSpec )

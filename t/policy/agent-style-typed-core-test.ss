@@ -50,17 +50,17 @@
               (check (hash-get (type-finding-details finding) 'contractLinePolicy)
                      => "multi-line typed-combinator-style contracts are allowed when needed to preserve precision")
               (check (hash-get (type-finding-details finding) 'compositionShape)
-                     => "compact expression-level helper or combinator chain; prefer map/filter/fold/cut/curry/compose when behavior fits")
-              (check (hash-get (type-finding-details finding) 'qualityReference)
-                     => "gerbil-utils")
+                     => "Gerbil-native expression shape; prefer lambda-match/match for shape dispatch, cut/curry/rcurry for specialization, case-lambda for real arity boundaries, values/call-with-values for tuple projection, and map/filter/filter-map/fold/andmap/ormap for sequence transforms")
+              (check (hash-get (type-finding-details finding) 'qualityReferenceCorpus)
+                     => "gerbil-reference-corpus")
               (check (hash-get (type-finding-details finding) 'functionShape)
                      => "single-purpose expression-returning helper; one visible data-flow shape per function")
               (check (hash-get (type-finding-details finding) 'expressionLevelRewrite)
-                     => "extract predicate/mapper/reducer helpers, then compose with filter-map/map/fold/andmap/ormap/cut/curry/compose when behavior fits")
+                     => "extract predicate/mapper/reducer helpers, then compose with lambda-match/match/cut/curry/case-lambda/values/filter-map/map/fold/andmap/ormap when behavior fits")
               (check (hash-get (type-finding-details finding) 'optimizationBoundary)
                      => "when using case-lambda or a specialized branch, comment why that branch exists and keep the comment about the boundary, not the code mechanics")
               (check (agent-style-member?
-                      "legacy contracts split at top-level <-, not nested arrows"
+                      "Scheme-native ;; : contract blocks preserve arrow structure without comment-arrow fallback"
                       (hash-get (type-finding-details finding)
                                 'gerbilContractProjectionSignals))
                      => #t))))
@@ -75,7 +75,7 @@
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/orders)\n")
             (write-text (string-append owner "/core.ss")
-                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; Order <- Order\n(def (order-total order) order)\n(def (order-tax order) order)\n")
+                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; : (-> Order Order)\n(def (order-total order) order)\n(def (order-tax order) order)\n")
             (let* ((index (collect-project root))
                    (findings (run-policy-checks index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-R013" findings))
@@ -85,9 +85,9 @@
             (check (hash-get details 'definitionCount) => 2)
             (check (hash-get details 'typedCommentCount) => 1)
             (check (hash-get details 'missingTypedCommentCount) => 1)
-            (check (hash-get details 'qualityReference) => "gerbil-utils")
+            (check (hash-get details 'qualityReferenceCorpus) => "gerbil-reference-corpus")
             (check (hash-get details 'agentRepairStandard)
-                   => "rewrite toward gerbil-utils style: small algebraic helpers, dense but readable composition, minimal let*/mutation scaffolding"))))
+                   => "rewrite toward learned Gerbil/Gambit style: small algebraic helpers, lambda-match/match where shape is the boundary, cut/curry/case-lambda for specialization, values for tuple protocols, and minimal let*/mutation scaffolding"))))
 (test-case "typed-combinator-style policy accepts algebraic contracts"
           (let* ((root ".run/policy-typed-combinator-style-contract")
                  (src (string-append root "/src"))
@@ -166,7 +166,7 @@
               (check (agent-style-member? "method-table-combinator-body" facets)
                      => #t)
               (check (agent-style-member?
-                      "repair method-table lambdas by extracting slot-shaped helpers or using cut/curry/compose while preserving the receiver/protocol boundary"
+                      "repair method-table lambdas by extracting slot-shaped helpers, compiler-style AST pass handlers, or cut/curry/compose adapters while preserving the receiver/protocol boundary"
                       steering)
                      => #t))))
 (test-case "typed-combinator-style policy rejects placeholder type variables"

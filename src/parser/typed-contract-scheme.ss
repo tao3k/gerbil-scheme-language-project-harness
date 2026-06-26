@@ -19,15 +19,16 @@
                  type-spec-valid?
                  type-validation-diagnostics)
         (only-in :std/srfi/13
-                 string-contains
                  string-empty?
                  string-ref
                  string-trim-both)
-        (only-in :std/srfi/1 drop-right iota)
+        (only-in :std/srfi/1 drop-right)
         (only-in :std/sugar cut filter foldl hash))
 
 (export scheme-contract-output
         scheme-contract-inputs
+        scheme-contract-projection
+        scheme-type-signature-analysis
         scheme-type-signature-json
         scheme-type-expression-text-json
         scheme-type-expression-json
@@ -38,12 +39,12 @@
         typed-contract-group-count)
 
 ;;; Gerbil contract output extraction parses `;; : (-> Input Output)` comments
-;;; before legacy token parsing is attempted by the parent typed-contract owner.
+;;; for the canonical typed-comment contract owner.
 ;; scheme-contract-output
 ;;   : (-> SignatureContract (Maybe TypeExpr))
 ;;   | doc m%
 ;;       `scheme-contract-output contract` returns the final output position of
-;;       a Gerbil contract arrow signature, preserving legacy output fields.
+;;       a Gerbil contract arrow signature for typed-comment facts.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -52,18 +53,17 @@
 ;;       ```
 ;;     %
 (def (scheme-contract-output contract)
-  (let (items (scheme-contract-arrow-items contract))
-    (and (pair? items)
-         (datum->type-string (typed-contract-last items)))))
+  (let (projection (scheme-contract-projection contract))
+    (and projection (car projection))))
 
 ;;; Input extraction uses the parsed arrow items and drops the final output
-;;; position.  This keeps Gerbil contract projections aligned with legacy
-;;; `Output <- Input` contracts without duplicating parser logic.
+;;; position.  This keeps Gerbil contract projections aligned with the
+;;; canonical typed-comment fact shape without duplicating parser logic.
 ;; scheme-contract-inputs
 ;;   : (-> SignatureContract (Maybe (List TypeExpr)))
 ;;   | doc m%
 ;;       `scheme-contract-inputs contract` returns arrow input positions from a
-;;       Gerbil contract signature projection for legacy contract input fields.
+;;       Gerbil contract signature projection for typed-comment facts.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -72,13 +72,28 @@
 ;;       ```
 ;;     %
 (def (scheme-contract-inputs contract)
-  (let (items (scheme-contract-arrow-items contract))
-    (and (pair? items)
-         (map datum->type-string
-              (scheme-arrow-input-type-datums (drop-right items 1))))))
+  (let (projection (scheme-contract-projection contract))
+    (and projection (cadr projection))))
+
+;; : (-> SignatureContract (Maybe (Tuple TypeExpr (List TypeExpr))))
+(def (scheme-contract-projection contract)
+  (let (datum (scheme-contract-datum contract))
+    (and datum
+         (scheme-contract-projection/arrow
+          (scheme-contract-arrow-datum datum)))))
+
+;; : (-> (Maybe ArrowDatum) (Maybe (Tuple TypeExpr (List TypeExpr))))
+(def (scheme-contract-projection/arrow arrow)
+  (and arrow
+       (let (items (cdr arrow))
+         (and (pair? items)
+              [(datum->type-string (typed-contract-last items))
+               (map datum->type-string
+                    (scheme-arrow-input-type-datums
+                     (drop-right items 1)))]))))
 
 ;;; Boundary:
-;;; - JSON preserves legacy arrow fields for existing consumers.
+;;; - JSON preserves arrow fields for existing consumers.
 ;;; - Structural shape lives in the richer typed-comment fact.
 ;;; - Diagnostics are parser-owned repair facts.
 ;;; - Callers should consume diagnostics instead of reparsing raw comments.
@@ -102,31 +117,44 @@
 ;;       ```
 ;;     %
 (def (scheme-type-signature-json contract)
+  (car (scheme-type-signature-analysis contract)))
+
+;; : (-> SignatureContract (Tuple Json (Maybe (Tuple TypeExpr (List TypeExpr)))))
+(def (scheme-type-signature-analysis contract)
   (let (datum (scheme-contract-datum contract))
     (if datum
       (let* ((body (scheme-type-signature-body datum))
              (arrow (scheme-contract-arrow-datum body))
              (forall-vars (scheme-type-signature-forall-vars datum))
+             (signature-type-spec
+              (type-spec-json (parse-type-sexpr datum)))
              (diagnostics
               (append (scheme-type-signature-diagnostics datum body arrow)
                       (scheme-type-expression-diagnostics body forall-vars))))
-        (hash (syntax "gerbil-contract-type")
-              (raw contract)
-              (valid (not (pair? diagnostics)))
-              (forall forall-vars)
-              (shape (scheme-type-expression-json* datum forall-vars))
-              (typeSpec (type-spec-json (parse-type-sexpr datum)))
-              (arrow (and arrow
-                          (scheme-arrow-json arrow forall-vars)))
-              (diagnostics diagnostics)))
-      (hash (syntax "gerbil-contract-type")
-            (raw contract)
-            (valid #f)
-            (forall [])
-            (shape #f)
-            (typeSpec #f)
-            (arrow #f)
-            (diagnostics ["malformed-type-datum"])))))
+        [(hash (syntax "gerbil-contract-type")
+               (raw contract)
+               (valid (not (pair? diagnostics)))
+               (forall forall-vars)
+               (shape (scheme-type-expression-json* datum forall-vars))
+               (typeSpec signature-type-spec)
+               (arrow (and arrow
+                           (scheme-arrow-json arrow
+                                              forall-vars
+                                              signature-type-spec)))
+               (diagnostics diagnostics))
+         (scheme-contract-projection/arrow arrow)])
+      [(scheme-type-signature-invalid-json contract) #f])))
+
+;; : (-> SignatureContract Json)
+(def (scheme-type-signature-invalid-json contract)
+  (hash (syntax "gerbil-contract-type")
+        (raw contract)
+        (valid #f)
+        (forall [])
+        (shape #f)
+        (typeSpec #f)
+        (arrow #f)
+        (diagnostics ["malformed-type-datum"])))
 
 ;;; Boundary:
 ;;; - Standalone type expressions reuse the same validator as signatures.
@@ -221,7 +249,7 @@
                 (cdr arrow))))))
 
 ;;; Contract datum parsing is deliberately protected: malformed comments should
-;;; degrade to legacy token parsing instead of aborting the whole source file.
+;;; degrade to token-only evidence instead of aborting the whole source file.
 ;; : (-> SignatureContract (Maybe Datum))
 (def (scheme-contract-datum contract)
   (with-catch
@@ -284,12 +312,18 @@
 ;; : (-> ArrowDatum Json)
 (def (scheme-arrow-json arrow . maybe-bound-vars)
   (let (items (cdr arrow))
-    (let (bound-vars (if (pair? maybe-bound-vars) (car maybe-bound-vars) []))
+    (let ((bound-vars (if (pair? maybe-bound-vars) (car maybe-bound-vars) []))
+          (precomputed-type-spec
+           (and (pair? maybe-bound-vars)
+                (pair? (cdr maybe-bound-vars))
+                (cadr maybe-bound-vars))))
       (let (inputs (if (>= (length items) 1)
                     (scheme-arrow-input-jsons (drop-right items 1) bound-vars)
                     []))
         (hash (kind "function")
-              (typeSpec (type-spec-json (parse-type-sexpr arrow)))
+              (typeSpec
+               (or precomputed-type-spec
+                   (type-spec-json (parse-type-sexpr arrow))))
               (inputs inputs)
               (output (if (>= (length items) 1)
                         (scheme-type-expression-json* (typed-contract-last items)
@@ -709,13 +743,13 @@
       out
       (cons part out))))
 
-;;; Character classification is shared by legacy token extraction and
-;;; Gerbil contract projection parsing so both surfaces split type names equally.
+;;; Character classification is shared by typed comment token extraction and
+;;; Gerbil contract projection parsing so source signatures split type names equally.
 ;; typed-contract-token-char?
 ;;   : (-> Character Boolean )
 ;;   | doc m%
 ;;       `typed-contract-token-char? ch` identifies characters that belong to
-;;       legacy and Gerbil contract projection type tokens.
+;;       Scheme-native typed comment and Gerbil contract projection type tokens.
 ;;
 ;;       # Examples
 ;;       ```scheme
@@ -744,45 +778,36 @@
 ;;       ```
 ;;     %
 (def (typed-contract-arrow-count contract)
-  (if (string-contains contract "<-")
-    (typed-contract-token-pair-count contract #\< #\-)
-    (typed-contract-token-pair-count contract #\- #\>)))
+  (typed-contract-token-pair-count contract #\- #\>))
 
-;;; Pair counting is the cheap legacy-contract path.  It intentionally avoids
-;;; full parsing and only looks for adjacent token pairs such as `<-` or `->`.
+;;; Pair counting intentionally avoids full parsing and only looks for the
+;;; canonical adjacent arrow token pair.
 ;; : (-> SignatureContract Character Character Integer)
 (def (typed-contract-token-pair-count contract first second)
   (let (text-length (string-length contract))
-    (length
-     (filter (lambda (entry)
-               (let (index (fx1- (cdr entry)))
-                 (and (< index (fx1- text-length))
-                      (char=? (car entry) first)
-                      (char=? (string-ref contract (fx1+ index)) second))))
-             (map cons
-                  (string->list contract)
-                  (iota (string-length contract) 1))))))
+    (let loop ((index 0)
+               (count 0))
+      (if (< index (fx1- text-length))
+        (loop (fx1+ index)
+              (if (and (char=? (string-ref contract index) first)
+                       (char=? (string-ref contract (fx1+ index)) second))
+                (fx1+ count)
+                count))
+        count))))
 
 ;;; Boundary:
-;;; - Legacy contracts use parentheses as grouped-shape evidence.
 ;;; - Scheme-native type expressions use parentheses as syntax, not quality risk.
 ;; typed-contract-group-count
 ;;   : (-> SignatureContract Integer )
 ;;   | doc m%
-;;       `typed-contract-group-count contract` counts grouping only for legacy
-;;       contracts, because Scheme-native parentheses are grammar syntax.
+;;       `typed-contract-group-count contract` keeps the typed-contract fact
+;;       shape stable while treating Scheme-native parentheses as grammar syntax.
 ;;
 ;;       # Examples
 ;;       ```scheme
-;;       (typed-contract-group-count "(List B) <- (List A)")
-;;       ;; => 4
+;;       (typed-contract-group-count "(-> (List A) (List B))")
+;;       ;; => 0
 ;;       ```
 ;;     %
 (def (typed-contract-group-count contract)
-  (if (string-contains contract "<-")
-    (length
-     (filter (lambda (ch)
-               (or (char=? ch #\()
-                   (char=? ch #\))))
-             (string->list contract)))
-    0))
+  0)

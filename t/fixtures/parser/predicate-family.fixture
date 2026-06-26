@@ -1,25 +1,25 @@
 ;;; -*- Gerbil -*-
 (package: sample/predicate-family)
 
-;; Boolean <- EventSyntaxFact
+;; : (-> EventSyntaxFact Boolean)
 (def (created-event? fact)
   (let (fields (hash-get fact 'fields))
     (and fields
          (equal? (field-string fields 'role) "created"))))
 
-;; Boolean <- EventSyntaxFact
+;; : (-> EventSyntaxFact Boolean)
 (def (paid-event? fact)
   (let (fields (hash-get fact 'fields))
     (and fields
          (member (field-string fields 'role) '("paid" "settled")))))
 
-;; Boolean <- EventSyntaxFact
+;; : (-> EventSyntaxFact Boolean)
 (def (cancelled-event? fact)
   (let (fields (hash-get fact 'fields))
     (and fields
          (equal? (field-string fields 'role) "cancelled"))))
 
-;; (List EventId) <- (List EventSyntaxFact)
+;; : (-> (List EventSyntaxFact) (List EventId))
 (def (collect-ids rows)
   (let loop ((rest rows) (out []))
     (if (null? rest)

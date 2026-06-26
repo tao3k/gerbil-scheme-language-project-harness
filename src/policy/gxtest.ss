@@ -235,8 +235,7 @@
 ;; : (List Key)
 (def +project-policy-finding-detail-keys+
   '(advice next keepNamedLetWhen styleGuide styleCommand
-    expectedCommentShape signatureShape typedCommentMigrationNeeded
-    typedCommentMigration
+    expectedCommentShape signatureShape
     expectedDocShape typedDocRequiredWhen typedDocMissing
     typedDocMissingCount typedDocMissingTargets
     repairAction guideCodeFlag searchExampleCommand repairCodeCommand

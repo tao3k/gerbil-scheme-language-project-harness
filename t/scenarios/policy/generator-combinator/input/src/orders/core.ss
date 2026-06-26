@@ -2,7 +2,7 @@
 (package: sample/orders)
 (export generated-total)
 
-;; Number <- (Generating Number)
+;; : (-> (Generating Number) Number)
 (def (generated-total source)
   (let loop ((next source) (acc 0))
     acc))
