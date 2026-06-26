@@ -82,8 +82,8 @@
               "eq-hash-index-hot-path"
               "cut-helper-plumbing"
               "anti-ai-scaffold"])
-            (check (hash-get benchmark-contract 'observedTotalMs)
-                   => 8.5)
+            (check (hash-get benchmark-contract 'observed_total)
+                   => '8.5ms)
             (check (hash-get benchmark-contract 'optimizationFocus)
                    => "basic Scheme route scaffolding to match dispatch, one eq-hash index, and cut-specialized traversal")
             (check (agent-style-member?

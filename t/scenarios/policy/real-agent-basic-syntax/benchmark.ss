@@ -1,7 +1,7 @@
-((maxTotalMs . 35)
- (observedTotalMs . 6)
- (targetTotalMs . 20)
- (regressionBudgetMs . 29)
+((max_total . 35ms)
+ (observed_total . 6ms)
+ (target_total . 20ms)
+ (regression_budget . 29ms)
  (observedTimings
   ((name . collect-before) (durationMs . 2))
   ((name . collect-after) (durationMs . 3))

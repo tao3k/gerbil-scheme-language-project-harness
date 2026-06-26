@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 9)
- (targetTotalMs . 15)
- (regressionBudgetMs . 16)
+((max_total . 25ms)
+ (observed_total . 9ms)
+ (target_total . 15ms)
+ (regression_budget . 16ms)
  (observedTimings
   ((name . collect-before) (durationMs . 4))
   ((name . collect-after) (durationMs . 3))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 1)))
  (targetRationale
   .
-  "observed baseline 9ms for protocol-serialization-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 9ms for protocol-serialization-boundary; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 12)
  (maxParseMs . 15)
  (maxFileMs . 5)

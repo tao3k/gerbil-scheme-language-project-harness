@@ -120,7 +120,7 @@
     ((runtime-native-fast-command-adapter-result? result)
      "native fast source imports a full command adapter; keep native-fast entrypoints dependency-light or route the command through the provider dispatcher runtime path")
     ((package-build-framework-overreach-result? result)
-     "package-level build.ss is adding local phase/cache/stamp ownership on top of Gerbil's build surface; keep std/make or clan/building as the build owner and move cache/receipt policy into reusable harness APIs")
+     "package-level build.ss is adding local phase/cache/stamp/worker ownership on top of Gerbil's build surface; keep std/make or clan/building as the build owner and move cache/receipt policy into reusable harness APIs")
     ((package-build-custom-system-result? result)
      "package-level build.ss is drifting into a hand-written build system; keep build.ss on gxpkg plus clan/building, std/build-script, or std/make build-spec and move command/runtime behavior into package modules")
    (else

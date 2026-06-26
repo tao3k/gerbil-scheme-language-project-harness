@@ -7,6 +7,7 @@
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-prefix? string-suffix? string-tokenize)
         (only-in :clan/building all-gerbil-modules)
+        (only-in :gerbil/tools/env setup-local-pkg-env!)
         "../src/build-api/source-coverage"
         (only-in "./gslph-install-static-modules" cli-install-static-modules)
         (only-in "../src/support/time" monotonic-micros duration-micros)
@@ -34,6 +35,8 @@
 ;; : (-> String Void)
 (def (configure-build-root! root)
   (set! package-root (path-normalize root))
+  (current-directory package-root)
+  (setup-local-pkg-env! #t)
   (set! source-root (path-expand "src" package-root))
   (set! test-root (path-expand "t" package-root))
   (set! package-name (read-build-package-name package-root)))

@@ -5,10 +5,13 @@
         :std/sort
         :std/test
         (only-in :commands/check check-main)
-        (rename-in :cli-launcher (main launcher-main))
+        (rename-in :cli-release-linker (main launcher-main))
         (only-in :std/misc/process run-process)
         (only-in :std/sugar ormap)
-        (only-in :support/time monotonic-ms duration-ms)
+        (only-in :support/time
+                 duration-literal->nanos
+                 monotonic-ms
+                 duration-ms)
         :benchmark/gate)
 
 (export benchmark-gate-test)
@@ -25,7 +28,7 @@
 
 ;; : Alist
 (def benchmark-gate-fail-fixture
-  (cons (cons 'maxTotalMs 0)
+  (cons (cons 'max_total '0ns)
         (cdr benchmark-gate-fixture)))
 
 ;; : (-> Symbol Alist Alist)
@@ -51,17 +54,17 @@
 ;; : Alist
 (def benchmark-gate-subsecond-fixture
   (benchmark-gate-with
-   'maxTotalMs
-   0.75
+   'max_total
+   '750us
    (benchmark-gate-with
-    'observedTotalMs
-    0.25
+    'observed_total
+    '250us
     (benchmark-gate-with
-     'targetTotalMs
-     0.5
+     'target_total
+     '500us
      (benchmark-gate-with
-      'regressionBudgetMs
-      0.25
+      'regression_budget
+      '250us
       (benchmark-gate-with
        'observedTimings
        '(((name . collect-before) (durationMs . 0.125))
@@ -71,8 +74,8 @@
 ;; : Alist
 (def benchmark-gate-slow-hot-fixture
   (benchmark-gate-with
-   'targetTotalMs
-   100
+   'target_total
+   '100ms
    benchmark-gate-fixture))
 
 ;; : Alist
@@ -81,21 +84,21 @@
    'tags
    '(gxtest import-closure)
    (benchmark-gate-with
-    'maxTotalMs
-    200
+    'max_total
+    '200ms
     (benchmark-gate-with
-     'targetTotalMs
-     100
+     'target_total
+     '100ms
      (benchmark-gate-with
-      'observedTotalMs
-      80
+      'observed_total
+      '80ms
       benchmark-gate-fixture)))))
 
 ;; : Alist
 (def benchmark-gate-slow-integration-fixture
   (benchmark-gate-with
-   'maxTotalMs
-   1000
+   'max_total
+   '1s
    benchmark-gate-integration-fixture))
 
 ;; Relpath
@@ -316,21 +319,28 @@
 ;; : TestSuite
 (def benchmark-gate-test
   (test-suite "gerbil scheme benchmark gate"
+    (test-case "duration literals parse to exact nanoseconds"
+      (check (duration-literal->nanos '800ns) => 800)
+      (check (duration-literal->nanos '75us) => 75000)
+      (check (duration-literal->nanos '1.2ms) => 1200000)
+      (check (duration-literal->nanos '1s) => 1000000000)
+      (check (duration-literal->nanos '0.1ns) => #f))
+
     (test-case "fixture carries reusable gate metadata"
-      (check (benchmark-fixture-ref benchmark-gate-fixture 'maxTotalMs)
-             => 100)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'max_total)
+             => '100ms)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'maxRssMb)
              => 512)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryMetric)
              => 'resident-set-size)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryUnit)
              => "MB")
-      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTotalMs)
-             => 10)
-      (check (benchmark-fixture-ref benchmark-gate-fixture 'targetTotalMs)
-             => 25)
-      (check (benchmark-fixture-ref benchmark-gate-fixture 'regressionBudgetMs)
-             => 15)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observed_total)
+             => '10ms)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'target_total)
+             => '25ms)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'regression_budget)
+             => '15ms)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTimings)
              => '(((name . measure-best) (durationMs . 10))))
       (check (benchmark-fixture-ref benchmark-gate-fixture 'targetRationale)
@@ -372,11 +382,11 @@
 
     (test-case "subsecond timing baselines satisfy the gate contract"
       (check (benchmark-fixture-ref benchmark-gate-subsecond-fixture
-                                    'maxTotalMs)
-             => 0.75)
+                                    'max_total)
+             => '750us)
       (check (benchmark-fixture-ref benchmark-gate-subsecond-fixture
-                                    'observedTotalMs)
-             => 0.25)
+                                    'observed_total)
+             => '250us)
       (check (benchmark-fixture-observed-timings-contract-pass?
               benchmark-gate-subsecond-fixture)
              => #t)
@@ -432,12 +442,12 @@
                => "MB")
         (check (>= (benchmark-fixture-ref receipt 'elapsedMicros) 0)
                => #t)
-        (check (benchmark-fixture-ref receipt 'observedTotalMs)
-               => 10)
-        (check (benchmark-fixture-ref receipt 'targetTotalMs)
-               => 25)
-        (check (benchmark-fixture-ref receipt 'regressionBudgetMs)
-               => 15)
+        (check (benchmark-fixture-ref receipt 'observed_total)
+               => '10ms)
+        (check (benchmark-fixture-ref receipt 'target_total)
+               => '25ms)
+        (check (benchmark-fixture-ref receipt 'regression_budget)
+               => '15ms)
         (check (benchmark-fixture-ref receipt 'observedTimings)
                => '(((name . measure-best) (durationMs . 10))))
         (check (benchmark-fixture-ref receipt 'targetRationale)
@@ -448,7 +458,7 @@
       (let (receipt
             (benchmark-run benchmark-gate-fail-fixture
                            (lambda () 'ok)))
-        (check (benchmark-fixture-ref receipt 'maxTotalMs) => 0)
+        (check (benchmark-fixture-ref receipt 'max_total) => '0ns)
         (check (benchmark-receipt-pass? receipt) => #f)))
 
     (test-case "check full cache stays in millisecond budget"

@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 4)
- (targetTotalMs . 15)
- (regressionBudgetMs . 21)
+((max_total . 25ms)
+ (observed_total . 4ms)
+ (target_total . 15ms)
+ (regression_budget . 21ms)
  (observedTimings
   ((name . collect-before) (durationMs . 1))
   ((name . collect-after) (durationMs . 2))
@@ -19,13 +19,13 @@
  (memoryUnit . "MB")
  (iterations . 1)
  (unit . "ms")
- (purpose . "R020 package build scenario catches agent-written local phase/cache/stamp ownership layered on top of the native Gerbil build surface")
+ (purpose . "R020 package build scenario catches agent-written local phase/cache/stamp and worker queue ownership layered on top of the native Gerbil build surface")
  (feature . "package-build-framework-overreach")
  (rule . "GERBIL-SCHEME-AGENT-R020")
  (optimizationFocus . "keep std/make and clan/building as build owners; expose acceleration and receipts as harness APIs")
- (inputShape . "build.ss imports std/make and clan/building, then defines local cache freshness, stamp writing, and phase receipt control")
- (expectedRepair . "delete local phase/cache/stamp ownership, keep the native build call path, and use a thin gslph API declaration for project coverage")
- (misuseGuard . "do not move build-system scheduling, dependency graph, or phase ownership into downstream build.ss")
+ (inputShape . "build.ss imports std/make and clan/building, then defines local cache freshness, stamp writing, phase receipt control, and worker queue dispatch")
+ (expectedRepair . "delete local phase/cache/stamp/worker ownership, keep the native build call path, and use a thin gslph API declaration for project coverage")
+ (misuseGuard . "do not move build-system scheduling, dependency graph, worker queue, or phase ownership into downstream build.ss")
  (expectedReferencePattern . "package-build-framework-overreach")
  (expectedReferenceExamples
   "gerbil://std/make#make"
@@ -43,6 +43,7 @@
  (scenarioQualityAxes
   "package-build"
   "build-api-boundary"
+  "build-worker-boundary"
   "upstream-build-system"
   "anti-ai-scaffold")
  (measurementPhases

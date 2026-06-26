@@ -10,6 +10,10 @@
 
 (def build-install-test
   (test-suite "gslph build install path contract"
+    (test-case "build root configures package-local Gerbil path"
+      (configure-build-root! (current-directory))
+      (check (getenv "GERBIL_PATH")
+             => (path-expand ".gerbil" (current-directory))))
     (test-case "install path is user-local bin"
       (configure-build-root! (current-directory))
       (check (install-launcher-binpath)

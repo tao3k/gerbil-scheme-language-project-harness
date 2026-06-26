@@ -50,7 +50,7 @@
                  (timings (hash-get timing 'timings))
                  (benchmark-contract
                   (hash-get timing 'benchmarkContract))
-                 (max-total-ms (hash-get timing 'maxTotalMs))
+                 (max-total (hash-get timing 'max_total))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -76,7 +76,7 @@
             (check (agent-style-policy-scenario-timing-steps-measured?
                     timings)
                    => #t)
-            (check (hash-get benchmark-contract 'maxTotalMs) => 1000)
+            (check (hash-get benchmark-contract 'max_total) => '1s)
             (check (hash-get benchmark-contract 'feature)
                    => "typed-combinator-style")
             (check (hash-get benchmark-contract 'rule)
@@ -89,7 +89,7 @@
                    => "GERBIL-SCHEME-AGENT-R014")
             (check (hash-get timing 'optimizationFocus)
                    => "higher-order branch repair")
-            (check max-total-ms => 1000)
+            (check max-total => '1s)
             (check (hash-get timing 'performanceStatus) => "pass")
             (check (length before-matching) => 1)
             (check after-matching => [])

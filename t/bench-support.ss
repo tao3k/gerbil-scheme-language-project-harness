@@ -2,6 +2,7 @@
 ;;; Shared bench test helpers.
 
 (import :std/test
+        (only-in :commands/bench bench-main)
         :commands/bench-light
         :std/misc/ports
         (only-in :std/sugar cut find ormap)
@@ -36,7 +37,20 @@
 
 ;; : (-> (List String) Integer String)
 (def (bench-output/status args expected-status)
-  (bench-output/status* bench-light-main args expected-status))
+  (bench-output/status*
+   (if (bench-full-mode? args) bench-main bench-light-main)
+   args
+   expected-status))
+
+;; : (-> (List String) Boolean)
+(def (bench-full-mode? args)
+  (cond
+   ((null? args) #f)
+   ((and (equal? (car args) "--mode")
+         (pair? (cdr args)))
+    (equal? (cadr args) "full"))
+   (else
+    (bench-full-mode? (cdr args)))))
 
 ;; : (-> (List String) String)
 (def (cli-bench-output args)

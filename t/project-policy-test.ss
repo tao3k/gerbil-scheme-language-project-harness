@@ -6,4 +6,4 @@
 
 ;; : TestSuite
 (def project-policy-test
-  (make-gxtest-policy-test "."))
+  (make-project-policy-test "."))

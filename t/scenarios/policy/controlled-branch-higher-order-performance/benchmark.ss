@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 7)
- (targetTotalMs . 15)
- (regressionBudgetMs . 18)
+((max_total . 25ms)
+ (observed_total . 7ms)
+ (target_total . 15ms)
+ (regression_budget . 18ms)
  (observedTimings
   ((name . collect-before) (durationMs . 2))
   ((name . collect-after) (durationMs . 2))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 2)))
  (targetRationale
   .
-  "observed baseline 7ms for controlled-branch-higher-order-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 7ms for controlled-branch-higher-order-performance; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 10)
  (maxParseMs . 15)
  (maxFileMs . 5)

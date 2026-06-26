@@ -89,22 +89,36 @@
 (def +package-build-shell-dispatch-callees+
   '("invoke" "run-process" "open-process"))
 
+;;; Local state evidence includes cache, stamp, receipt, and worker ownership.
+;;; It only becomes a finding when combined with package build scope and a
+;;; native build surface, so ordinary package helper identifiers are not enough.
 ;; (List String)
 (def +package-build-local-state-definition-markers+
   '("build-cache"
+    "build-job"
+    "build-queue"
+    "build-runner"
+    "build-worker"
     "build-stamp"
     "cache-fresh"
     "delete-build-stamp"
     "emit-phase-receipt"
     "phase-receipt"
-    "write-build-stamp"))
+    "write-build-stamp"
+    "worker-count"))
 
 ;; (List String)
 (def +package-build-local-state-binding-markers+
   '("build-cache"
+    "build-job"
+    "build-jobs"
+    "build-queue"
+    "build-runner"
+    "build-worker"
     "build-stamp"
     "cache-stamp"
-    "phase-receipt-schema"))
+    "phase-receipt-schema"
+    "worker-count"))
 
 ;;; Public detector surface:
 ;;; - Keep package build-system policy in one owner.

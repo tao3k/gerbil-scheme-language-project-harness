@@ -3,7 +3,8 @@
 
 (import :gerbil/gambit
         :std/test
-        :scenario/policy)
+        :scenario/policy
+        (only-in :support/time duration-literal->nanos))
 (export scenario-benchmark-policy-test)
 
 (def +scenario-benchmark-include-dirs+
@@ -55,21 +56,25 @@
 
 ;; : (-> BenchmarkContract Boolean )
 (def (scenario-benchmark-targeted? contract)
-  (let* ((observed-ms (hash-get contract 'observedTotalMs))
-         (target-ms (hash-get contract 'targetTotalMs))
-         (max-ms (hash-get contract 'maxTotalMs))
-         (regression-budget-ms (hash-get contract 'regressionBudgetMs))
+  (let* ((observed-ns
+          (duration-literal->nanos (hash-get contract 'observed_total)))
+         (target-ns
+          (duration-literal->nanos (hash-get contract 'target_total)))
+         (max-ns
+          (duration-literal->nanos (hash-get contract 'max_total)))
+         (regression-budget-ns
+          (duration-literal->nanos (hash-get contract 'regression_budget)))
          (observed-timings (hash-get contract 'observedTimings))
          (target-rationale (hash-get contract 'targetRationale)))
-    (and (number? observed-ms)
-         (number? target-ms)
-         (number? max-ms)
-         (number? regression-budget-ms)
+    (and observed-ns
+         target-ns
+         max-ns
+         regression-budget-ns
          (pair? observed-timings)
          (string? target-rationale)
-         (<= observed-ms target-ms)
-         (< target-ms max-ms)
-         (= max-ms (+ observed-ms regression-budget-ms)))))
+         (<= observed-ns target-ns)
+         (< target-ns max-ns)
+         (= max-ns (+ observed-ns regression-budget-ns)))))
 
 ;; : (-> (List String) (List String) )
 (def (scenario-benchmark-paths-without-targets paths)

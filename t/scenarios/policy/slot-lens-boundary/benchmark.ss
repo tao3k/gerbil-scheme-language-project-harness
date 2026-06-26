@@ -1,7 +1,7 @@
-((maxTotalMs . 29)
- (observedTotalMs . 14)
- (targetTotalMs . 19)
- (regressionBudgetMs . 15)
+((max_total . 29ms)
+ (observed_total . 14ms)
+ (target_total . 19ms)
+ (regression_budget . 15ms)
  (observedTimings
   ((name . collect-before) (durationMs . 4))
   ((name . collect-after) (durationMs . 8))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 2)))
  (targetRationale
   .
-  "observed baseline 14ms for slot-lens-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 14ms for slot-lens-boundary; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 24)
  (maxParseMs . 15)
  (maxFileMs . 5)

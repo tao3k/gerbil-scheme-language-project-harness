@@ -4,14 +4,14 @@
 (import :support/time
         (only-in :std/sugar andmap ormap))
 
-(export benchmark-default-max-total-ms
+(export benchmark-default-max-total
         benchmark-default-max-collect-ms
         benchmark-default-max-parse-ms
         benchmark-default-max-file-ms
         benchmark-default-max-phase-ms
-        benchmark-default-observed-total-ms
-        benchmark-default-target-total-ms
-        benchmark-default-regression-budget-ms
+        benchmark-default-observed-total
+        benchmark-default-target-total
+        benchmark-default-regression-budget
         benchmark-default-max-rss-mb
         benchmark-default-memory-metric
         benchmark-default-memory-unit
@@ -31,12 +31,12 @@
         benchmark-run
         benchmark-receipt-pass?)
 
-;; benchmark-default-max-total-ms
-;;   : Integer
+;; benchmark-default-max-total
+;;   : DurationLiteral
 ;;   | doc m%
 ;;       Default wall-clock budget for policy scenario benchmark receipts.
 ;;     %
-(def benchmark-default-max-total-ms 100)
+(def benchmark-default-max-total '100ms)
 ;; : Integer
 (def benchmark-default-max-collect-ms 25)
 ;; : Integer
@@ -45,20 +45,20 @@
 (def benchmark-default-max-file-ms 5)
 ;; : Integer
 (def benchmark-default-max-phase-ms 5)
-;; : Integer
-(def benchmark-default-observed-total-ms 10)
-;; : Integer
-(def benchmark-default-target-total-ms 25)
-;; : Integer
-(def benchmark-default-regression-budget-ms 15)
+;; : DurationLiteral
+(def benchmark-default-observed-total '10ms)
+;; : DurationLiteral
+(def benchmark-default-target-total '25ms)
+;; : DurationLiteral
+(def benchmark-default-regression-budget '15ms)
 ;; : Integer
 (def benchmark-default-max-rss-mb 512)
-;; : Integer
-(def benchmark-hot-target-total-ms 25)
-;; : Integer
-(def benchmark-hot-max-total-ms 100)
-;; : Integer
-(def benchmark-integration-max-total-ms 1000)
+;; : DurationLiteral
+(def benchmark-hot-target-total '25ms)
+;; : DurationLiteral
+(def benchmark-hot-max-total '100ms)
+;; : DurationLiteral
+(def benchmark-integration-max-total '1s)
 ;; : Symbol
 (def benchmark-default-memory-metric 'resident-set-size)
 ;; : String
@@ -70,14 +70,14 @@
 ;;       Minimum fixture contract shared by scenario files and runtime gates.
 ;;     %
 (def benchmark-fixture-required-keys
-  '(maxTotalMs
+  '(max_total
     maxCollectMs
     maxParseMs
     maxFileMs
     maxPhaseMs
-    observedTotalMs
-    targetTotalMs
-    regressionBudgetMs
+    observed_total
+    target_total
+    regression_budget
     observedTimings
     targetRationale
     maxRssMb
@@ -95,7 +95,15 @@
 
 ;; : (List Symbol)
 (def +benchmark-positive-duration-fields+
-  '(maxTotalMs maxCollectMs maxParseMs maxFileMs maxPhaseMs))
+  '(max_total target_total))
+
+;; : (List Symbol)
+(def +benchmark-non-negative-duration-fields+
+  '(observed_total regression_budget))
+
+;; : (List Symbol)
+(def +benchmark-positive-number-fields+
+  '(maxCollectMs maxParseMs maxFileMs maxPhaseMs))
 
 ;; : (List Symbol)
 (def +benchmark-positive-integer-fields+
@@ -118,17 +126,17 @@
 ;;     %
 (def (make-benchmark-fixture rule feature optimization-focus
                              input-shape expected-repair tags)
-  (list (cons 'maxTotalMs benchmark-default-max-total-ms)
+  (list (cons 'max_total benchmark-default-max-total)
         (cons 'maxCollectMs benchmark-default-max-collect-ms)
         (cons 'maxParseMs benchmark-default-max-parse-ms)
         (cons 'maxFileMs benchmark-default-max-file-ms)
         (cons 'maxPhaseMs benchmark-default-max-phase-ms)
-        (cons 'observedTotalMs benchmark-default-observed-total-ms)
-        (cons 'targetTotalMs benchmark-default-target-total-ms)
-        (cons 'regressionBudgetMs benchmark-default-regression-budget-ms)
+        (cons 'observed_total benchmark-default-observed-total)
+        (cons 'target_total benchmark-default-target-total)
+        (cons 'regression_budget benchmark-default-regression-budget)
         (cons 'observedTimings
               `(((name . measure-best)
-                 (durationMs . ,benchmark-default-observed-total-ms))))
+                 (durationMs . 10))))
         (cons 'targetRationale
               "default generated benchmark fixture target")
         (cons 'maxRssMb benchmark-default-max-rss-mb)
@@ -204,11 +212,37 @@
 (def (benchmark-fixture-positive-number-field-pass? fixture key)
   (benchmark-positive-number? (benchmark-fixture-ref fixture key)))
 
+;; : (-> Alist Symbol (U Integer False))
+(def (benchmark-fixture-duration-field-nanos fixture key)
+  (duration-literal->nanos (benchmark-fixture-ref fixture key)))
+
+;; : (-> Alist Symbol Boolean)
+(def (benchmark-fixture-positive-duration-field-pass? fixture key)
+  (let (nanos (benchmark-fixture-duration-field-nanos fixture key))
+    (and nanos (> nanos 0))))
+
+;; : (-> Alist Symbol Boolean)
+(def (benchmark-fixture-non-negative-duration-field-pass? fixture key)
+  (let (nanos (benchmark-fixture-duration-field-nanos fixture key))
+    (and nanos (>= nanos 0))))
+
 ;; : (-> Alist Boolean)
 (def (benchmark-fixture-positive-duration-fields-pass? fixture)
   (andmap (lambda (key)
-            (benchmark-fixture-positive-number-field-pass? fixture key))
+            (benchmark-fixture-positive-duration-field-pass? fixture key))
           +benchmark-positive-duration-fields+))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-non-negative-duration-fields-pass? fixture)
+  (andmap (lambda (key)
+            (benchmark-fixture-non-negative-duration-field-pass? fixture key))
+          +benchmark-non-negative-duration-fields+))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-positive-number-fields-pass? fixture)
+  (andmap (lambda (key)
+            (benchmark-fixture-positive-number-field-pass? fixture key))
+          +benchmark-positive-number-fields+))
 
 ;; : (-> Alist Symbol Boolean)
 (def (benchmark-fixture-positive-integer-field-pass? fixture key)
@@ -255,9 +289,9 @@
 ;;       Validate observed timing baseline fields carried by benchmark fixtures.
 ;;     %
 (def (benchmark-fixture-observed-timings-contract-pass? fixture)
-  (let ((observed-total-entry (assoc 'observedTotalMs fixture))
-        (target-total-entry (assoc 'targetTotalMs fixture))
-        (regression-budget-entry (assoc 'regressionBudgetMs fixture))
+  (let ((observed-total-entry (assoc 'observed_total fixture))
+        (target-total-entry (assoc 'target_total fixture))
+        (regression-budget-entry (assoc 'regression_budget fixture))
         (observed-timings-entry (assoc 'observedTimings fixture))
         (target-rationale-entry (assoc 'targetRationale fixture)))
     (and observed-total-entry
@@ -265,14 +299,20 @@
          regression-budget-entry
          observed-timings-entry
          target-rationale-entry
-         (let ((observed-total-ms (cdr observed-total-entry))
-               (target-total-ms (cdr target-total-entry))
-               (regression-budget-ms (cdr regression-budget-entry))
+         (let ((observed-total-ns
+                (duration-literal->nanos (cdr observed-total-entry)))
+               (target-total-ns
+                (duration-literal->nanos (cdr target-total-entry)))
+               (regression-budget-ns
+                (duration-literal->nanos (cdr regression-budget-entry)))
                (observed-timings (cdr observed-timings-entry))
                (target-rationale (cdr target-rationale-entry)))
-           (and (benchmark-non-negative-number? observed-total-ms)
-                (benchmark-positive-number? target-total-ms)
-                (benchmark-non-negative-number? regression-budget-ms)
+           (and observed-total-ns
+                target-total-ns
+                regression-budget-ns
+                (>= observed-total-ns 0)
+                (> target-total-ns 0)
+                (>= regression-budget-ns 0)
                 (string? target-rationale)
                 (list? observed-timings)
                 (not (null? observed-timings))
@@ -318,22 +358,39 @@
 
 ;; : (-> Alist Boolean)
 (def (benchmark-fixture-hot-timing-pass? fixture)
-  (let ((max-total-ms (benchmark-fixture-ref fixture 'maxTotalMs))
-        (target-total-ms (benchmark-fixture-ref fixture 'targetTotalMs))
-        (observed-total-ms (benchmark-fixture-ref fixture 'observedTotalMs)))
-    (and (<= max-total-ms benchmark-hot-max-total-ms)
-         (<= target-total-ms benchmark-hot-target-total-ms)
-         (<= observed-total-ms target-total-ms))))
+  (let ((max-total-ns
+         (benchmark-fixture-duration-field-nanos fixture 'max_total))
+        (target-total-ns
+         (benchmark-fixture-duration-field-nanos fixture 'target_total))
+        (observed-total-ns
+         (benchmark-fixture-duration-field-nanos fixture 'observed_total))
+        (hot-max-total-ns (duration-literal->nanos benchmark-hot-max-total))
+        (hot-target-total-ns
+         (duration-literal->nanos benchmark-hot-target-total)))
+    (and max-total-ns
+         target-total-ns
+         observed-total-ns
+         (<= max-total-ns hot-max-total-ns)
+         (<= target-total-ns hot-target-total-ns)
+         (<= observed-total-ns target-total-ns))))
 
 ;; : (-> Alist Boolean)
 (def (benchmark-fixture-integration-timing-pass? fixture)
-  (let ((max-total-ms (benchmark-fixture-ref fixture 'maxTotalMs))
-        (target-total-ms (benchmark-fixture-ref fixture 'targetTotalMs))
-        (observed-total-ms (benchmark-fixture-ref fixture 'observedTotalMs)))
-    (and (< max-total-ms benchmark-integration-max-total-ms)
-         (< target-total-ms benchmark-integration-max-total-ms)
-         (< observed-total-ms benchmark-integration-max-total-ms)
-         (<= observed-total-ms target-total-ms))))
+  (let ((max-total-ns
+         (benchmark-fixture-duration-field-nanos fixture 'max_total))
+        (target-total-ns
+         (benchmark-fixture-duration-field-nanos fixture 'target_total))
+        (observed-total-ns
+         (benchmark-fixture-duration-field-nanos fixture 'observed_total))
+        (integration-max-total-ns
+         (duration-literal->nanos benchmark-integration-max-total)))
+    (and max-total-ns
+         target-total-ns
+         observed-total-ns
+         (< max-total-ns integration-max-total-ns)
+         (< target-total-ns integration-max-total-ns)
+         (< observed-total-ns integration-max-total-ns)
+         (<= observed-total-ns target-total-ns))))
 
 ;;; Timing class contract:
 ;;; - Hot policy scenarios are the default and must keep a tight millisecond
@@ -354,6 +411,8 @@
 (def (benchmark-fixture-contract-pass? fixture)
   (and (null? (benchmark-fixture-missing-keys fixture))
        (benchmark-fixture-positive-duration-fields-pass? fixture)
+       (benchmark-fixture-non-negative-duration-fields-pass? fixture)
+       (benchmark-fixture-positive-number-fields-pass? fixture)
        (benchmark-fixture-positive-integer-fields-pass? fixture)
        (benchmark-fixture-unit-contract-pass? fixture)
        (benchmark-fixture-observed-timings-contract-pass? fixture)
@@ -408,9 +467,15 @@
           (benchmark-best-elapsed-micros
            (benchmark-fixture-ref fixture 'iterations)
            thunk))
+         (elapsed-nanos (micros->nanos elapsed-micros))
          (elapsed-ms (/ elapsed-micros 1000.0))
-         (max-total-ms
-          (benchmark-fixture-ref fixture 'maxTotalMs)))
+         (max-total
+          (benchmark-fixture-ref fixture 'max_total))
+         (max-total-ns
+          (or (duration-literal->nanos max-total)
+              (error "invalid benchmark duration literal"
+                     'max_total
+                     max-total))))
     (list (cons 'rule (benchmark-fixture-ref fixture 'rule))
           (cons 'feature (benchmark-fixture-ref fixture 'feature))
           (cons 'optimizationFocus
@@ -420,13 +485,14 @@
                 (benchmark-fixture-ref fixture 'expectedRepair))
           (cons 'elapsedMs elapsed-ms)
           (cons 'elapsedMicros elapsed-micros)
-          (cons 'maxTotalMs max-total-ms)
-          (cons 'observedTotalMs
-                (benchmark-fixture-ref fixture 'observedTotalMs))
-          (cons 'targetTotalMs
-                (benchmark-fixture-ref fixture 'targetTotalMs))
-          (cons 'regressionBudgetMs
-                (benchmark-fixture-ref fixture 'regressionBudgetMs))
+          (cons 'elapsedNs elapsed-nanos)
+          (cons 'max_total max-total)
+          (cons 'observed_total
+                (benchmark-fixture-ref fixture 'observed_total))
+          (cons 'target_total
+                (benchmark-fixture-ref fixture 'target_total))
+          (cons 'regression_budget
+                (benchmark-fixture-ref fixture 'regression_budget))
           (cons 'observedTimings
                 (benchmark-fixture-ref fixture 'observedTimings))
           (cons 'targetRationale
@@ -438,7 +504,7 @@
           (cons 'maxRssMb (benchmark-fixture-ref fixture 'maxRssMb))
           (cons 'memoryMetric (benchmark-fixture-ref fixture 'memoryMetric))
           (cons 'memoryUnit (benchmark-fixture-ref fixture 'memoryUnit))
-          (cons 'status (if (< elapsed-ms max-total-ms) 'pass 'fail)))))
+          (cons 'status (if (< elapsed-nanos max-total-ns) 'pass 'fail)))))
 
 ;; benchmark-receipt-pass?
 ;;   : (-> Alist Boolean)

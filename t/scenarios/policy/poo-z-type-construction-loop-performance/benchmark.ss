@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 6)
- (targetTotalMs . 15)
- (regressionBudgetMs . 19)
+((max_total . 25ms)
+ (observed_total . 6ms)
+ (target_total . 15ms)
+ (regression_budget . 19ms)
  (observedTimings
   ((name . collect-before) (durationMs . 4))
   ((name . collect-after) (durationMs . 2))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 0)))
  (targetRationale
   .
-  "observed baseline 6ms for poo-z-type-construction-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 6ms for poo-z-type-construction-loop-performance; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 12)
  (maxParseMs . 15)
  (maxFileMs . 5)

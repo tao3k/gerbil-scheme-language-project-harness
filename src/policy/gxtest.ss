@@ -26,18 +26,20 @@
 
 ;;; Macro boundary:
 ;;; - Downstream gxtest aggregators call this inside their normal test suite.
-;;; - The expansion produces one ordinary gxtest suite over the build-declared
-;;;   project source coverage, avoiding a separate build-target policy pass.
+;;; - The caller passes the same entry files used by the upstream gxtest runner.
+;;; - The expansion produces one ordinary files-scoped gxtest suite, so policy
+;;;   follows tested import owners without a separate full-project pass.
 ;; make-gxtest-policy-test
 ;;   : (-> Syntax Syntax)
 ;;   | doc m%
-;;       Expand into a gxtest policy test rooted at the supplied project root.
+;;       Expand into a gxtest policy test rooted at the supplied project root
+;;       and scoped to the supplied runner entry files.
 ;;
 ;;       # Examples
 ;;
 ;;       ```scheme
 ;;       (test-suite "project tests"
-;;         (make-gxtest-policy-test ".")
+;;         (make-gxtest-policy-test "." ["t/unit-tests.ss"])
 ;;         project-unit-tests)
 ;;       ;; => TestSuite
 ;;       ```
@@ -45,6 +47,12 @@
 (defsyntax (make-gxtest-policy-test stx)
   (let* ((form (syntax->datum stx))
          (root (and (pair? (cdr form)) (cadr form)))
+         (files (and (pair? (cddr form)) (caddr form)))
+         (resolved-files
+          (cond
+           ((string? files) [files])
+           ((list? files) files)
+           (else #f)))
          (resolved-root
           (if (string? root)
             (let* ((expanded-root
@@ -66,12 +74,17 @@
                    (else (loop parent))))))
             root)))
     (cond
-     ((not (and (pair? form) (pair? (cdr form)) (null? (cddr form))))
+     ((not (and (pair? form)
+                (pair? (cdr form))
+                (pair? (cddr form))
+                (null? (cdddr form))
+                resolved-files))
       (error "bad make-gxtest-policy-test syntax"))
      (else
       (datum->syntax (stx-car stx)
-                     `(gslph/src/policy/gxtest#make-project-policy-test
-                       ,resolved-root))))))
+                     `(gslph/src/policy/gxtest#make-policy-test
+                       ,resolved-root
+                       ,resolved-files))))))
 
 ;;; Boundary:
 ;;; - make-policy-test is the default gxtest bridge for downstream packages.

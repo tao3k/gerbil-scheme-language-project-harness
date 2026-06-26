@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 5)
- (targetTotalMs . 15)
- (regressionBudgetMs . 20)
+((max_total . 25ms)
+ (observed_total . 5ms)
+ (target_total . 15ms)
+ (regression_budget . 20ms)
  (observedTimings
   ((name . collect-before) (durationMs . 2))
   ((name . collect-after) (durationMs . 1))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 1)))
  (targetRationale
   .
-  "observed compiler-method-pass-boundary receipt is 5ms total with 2/1/1/1ms phase timings; target keeps the hot compiler-method scenario in the small millisecond budget while maxTotalMs remains the hard regression ceiling")
+  "observed compiler-method-pass-boundary receipt is 5ms total with 2/1/1/1ms phase timings; target keeps the hot compiler-method scenario in the small millisecond budget while max_total remains the hard regression ceiling")
  (maxCollectMs . 10)
  (maxParseMs . 15)
  (maxFileMs . 5)

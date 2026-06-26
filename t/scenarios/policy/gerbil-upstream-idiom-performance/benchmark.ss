@@ -1,7 +1,7 @@
-((maxTotalMs . 35)
- (observedTotalMs . 8.5)
- (targetTotalMs . 18.5)
- (regressionBudgetMs . 26.5)
+((max_total . 35ms)
+ (observed_total . 8.5ms)
+ (target_total . 18.5ms)
+ (regression_budget . 26.5ms)
  (observedTimings
   ((name . collect-before) (durationMs . 3.25))
   ((name . collect-after) (durationMs . 3.75))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 0.5)))
  (targetRationale
   .
-  "gerbil-upstream-idiom-performance is a subsecond scenario benchmark with fractional millisecond observed timings; maxTotalMs remains the hard gate")
+  "gerbil-upstream-idiom-performance is a subsecond scenario benchmark with fractional millisecond observed timings; max_total remains the hard gate")
  (maxCollectMs . 12)
  (maxParseMs . 15)
  (maxFileMs . 5)

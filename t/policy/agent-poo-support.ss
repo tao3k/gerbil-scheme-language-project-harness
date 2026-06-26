@@ -11,6 +11,7 @@
         :policy/facade
         :policy/gxtest
         :scenario/policy
+        (only-in :support/time duration-literal->nanos)
         :types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
@@ -19,22 +20,26 @@
 
 ;; : (-> TimedPolicyScenarioResult Boolean )
 (def (policy-scenario-benchmark-constrained? timing)
-  (and (number? (hash-get timing 'maxTotalMs))
+  (and (duration-literal->nanos (hash-get timing 'max_total))
        (equal? (hash-get timing 'performanceStatus) "pass")))
 
 ;; : (-> TimedPolicyScenarioResult Boolean )
 (def (policy-scenario-benchmark-targeted? timing)
-  (let* ((observed-ms (hash-get timing 'observedTotalMs))
-         (target-ms (hash-get timing 'targetTotalMs))
-         (max-ms (hash-get timing 'maxTotalMs))
-         (regression-budget-ms (hash-get timing 'regressionBudgetMs)))
-    (and (number? observed-ms)
-         (number? target-ms)
-         (number? max-ms)
-         (number? regression-budget-ms)
-         (<= observed-ms target-ms)
-         (< target-ms max-ms)
-         (= max-ms (+ observed-ms regression-budget-ms)))))
+  (let* ((observed-ns
+          (duration-literal->nanos (hash-get timing 'observed_total)))
+         (target-ns
+          (duration-literal->nanos (hash-get timing 'target_total)))
+         (max-ns
+          (duration-literal->nanos (hash-get timing 'max_total)))
+         (regression-budget-ns
+          (duration-literal->nanos (hash-get timing 'regression_budget))))
+    (and observed-ns
+         target-ns
+         max-ns
+         regression-budget-ns
+         (<= observed-ns target-ns)
+         (< target-ns max-ns)
+         (= max-ns (+ observed-ns regression-budget-ns)))))
 
 ;; : (-> MaybeNumber String )
 (def (poo-policy-performance-timing-status total-ms)

@@ -1,7 +1,7 @@
-((maxTotalMs . 27)
- (observedTotalMs . 12)
- (targetTotalMs . 17)
- (regressionBudgetMs . 15)
+((max_total . 27ms)
+ (observed_total . 12ms)
+ (target_total . 17ms)
+ (regression_budget . 15ms)
  (observedTimings
   ((name . collect-before) (durationMs . 2))
   ((name . collect-after) (durationMs . 6))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 3)))
  (targetRationale
   .
-  "observed baseline 12ms for typeclass-wrapper-adapter; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 12ms for typeclass-wrapper-adapter; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 18)
  (maxParseMs . 15)
  (maxFileMs . 5)

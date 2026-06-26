@@ -15,7 +15,7 @@
         policy-scenario-input-root
         policy-scenario-expected-root
         policy-scenario-benchmark-contract
-        policy-scenario-benchmark-max-total-ms
+        policy-scenario-benchmark-max-total
         policy-scenario-run
         policy-scenario-run/timed
         policy-scenario-run/checks
@@ -38,10 +38,10 @@
 
 ;; : (List BenchmarkContractKey)
 (def +policy-scenario-benchmark-required-fields+
-  '(maxTotalMs
-    observedTotalMs
-    targetTotalMs
-    regressionBudgetMs
+  '(max_total
+    observed_total
+    target_total
+    regression_budget
     observedTimings
     targetRationale))
 
@@ -77,7 +77,7 @@
 
 ;;; Fixture benchmark contract:
 ;;; - A scenario must carry benchmark.ss beside input/ and expected/.
-;;; - The file is data, not code: an alist such as ((maxTotalMs . 1000)).
+;;; - The file is data, not code: an alist such as ((max_total . 1s)).
 ;;; - Feature metadata stays fixture-owned so later optimization passes can
 ;;;   group receipts by policy rule, input shape, and repair family.
 ;; : (-> PolicyScenario BenchmarkContract )
@@ -99,15 +99,15 @@
 ;; : (-> BenchmarkContractDatum BenchmarkContract )
 (def (policy-scenario-benchmark-datum->contract datum)
   (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
-        (schemaVersion "1")
-        (maxTotalMs
-         (policy-scenario-benchmark-required-value datum 'maxTotalMs))
-        (observedTotalMs
-         (policy-scenario-benchmark-required-value datum 'observedTotalMs))
-        (targetTotalMs
-         (policy-scenario-benchmark-required-value datum 'targetTotalMs))
-        (regressionBudgetMs
-         (policy-scenario-benchmark-required-value datum 'regressionBudgetMs))
+        (schemaVersion "2")
+        (max_total
+         (policy-scenario-benchmark-required-duration datum 'max_total))
+        (observed_total
+         (policy-scenario-benchmark-required-duration datum 'observed_total))
+        (target_total
+         (policy-scenario-benchmark-required-duration datum 'target_total))
+        (regression_budget
+         (policy-scenario-benchmark-required-duration datum 'regression_budget))
         (observedTimings
          (policy-scenario-benchmark-required-value datum 'observedTimings))
         (targetRationale
@@ -164,6 +164,13 @@
       (cdr entry)
       (error "policy scenario benchmark missing required field" key))))
 
+;; : (-> BenchmarkContractDatum BenchmarkContractKey DurationLiteral )
+(def (policy-scenario-benchmark-required-duration datum key)
+  (let (value (policy-scenario-benchmark-required-value datum key))
+    (if (duration-literal? value)
+      value
+      (error "policy scenario benchmark invalid duration literal" key value))))
+
 ;;; Datum lookup boundary:
 ;;; - Missing benchmark fields fall back to contract defaults.
 ;;; - This keeps older scenarios readable while new fields become testable.
@@ -176,8 +183,8 @@
 ;;; - #f means the scenario records timing without enforcing a ceiling.
 ;;; - benchmark.ss remains the owner for configured time budgets.
 ;; : (-> BenchmarkContract (U Integer False) )
-(def (policy-scenario-benchmark-max-total-ms contract)
-  (hash-get contract 'maxTotalMs))
+(def (policy-scenario-benchmark-max-total contract)
+  (hash-get contract 'max_total))
 
 ;;; Runner:
 ;;; - input/ is the failing project shape.
@@ -232,11 +239,12 @@
                    after-index-timing
                    before-policy-timing
                    after-policy-timing])
-         (total-ms (policy-scenario-timings-total-ms timings))
+         (total-ns (policy-scenario-timings-total-ns timings))
+         (total-ms (duration-nanos->ms total-ns))
          (benchmark-contract
           (policy-scenario-benchmark-contract scenario))
-         (max-total-ms
-          (policy-scenario-benchmark-max-total-ms benchmark-contract))
+         (max-total
+          (policy-scenario-benchmark-max-total benchmark-contract))
          (result
           (list (policy-scenario-id scenario)
                 before-index
@@ -244,9 +252,10 @@
                 before-findings
                 after-findings)))
     (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
-          (schemaVersion "1")
+          (schemaVersion "2")
           (scenarioId (policy-scenario-id scenario))
           (totalMs total-ms)
+          (totalNs total-ns)
           (timings timings)
           (benchmarkContract benchmark-contract)
           (benchmarkFeature (hash-get benchmark-contract 'feature))
@@ -255,56 +264,67 @@
           (hotPathExemption (hash-get benchmark-contract 'hotPathExemption))
           (hotPathEvidence (hash-get benchmark-contract 'hotPathEvidence))
           (styleRewriteBoundary (hash-get benchmark-contract 'styleRewriteBoundary))
-          (maxTotalMs max-total-ms)
-          (observedTotalMs (hash-get benchmark-contract 'observedTotalMs))
-          (targetTotalMs (hash-get benchmark-contract 'targetTotalMs))
-          (regressionBudgetMs (hash-get benchmark-contract 'regressionBudgetMs))
+          (max_total max-total)
+          (observed_total (hash-get benchmark-contract 'observed_total))
+          (target_total (hash-get benchmark-contract 'target_total))
+          (regression_budget (hash-get benchmark-contract 'regression_budget))
           (observedTimings (hash-get benchmark-contract 'observedTimings))
           (targetRationale (hash-get benchmark-contract 'targetRationale))
           (targetStatus
            (policy-scenario-performance-status
-            total-ms
-            (hash-get benchmark-contract 'targetTotalMs)))
+            total-ns
+            (hash-get benchmark-contract 'target_total)))
           (performanceStatus
-           (policy-scenario-performance-status total-ms max-total-ms))
+           (policy-scenario-performance-status total-ns max-total))
           (result result))))
 
 ;;; Status boundary:
 ;;; - Unbounded scenarios still return timing receipts.
 ;;; - Bounded scenarios pass when measured time does not exceed the configured
 ;;;   value, and fail with both measured and configured values otherwise.
-;; : (-> Milliseconds (U Milliseconds False) String )
-(def (policy-scenario-performance-status total-ms max-total-ms)
+;; : (-> Nanoseconds (U DurationLiteral False) String )
+(def (policy-scenario-performance-status total-ns max-total)
   (cond
-   ((not max-total-ms) "unbounded")
-   ((<= total-ms max-total-ms) "pass")
+   ((not max-total) "unbounded")
+   ((duration-literal->nanos max-total)
+    => (lambda (max-total-ns)
+         (if (<= total-ns max-total-ns)
+           "pass"
+           (string-append
+           "fail durationNs="
+           (number->string total-ns)
+            " maxNs="
+            (number->string max-total-ns)))))
    (else
-    (string-append
-     "fail durationMs="
-     (number->string total-ms)
-     " maxMs="
-     (number->string max-total-ms)))))
+    (error "policy scenario benchmark invalid duration literal"
+           'max_total
+           max-total))))
 
 ;;; Step timing boundary:
 ;;; - Each phase returns its value and a compact duration receipt.
 ;;; - Callers decide phase order; this helper only measures one thunk.
 ;; : (-> String Thunk Pair )
 (def (policy-scenario-timed-step name thunk)
-  (let (start (monotonic-ms))
+  (let (start (monotonic-micros))
     (let (value (thunk))
+      (let* ((duration-micros
+              (duration-micros start (monotonic-micros)))
+             (duration-ns (micros->nanos duration-micros)))
       (cons value
             (hash (name name)
-                  (durationMs (duration-ms start (monotonic-ms))))))))
+                  (durationMs (duration-nanos->ms duration-ns))
+                  (durationMicros duration-micros)
+                  (durationNs duration-ns)))))))
 
 ;;; Total timing boundary:
 ;;; - Sum phase receipts without re-running scenario work.
 ;;; - Empty timing lists stay valid for degenerate fixtures.
 ;; : (-> (List Timing) Integer )
-(def (policy-scenario-timings-total-ms timings)
+(def (policy-scenario-timings-total-ns timings)
   (if (null? timings)
     0
-    (+ (hash-get (car timings) 'durationMs)
-       (policy-scenario-timings-total-ms (cdr timings)))))
+    (+ (hash-get (car timings) 'durationNs)
+       (policy-scenario-timings-total-ns (cdr timings)))))
 
 ;;; Full policy runner:
 ;;; - Use this when a scenario validates user-facing package policy controls.

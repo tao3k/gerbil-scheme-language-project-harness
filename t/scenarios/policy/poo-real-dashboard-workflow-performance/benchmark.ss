@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 8)
- (targetTotalMs . 15)
- (regressionBudgetMs . 17)
+((max_total . 25ms)
+ (observed_total . 8ms)
+ (target_total . 15ms)
+ (regression_budget . 17ms)
  (observedTimings
   ((name . collect-before) (durationMs . 4))
   ((name . collect-after) (durationMs . 3))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 1)))
  (targetRationale
   .
-  "observed baseline 8ms for poo-real-dashboard-workflow-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 8ms for poo-real-dashboard-workflow-performance; target keeps optimization visible and max_total is the hard regression ceiling")
  (observedTimings
   ((name . collect-before) (durationMs . 2))
   ((name . collect-after) (durationMs . 3))

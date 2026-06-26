@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 5)
- (targetTotalMs . 15)
- (regressionBudgetMs . 20)
+((max_total . 25ms)
+ (observed_total . 5ms)
+ (target_total . 15ms)
+ (regression_budget . 20ms)
  (observedTimings
   ((name . collect-before) (durationMs . 3))
   ((name . collect-after) (durationMs . 1))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 1)))
  (targetRationale
   .
-  "observed baseline 5ms for poo-clone-override-loop-performance; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
+  "observed baseline 5ms for poo-clone-override-loop-performance; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 10)
  (maxParseMs . 15)
  (maxFileMs . 5)

@@ -358,6 +358,47 @@
                      => #t)
               (check (not (not (member "local-build-state-owner" groups)))
                      => #t))))
+    (test-case "agent policy rejects package build worker scheduler overreach"
+          (let ((root ".run/policy-package-build-worker-overreach"))
+            (reset-fixture-root root)
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/build-worker-overreach)\n")
+            (write-text
+             (string-append root "/build.ss")
+             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/building)\n(def +package-build-worker-count+ 8)\n(def (spec)\n  (all-gerbil-modules))\n(%set-build-environment!\n \"build.ss\"\n name: \"sample\"\n deps: '()\n spec: spec)\n(def (package-build-job-queue modules)\n  modules)\n(def (package-build-run-worker! module options)\n  (apply make [module] options))\n(def (compile-package! options)\n  (for-each (lambda (module)\n              (package-build-run-worker! module options))\n            (package-build-job-queue (spec)))\n  (apply make (spec) options))\n")
+            (let* ((index (collect-project root))
+                   (findings (run-agent-policy index))
+                   (build-runtime-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (canonical-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (overreach-matching
+                    (filter
+                     (lambda (finding)
+                       (equal? (hash-get (type-finding-details finding)
+                                         'kind)
+                               "package-build-framework-overreach"))
+                     build-runtime-matching))
+                   (finding (car overreach-matching))
+                   (details (type-finding-details finding))
+                   (groups (hash-get details 'evidenceGroups)))
+              (check canonical-matching => [])
+              (check (length overreach-matching) => 1)
+              (check (type-finding-path finding) => "build.ss")
+              (check (hash-get details 'detectionCombiner)
+                     => "package-build-framework-overreach-all-of")
+              (check (hash-get details 'requiredGroups)
+                     => ["package-build-file"
+                         "native-build-surface"
+                         "local-build-state-owner"])
+              (check (not (not (member "package-build-file" groups)))
+                     => #t)
+              (check (not (not (member "native-build-surface" groups)))
+                     => #t)
+              (check (not (not (member "local-build-state-owner" groups)))
+                     => #t))))
     (test-case "agent policy rejects package build without clan/building surface"
           (let ((root ".run/policy-package-build-canonical-shape"))
             (reset-fixture-root root)

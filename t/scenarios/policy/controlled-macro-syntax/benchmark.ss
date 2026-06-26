@@ -1,7 +1,7 @@
-((maxTotalMs . 25)
- (observedTotalMs . 3)
- (targetTotalMs . 15)
- (regressionBudgetMs . 22)
+((max_total . 25ms)
+ (observed_total . 3ms)
+ (target_total . 15ms)
+ (regression_budget . 22ms)
  (observedTimings
   ((name . collect-before) (durationMs . 1))
   ((name . collect-after) (durationMs . 1))
@@ -9,7 +9,7 @@
   ((name . policy-after) (durationMs . 1)))
  (targetRationale
   .
-  "observed baseline 3ms for scoped controlled-macro-syntax; target keeps the hot macro-policy scenario in the small millisecond budget while maxTotalMs remains the hard regression ceiling")
+  "observed baseline 3ms for scoped controlled-macro-syntax; target keeps the hot macro-policy scenario in the small millisecond budget while max_total remains the hard regression ceiling")
  (maxCollectMs . 15)
  (maxParseMs . 15)
  (maxFileMs . 5)
