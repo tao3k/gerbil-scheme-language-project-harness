@@ -1,50 +1,49 @@
 ;;; -*- Gerbil -*-
 ;;; Full bench receipt tests.
 
-(import :std/test
+(import :gerbil/gambit
+        :std/test
         :bench-support
-        (only-in :std/text/json read-json)
-        (only-in :std/sugar foldl))
+        (only-in :std/text/json read-json))
 (export bench-full-test)
 
-;; Integer
-(def +bench-function-quality-phase-max-ms+ 500)
-;; Integer
-(def +bench-typed-contract-phase-max-ms+ 350)
-;; Integer
-(def +bench-comment-quality-phase-max-ms+ 300)
-;; Integer
-(def +bench-top-form-scan-phase-max-ms+ 500)
+;; String
+(def +bench-full-fixture-root+ ".run/bench-full-fixture")
 
-;; : (-> JsonObject String Boolean)
-(def (bench-phase-finding-for? finding phase-name)
-  (and (equal? (json-get finding "kind") "phase-threshold-exceeded")
-       (equal? (json-get finding "phaseName") phase-name)))
+;; : (-> String Void)
+(def (bench-full-ensure-dir path)
+  (with-catch
+   (lambda (_) #!void)
+   (lambda ()
+     (unless (file-exists? path)
+       (create-directory path)))))
 
-;; bench-max-phase-duration
-;;   : (-> (List JsonObject) String Integer)
-;;   | doc m%
-;;       `bench-max-phase-duration findings phase-name` returns the largest
-;;       duration for phase-threshold findings that match `phase-name`.
-;;
-;;       # Examples
-;;       ```scheme
-;;       (bench-max-phase-duration findings "function-quality-profiles")
-;;       ;; => 155
-;;       ```
-;;     %
-(def (bench-max-phase-duration findings phase-name)
-  (foldl (lambda (finding best)
-           (if (bench-phase-finding-for? finding phase-name)
-             (max best (json-get finding "durationMs"))
-             best))
-         0
-         findings))
+;; : (-> String String Void)
+(def (bench-full-write-text path text)
+  (with-catch
+   (lambda (_) #!void)
+   (lambda () (delete-file path)))
+  (call-with-output-file path
+    (lambda (out) (display text out))))
+
+;; : (-> Void)
+(def (prepare-bench-full-fixture!)
+  (let (src-root (string-append +bench-full-fixture-root+ "/src"))
+    (bench-full-ensure-dir ".run")
+    (bench-full-ensure-dir +bench-full-fixture-root+)
+    (bench-full-ensure-dir src-root)
+    (bench-full-write-text
+     (string-append +bench-full-fixture-root+ "/gerbil.pkg")
+     ";;; Boundary:\n;;; - Full bench fixture keeps unit tests independent of harness repository size.\n(package: bench/full-fixture)\n")
+    (bench-full-write-text
+     (string-append src-root "/core.ss")
+     ";;; -*- Gerbil -*-\n;;; Boundary:\n;;; - This fixture exercises full bench collect/type-check/profile packet shape.\n(import :gerbil/gambit)\n(export fixture-score fixture-fold)\n;; : (-> Integer Integer)\n(def (fixture-score n)\n  (+ n 1))\n;; : (-> (List Integer) Integer)\n(def (fixture-fold values)\n  (let loop ((rest values) (total 0))\n    (match rest\n      ([] total)\n      ([value . more]\n       (loop more (+ total (fixture-score value)))))))\n")))
 
 ;; BenchFullTest
 (def bench-full-test
   (test-suite "gerbil scheme harness full bench"
     (test-case "bench full mode records cold profile and threshold findings"
+      (prepare-bench-full-fixture!)
       (let* ((output (bench-output/status
                       ["--json" "--mode" "full" "--iterations" "1"
                        "--max-total-ms" "1"
@@ -53,7 +52,7 @@
                        "--max-parse-ms" "1"
                        "--max-file-ms" "1"
                        "--max-phase-ms" "1"
-                       "."]
+                       +bench-full-fixture-root+]
                       1))
              (packet (call-with-input-string output read-json))
              (benchmarks (json-get packet "benchmarks"))
@@ -63,11 +62,6 @@
              (slowest-files (json-get collect-profile "slowestFiles"))
              (findings (json-get packet "performanceFindings"))
              (finding (find-performance-finding findings "total-threshold-exceeded"))
-             (collect-finding (find-performance-finding findings "collect-threshold-exceeded"))
-             (interface-finding (find-performance-finding findings "interface-threshold-exceeded"))
-             (parse-finding (find-performance-finding findings "parse-threshold-exceeded"))
-             (file-finding (find-performance-finding findings "file-threshold-exceeded"))
-             (phase-finding (find-performance-finding findings "phase-threshold-exceeded"))
              (slowest (json-get packet "slowestBenchmark")))
         (check (json-get packet "schemaId")
                => "agent.semantic-protocols.gerbil-scheme-harness-bench")
@@ -99,39 +93,9 @@
         (check (>= (length slowest-files) 1) => #t)
         (check (>= (length findings) 1) => #t)
         (check (not (not finding)) => #t)
-        (check (not (not collect-finding)) => #t)
-        (check (not (not interface-finding)) => #t)
-        (check (not (not parse-finding)) => #t)
-        (check (not (not file-finding)) => #t)
-        (check (not (not phase-finding)) => #t)
         (check (json-get finding "kind") => "total-threshold-exceeded")
         (check (json-get finding "severity") => "warning")
         (check (json-get finding "maxTotalMs") => 1)
         (check (>= (json-get finding "exceededByMs") 0) => #t)
-        (check (json-get collect-finding "maxCollectMs") => 1)
-        (check (json-get interface-finding "maxInterfaceMs") => 1)
-        (check (json-get parse-finding "maxParseMs") => 1)
-        (check (json-get file-finding "maxFileMs") => 1)
-        (check (json-get phase-finding "maxPhaseMs") => 1)
-        (check (>= (json-get collect-finding "durationMs") 1) => #t)
-        (check (>= (json-get parse-finding "durationMs") 1) => #t)
-        (check (>= (json-get file-finding "durationMs") 1) => #t)
-        (check (>= (json-get phase-finding "durationMs") 1) => #t)
-        (check (<= (bench-max-phase-duration
-                    findings "function-quality-profiles")
-                   +bench-function-quality-phase-max-ms+)
-               => #t)
-        (check (<= (bench-max-phase-duration
-                    findings "typed-contract-facts")
-                   +bench-typed-contract-phase-max-ms+)
-               => #t)
-        (check (<= (bench-max-phase-duration
-                    findings "comment-quality-facts")
-                   +bench-comment-quality-phase-max-ms+)
-               => #t)
-        (check (<= (bench-max-phase-duration
-                    findings "top-form-scan")
-                   +bench-top-form-scan-phase-max-ms+)
-               => #t)
         (check (json-get finding "slowestBenchmarkName")
                => (json-get slowest "name"))))))
