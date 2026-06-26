@@ -8,6 +8,7 @@
         (only-in :std/srfi/13 string-prefix? string-suffix? string-tokenize)
         (only-in :clan/building all-gerbil-modules)
         "../src/build-api/source-coverage"
+        (only-in "./gslph-install-static-modules" cli-install-static-modules)
         (only-in "../src/support/time" monotonic-micros duration-micros)
         :gerbil/gambit
         (only-in :gerbil/compiler/base __available-cores))
@@ -141,7 +142,7 @@
   (cli-exe-spec optimized-exe: "cli-install-linker"))
 
 (def (cli-install-module-spec)
-  (runtime-library-spec))
+  cli-install-static-modules)
 
 (def cli-bootstrap-modules
   '("constants.ss"
@@ -278,7 +279,8 @@
 
 ;; : (-> (List BuildSpec))
 (def (build-support-spec)
-  '("build-support/gslph-build.ss"))
+  '("build-support/gslph-install-static-modules.ss"
+    "build-support/gslph-build.ss"))
 
 ;; : (-> (List ModulePath))
 (def (all-package-gerbil-modules)
