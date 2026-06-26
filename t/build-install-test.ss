@@ -22,6 +22,21 @@
       (configure-build-root! (current-directory))
       (check (dev-launcher-binpath)
              => (path-expand ".bin/gslph" (current-directory))))
+    (test-case "clean removes package-local development launcher artifacts"
+      (configure-build-root! (current-directory))
+      (unless (file-exists? ".bin")
+        (create-directory ".bin"))
+      (let ((binpath (dev-launcher-binpath))
+            (artifact (path-expand ".bin/gslph__exe.c" (current-directory))))
+        (call-with-output-file binpath
+          (lambda (out) (display "test launcher" out)))
+        (call-with-output-file artifact
+          (lambda (out) (display "test artifact" out)))
+        (check (file-exists? binpath) => #t)
+        (check (file-exists? artifact) => #t)
+        (clean-target)
+        (check (file-exists? binpath) => #f)
+        (check (file-exists? artifact) => #f)))
     (test-case "gxtest entry files are discovered from default test root"
       (configure-build-root! (current-directory))
       (let (files (gxtest-test-files))

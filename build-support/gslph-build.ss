@@ -13,7 +13,8 @@
         (only-in "../src/support/time" monotonic-micros duration-micros)
         :gerbil/gambit
         (only-in :gerbil/compiler/base __available-cores))
-(export compile-target
+(export clean-target
+        compile-target
         install-target
         compile-spec
         cli-binary-build-spec
@@ -387,6 +388,15 @@
                    effective-release? effective-optimized?
                    worker-count))
     #!void))
+
+;; : (-> Void)
+(def (clean-target)
+  (ensure-build-root!)
+  (current-directory package-root)
+  (let (binpath (dev-launcher-binpath))
+    (delete-file* binpath)
+    (cleanup-compile-exe-artifacts! binpath))
+  #!void)
 
 ;; : (-> Boolean Boolean Boolean Boolean Boolean Void)
 (def (install-target verbose debug no-optimize optimized release)

@@ -60,6 +60,11 @@
    getopt: compile-getopt)
   (install-target verbose debug no-optimize optimized release))
 
+(define-entry-point (clean)
+  (help: "Clean package-local development build artifacts"
+   getopt: [])
+  (clean-target))
+
 (define-entry-point (test)
   (help: "Compile the package and run top-level gxtest files"
    getopt: [])
