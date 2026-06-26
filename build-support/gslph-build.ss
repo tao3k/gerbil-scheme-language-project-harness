@@ -142,7 +142,8 @@
   (cli-exe-spec optimized-exe: "cli-install-linker"))
 
 (def (cli-install-module-spec)
-  cli-install-static-modules)
+  (append cli-bootstrap-modules
+          cli-install-static-modules))
 
 (def cli-bootstrap-modules
   '("constants.ss"
