@@ -3,8 +3,9 @@
 
 (import (only-in :std/make make)
         (only-in :std/misc/path directory-files path-directory path-expand path-normalize path-strip-directory)
+        (only-in :std/misc/process run-process)
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-prefix? string-suffix?)
+        (only-in :std/srfi/13 string-prefix? string-suffix? string-tokenize)
         (only-in :clan/building all-gerbil-modules)
         "../src/build-api/source-coverage"
         :gerbil/gambit
@@ -110,6 +111,7 @@
     "commands/search-workspace-scope-light.ss"
     "commands/search.ss"
     "commands/query.ss"
+    "commands/check-cache.ss"
     "commands/check.ss"
     "commands/evidence.ss"
     "commands/agent.ss"
@@ -135,6 +137,75 @@
 
 (def +test-support-warning-rules+
   '("GERBIL-SCHEME-MOD-R007"))
+
+;; : (-> (Or String False))
+(def (openssl-prefix)
+  (or (getenv "OPENSSL_DIR" #f)
+      (getenv "OPENSSL_ROOT_DIR" #f)))
+
+;; : (-> (List String) (List String))
+(def (pkg-config-openssl-options args)
+  (let (status 0)
+    (with-catch
+     (lambda (_) [])
+     (lambda ()
+       (let (output
+             (run-process (append ["pkg-config"] args ["openssl"])
+                          stderr-redirection: #t
+                          check-status:
+                          (lambda (exit-status _settings)
+                            (set! status exit-status))))
+         (if (zero? status)
+           (string-tokenize output)
+           []))))))
+
+;; : (-> (List String))
+(def (openssl-prefix-cc-options)
+  (let (prefix (openssl-prefix))
+    (if prefix
+      [(string-append "-I" prefix "/include")]
+      [])))
+
+;; : (-> (List String))
+(def (openssl-prefix-ld-options)
+  (let (prefix (openssl-prefix))
+    (if prefix
+      [(string-append "-L" prefix "/lib")]
+      [])))
+
+;; : (-> (List String))
+(def (openssl-cc-options)
+  (let (options (pkg-config-openssl-options ["--cflags"]))
+    (if (null? options)
+      (openssl-prefix-cc-options)
+      options)))
+
+;; : (-> (List String))
+(def (openssl-ld-options)
+  (let (options (pkg-config-openssl-options ["--libs"]))
+    (if (null? options)
+      (append (openssl-prefix-ld-options)
+              '("-lssl" "-lcrypto"))
+      options)))
+
+;; : (-> String (List String) (List String))
+(def (gsc-option-pairs flag options)
+  (match options
+    ([]
+     [])
+    ([option . rest]
+     (append [flag option]
+             (gsc-option-pairs flag rest)))))
+
+(def +cli-cc-options+
+  (openssl-cc-options))
+
+(def +cli-linker-options+
+  (openssl-ld-options))
+
+(def +cli-gsc-options+
+  (append (gsc-option-pairs "-cc-options" +cli-cc-options+)
+          (gsc-option-pairs "-ld-options" +cli-linker-options+)))
 
 ;; : (-> (List BuildSpec))
 (def (cli-binary-spec)
@@ -300,6 +371,7 @@
                   verbose: (and verbose 9)
                   debug: (and debug 'env)
                   full-program-optimization: build-optimize?
+                  gsc-options: +cli-gsc-options+
                   parallel: #f])
     (cleanup-compile-exe-artifacts! binpath)
     binpath))

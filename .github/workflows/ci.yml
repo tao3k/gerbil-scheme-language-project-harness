@@ -42,6 +42,7 @@ jobs:
             libsqlite3-dev \
             libssl-dev \
             openssl \
+            pkg-config \
             sqlite3 \
             zlib1g-dev
 
@@ -63,7 +64,7 @@ jobs:
         run: |
           brew unlink gambit-scheme || true
           brew unlink ghostscript || true
-          brew install gcc jq openssl sqlite zlib
+          brew install gcc jq openssl pkg-config sqlite zlib
 
       - name: Select macOS Gerbil compiler
         if: runner.os == 'macOS'

@@ -35,6 +35,7 @@
 (export owner-items-source-path?
         parse-owner-items-source-file
         owner-items-syntax-fact-json
+        source-file::t
         source-file-path
         source-file-line-count
         source-file-package

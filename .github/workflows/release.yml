@@ -68,6 +68,7 @@ jobs:
             libsqlite3-dev \
             libssl-dev \
             openssl \
+            pkg-config \
             sqlite3 \
             zlib1g-dev
 

@@ -263,6 +263,7 @@
         top-form-path
         top-form-start
         top-form-end
+        source-file::t
         make-source-file
         source-file-path
         source-file-line-count
