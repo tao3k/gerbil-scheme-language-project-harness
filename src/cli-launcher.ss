@@ -13,7 +13,8 @@
         (only-in :std/sugar filter foldl ormap))
 (export main
         command-line-args
-        provider-command-line-args)
+        provider-command-line-args
+        register-static-command-dispatch!)
 
 ;;; Install boundary:
 ;;; - The native launcher is the command boundary. It dispatches subcommands
@@ -37,6 +38,12 @@
     ("agent" "gslph/src/commands/agent" gslph/src/commands/agent#agent-main)
     ("guide" "gslph/src/commands/guide" gslph/src/commands/guide#guide-main)
     ("info" "gslph/src/commands/info" gslph/src/commands/info#info-main)))
+
+(def static-command-dispatch [])
+
+;; : (-> (List StaticCommandDispatch) Void)
+(def (register-static-command-dispatch! entries)
+  (set! static-command-dispatch entries))
 
 (def +check-cache-version+ "check-full-output-cache.v3")
 
@@ -507,14 +514,17 @@
 ;;;   native search cannot accidentally pay parser/checker startup cost.
 ;; : (-> String (List String) Integer)
 (def (dispatch-dynamic-command command rest)
-  (let (entry (find-dynamic-command command +dynamic-command-dispatch+))
-    (if entry
-      (let (command-main
-            (begin
-              (ensure-runtime-loader!)
-              (dynamic-command-main (cadr entry) (caddr entry))))
-        (command-main rest))
-      (emit-help 2))))
+  (let (static-entry (find-dynamic-command command static-command-dispatch))
+    (if static-entry
+      ((cadr static-entry) rest)
+      (let (entry (find-dynamic-command command +dynamic-command-dispatch+))
+        (if entry
+          (let (command-main
+                (begin
+                  (ensure-runtime-loader!)
+                  (dynamic-command-main (cadr entry) (caddr entry))))
+            (command-main rest))
+          (emit-help 2))))))
 
 ;; : (-> String (List CommandDispatch) MaybeCommandDispatch)
 (def (find-dynamic-command command entries)
