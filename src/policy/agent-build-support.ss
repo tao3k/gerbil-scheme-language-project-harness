@@ -117,10 +117,12 @@
   (cond
    ((runtime-native-compile-safety-result? result)
     "build/runtime support compiles provider native executables through a direct gxc -exe path; route provider executables through the timeout-safe native wrapper so existing binaries survive compiler hangs")
-   ((runtime-native-fast-command-adapter-result? result)
-    "native fast source imports a full command adapter; keep native-fast entrypoints dependency-light or route the command through the provider dispatcher runtime path")
-   ((package-build-custom-system-result? result)
-    "package-level build.ss is drifting into a hand-written build system; keep build.ss on gxpkg plus clan/building, std/build-script, or std/make build-spec and move command/runtime behavior into package modules")
+    ((runtime-native-fast-command-adapter-result? result)
+     "native fast source imports a full command adapter; keep native-fast entrypoints dependency-light or route the command through the provider dispatcher runtime path")
+    ((package-build-framework-overreach-result? result)
+     "package-level build.ss is adding local phase/cache/stamp ownership on top of Gerbil's build surface; keep std/make or clan/building as the build owner and move cache/receipt policy into reusable harness APIs")
+    ((package-build-custom-system-result? result)
+     "package-level build.ss is drifting into a hand-written build system; keep build.ss on gxpkg plus clan/building, std/build-script, or std/make build-spec and move command/runtime behavior into package modules")
    (else
     "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers")))
 
@@ -230,10 +232,12 @@
   (cond
    ((runtime-native-compile-safety-result? result)
     "build-runtime-native-compile-safety")
-   ((runtime-native-fast-command-adapter-result? result)
-    "build-runtime-native-fast-command-adapter")
-   ((package-build-custom-system-result? result)
-    "package-build-custom-system")
+    ((runtime-native-fast-command-adapter-result? result)
+     "build-runtime-native-fast-command-adapter")
+    ((package-build-framework-overreach-result? result)
+     "package-build-framework-overreach")
+    ((package-build-custom-system-result? result)
+     "package-build-custom-system")
    (else "build-runtime-quality")))
 
 ;; : (-> DetectionResult String )
@@ -241,10 +245,12 @@
   (cond
    ((runtime-native-compile-safety-result? result)
     "native provider compile owner, direct gxc -exe dispatch, and missing native-wrapper delegation")
-   ((runtime-native-fast-command-adapter-result? result)
-    "native-fast source class plus parser-owned module import of a full command adapter")
-   ((package-build-custom-system-result? result)
-    "package build file, missing native Gerbil build surface, and manual build orchestration")
+    ((runtime-native-fast-command-adapter-result? result)
+     "native-fast source class plus parser-owned module import of a full command adapter")
+    ((package-build-framework-overreach-result? result)
+     "package build file, native Gerbil build surface, and local phase/cache/stamp ownership")
+    ((package-build-custom-system-result? result)
+     "package build file, missing native Gerbil build surface, and manual build orchestration")
    (else "at least two independent parser-owned groups")))
 
 ;; : (-> DetectionResult String )
@@ -252,10 +258,12 @@
   (cond
    ((runtime-native-compile-safety-result? result)
     "provider native binaries are compiled through build-support/native-wrapper-runtime.ss via gerbil-native-link or gerbil-native-diagnose")
-   ((runtime-native-fast-command-adapter-result? result)
-    "native-fast sources import only dependency-light modules; full commands run through harness_runtime in the native dispatcher")
-   ((package-build-custom-system-result? result)
-    "package build delegates to a native Gerbil surface: gxpkg plus :clan/building for src-root discovery, :std/build-script for simple package templates, or :std/make build-spec for ssi:/gsc:/FFI/native build forms")
+    ((runtime-native-fast-command-adapter-result? result)
+     "native-fast sources import only dependency-light modules; full commands run through harness_runtime in the native dispatcher")
+    ((package-build-framework-overreach-result? result)
+     "build.ss delegates source discovery and compilation to clan/building, std/build-script, or std/make; optional acceleration is exposed as a thin harness API around the existing build entrypoint")
+    ((package-build-custom-system-result? result)
+     "package build delegates to a native Gerbil surface: gxpkg plus :clan/building for src-root discovery, :std/build-script for simple package templates, or :std/make build-spec for ssi:/gsc:/FFI/native build forms")
    (else "Gerbil runtime wrapper source plus list command arguments")))
 
 ;; : (-> DetectionResult String )
@@ -263,10 +271,12 @@
   (cond
    ((runtime-native-compile-safety-result? result)
     "direct gxc -exe invocation inside provider native compile owners without native wrapper timeout and atomic replacement")
-   ((runtime-native-fast-command-adapter-result? result)
-    "src/*-fast entrypoints importing :commands/* adapters and forcing full command graphs through native link")
-   ((package-build-custom-system-result? result)
-    "hand-written compiler dispatch, GERBIL_LOADPATH/source-root management, or local mini build orchestration inside build.ss")
+    ((runtime-native-fast-command-adapter-result? result)
+     "src/*-fast entrypoints importing :commands/* adapters and forcing full command graphs through native link")
+    ((package-build-framework-overreach-result? result)
+     "downstream build.ss defining its own phase receipt, stamp cache, cache freshness, or phase-skip control plane on top of std/make or clan/building")
+    ((package-build-custom-system-result? result)
+     "hand-written compiler dispatch, GERBIL_LOADPATH/source-root management, or local mini build orchestration inside build.ss")
    (else "generated shell templates or sh -c pipelines")))
 
 ;; : (-> DetectionResult String )
@@ -274,10 +284,12 @@
   (cond
    ((runtime-native-compile-safety-result? result)
     "replace direct gxc -exe provider builds with compile-build-support-executable! for gerbil-native-link/gerbil-native-diagnose and pass tmp/final/source as argv")
-   ((runtime-native-fast-command-adapter-result? result)
-    "delete the native-fast wrapper or split a real dependency-light fast implementation; route full command behavior through the dispatcher harness_runtime path")
-   ((package-build-custom-system-result? result)
-    "replace the local build system with :clan/building plus all-gerbil-modules for src-root packages, :std/build-script defbuild-script for simple gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; keep CLI commands in src/cli or src/commands")
+    ((runtime-native-fast-command-adapter-result? result)
+     "delete the native-fast wrapper or split a real dependency-light fast implementation; route full command behavior through the dispatcher harness_runtime path")
+    ((package-build-framework-overreach-result? result)
+     "delete local phase/cache/stamp ownership from downstream build.ss; keep std/make or clan/building calls in place and move reusable acceleration/receipt behavior into a harness API that wraps the normal build entrypoint")
+    ((package-build-custom-system-result? result)
+     "replace the local build system with :clan/building plus all-gerbil-modules for src-root packages, :std/build-script defbuild-script for simple gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; keep CLI commands in src/cli or src/commands")
    (else
     "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers")))
 

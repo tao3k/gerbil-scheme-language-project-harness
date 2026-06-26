@@ -9,13 +9,20 @@
 
 (export package-build-file?
         package-build-quality-detection-prototypes
-        package-build-custom-system-result?)
+        package-build-custom-system-result?
+        package-build-framework-overreach-result?)
 
 ;; (List GroupName)
 (def +package-build-custom-system-required-groups+
   '("package-build-file"
     "missing-native-build-surface"
     "manual-build-orchestration"))
+
+;; (List GroupName)
+(def +package-build-framework-overreach-required-groups+
+  '("package-build-file"
+    "native-build-surface"
+    "local-build-state-owner"))
 
 ;; (List ModuleName)
 (def +package-build-canonical-modules+
@@ -82,18 +89,41 @@
 (def +package-build-shell-dispatch-callees+
   '("invoke" "run-process" "open-process"))
 
+;; (List String)
+(def +package-build-local-state-definition-markers+
+  '("build-cache"
+    "build-stamp"
+    "cache-fresh"
+    "delete-build-stamp"
+    "emit-phase-receipt"
+    "phase-receipt"
+    "write-build-stamp"))
+
+;; (List String)
+(def +package-build-local-state-binding-markers+
+  '("build-cache"
+    "build-stamp"
+    "cache-stamp"
+    "phase-receipt-schema"))
+
 ;;; Public detector surface:
 ;;; - Keep package build-system policy in one owner.
 ;;; - The caller decides when a SourceFile is in package-build scope.
 ;; : (-> (List DetectionPrototype))
 (def (package-build-quality-detection-prototypes)
   [(package-build-custom-system-detection-prototype)
+   (package-build-framework-overreach-detection-prototype)
    (package-build-shell-pipeline-detection-prototype)])
 
 ;; : (-> DetectionResult Boolean)
 (def (package-build-custom-system-result? result)
   (equal? (detection-result-prototype result)
           "package-build-custom-system-all-of"))
+
+;; : (-> DetectionResult Boolean)
+(def (package-build-framework-overreach-result? result)
+  (equal? (detection-result-prototype result)
+          "package-build-framework-overreach-all-of"))
 
 ;;; Package build custom-system detection is deliberately all-of:
 ;;; missing canonical shape alone is R025, and manual orchestration alone can be
@@ -113,6 +143,26 @@
     0
     +package-build-custom-system-required-groups+
     "package build custom-system drift requires scope, missing native build surface, and manual orchestration evidence")))
+
+;;; Framework-overreach detection catches the opposite failure mode from the
+;;; custom-system detector: build.ss imports std/make or clan/building, but then
+;;; recreates build-phase/cache ownership locally.  The repair is not to replace
+;;; Gerbil's build system; it is to keep cache/receipt policy in harness APIs
+;;; that wrap the normal build entrypoint.
+;; : (-> DetectionPrototype)
+(def (package-build-framework-overreach-detection-prototype)
+  (detection-prototype-extend
+   +all-of-detection-prototype+
+   (poo-source-pattern-detection-overlay 'prototype-composition)
+   (detection-prototype
+    "package-build-framework-overreach-all-of"
+    'all-of
+    [package-build-source-evidence
+     package-build-native-surface-evidence
+     package-build-local-state-owner-evidence]
+    0
+    +package-build-framework-overreach-required-groups+
+    "package build API overreach requires package scope, native build surface evidence, and local phase/cache/stamp ownership")))
 
 ;;; Shell pipeline detection stays separate from the broader custom-system
 ;;; detector so sh -c pipeline repair remains precise.
@@ -155,6 +205,39 @@
         "missing-native-build-surface"
         1
         (source-file-root-selector file))))
+
+;;; Positive native-surface evidence keeps framework-overreach separate from
+;;; custom build systems: this warning only fires when build.ss already uses the
+;;; upstream Gerbil build surface but adds a second local build-control layer.
+;; : (-> SourceFile MaybeEvidenceGroup)
+(def (package-build-native-surface-evidence file)
+  (and (package-build-file? file)
+       (package-build-canonical-build-shape? file)
+       (evidence-group
+        "native-build-surface"
+        1
+        (source-file-root-selector file))))
+
+;;; Local phase/cache/stamp ownership belongs in reusable harness APIs or
+;;; upstream std/make integration, not in every downstream package build.ss.
+;; : (-> SourceFile MaybeEvidenceGroup)
+(def (package-build-local-state-owner-evidence file)
+  (let* ((definitions (filter package-build-local-state-definition?
+                              (source-file-definitions file)))
+         (bindings (filter package-build-local-state-binding?
+                           (source-file-bindings file))))
+    (cond
+     ((pair? definitions)
+      (evidence-group
+       "local-build-state-owner"
+       (+ (length definitions) (length bindings))
+       (definition-selector (car definitions))))
+     ((pair? bindings)
+      (evidence-group
+       "local-build-state-owner"
+       (length bindings)
+       (binding-fact-selector (car bindings))))
+     (else #f))))
 
 ;;; Evidence boundary: keep only parser-owned calls that prove build.ss is
 ;;; coordinating compiler/process work instead of delegating to clan/building.
@@ -336,6 +419,28 @@
            (and (string? argument)
                 (string-contains argument needle)))
          (call-fact-arguments call)))
+
+;; : (-> DefinitionFact Boolean)
+(def (package-build-local-state-definition? definition)
+  (let (name (definition-name definition))
+    (and (string? name)
+         (ormap (cut string-contains name <>)
+                +package-build-local-state-definition-markers+))))
+
+;; : (-> BindingFact Boolean)
+(def (package-build-local-state-binding? binding)
+  (let (name (binding-fact-name binding))
+    (and (string? name)
+         (ormap (cut string-contains name <>)
+                +package-build-local-state-binding-markers+))))
+
+;; : (-> DefinitionFact Selector)
+(def (definition-selector definition)
+  (string-append (definition-path definition)
+                 ":"
+                 (number->string (definition-start definition))
+                 "-"
+                 (number->string (definition-end definition))))
 
 ;; : (-> SourceFile Selector)
 (def (source-file-root-selector file)

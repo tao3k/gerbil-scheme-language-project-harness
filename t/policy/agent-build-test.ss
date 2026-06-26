@@ -293,8 +293,8 @@
                      => #t)
               (check (not (not (member "shell-pipeline-literal" groups)))
                      => #t))))
-    (test-case "agent policy rejects package build custom build systems"
-          (let ((root ".run/policy-package-build-custom-system"))
+     (test-case "agent policy rejects package build custom build systems"
+           (let ((root ".run/policy-package-build-custom-system"))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
@@ -323,7 +323,40 @@
                      => #t)
               (check (not (not (member "missing-clan-build-environment" groups)))
                      => #t)
-              (check (not (not (member "manual-build-orchestration" groups)))
+               (check (not (not (member "manual-build-orchestration" groups)))
+                      => #t))))
+    (test-case "agent policy rejects package build framework overreach"
+          (let ((root "t/scenarios/policy/package-build-framework-overreach/input"))
+            (let* ((index (collect-project root))
+                   (findings (run-agent-policy index))
+                   (build-runtime-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (canonical-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (overreach-matching
+                    (filter
+                     (lambda (finding)
+                       (equal? (hash-get (type-finding-details finding)
+                                         'kind)
+                               "package-build-framework-overreach"))
+                     build-runtime-matching))
+                   (finding (car overreach-matching))
+                   (details (type-finding-details finding))
+                   (groups (hash-get details 'evidenceGroups)))
+              (check canonical-matching => [])
+              (check (length overreach-matching) => 1)
+              (check (type-finding-path finding) => "build.ss")
+              (check (hash-get details 'detectionCombiner)
+                     => "package-build-framework-overreach-all-of")
+              (check (hash-get details 'requiredGroups)
+                     => ["package-build-file"
+                         "native-build-surface"
+                         "local-build-state-owner"])
+              (check (not (not (member "package-build-file" groups)))
+                     => #t)
+              (check (not (not (member "native-build-surface" groups)))
+                     => #t)
+              (check (not (not (member "local-build-state-owner" groups)))
                      => #t))))
     (test-case "agent policy rejects package build without clan/building surface"
           (let ((root ".run/policy-package-build-canonical-shape"))
@@ -415,8 +448,8 @@
                     (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
               (check canonical-matching => [])
               (check runtime-matching => []))))
-    (test-case "agent policy accepts only-in clan/building package build"
-          (let ((root ".run/policy-package-build-canonical-only-in-clan-building"))
+     (test-case "agent policy accepts only-in clan/building package build"
+           (let ((root ".run/policy-package-build-canonical-only-in-clan-building"))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
@@ -425,6 +458,16 @@
             (write-text
              (string-append root "/build.ss")
              ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        (only-in :clan/building init-build-environment! all-gerbil-modules))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
+            (let* ((index (collect-project root))
+                   (findings (run-agent-policy index))
+                   (canonical-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (runtime-matching
+                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+               (check canonical-matching => [])
+               (check runtime-matching => []))))
+    (test-case "agent policy accepts thin harness build API declarations"
+          (let ((root "t/scenarios/policy/package-build-framework-overreach/expected"))
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching

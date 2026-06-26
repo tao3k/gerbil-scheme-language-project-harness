@@ -1,0 +1,55 @@
+((maxTotalMs . 25)
+ (observedTotalMs . 4)
+ (targetTotalMs . 15)
+ (regressionBudgetMs . 21)
+ (observedTimings
+  ((name . collect-before) (durationMs . 1))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 0)))
+ (targetRationale
+  .
+  "package-build-framework-overreach keeps build API policy scenario checks in a small fixture budget while protecting upstream std/make and clan/building ownership")
+ (maxCollectMs . 10)
+ (maxParseMs . 15)
+ (maxFileMs . 5)
+ (maxPhaseMs . 5)
+ (maxRssMb . 512)
+ (memoryMetric . resident-set-size)
+ (memoryUnit . "MB")
+ (iterations . 1)
+ (unit . "ms")
+ (purpose . "R020 package build scenario catches agent-written local phase/cache/stamp ownership layered on top of the native Gerbil build surface")
+ (feature . "package-build-framework-overreach")
+ (rule . "GERBIL-SCHEME-AGENT-R020")
+ (optimizationFocus . "keep std/make and clan/building as build owners; expose acceleration and receipts as harness APIs")
+ (inputShape . "build.ss imports std/make and clan/building, then defines local cache freshness, stamp writing, and phase receipt control")
+ (expectedRepair . "delete local phase/cache/stamp ownership, keep the native build call path, and use a thin gslph API declaration for project coverage")
+ (misuseGuard . "do not move build-system scheduling, dependency graph, or phase ownership into downstream build.ss")
+ (expectedReferencePattern . "package-build-framework-overreach")
+ (expectedReferenceExamples
+  "gerbil://std/make#make"
+  "gerbil://clan/building#all-gerbil-modules"
+  "gslph://build-api/source-coverage#gslph-source-coverage")
+ (expectedQualitySignals
+  "native-build-surface"
+  "local-build-state-owner"
+  "thin-harness-build-api"
+  "upstream-build-system-boundary")
+ (learnedStyleSources "gerbil://" "gslph")
+ (antiAiScaffoldIntent
+  .
+  "reject agent scaffolding that recreates build phase state locally after already choosing the Gerbil build framework")
+ (scenarioQualityAxes
+  "package-build"
+  "build-api-boundary"
+  "upstream-build-system"
+  "anti-ai-scaffold")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
+ (tags "build" "policy" "package-build" "std-make" "clan-building" "harness-api"))
