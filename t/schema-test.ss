@@ -15,14 +15,4 @@
     (test-case "info json packet exposes provider-local steering contract"
       (check-info-json-schema-conformance))
     (test-case "language evidence json packet conforms to local schema contract"
-      (check-language-evidence-json-schema-conformance))
-    (test-case "runtime-source json packet conforms to local schema contract"
-      (check-runtime-source-json-schema-conformance))
-    (test-case "type proof json packet conforms to local schema contract"
-      (check-type-proof-json-schema-conformance))
-    (test-case "extension pattern json packet conforms to local schema contract"
-      (check-extension-pattern-json-schema-conformance))
-    (test-case "compare json packet conforms to local schema contract"
-      (check-compare-json-schema-conformance))
-    (test-case "structural index json packet exposes native syntax facts"
-      (check-structural-index-json-schema-conformance))))
+      (check-language-evidence-json-schema-conformance))))

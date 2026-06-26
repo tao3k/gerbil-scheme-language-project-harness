@@ -20,12 +20,7 @@
         :policy/scenario-benchmark-test
         :policy/detection-test
         :policy/gerbil-utils-source-test)
-(export policy-test
-        project-policy-test)
-
-;; : TestSuite
-(def project-policy-test
-  (make-gxtest-policy-test "."))
+(export policy-test)
 
 ;; : TestSuite
 (def policy-test

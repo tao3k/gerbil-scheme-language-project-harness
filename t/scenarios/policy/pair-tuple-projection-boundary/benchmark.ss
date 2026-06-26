@@ -10,10 +10,10 @@
  (targetRationale
   .
   "observed baseline 4ms for pair-tuple-projection-boundary; target keeps values/call-with-values repair visible and maxTotalMs is the hard regression ceiling")
- (maxCollectMs . 1000)
- (maxParseMs . 750)
- (maxFileMs . 250)
- (maxPhaseMs . 100)
+ (maxCollectMs . 10)
+ (maxParseMs . 15)
+ (maxFileMs . 5)
+ (maxPhaseMs . 5)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

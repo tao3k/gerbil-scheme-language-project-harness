@@ -86,8 +86,36 @@
   (let (head (and (pair? datum) (car datum)))
     (if (member head +macro-definition-heads+)
       (formal-binding-facts-from-form relpath form datum "macro-formal")
-      (append (formal-binding-facts-from-form relpath form datum "formal")
+      (append (top-level-value-binding-facts-from-form relpath form datum)
+              (formal-binding-facts-from-form relpath form datum "formal")
               (binding-facts-from-stx relpath form (form-caller-name datum) '())))))
+
+;;; Top-level value definitions expose literal/identifier shape to policy
+;;; without making policy parse source text or concrete version strings.
+;; : (-> Relpath Form Datum BindingFactsFromForm )
+(def (top-level-value-binding-facts-from-form relpath form datum)
+  (let (head (and (pair? datum) (car datum)))
+    (if (top-level-value-definition-datum? datum)
+      (let* ((loc (stx-source form))
+             (name (cadr datum))
+             (value (caddr datum)))
+        [(make-binding-fact (datum->string name)
+                            (symbol->string head)
+                            relpath
+                            (source-start-line loc)
+                            (source-end-line loc)
+                            "top-level"
+                            (argument-type-name value '()))])
+      '())))
+
+;; : (-> Datum Boolean )
+(def (top-level-value-definition-datum? datum)
+  (and (pair? datum)
+       (member (car datum) '(def define))
+       (pair? (cdr datum))
+       (symbol? (cadr datum))
+       (pair? (cddr datum))
+       (null? (cdddr datum))))
 ;; formal-binding-facts-from-form
 ;;   : (-> Relpath Form Datum String (List BindingFact))
 ;;   | doc m%

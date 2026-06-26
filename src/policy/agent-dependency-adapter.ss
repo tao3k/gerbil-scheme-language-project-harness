@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-;;; Agent-facing dependency protocol adapter policy.
+;;; Agent-facing dependency protocol adapter policy over parser-owned facts.
 
 (import :parser/facade
         :policy/agent-support

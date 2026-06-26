@@ -9,6 +9,9 @@
         benchmark-default-max-parse-ms
         benchmark-default-max-file-ms
         benchmark-default-max-phase-ms
+        benchmark-default-observed-total-ms
+        benchmark-default-target-total-ms
+        benchmark-default-regression-budget-ms
         benchmark-default-max-rss-mb
         benchmark-default-memory-metric
         benchmark-default-memory-unit
@@ -18,8 +21,12 @@
         benchmark-fixture-missing-keys
         benchmark-fixture-memory-contract-pass?
         benchmark-fixture-observed-timings-contract-pass?
+        benchmark-fixture-integration-scope?
+        benchmark-fixture-timing-class-contract-pass?
         benchmark-fixture-contract-pass?
+        benchmark-elapsed-micros
         benchmark-elapsed-ms
+        benchmark-best-elapsed-micros
         benchmark-best-elapsed-ms
         benchmark-run
         benchmark-receipt-pass?)
@@ -29,17 +36,29 @@
 ;;   | doc m%
 ;;       Default wall-clock budget for policy scenario benchmark receipts.
 ;;     %
-(def benchmark-default-max-total-ms 1000)
+(def benchmark-default-max-total-ms 100)
 ;; : Integer
-(def benchmark-default-max-collect-ms 1000)
+(def benchmark-default-max-collect-ms 25)
 ;; : Integer
-(def benchmark-default-max-parse-ms 750)
+(def benchmark-default-max-parse-ms 15)
 ;; : Integer
-(def benchmark-default-max-file-ms 250)
+(def benchmark-default-max-file-ms 5)
 ;; : Integer
-(def benchmark-default-max-phase-ms 100)
+(def benchmark-default-max-phase-ms 5)
+;; : Integer
+(def benchmark-default-observed-total-ms 10)
+;; : Integer
+(def benchmark-default-target-total-ms 25)
+;; : Integer
+(def benchmark-default-regression-budget-ms 15)
 ;; : Integer
 (def benchmark-default-max-rss-mb 512)
+;; : Integer
+(def benchmark-hot-target-total-ms 25)
+;; : Integer
+(def benchmark-hot-max-total-ms 100)
+;; : Integer
+(def benchmark-integration-max-total-ms 1000)
 ;; : Symbol
 (def benchmark-default-memory-metric 'resident-set-size)
 ;; : String
@@ -82,6 +101,16 @@
 (def +benchmark-positive-integer-fields+
   '(iterations))
 
+;; +benchmark-integration-tags+
+;;   : (List String)
+;;   | doc m%
+;;       Tags for benchmarks that intentionally include source collection,
+;;       gxtest import closure, subprocess, cache, or launcher boundaries.
+;;     %
+(def +benchmark-integration-tags+
+  '("integration" "import-closure" "gxtest" "downstream"
+    "cold-path" "cache" "launcher" "subprocess"))
+
 ;; make-benchmark-fixture
 ;;   : (-> Symbol Symbol String String String (List Symbol) Alist)
 ;;   | doc m%
@@ -94,11 +123,12 @@
         (cons 'maxParseMs benchmark-default-max-parse-ms)
         (cons 'maxFileMs benchmark-default-max-file-ms)
         (cons 'maxPhaseMs benchmark-default-max-phase-ms)
-        (cons 'observedTotalMs benchmark-default-max-total-ms)
-        (cons 'targetTotalMs benchmark-default-max-total-ms)
-        (cons 'regressionBudgetMs 0)
+        (cons 'observedTotalMs benchmark-default-observed-total-ms)
+        (cons 'targetTotalMs benchmark-default-target-total-ms)
+        (cons 'regressionBudgetMs benchmark-default-regression-budget-ms)
         (cons 'observedTimings
-              '(((name . measure-best) (durationMs . 1000))))
+              `(((name . measure-best)
+                 (durationMs . ,benchmark-default-observed-total-ms))))
         (cons 'targetRationale
               "default generated benchmark fixture target")
         (cons 'maxRssMb benchmark-default-max-rss-mb)
@@ -261,6 +291,61 @@
                 (and (or (symbol? name) (string? name))
                      (benchmark-non-negative-number? duration-ms)))))))
 
+;; benchmark-tag-equal?
+;;   : (-> BenchmarkTagCandidate String Boolean)
+;;   | type BenchmarkTagCandidate = (U Symbol String)
+;;   | doc m%
+;;       Compare a fixture tag carried as a Scheme symbol or JSON string with
+;;       the normalized integration tag name.
+;;     %
+(def (benchmark-tag-equal? candidate tag)
+  (cond
+   ((symbol? candidate) (equal? (symbol->string candidate) tag))
+   ((string? candidate) (equal? candidate tag))
+   (else #f)))
+
+;; : (-> Alist String Boolean)
+(def (benchmark-fixture-tag? fixture tag)
+  (ormap (lambda (candidate)
+           (benchmark-tag-equal? candidate tag))
+         (benchmark-fixture-ref fixture 'tags)))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-integration-scope? fixture)
+  (ormap (lambda (tag)
+           (benchmark-fixture-tag? fixture tag))
+         +benchmark-integration-tags+))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-hot-timing-pass? fixture)
+  (let ((max-total-ms (benchmark-fixture-ref fixture 'maxTotalMs))
+        (target-total-ms (benchmark-fixture-ref fixture 'targetTotalMs))
+        (observed-total-ms (benchmark-fixture-ref fixture 'observedTotalMs)))
+    (and (<= max-total-ms benchmark-hot-max-total-ms)
+         (<= target-total-ms benchmark-hot-target-total-ms)
+         (<= observed-total-ms target-total-ms))))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-integration-timing-pass? fixture)
+  (let ((max-total-ms (benchmark-fixture-ref fixture 'maxTotalMs))
+        (target-total-ms (benchmark-fixture-ref fixture 'targetTotalMs))
+        (observed-total-ms (benchmark-fixture-ref fixture 'observedTotalMs)))
+    (and (< max-total-ms benchmark-integration-max-total-ms)
+         (< target-total-ms benchmark-integration-max-total-ms)
+         (< observed-total-ms benchmark-integration-max-total-ms)
+         (<= observed-total-ms target-total-ms))))
+
+;;; Timing class contract:
+;;; - Hot policy scenarios are the default and must keep a tight millisecond
+;;;   budget; this is where Gerbil/Gambit language idioms should pay off.
+;;; - Integration scenarios may include gxtest import closure, launcher, cache,
+;;;   or subprocess overhead, but must say so through tags and stay subsecond.
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-timing-class-contract-pass? fixture)
+  (if (benchmark-fixture-integration-scope? fixture)
+    (benchmark-fixture-integration-timing-pass? fixture)
+    (benchmark-fixture-hot-timing-pass? fixture)))
+
 ;; benchmark-fixture-contract-pass?
 ;;   : (-> Alist Boolean)
 ;;   | doc m%
@@ -272,29 +357,46 @@
        (benchmark-fixture-positive-integer-fields-pass? fixture)
        (benchmark-fixture-unit-contract-pass? fixture)
        (benchmark-fixture-observed-timings-contract-pass? fixture)
-       (benchmark-fixture-memory-contract-pass? fixture)))
+       (benchmark-fixture-memory-contract-pass? fixture)
+       (benchmark-fixture-timing-class-contract-pass? fixture)))
 
-;; benchmark-elapsed-ms
+;; benchmark-elapsed-micros
 ;;   : (-> (-> Value) Integer)
 ;;   | doc m%
-;;       Measure one benchmark thunk with the monotonic clock boundary hidden here.
+;;       Measure one benchmark thunk with microsecond precision.
+;;     %
+(def (benchmark-elapsed-micros thunk)
+  (let (start-micros (monotonic-micros))
+    (thunk)
+    (duration-micros start-micros (monotonic-micros))))
+
+;; benchmark-elapsed-ms
+;;   : (-> (-> Value) Number)
+;;   | doc m%
+;;       Return elapsed milliseconds while preserving sub-millisecond observations.
 ;;     %
 (def (benchmark-elapsed-ms thunk)
-  (let (start-ms (monotonic-ms))
-    (thunk)
-    (duration-ms start-ms (monotonic-ms))))
+  (/ (benchmark-elapsed-micros thunk) 1000.0))
 
-;; benchmark-best-elapsed-ms
+;; benchmark-best-elapsed-micros
 ;;   : (-> Integer (-> Value) Integer)
 ;;   | doc m%
-;;       Return the best elapsed time across positive attempts without hand-written recursion.
+;;       Return the best elapsed microseconds across positive attempts.
 ;;     %
-(def (benchmark-best-elapsed-ms attempts thunk)
+(def (benchmark-best-elapsed-micros attempts thunk)
   (if (<= attempts 0)
     (error "benchmark attempts must be positive" attempts)
     (apply min
-           (map (lambda (_) (benchmark-elapsed-ms thunk))
+           (map (lambda (_) (benchmark-elapsed-micros thunk))
                 (iota attempts)))))
+
+;; benchmark-best-elapsed-ms
+;;   : (-> Integer (-> Value) Number)
+;;   | doc m%
+;;       Return the best elapsed milliseconds across positive attempts.
+;;     %
+(def (benchmark-best-elapsed-ms attempts thunk)
+  (/ (benchmark-best-elapsed-micros attempts thunk) 1000.0))
 
 ;; benchmark-run
 ;;   : (-> Alist (-> Value) Alist)
@@ -302,10 +404,11 @@
 ;;       Run a fixture benchmark and return the complete receipt expected by tests.
 ;;     %
 (def (benchmark-run fixture thunk)
-  (let* ((elapsed-ms
-          (benchmark-best-elapsed-ms
+  (let* ((elapsed-micros
+          (benchmark-best-elapsed-micros
            (benchmark-fixture-ref fixture 'iterations)
            thunk))
+         (elapsed-ms (/ elapsed-micros 1000.0))
          (max-total-ms
           (benchmark-fixture-ref fixture 'maxTotalMs)))
     (list (cons 'rule (benchmark-fixture-ref fixture 'rule))
@@ -316,6 +419,7 @@
           (cons 'expectedRepair
                 (benchmark-fixture-ref fixture 'expectedRepair))
           (cons 'elapsedMs elapsed-ms)
+          (cons 'elapsedMicros elapsed-micros)
           (cons 'maxTotalMs max-total-ms)
           (cons 'observedTotalMs
                 (benchmark-fixture-ref fixture 'observedTotalMs))

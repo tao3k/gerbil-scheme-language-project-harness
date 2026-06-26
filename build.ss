@@ -24,7 +24,7 @@
    (flag 'optimized "-O" "--optimized"
          help: "Accept gxpkg optimized build mode")
    (flag 'release "-R" "--release"
-         help: "Build static release executables")
+         help: "Build optimized release executables")
    (flag 'binary "--binary"
          help: "Build the package-local development CLI executable under .bin")
    (flag 'full "--full"
@@ -56,7 +56,7 @@
                              no-optimize: (no-optimize #f)
                              optimized: (optimized #f)
                              release: (release #f))
-  (help: "Install gslph into $HOME/.local/bin"
+  (help: "Install optimized release gslph into $HOME/.local/bin"
    getopt: compile-getopt)
   (install-target verbose debug no-optimize optimized release))
 

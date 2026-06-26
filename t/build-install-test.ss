@@ -25,6 +25,20 @@
         (check (member "t/parser-test.ss" files) ? true)
         (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
       (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
+    (test-case "gxtest build spec stays scoped to top-level test entries"
+      (configure-build-root! (current-directory))
+      (let (stage (gxtest-test-spec))
+        (check (member "policy-test.ss" stage) ? true)
+        (check (member "policy/agent-build-test.ss" stage) => #f)
+        (check (member "unit/schema/conformance.ss" stage) => #f)
+        (check (member "snapshot/policy.ss" stage) => #f)))
+    (test-case "test phase receipts are machine parseable"
+      (check (test-phase-receipt-line "run-gxtest" 1234)
+             => "[gslph-test-phase] name=run-gxtest elapsedMicros=1234 elapsedMs=1\n"))
+    (test-case "parallel gxtest worker count is bounded by file count"
+      (let (workers (test-runner-worker-count 2))
+        (check (>= workers 1) => #t)
+        (check (<= workers 2) => #t)))
     (test-case "default package spec exposes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #f))

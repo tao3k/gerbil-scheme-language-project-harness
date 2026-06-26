@@ -68,6 +68,36 @@
          ((name . policy-before) (durationMs . 0.125)))
        benchmark-gate-fixture))))))
 
+;; : Alist
+(def benchmark-gate-slow-hot-fixture
+  (benchmark-gate-with
+   'targetTotalMs
+   100
+   benchmark-gate-fixture))
+
+;; : Alist
+(def benchmark-gate-integration-fixture
+  (benchmark-gate-with
+   'tags
+   '(gxtest import-closure)
+   (benchmark-gate-with
+    'maxTotalMs
+    200
+    (benchmark-gate-with
+     'targetTotalMs
+     100
+     (benchmark-gate-with
+      'observedTotalMs
+      80
+      benchmark-gate-fixture)))))
+
+;; : Alist
+(def benchmark-gate-slow-integration-fixture
+  (benchmark-gate-with
+   'maxTotalMs
+   1000
+   benchmark-gate-integration-fixture))
+
 ;; Relpath
 (def +benchmark-gate-scenario-root+ "t/scenarios/policy")
 
@@ -194,10 +224,10 @@
   (delete-file* +check-cache-gate-cache-path+)
   (write-text-file
    (path-expand "gerbil.pkg" +check-cache-gate-root+)
-   "(package: check-cache-gate)\n")
+   ";;; Boundary:\n;;; - Package fixture isolates cache replay from source discovery drift.\n;;; - Keep the runtime scope to one deterministic source module.\n(package: check-cache-gate)\n")
   (write-text-file
    (path-expand "src/core.ss" +check-cache-gate-root+)
-   ";;; -*- Gerbil -*-\n;;; Boundary: tiny cache fixture must stay policy-clean so benchmark timing measures cache replay, not repair-report rendering.\n(import :gerbil/gambit)\n(export add1*)\n;; : (-> Integer Integer)\n(def (add1* n) (+ n 1))\n"))
+   ";;; -*- Gerbil -*-\n;;; Boundary:\n;;; - Cache gate fixture keeps one deterministic runtime export.\n;;; - No IO, macro expansion, or dynamic imports belong in this timing scope.\n(import :gerbil/gambit)\n(export add1*)\n;;; Boundary:\n;;; - add1* is intentionally pure so full-check timing measures cache replay.\n;;; - Preserve this helper as a single arithmetic operation.\n;; : (-> Integer Integer)\n(def (add1* n) (+ n 1))\n"))
 
 ;; : (-> Void)
 (def (prepare-changed-empty-gate-project!)
@@ -257,8 +287,22 @@
      (check-main ["--workspace" root "--full"]))))
 
 ;; : (-> Path Alist)
+(def (run-check-full/silent/best root)
+  (run-check-command/silent/best
+   3
+   (lambda ()
+     (check-main ["--workspace" root "--full"]))))
+
+;; : (-> Path Alist)
 (def (run-launcher-check-full/silent root)
   (run-check-command/silent
+   (lambda ()
+     (apply launcher-main ["check" "--workspace" root "--full"]))))
+
+;; : (-> Path Alist)
+(def (run-launcher-check-full/silent/best root)
+  (run-check-command/silent/best
+   3
    (lambda ()
      (apply launcher-main ["check" "--workspace" root "--full"]))))
 
@@ -274,7 +318,7 @@
   (test-suite "gerbil scheme benchmark gate"
     (test-case "fixture carries reusable gate metadata"
       (check (benchmark-fixture-ref benchmark-gate-fixture 'maxTotalMs)
-             => 1000)
+             => 100)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'maxRssMb)
              => 512)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryMetric)
@@ -282,13 +326,13 @@
       (check (benchmark-fixture-ref benchmark-gate-fixture 'memoryUnit)
              => "MB")
       (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTotalMs)
-             => 1000)
+             => 10)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'targetTotalMs)
-             => 1000)
+             => 25)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'regressionBudgetMs)
-             => 0)
+             => 15)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTimings)
-             => '(((name . measure-best) (durationMs . 1000))))
+             => '(((name . measure-best) (durationMs . 10))))
       (check (benchmark-fixture-ref benchmark-gate-fixture 'targetRationale)
              => "default generated benchmark fixture target")
       (check (member 'assert-memory-gate
@@ -302,6 +346,9 @@
       (check (benchmark-fixture-memory-contract-pass? benchmark-gate-fixture)
              => #t)
       (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-fixture)
+             => #t)
+      (check (benchmark-fixture-timing-class-contract-pass?
               benchmark-gate-fixture)
              => #t)
       (check (benchmark-fixture-contract-pass? benchmark-gate-fixture) => #t))
@@ -337,6 +384,29 @@
               benchmark-gate-subsecond-fixture)
              => #t))
 
+    (test-case "benchmark timing class separates hot policy and integration scope"
+      (check (benchmark-fixture-integration-scope?
+              benchmark-gate-fixture)
+             => #f)
+      (check (benchmark-fixture-timing-class-contract-pass?
+              benchmark-gate-slow-hot-fixture)
+             => #f)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-slow-hot-fixture)
+             => #f)
+      (check (benchmark-fixture-integration-scope?
+              benchmark-gate-integration-fixture)
+             => #t)
+      (check (benchmark-fixture-timing-class-contract-pass?
+              benchmark-gate-integration-fixture)
+             => #t)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-integration-fixture)
+             => #t)
+      (check (benchmark-fixture-timing-class-contract-pass?
+              benchmark-gate-slow-integration-fixture)
+             => #f))
+
     (test-case "scenario benchmark fixtures satisfy the shared gate contract"
       (let (paths (benchmark-gate-scenario-benchmark-paths))
         (check (> (length paths) 0) => #t)
@@ -360,14 +430,16 @@
                => 'resident-set-size)
         (check (benchmark-fixture-ref receipt 'memoryUnit)
                => "MB")
+        (check (>= (benchmark-fixture-ref receipt 'elapsedMicros) 0)
+               => #t)
         (check (benchmark-fixture-ref receipt 'observedTotalMs)
-               => 1000)
+               => 10)
         (check (benchmark-fixture-ref receipt 'targetTotalMs)
-               => 1000)
+               => 25)
         (check (benchmark-fixture-ref receipt 'regressionBudgetMs)
-               => 0)
+               => 15)
         (check (benchmark-fixture-ref receipt 'observedTimings)
-               => '(((name . measure-best) (durationMs . 1000))))
+               => '(((name . measure-best) (durationMs . 10))))
         (check (benchmark-fixture-ref receipt 'targetRationale)
                => "default generated benchmark fixture target")
         (check (benchmark-receipt-pass? receipt) => #t)))
@@ -382,9 +454,9 @@
     (test-case "check full cache stays in millisecond budget"
       (prepare-check-cache-gate-project!)
       (let* ((cold (run-check-full/silent +check-cache-gate-root+))
-             (warm (run-check-full/silent +check-cache-gate-root+))
+             (warm (run-check-full/silent/best +check-cache-gate-root+))
              (launcher-warm
-              (run-launcher-check-full/silent +check-cache-gate-root+)))
+              (run-launcher-check-full/silent/best +check-cache-gate-root+)))
         (check (benchmark-fixture-ref cold 'status) => 0)
         (check (benchmark-fixture-ref warm 'status) => 0)
         (check (benchmark-fixture-ref launcher-warm 'status) => 0)

@@ -10,10 +10,10 @@
  (targetRationale
   .
   "observed baseline 9ms for concurrency-control-boundary; target keeps optimization visible and maxTotalMs is the hard regression ceiling")
- (maxCollectMs . 1000)
- (maxParseMs . 750)
- (maxFileMs . 250)
- (maxPhaseMs . 100)
+ (maxCollectMs . 10)
+ (maxParseMs . 15)
+ (maxFileMs . 5)
+ (maxPhaseMs . 6)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

@@ -8,10 +8,9 @@
         (only-in :std/srfi/13 string-prefix? string-suffix? string-tokenize)
         (only-in :clan/building all-gerbil-modules)
         "../src/build-api/source-coverage"
+        (only-in "../src/support/time" monotonic-micros duration-micros)
         :gerbil/gambit
-        (only-in :gerbil/compiler/base __available-cores)
-        (only-in :gerbil/compiler/driver compile-exe)
-        (rename-in :gerbil/tools/gxtest (main gxtest-main)))
+        (only-in :gerbil/compiler/base __available-cores))
 (export compile-target
         install-target
         compile-spec
@@ -21,6 +20,8 @@
         gxtest-test-spec
         gxtest-test-files
         install-launcher-binpath
+        test-phase-receipt-line
+        test-runner-worker-count
         test-target
         package-build-spec)
 
@@ -98,11 +99,50 @@
     (substring path 2 (string-length path))
     path))
 
-(def excluded-library-files
-  '("cli.ss"))
+;; : (-> String Integer String)
+(def (test-phase-receipt-line name elapsed-micros)
+  (string-append "[gslph-test-phase] name=" name
+                 " elapsedMicros=" (number->string elapsed-micros)
+                 " elapsedMs=" (number->string (quotient elapsed-micros 1000))
+                 "\n"))
 
-(def cli-spec
-  '((exe: "cli-release-linker" bin: "gslph")))
+;; : (-> String Integer Void)
+(def (display-test-phase-receipt name elapsed-micros)
+  (display (test-phase-receipt-line name elapsed-micros))
+  (force-output))
+
+;; : (-> String (-> Value) Value)
+(def (run-test-phase name thunk)
+  (let (start-micros (monotonic-micros))
+    (let (result (thunk))
+      (display-test-phase-receipt
+       name
+       (duration-micros start-micros (monotonic-micros)))
+      result)))
+
+(def excluded-library-files
+  '("cli.ss"
+    "cli-dev-linker.ss"
+    "cli-install-linker.ss"
+    "cli-launcher.ss"
+    "cli-release-linker.ss"))
+
+(def (cli-exe-spec type root)
+  [(append [type root bin: "gslph"]
+           +cli-gsc-options+)])
+
+(def (cli-dev-spec)
+  (cli-exe-spec optimized-exe: "cli-dev-linker"))
+
+(def (cli-release-spec)
+  (cli-exe-spec optimized-exe: "cli-release-linker"))
+
+(def (cli-install-spec)
+  (cli-exe-spec optimized-exe: "cli-install-linker"))
+
+(def (cli-install-module-spec)
+  (append (runtime-library-spec)
+          '("cli-launcher.ss")))
 
 (def cli-bootstrap-modules
   '("constants.ss"
@@ -118,8 +158,6 @@
     "commands/guide.ss"
     "commands/info.ss"
     "search-light-launcher.ss"
-    "cli-launcher.ss"
-    "cli-release-linker.ss"
     "build-api/source-coverage.ss"
     "policy/gxtest.ss"
     "support/time.ss"
@@ -131,12 +169,6 @@
 
 (def +default-excluded-dirs+
   '("run" "t" ".git" "_darcs" ".gerbil"))
-
-(def +test-support-dirs+
-  '("unit" "snapshot" "policy"))
-
-(def +test-support-warning-rules+
-  '("GERBIL-SCHEME-MOD-R007"))
 
 ;; : (-> (Or String False))
 (def (openssl-prefix)
@@ -188,14 +220,19 @@
               '("-lssl" "-lcrypto"))
       options)))
 
-;; : (-> String (List String) (List String))
-(def (gsc-option-pairs flag options)
+;; : (-> (List String) String)
+(def (join-gsc-options options)
   (match options
-    ([]
-     [])
+    ([] "")
+    ([option] option)
     ([option . rest]
-     (append [flag option]
-             (gsc-option-pairs flag rest)))))
+     (string-append option " " (join-gsc-options rest)))))
+
+;; : (-> String (List String) (List String))
+(def (gsc-option flag options)
+  (if (null? options)
+    []
+    [flag (join-gsc-options options)]))
 
 (def +cli-cc-options+
   (openssl-cc-options))
@@ -204,12 +241,25 @@
   (openssl-ld-options))
 
 (def +cli-gsc-options+
-  (append (gsc-option-pairs "-cc-options" +cli-cc-options+)
-          (gsc-option-pairs "-ld-options" +cli-linker-options+)))
+  (append (gsc-option "-cc-options" +cli-cc-options+)
+          (gsc-option "-ld-options" +cli-linker-options+)))
 
-;; : (-> (List BuildSpec))
-(def (cli-binary-spec)
-  (append cli-bootstrap-modules cli-spec))
+;; : (-> Boolean (List BuildSpec))
+(def (cli-binary-module-spec release?)
+  (if release?
+    (runtime-library-spec)
+    cli-bootstrap-modules))
+
+;; : (-> Boolean (List BuildSpec))
+(def (cli-binary-exe-spec release?)
+  (if release?
+    (cli-release-spec)
+    (cli-dev-spec)))
+
+;; : (-> Boolean (List BuildSpec))
+(def (cli-binary-spec release?)
+  (append (cli-binary-module-spec release?)
+          (cli-binary-exe-spec release?)))
 
 ;; : (-> ModulePath Boolean)
 (def (runtime-library-module? module)
@@ -226,15 +276,6 @@
 ;; : (-> (List BuildSpec))
 (def (runtime-library-spec)
   (filter runtime-library-module? (all-package-gerbil-modules)))
-
-;; : (-> (List BuildSpec))
-(def (test-support-spec)
-  (apply append
-         (map (lambda (rel-root)
-                (gerbil-modules-in-directory
-                 (path-expand rel-root test-root)
-                 rel-root))
-              +test-support-dirs+)))
 
 ;; : (-> (List BuildSpec))
 (def (build-support-spec)
@@ -296,12 +337,12 @@
 ;; : (-> (List BuildSpec))
 (def (package-build-spec)
   (ensure-build-root!)
-  (append (runtime-library-spec) cli-spec))
+  (append (runtime-library-spec) (cli-release-spec)))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (build-spec release?)
   (if release?
-    (cli-binary-spec)
+    (cli-binary-spec #t)
     (library-spec)))
 
 ;; : (-> Boolean Boolean Boolean (List BuildSpec))
@@ -309,8 +350,8 @@
   (ensure-build-root!)
   (cond
    (full? (library-spec))
-   (release? (cli-binary-spec))
-   (binary? (cli-binary-spec))
+   (release? (cli-binary-spec #t))
+   (binary? (cli-binary-spec #f))
    (else (library-spec))))
 
 ;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Boolean Void)
@@ -336,45 +377,51 @@
 (def (install-target verbose debug no-optimize optimized release)
   (ensure-build-root!)
   (current-directory package-root)
-  (let* ((build-optimize? (and optimized (not no-optimize)))
+  (let* ((install-release? (or release #t))
+         (install-optimized? (or optimized install-release?))
+         (build-optimize? (and install-optimized? (not no-optimize)))
          (worker-count (sync-build-worker-count!)))
-    (compile-cli-binary (install-launcher-binpath)
-                        verbose debug build-optimize?
-                        release release optimized
-                        worker-count)
+    (compile-install-binary (install-launcher-binpath)
+                            verbose debug build-optimize?
+                            install-release? install-optimized?
+                            worker-count)
     #!void))
+
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Integer Path)
+(def (compile-install-binary binpath verbose debug build-optimize?
+                             effective-release? effective-optimized?
+                             worker-count)
+  (make-target (cli-install-module-spec)
+               verbose debug build-optimize?
+               effective-release? effective-optimized?
+               worker-count)
+  (make-target/bindir (cli-install-spec)
+                      verbose debug build-optimize?
+                      effective-release? effective-optimized?
+                      1
+                      (path-directory binpath))
+  (cleanup-compile-exe-artifacts! binpath)
+  binpath)
 
 ;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Integer Path)
 (def (compile-cli-binary binpath verbose debug build-optimize?
                          release? effective-release? effective-optimized?
                          worker-count)
-  (make-target (cli-binary-build-spec release?)
+  (make-target (cli-binary-module-spec release?)
                verbose debug build-optimize?
                effective-release? effective-optimized?
                worker-count)
-  (compile-cli-launcher-exe binpath verbose debug build-optimize?))
+  (make-target/bindir (cli-binary-exe-spec release?)
+                      verbose debug build-optimize?
+                      effective-release? effective-optimized?
+                      1
+                      (path-directory binpath))
+  (cleanup-compile-exe-artifacts! binpath)
+  binpath)
 
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-build-spec release?)
-  (if release?
-    (runtime-library-spec)
-    cli-bootstrap-modules))
-
-;; : (-> Path Boolean Boolean Boolean Path)
-(def (compile-cli-launcher-exe binpath verbose debug build-optimize?)
-  (let (bindir (path-directory binpath))
-    (ensure-directory! bindir)
-    (compile-exe (path-expand "cli-release-linker.ss" source-root)
-                 [invoke-gsc: #t
-                  output-file: binpath
-                  keep-scm: #f
-                  verbose: (and verbose 9)
-                  debug: (and debug 'env)
-                  full-program-optimization: build-optimize?
-                  gsc-options: +cli-gsc-options+
-                  parallel: #f])
-    (cleanup-compile-exe-artifacts! binpath)
-    binpath))
+  (cli-binary-spec release?))
 
 ;; : (-> Path Void)
 (def (delete-file* path)
@@ -392,7 +439,7 @@
     (for-each
      (lambda (suffix)
        (delete-file* (path-expand (string-append prefix suffix) bindir)))
-     '(".c" "_.c" ".scm"))))
+     '(".c" "_.c" ".scm" ".o" "_.o"))))
 
 ;; : (-> Path)
 (def (dev-launcher-binpath)
@@ -431,6 +478,22 @@
     prefix: (source-output-prefix)
     srcdir: source-root))
 
+;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Path Void)
+(def (make-target/bindir spec verbose debug build-optimize?
+                         effective-release? effective-optimized?
+                         worker-count bindir)
+  (ensure-directory! bindir)
+  (make spec
+    verbose: (and verbose 9)
+    debug: (and debug 'env)
+    optimize: build-optimize?
+    build-release: effective-release?
+    build-optimized: effective-optimized?
+    parallelize: worker-count
+    bindir: bindir
+    prefix: (source-output-prefix)
+    srcdir: source-root))
+
 ;; : (-> Integer)
 (def (build-worker-count)
   (let* ((raw (getenv "GERBIL_BUILD_CORES" #f))
@@ -446,6 +509,138 @@
   (let (worker-count (build-worker-count))
     (set! __available-cores worker-count)
     worker-count))
+
+;; : (-> Integer Integer)
+(def (test-runner-worker-count file-count)
+  (min (max 1 file-count) (build-worker-count)))
+
+;; : (-> Datum String)
+(def (datum-string value)
+  (call-with-output-string
+    (lambda (out)
+      (write value out))))
+
+;; : (-> Path String)
+(def (gxtest-file-expression file)
+  (string-append "(begin"
+                 " (add-load-path! \".\")"
+                 " (add-load-path! \"src\")"
+                 " (add-load-path! \"t\")"
+                 " (import :gerbil/tools/gxtest)"
+                 " (main "
+                 (datum-string file)
+                 "))"))
+
+;; : (-> Integer Integer)
+(def (normalized-exit-status status)
+  (cond
+   ((and (integer? status) (> status 255))
+    (quotient status 256))
+   ((integer? status) status)
+   (else 1)))
+
+;; : (-> Path GxTestResult)
+(def (run-gxtest-file/subprocess file)
+  (let ((status 0)
+        (start-micros (monotonic-micros)))
+    (let (output
+          (run-process ["gxi" "-e" (gxtest-file-expression file)]
+                       directory: package-root
+                       stderr-redirection: #t
+                       check-status:
+                       (lambda (exit-status _settings)
+                         (set! status
+                           (normalized-exit-status exit-status)))))
+      (list file
+            status
+            output
+            (duration-micros start-micros (monotonic-micros))))))
+
+;; : (-> GxTestResult Path)
+(def (gxtest-result-file result)
+  (list-ref result 0))
+
+;; : (-> GxTestResult Integer)
+(def (gxtest-result-status result)
+  (list-ref result 1))
+
+;; : (-> GxTestResult String)
+(def (gxtest-result-output result)
+  (list-ref result 2))
+
+;; : (-> GxTestResult Integer)
+(def (gxtest-result-elapsed-micros result)
+  (list-ref result 3))
+
+;; : (-> Integer (-> Void) (List Thread))
+(def (spawn-test-workers count thunk)
+  (let loop ((remaining count) (threads []))
+    (if (<= remaining 0)
+      threads
+      (loop (- remaining 1)
+            (cons (spawn thunk) threads)))))
+
+;; : (-> (List Path) Integer (List GxTestResult))
+(def (parallel-gxtest-results files worker-count)
+  (let* ((items (list->vector files))
+         (count (vector-length items))
+         (results (make-vector count #f))
+         (next-index 0)
+         (index-mx (make-mutex 'gxtest-runner-index)))
+    (def (take-index)
+      (with-lock index-mx
+        (lambda ()
+          (if (< next-index count)
+            (let (index next-index)
+              (set! next-index (+ next-index 1))
+              index)
+            #f))))
+    (def (worker)
+      (let loop ()
+        (let (index (take-index))
+          (when index
+            (vector-set! results
+                         index
+                         (run-gxtest-file/subprocess
+                          (vector-ref items index)))
+            (loop)))))
+    (let (threads (spawn-test-workers worker-count worker))
+      (for-each thread-join! threads)
+      (vector->list results))))
+
+;; : (-> GxTestResult Void)
+(def (display-gxtest-result result)
+  (display (gxtest-result-output result))
+  (display-test-phase-receipt
+   (string-append "run:" (gxtest-result-file result))
+   (gxtest-result-elapsed-micros result)))
+
+;; : (-> (List GxTestResult) Integer)
+(def (first-failure-status results)
+  (let loop ((rest results))
+    (cond
+     ((null? rest) 0)
+     ((zero? (gxtest-result-status (car rest)))
+      (loop (cdr rest)))
+     (else (gxtest-result-status (car rest))))))
+
+;; : (-> (List Path) Void)
+(def (run-gxtest-files files)
+  (let* ((worker-count (test-runner-worker-count (length files)))
+         (results (parallel-gxtest-results files worker-count))
+         (status (first-failure-status results)))
+    (display (string-append "[gslph-test-runner] files="
+                            (number->string (length files))
+                            " jobs="
+                            (number->string worker-count)
+                            "\n"))
+    (force-output)
+    (for-each display-gxtest-result results)
+    (if (zero? status)
+      (begin
+        (display "OK\n")
+        (force-output))
+      (exit status))))
 
 ;; : (-> Boolean Boolean)
 (def (darwin-release? release?)
@@ -476,29 +671,34 @@
   (ensure-build-root!)
   (current-directory package-root)
   (let (worker-count (sync-build-worker-count!))
-    (make (library-spec)
-      optimize: #f
-      parallelize: worker-count
-      prefix: (source-output-prefix)
-      srcdir: source-root)
-    (make (build-support-spec)
-      optimize: #f
-      parallelize: worker-count
-      prefix: (package-root-output-prefix)
-      srcdir: package-root)
-    (let (support-spec (test-support-spec))
-      (unless (null? support-spec)
-        (make support-spec
-          optimize: #f
-          parallelize: worker-count
-          prefix: (test-output-prefix)
-          srcdir: test-root)))
-    (make (gxtest-test-spec)
-      optimize: #f
-      parallelize: worker-count
-      prefix: (test-output-prefix)
-      srcdir: test-root))
+    (run-test-phase
+     "compile-library"
+     (lambda ()
+       (make (library-spec)
+         optimize: #f
+         parallelize: worker-count
+         prefix: (source-output-prefix)
+         srcdir: source-root)))
+    (run-test-phase
+     "compile-build-support"
+     (lambda ()
+       (make (build-support-spec)
+         optimize: #f
+         parallelize: worker-count
+         prefix: (package-root-output-prefix)
+         srcdir: package-root)))
+    (run-test-phase
+     "compile-test-entry"
+     (lambda ()
+       (make (gxtest-test-spec)
+         optimize: #f
+         parallelize: worker-count
+         prefix: (test-output-prefix)
+         srcdir: test-root))))
   (let (tests (gxtest-test-files))
     (if (null? tests)
       (error "no top-level Gerbil test files found")
-      (apply gxtest-main tests))))
+      (run-test-phase
+       "run-gxtest"
+       (lambda ()
+         (run-gxtest-files tests))))))

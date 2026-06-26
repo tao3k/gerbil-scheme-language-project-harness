@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-;;; POO-composed dependency adapter repair profiles.
+;;; POO-composed dependency adapter repair profiles for policy payloads.
 
 (import :parser/facade
         :policy/prototype

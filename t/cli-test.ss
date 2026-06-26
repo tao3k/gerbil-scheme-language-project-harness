@@ -4,12 +4,13 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
+        (only-in :std/sugar ormap)
         "../build-support/gslph-build"
         (only-in :cli-launcher provider-command-line-args)
         (only-in :commands/agent agent-main))
 (export cli-test)
 
-;; CliTest
+;; : TestSuite
 (def cli-test
   (test-suite "gerbil scheme harness CLI"
     (test-case "provider argv keeps direct subcommands"
@@ -36,19 +37,47 @@
       (check (provider-command-line-args
               ["gxi" "src/cli.ss" "bogus"])
              => ["bogus"]))
-    (test-case "release build spec uses static linker root"
+    (test-case "release build spec uses native exe linker root"
       (let (spec (compile-spec #f #t #f))
-        (check (member "cli-release-linker.ss" spec) ? true)
-        (check (member '(exe: "cli-release-linker" bin: "gslph") spec) ? true)
-        (check (member '(exe: "cli-launcher" bin: "gslph") spec) => #f)))
+        (check (member "cli-release-linker.ss" spec) => #f)
+        (check (ormap (lambda (entry)
+                        (match entry
+                          ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
+                          (_ #f)))
+                      spec)
+               => #t)
+        (check (ormap (lambda (entry)
+                        (match entry
+                          ([optimized-exe: "cli-dev-linker" bin: "gslph" . _] #t)
+                          (_ #f)))
+                      spec)
+               => #f)))
     (test-case "release binary builds runtime module graph"
       (let (spec (cli-binary-build-spec #t))
-        (check (member "cli-release-linker.ss" spec) ? true)
+        (check (member "cli-release-linker.ss" spec) => #f)
+        (check (ormap (lambda (entry)
+                        (match entry
+                          ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
+                          (_ #f)))
+                      spec)
+               => #t)
         (check (member "parser/model.ss" spec) ? true)
         (check (member "policy/core.ss" spec) ? true)))
     (test-case "non-release binary build spec stays bootstrap scoped"
       (let (spec (cli-binary-build-spec #f))
-        (check (member "cli-release-linker.ss" spec) ? true)
+        (check (member "cli-dev-linker.ss" spec) => #f)
+        (check (ormap (lambda (entry)
+                        (match entry
+                          ([optimized-exe: "cli-dev-linker" bin: "gslph" . _] #t)
+                          (_ #f)))
+                      spec)
+               => #t)
+        (check (ormap (lambda (entry)
+                        (match entry
+                          ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
+                          (_ #f)))
+                      spec)
+               => #f)
         (check (member "parser/model.ss" spec) => #f)
         (check (member "policy/core.ss" spec) => #f)))
     (test-case "default compile spec builds full harness and benchmark gate helper"

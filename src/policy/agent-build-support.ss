@@ -88,8 +88,10 @@
 ;;;   loop that could merge independent policy evidence.
 ;; : (-> SourceFile (List TypeFinding) )
 (def (build-runtime-quality-findings/file file)
-  (map (cut build-runtime-quality-finding<- file <>)
-       (build-runtime-quality-detections file)))
+  (append
+   (map (cut build-runtime-quality-finding<- file <>)
+        (build-runtime-quality-detections file))
+   (runtime-cache-version-findings file)))
 
 ;;; Finding contract:
 ;;; - The detection combinator owns the multi-evidence decision.
@@ -127,6 +129,52 @@
 (def (build-runtime-quality-detection file)
   (let (results (build-runtime-quality-detections file))
     (and (pair? results) (car results))))
+
+;;; Release/cache invariant:
+;;; - Cache schema format versions may stay literal because they describe data
+;;;   shape.
+;;; - Runtime cache version identities must derive from +release-version+ so
+;;;   launcher and command cache producers cannot drift after release bumps.
+;; : (-> SourceFile (List TypeFinding) )
+(def (runtime-cache-version-findings file)
+  (map (cut runtime-cache-version-finding file <>)
+       (filter cache-version-literal-binding?
+               (source-file-bindings file))))
+
+;;; Intentional raw data record:
+;;; - TypeFinding details cross the provider JSON boundary as diagnostic
+;;;   evidence.
+;;; - This is not runtime object construction or a dependency protocol adapter.
+;; : (-> SourceFile BindingFact TypeFinding )
+(def (runtime-cache-version-finding file binding)
+  (make-type-finding
+   (policy-rule-id +agent-build-runtime-quality-rule+)
+   (policy-rule-severity +agent-build-runtime-quality-rule+)
+   (source-file-path file)
+   "build/runtime cache version identity is hardcoded as a string; derive runtime cache version from +release-version+ and keep only the cache format version as a schema literal"
+   (binding-fact-selector binding)
+   (hash (kind "build-runtime-cache-version-release-drift")
+         (bindingName (binding-fact-name binding))
+         (bindingKind (binding-fact-kind binding))
+         (bindingScope (binding-fact-scope binding))
+         (valueType (binding-fact-value-type binding))
+         (requiredEvidence "parser-owned top-level cache-version binding with string value type")
+         (allowedShape "runtime cache version constants derive from +release-version+; cache format/schema constants may remain literal")
+         (disallowedShape "top-level cache-version constants whose value type is a string literal")
+         (next "import +release-version+ from :constants and define the runtime cache version from it; keep formatVersion as the separate cache schema literal"))))
+
+;; : (-> BindingFact Boolean )
+(def (cache-version-literal-binding? binding)
+  (and (cache-version-binding-name? (binding-fact-name binding))
+       (equal? (binding-fact-scope binding) "top-level")
+       (equal? (binding-fact-value-type binding) "string")))
+
+;; : (-> MaybeString Boolean )
+(def (cache-version-binding-name? name)
+  (and (string? name)
+       (string-contains name "cache")
+       (string-contains name "version")
+       (not (string-contains name "format-version"))))
 
 ;;; Dispatch boundary:
 ;;; - A build-support owner may trip several independent runtime-quality

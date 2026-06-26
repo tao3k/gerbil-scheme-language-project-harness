@@ -25,7 +25,7 @@
 
 ;;; Boundary:
 ;;; - structural-syntax-fact-json composes first-class procedures.
-;;; - Keep data-flow evidence visible.
+;;; - Keep each encoder paired with its parser-owned fact family.
 ;; : (-> SourceFile Json )
 (def (structural-syntax-fact-json file)
   (stable-structural-facts

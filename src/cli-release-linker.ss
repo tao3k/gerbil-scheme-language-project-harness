@@ -37,6 +37,8 @@
    guide-main
    info-main])
 
+(register-static-command-dispatch! release-command-dispatch)
+
 ;; : (-> Args Integer)
 (def (main . args)
   (register-static-command-dispatch! release-command-dispatch)

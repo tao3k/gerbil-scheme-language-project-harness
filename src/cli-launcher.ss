@@ -3,7 +3,7 @@
 
 (import :gerbil/gambit
         (only-in :commands/bench-light bench-light-main)
-        (only-in :constants +help+)
+        (only-in :constants +help+ +provider-id+ +release-version+)
         (only-in :search-light-launcher try-search-light-main)
         (only-in :std/misc/path directory-files path-expand path-normalize)
         (only-in :std/misc/ports read-all-as-string)
@@ -45,7 +45,18 @@
 (def (register-static-command-dispatch! entries)
   (set! static-command-dispatch entries))
 
-(def +check-cache-version+ "check-full-output-cache.v3")
+(def +check-cache-format-version+ "check-full-output-cache.v3")
+(def +check-cache-version+ +release-version+)
+
+(def +launcher-check-cache-provider-artifacts+
+  '("src/commands/check.ssi"
+    "src/commands/check-cache.ssi"
+    "src/constants.ssi"
+    "src/parser/facade.ssi"
+     "src/parser/model.ssi"
+     "src/policy/agent.ssi"
+     "src/policy/agent-basic.ssi"
+     "src/policy/core.ssi"))
 
 (def +launcher-check-cache-fnv64-offset+ 14695981039346656037)
 (def +launcher-check-cache-fnv64-prime+ 1099511628211)
@@ -380,6 +391,33 @@
           (file-info-size info)
           (launcher-check-cache-file-hash fullpath)])))))
 
+;; : (-> String)
+(def (launcher-user-home-directory)
+  (or (getenv "HOME" #f)
+      (error "HOME is required to fingerprint Gerbil harness artifacts")))
+
+;; : (-> String String)
+(def (launcher-provider-artifact-path relpath)
+  (path-expand (string-append ".gerbil/lib/gslph/" relpath)
+               (launcher-user-home-directory)))
+
+;; : (-> String Datum)
+(def (launcher-provider-artifact-fingerprint relpath)
+  (let (path (launcher-provider-artifact-path relpath))
+    (with-catch
+     (lambda (_) [relpath 'missing])
+     (lambda ()
+       (let (info (file-info path))
+         [relpath
+          'file
+          (file-info-size info)
+          (time->seconds (file-info-last-modification-time info))])))))
+
+;; : (-> (List Datum))
+(def (launcher-provider-fingerprint)
+  (map launcher-provider-artifact-fingerprint
+       +launcher-check-cache-provider-artifacts+))
+
 ;; : (-> String Datum (U #f (List Pair)))
 (def (launcher-check-cache-state root cache)
   (let ((inputs (launcher-check-cache-ref cache 'inputs))
@@ -390,6 +428,10 @@
            (call-with-output-string ""
              (lambda (out)
                (write [version: +check-cache-version+
+                       formatVersion: +check-cache-format-version+
+                       provider: +provider-id+
+                       releaseVersion: +release-version+
+                       providerArtifacts: (launcher-provider-fingerprint)
                        mode: "source-inputs"
                        inputs: (map (lambda (path)
                                       (launcher-check-cache-file-fingerprint root path))
@@ -417,6 +459,8 @@
 (def (launcher-matching-check-cache cache fingerprint)
   (and cache
        (equal? (launcher-check-cache-ref cache 'version) +check-cache-version+)
+       (equal? (launcher-check-cache-ref cache 'formatVersion)
+               +check-cache-format-version+)
        (equal? (launcher-check-cache-ref cache 'fingerprint) fingerprint)
        cache))
 

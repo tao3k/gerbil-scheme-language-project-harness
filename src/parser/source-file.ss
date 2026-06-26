@@ -478,29 +478,29 @@
                 (record-stage
                  "make-source-file"
                  (lambda ()
-                   (make-source-file
-                    relpath line-count package prelude namespace
-                    (unique imports) ordered-exports (unique includes)
-                    ordered-definitions ordered-calls
-                    (reverse top-forms)
-                    (reverse module-imports)
-                    (reverse module-exports)
-                    ordered-macros
-                    macro-family-facts
-                    (reverse bindings)
-                    ordered-poo-forms
-                    ordered-higher-order-forms
-                    ordered-control-flow-forms
-                    predicate-family-facts
-                    field-access-pattern-facts
-                    projection-burst-facts
-                    boolean-condition-facts
-                    loop-driver-facts
-                    dependency-adapter-quality-facts
-                    function-quality-profiles
-                    typed-contract-facts
-                    comment-quality-facts
-                    parse-error))))
+                   (apply make-source-file
+                          [relpath line-count package prelude namespace
+                           (unique imports) ordered-exports (unique includes)
+                           ordered-definitions ordered-calls
+                           (reverse top-forms)
+                           (reverse module-imports)
+                           (reverse module-exports)
+                           ordered-macros
+                           macro-family-facts
+                           (reverse bindings)
+                           ordered-poo-forms
+                           ordered-higher-order-forms
+                           ordered-control-flow-forms
+                           predicate-family-facts
+                           field-access-pattern-facts
+                           projection-burst-facts
+                           boolean-condition-facts
+                           loop-driver-facts
+                           dependency-adapter-quality-facts
+                           function-quality-profiles
+                           typed-contract-facts
+                           comment-quality-facts
+                           parse-error]))))
             (if profile?
               (values source-file (reverse stage-rows))
               source-file))))))))

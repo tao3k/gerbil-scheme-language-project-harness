@@ -10,10 +10,10 @@
  (targetRationale
   .
   "gerbil-interface-contract-boundary keeps native using/interface contract repair under the scenario-owned timing gate")
- (maxCollectMs . 1000)
- (maxParseMs . 750)
- (maxFileMs . 250)
- (maxPhaseMs . 100)
+ (maxCollectMs . 15)
+ (maxParseMs . 15)
+ (maxFileMs . 5)
+ (maxPhaseMs . 10)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

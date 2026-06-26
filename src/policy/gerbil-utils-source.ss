@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Policy bridge for learned Gerbil quality metadata.
 ;;; This module keeps research corpus references structured without turning
-;;; gerbil-utils or gerbil-poo into downstream dependency requirements.
+;;; gerbil-utils, gerbil-poo, or gerbil:// references into runtime dependencies.
 
 (import :parser/facade
         :policy/detection

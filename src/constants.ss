@@ -4,6 +4,7 @@
 (export +language-id+
         +cli-id+
         +provider-id+
+        +release-version+
         +semantic-extension-pattern-mapping-schema-id+
         +display-name+
         +help+)
@@ -13,6 +14,8 @@
 (def +cli-id+ "gslph")
 ;; String
 (def +provider-id+ "gerbil-scheme-harness")
+;; String
+(def +release-version+ "v0.1.0-67-g20798be")
 ;; String
 (def +semantic-extension-pattern-mapping-schema-id+
   "agent.semantic-protocols.semantic-extension-pattern-mapping")

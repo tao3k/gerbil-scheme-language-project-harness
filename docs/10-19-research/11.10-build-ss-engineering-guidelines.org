@@ -1,0 +1,89 @@
+#+TITLE: Gerbil build.ss Engineering Guidelines
+#+DATE: 2026-06-25
+
+* Purpose
+
+This note fixes the harness rule for package-level =build.ss= files:
+=build.ss= is a thin package build entrypoint, not a second build system.
+
+The package build owner should delegate source discovery, dependency
+compilation, and worker scheduling to Gerbil's native build APIs such as
+=std/make=, =std/build-script=, and =clan/building=. Package-specific code may
+describe build specs, but it should not hand-write broad file walks, duplicate
+test execution, or shell/native compiler orchestration.
+
+* Build Target Rules
+
+- Keep =build.ss= small. Use it to configure package roots and call reusable
+  build helpers.
+- Prefer one coherent =make= graph per module naming root. Do not split one
+  logical test target into independent =make= calls unless the phases have
+  different module roots or output contracts.
+- When a package stores modules under =src= or =t=, do not fake a package-root
+  graph if imports are written for a root-specific module namespace.
+- Let =gxtest-main= execute tests. It should not own build specs, source
+  discovery, or policy collection.
+- Do not precompile entire test-support trees by directory name. Top-level
+  test modules should define the test scope, and imports should remain part of
+  the native compile graph.
+- Keep full-project policy gates explicit. Ordinary test targets should run
+  policy through the gxtest scope they are already executing.
+
+* Test Target Shape
+
+The canonical harness test target is:
+
+1. Resolve package root once.
+2. Build each required module root at most once.
+3. Build top-level =t/*-test.ss= entry files, not whole support trees.
+4. Run a harness-owned gxtest runner over top-level =t/*-test.ss= entry
+   files.
+
+This keeps compile scheduling inside Gerbil's native make graph while avoiding
+a second pass over =t/unit=, =t/snapshot=, and =t/policy= as separate support
+trees.
+
+The harness runner must preserve upstream =gxtest= semantics for each file.
+It may parallelize top-level files by running isolated =gxi= subprocesses, but
+it must keep output grouped by file and must not mutate =std/test= global state
+from multiple threads in one process.
+
+Default runner parallelism is derived from the machine: =build-worker-count=,
+capped by the number of top-level test files. =build-worker-count= is the same
+resource boundary used by package builds: =GERBIL_BUILD_CORES= when configured,
+otherwise the host CPU count.
+
+* Anti-Patterns
+
+- =build.ss= writes shell launchers or embeds shell pipeline control.
+- =build.ss= manually invokes =gxc=, =gsc=, =gxi=, =cc=, or =clang= for package
+  targets instead of using Gerbil build APIs.
+- =build.ss test= compiles source modules, build support modules, test support
+  modules, and gxtest modules through separate broad =make= calls.
+- A normal test target runs the same policy surface twice: once through gxtest
+  and once through a separate full-project gate.
+- A runner parallelizes by invoking =run-test-suite!= concurrently inside one
+  process. Use file-level subprocess isolation instead.
+
+* Performance Gate
+
+Changes to =build.ss= or =build-support/gslph-build.ss= should preserve two
+separate receipts:
+
+- dirty/cold target time, which includes compilation;
+- warm target time, which should expose test execution and policy/schema
+  overhead without hiding behind compile cost.
+
+The receipt must identify the phase that regressed. A single aggregate
+=gxi build.ss test= duration is not enough to guard this boundary.
+
+The harness emits machine-readable lines:
+
+#+begin_example
+[gslph-test-phase] name=compile-library elapsedMicros=... elapsedMs=...
+[gslph-test-phase] name=compile-build-support elapsedMicros=... elapsedMs=...
+[gslph-test-phase] name=compile-test-entry elapsedMicros=... elapsedMs=...
+[gslph-test-runner] files=... jobs=...
+[gslph-test-phase] name=run:t/schema-test.ss elapsedMicros=... elapsedMs=...
+[gslph-test-phase] name=run-gxtest elapsedMicros=... elapsedMs=...
+#+end_example
