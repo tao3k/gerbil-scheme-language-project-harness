@@ -142,6 +142,34 @@
                 (equal? entry blocked))
               '("." ".."))))
 
+;; String
+(def +benchmark-gate-scenario-benchmark-suffix+ "/benchmark.ss")
+
+;; : (-> String String Boolean)
+(def (benchmark-gate-string-suffix? text suffix)
+  (let ((text-len (string-length text))
+        (suffix-len (string-length suffix)))
+    (and (>= text-len suffix-len)
+         (string=? (substring text (- text-len suffix-len) text-len)
+                   suffix))))
+
+;; : (-> Path Path)
+(def (benchmark-gate-scenario-root-for-benchmark path)
+  (if (benchmark-gate-string-suffix?
+       path
+       +benchmark-gate-scenario-benchmark-suffix+)
+    (substring path
+               0
+               (- (string-length path)
+                  (string-length +benchmark-gate-scenario-benchmark-suffix+)))
+    path))
+
+;; : (-> Path Boolean)
+(def (benchmark-gate-scenario-input-expected-pass? benchmark-path)
+  (let (root (benchmark-gate-scenario-root-for-benchmark benchmark-path))
+    (and (benchmark-gate-directory? (path-expand "input" root))
+         (benchmark-gate-directory? (path-expand "expected" root)))))
+
 ;; : (-> Path (List Path))
 (def (benchmark-gate-scenario-benchmark-paths/root root)
   (let (paths [])
@@ -423,6 +451,7 @@
         (for-each
          (lambda (path)
            (let (fixture (benchmark-gate-read-fixture path))
+             (check (benchmark-gate-scenario-input-expected-pass? path) => #t)
              (check (benchmark-fixture-missing-keys fixture) => [])
              (check (benchmark-fixture-memory-contract-pass? fixture) => #t)
              (check (benchmark-fixture-contract-pass? fixture) => #t)))

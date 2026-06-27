@@ -157,12 +157,17 @@
 ;; : (-> String (List String) (U Integer #f))
 (def (try-native-direct-source-query command rest)
   (and (equal? command "query")
-       (equal? (launcher-option "--from-hook" rest) "direct-source-read")
-       (let (selector (launcher-option "--selector" rest))
-         (unless selector
+       (let ((from-hook (launcher-option "--from-hook" rest))
+             (selector (launcher-option "--selector" rest)))
+         (cond
+          ((and from-hook
+                (equal? from-hook "direct-source-read")
+                (not selector))
            (error "direct-source-read requires --selector"))
-         (emit-native-direct-source-query rest selector)
-         0)))
+          (selector
+           (emit-native-direct-source-query rest selector)
+           0)
+          (else #f)))))
 
 ;; : (-> String (List String) (U String #f))
 (def (launcher-option name args)

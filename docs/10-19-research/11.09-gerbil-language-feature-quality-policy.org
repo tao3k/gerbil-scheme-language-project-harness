@@ -13,6 +13,8 @@ The first implementation slice covers:
 - pattern destructuring through =lambda-match= / =lambda-ematch=
 - expression composition through =cut=, =curry=, =rcurry=, =compose=, =rcompose=, =!>=, and =!!>=
 - compiler method-pass boundaries for method-table drift
+- phase-aware module expansion, SSXI optimizer metadata, actor runtime mailboxes,
+  and MOP/C3 precedence boundaries from core Gerbil sources
 - benchmark-owned scenarios for each performance-sensitive policy fixture
 
 ** 11.09.2 Evidence Boundary
@@ -35,6 +37,53 @@ High-signal source windows:
 - =.data/gerbil-poo/object.ss:1-160= for POO runtime state, C3 precedence, =rcurry=, =cut=, =for/collect=, and controlled mutation.
 - =.data/gerbil-poo/proto.ss:1-140= for prototype composition as a small algebra.
 - =.data/gerbil-poo/fq.ss:1-140= for DSL expressiveness with explicit numeric hot-path loops.
+- =.data/gerbil/src/gerbil/expander/module.ss:15-35= and
+  =.data/gerbil/src/gerbil/expander/module.ss:139-174= for phase-aware
+  module import/export, =current-expander-phi=, module registries, and delayed
+  syntax evaluation.
+- =.data/gerbil/src/gerbil/compiler/ssxi.ss:16-35= and
+  =.data/gerbil/src/gerbil/compiler/ssxi.ss:105-115= for optimizer-visible
+  type/class/method declarations and inline-rule metadata.
+- =.data/gerbil/src/gerbil/compiler/method.ss:31-73= and
+  =.data/gerbil/src/gerbil/compiler/method.ss:97-121= for method-dispatched
+  compiler passes through =current-compile-method=, =method-ref=, and
+  =defcompile-method=.
+- =.data/gerbil/src/std/actor-v18/message.ss:32-45=,
+  =.data/gerbil/src/std/actor-v18/message.ss:187-214=, and
+  =.data/gerbil/src/std/actor-v18/message.ss:345-407= for typed message
+  definitions, macro-generated receive loops, and Gambit mailbox primitives.
+- =.data/gerbil/src/gerbil/runtime/interface.ss:33-60= and
+  =.data/gerbil/src/gerbil/runtime/c3.ss:33-45=,
+  =.data/gerbil/src/gerbil/runtime/c3.ss:74-105=,
+  =.data/gerbil/src/gerbil/runtime/c3.ss:170-185= for MOP interface
+  descriptors, prototype tables, and C3/C4 precedence-list linearization.
+
+*** 11.09.2.1 Core Gerbil Root Finding
+
+The strongest Gerbil language feature is the phase-aware expander as a
+language substrate. It is not only macro syntax. The upstream
+=src/gerbil/expander/module.ss= owner shows module import as an expansion
+transaction: it resets =current-expander-context=, =current-expander-marks=,
+=current-expander-phi=, =current-expander-path=, import/export expander phi
+parameters, expands a module body, quotes the syntax with module context, and
+stores delayed =eval-syntax*= plus quoted module code in the module context.
+
+That root explains the other high-value policy surfaces:
+
+- SSXI metadata is optimizer-visible syntax/data attached to the same
+  compile-time world, not an after-the-fact lint rule.
+- compiler method passes are object/method dispatch over expanded AST shapes,
+  not broad string or list walkers.
+- actor receive/send APIs use macro-generated receive surfaces while staying
+  close to Gambit thread mailbox primitives.
+- MOP/interface/C3 code gives object and class precedence a runtime descriptor
+  substrate instead of ad hoc inheritance traversal.
+
+Harness policy should therefore prefer scenarios that teach agents to preserve
+Gerbil's staged boundaries: expander phase, optimizer metadata, method-pass
+dispatch, runtime primitive boundary, and MOP descriptor boundary. The policy
+goal is not "use advanced syntax"; it is "keep the right Gerbil-owned boundary
+visible when parser facts prove that boundary exists."
 
 ** 11.09.3 Feature Classes
 *** 11.09.3.1 Macro Hygiene

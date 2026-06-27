@@ -12,6 +12,7 @@
         gslph-package-build-receipt-status-ref
         gslph-package-build-receipt-status-line)
 
+;; : Symbol
 (def gslph-package-build-receipt-version 'gslph-package-build-receipt.v1)
 
 ;; : (-> Alist Symbol Value Value)
@@ -19,13 +20,22 @@
   (let (entry (assq key receipt))
     (if entry (cdr entry) default)))
 
-;; : (-> Any Boolean)
+;; gslph-package-build-receipt-path-list?
+;;   : (-> ReceiptPathListCandidate Boolean)
+;;   | doc m%
+;;       `gslph-package-build-receipt-path-list?` validates the receipt path
+;;       list shape before freshness checks inspect the filesystem.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (gslph-package-build-receipt-path-list? ["src/a.ss"])
+;;       ;; => #t
+;;       ```
+;;     %
 (def (gslph-package-build-receipt-path-list? value)
-  (let loop ((rest value))
-    (cond
-     ((null? rest) #t)
-     ((and (pair? rest) (string? (car rest))) (loop (cdr rest)))
-     (else #f))))
+  (and (list? value)
+       (andmap string? value)))
 
 ;; : (-> Path Integer)
 (def (gslph-package-build-receipt-file-seconds path)
@@ -36,13 +46,21 @@
   (> (gslph-package-build-receipt-file-seconds path)
      (gslph-package-build-receipt-file-seconds stamp)))
 
-;; : (-> (List Path) (List Path) Boolean)
+;; gslph-package-build-receipt-all-exist?
+;;   : (-> (List Path) Boolean)
+;;   | doc m%
+;;       `gslph-package-build-receipt-all-exist?` owns the output existence
+;;       predicate for receipt freshness.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (gslph-package-build-receipt-all-exist? outputs)
+;;       ;; => #t
+;;       ```
+;;     %
 (def (gslph-package-build-receipt-all-exist? paths)
-  (let loop ((rest paths))
-    (cond
-     ((null? rest) #t)
-     ((and (file-exists? (car rest)) (loop (cdr rest))) #t)
-     (else #f))))
+  (andmap file-exists? paths))
 
 ;; : (-> Path (List Path) (List Path) version: Symbol Void)
 (def (gslph-package-build-receipt-write stamp sources outputs
@@ -77,24 +95,55 @@
                  (gslph-package-build-receipt-path-list? outputs)
                  (cons sources outputs)))))))
 
-;; : (-> Path Pair expected-sources: MaybePathList expected-outputs: MaybePathList Boolean)
+;; : (-> (List Path) (List Path) Boolean)
+(def (gslph-package-build-receipt-populated? sources outputs)
+  (and (pair? sources) (pair? outputs)))
+
+;; : (-> (List Path) (List Path) MaybePathList MaybePathList Boolean)
+(def (gslph-package-build-receipt-expected-shape? sources outputs
+                                                   expected-sources
+                                                   expected-outputs)
+  (and (or (not expected-sources) (equal? sources expected-sources))
+       (or (not expected-outputs) (equal? outputs expected-outputs))))
+
+;; : (-> Path Path Boolean)
+(def (gslph-package-build-receipt-source-current? stamp source)
+  (and (file-exists? source)
+       (not (gslph-package-build-receipt-file-newer-than? source stamp))))
+
+;; : (-> Path (List Path) Boolean)
+(def (gslph-package-build-receipt-sources-current? stamp sources)
+  (cond
+   ((null? sources) #t)
+   ((gslph-package-build-receipt-source-current? stamp (car sources))
+    (gslph-package-build-receipt-sources-current? stamp (cdr sources)))
+   (else #f)))
+
+;; gslph-package-build-receipt-current?
+;;   : (-> Path Pair expected-sources: MaybePathList expected-outputs: MaybePathList Boolean)
+;;   | doc m%
+;;       `gslph-package-build-receipt-current?` checks receipt shape, expected
+;;       source/output lists, output existence, and source freshness.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (gslph-package-build-receipt-current? stamp receipt)
+;;       ;; => #t
+;;       ```
+;;     %
 (def (gslph-package-build-receipt-current? stamp receipt
                                            expected-sources: (expected-sources #f)
                                            expected-outputs: (expected-outputs #f))
   (let ((sources (car receipt))
         (outputs (cdr receipt)))
-    (and (pair? sources)
-         (pair? outputs)
-         (or (not expected-sources) (equal? sources expected-sources))
-         (or (not expected-outputs) (equal? outputs expected-outputs))
+    (and (gslph-package-build-receipt-populated? sources outputs)
+         (gslph-package-build-receipt-expected-shape? sources
+                                                      outputs
+                                                      expected-sources
+                                                      expected-outputs)
          (gslph-package-build-receipt-all-exist? outputs)
-         (let loop ((rest sources))
-           (cond
-            ((null? rest) #t)
-            ((or (not (file-exists? (car rest)))
-                 (gslph-package-build-receipt-file-newer-than? (car rest) stamp))
-             #f)
-            (else (loop (cdr rest))))))))
+         (gslph-package-build-receipt-sources-current? stamp sources))))
 
 ;; : (-> Symbol Symbol Path (Maybe Pair) Alist)
 (def (gslph-package-build-receipt-make-status status reason stamp receipt)

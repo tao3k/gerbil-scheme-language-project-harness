@@ -2,6 +2,10 @@
 ;;; Gerbil contract projection helpers for typed comments.
 
 (import :gerbil/gambit
+        (only-in :parser/typed-contract-token
+                 typed-contract-token-char?
+                 typed-contract-arrow-count
+                 typed-contract-group-count)
         (only-in :types/model
                  parse-type-sexpr
                  type->string
@@ -742,72 +746,3 @@
     (if (equal? part "")
       out
       (cons part out))))
-
-;;; Character classification is shared by typed comment token extraction and
-;;; Gerbil contract projection parsing so source signatures split type names equally.
-;; typed-contract-token-char?
-;;   : (-> Character Boolean )
-;;   | doc m%
-;;       `typed-contract-token-char? ch` identifies characters that belong to
-;;       Scheme-native typed comment and Gerbil contract projection type tokens.
-;;
-;;       # Examples
-;;       ```scheme
-;;       (typed-contract-token-char? #\A)
-;;       ;; => #t
-;;       ```
-;;     %
-(def (typed-contract-token-char? ch)
-  (or (char-upper-case? ch)
-      (char-lower-case? ch)
-      (char-numeric? ch)))
-
-;;; Boundary:
-;;; - Count only literal top-level arrow tokens in the source contract text.
-;;; - Indexed character pairs keep the two-character lookahead bounded.
-;; typed-contract-arrow-count
-;;   : (-> SignatureContract Integer )
-;;   | doc m%
-;;       `typed-contract-arrow-count contract` counts arrow markers for contract
-;;       quality classification without changing parsed type facts.
-;;
-;;       # Examples
-;;       ```scheme
-;;       (typed-contract-arrow-count "(-> A B)")
-;;       ;; => 1
-;;       ```
-;;     %
-(def (typed-contract-arrow-count contract)
-  (typed-contract-token-pair-count contract #\- #\>))
-
-;;; Pair counting intentionally avoids full parsing and only looks for the
-;;; canonical adjacent arrow token pair.
-;; : (-> SignatureContract Character Character Integer)
-(def (typed-contract-token-pair-count contract first second)
-  (let (text-length (string-length contract))
-    (let loop ((index 0)
-               (count 0))
-      (if (< index (fx1- text-length))
-        (loop (fx1+ index)
-              (if (and (char=? (string-ref contract index) first)
-                       (char=? (string-ref contract (fx1+ index)) second))
-                (fx1+ count)
-                count))
-        count))))
-
-;;; Boundary:
-;;; - Scheme-native type expressions use parentheses as syntax, not quality risk.
-;; typed-contract-group-count
-;;   : (-> SignatureContract Integer )
-;;   | doc m%
-;;       `typed-contract-group-count contract` keeps the typed-contract fact
-;;       shape stable while treating Scheme-native parentheses as grammar syntax.
-;;
-;;       # Examples
-;;       ```scheme
-;;       (typed-contract-group-count "(-> (List A) (List B))")
-;;       ;; => 0
-;;       ```
-;;     %
-(def (typed-contract-group-count contract)
-  0)

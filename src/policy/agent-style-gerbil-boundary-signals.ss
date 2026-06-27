@@ -19,6 +19,18 @@
         typed-combinator-style-concurrency-control-quality-facets
         typed-combinator-style-concurrency-control-signals
         typed-combinator-style-concurrency-control-targets
+        typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets
+        typed-combinator-style-ssxi-optimizer-metadata-boundary-signals
+        typed-combinator-style-ssxi-optimizer-metadata-boundary-targets
+        typed-combinator-style-expander-root-boundary-quality-facets
+        typed-combinator-style-expander-root-boundary-signals
+        typed-combinator-style-expander-root-boundary-targets
+        typed-combinator-style-actor-runtime-boundary-quality-facets
+        typed-combinator-style-actor-runtime-boundary-signals
+        typed-combinator-style-actor-runtime-boundary-targets
+        typed-combinator-style-mop-c3-linearization-boundary-quality-facets
+        typed-combinator-style-mop-c3-linearization-boundary-signals
+        typed-combinator-style-mop-c3-linearization-boundary-targets
         typed-combinator-style-exception-continuation-boundary-quality-facets
         typed-combinator-style-exception-continuation-boundary-signals
         typed-combinator-style-exception-continuation-boundary-targets)
@@ -261,6 +273,281 @@
                  fact
                  ["Parameter" "parameter" "Dynamic" "dynamic"])
                 "parameter")]))
+
+;;; SSXI optimizer metadata quality is learned from Gerbil compiler metadata,
+;;; builtin inline rules, and unchecked-call visibility. The repair target is a
+;;; local declaration/call-shape boundary, not a dynamic primitive registry.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-ssxi-optimizer-metadata-boundary-facts
+              file))
+    ["ssxi-optimizer-metadata-boundary"
+     "optimizer-metadata-contract"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-ssxi-optimizer-metadata-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-ssxi-optimizer-metadata-boundary-facts file)
+   ["keep SSXI metadata adjacent to the primitive boundary"
+    "preserve lexical direct calls for inline-rule visibility"
+    "do not hide compiler-known primitives behind dynamic tables"
+    "keep unchecked-call assumptions inside a named local boundary"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-ssxi-optimizer-metadata-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-ssxi-optimizer-metadata-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-ssxi-optimizer-metadata-boundary-facts file)
+  (filter typed-combinator-style-ssxi-optimizer-metadata-boundary-fact?
+          (source-file-typed-contract-facts file)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-ssxi-optimizer-metadata-boundary-fact? fact)
+  (>= (length
+       (typed-combinator-style-ssxi-optimizer-metadata-boundary-categories
+        fact))
+      5))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-ssxi-optimizer-metadata-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["SSXI" "ssxi"])
+                "ssxi")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Inline" "inline"])
+                "inline")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Rule" "rule"])
+                "rule")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Optimizer" "optimizer" "Optimize" "optimize"])
+                "optimizer")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Metadata" "metadata"])
+                "metadata")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Primitive" "primitive"])
+                "primitive")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Direct" "direct" "Unchecked" "unchecked"])
+                "direct")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Apply" "apply" "Dynamic" "dynamic"])
+                "dynamic")]))
+
+;;; Expander-root quality is learned from Gerbil's phase-aware module expander:
+;;; module import, syntax expansion, phase state, and delayed eval are one staged
+;;; language substrate. Emit only when a typed owner collapses those boundaries.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-expander-root-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-expander-root-boundary-facts file))
+    ["expander-root-boundary"
+     "phase-aware-module-boundary"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-expander-root-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-expander-root-boundary-facts file)
+   ["keep module import, expansion context, and runtime helper boundaries separate"
+    "preserve phase/phi state at the expander boundary"
+    "store syntax/code artifacts at the module context boundary"
+    "avoid hiding delayed eval or runtime behavior inside transformer parsing"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-expander-root-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-expander-root-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-expander-root-boundary-facts file)
+  (filter typed-combinator-style-expander-root-boundary-fact?
+          (source-file-typed-contract-facts file)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-expander-root-boundary-fact? fact)
+  (>= (length
+       (typed-combinator-style-expander-root-boundary-categories fact))
+      5))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-expander-root-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Expander" "expander"])
+                "expander")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Phase" "phase" "Phi" "phi"])
+                "phase")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Module" "module" "Import" "import" "Export" "export"])
+                "module")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Context" "context" "Marks" "marks"])
+                "context")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Syntax" "syntax" "Macro" "macro" "Transformer" "transformer"])
+                "syntax")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Eval" "eval" "Runtime" "runtime" "Delayed" "delayed"])
+                "eval")]))
+
+;;; Actor runtime quality is learned from Gerbil's actor/runtime boundary. It
+;;; names mailbox protocol, send/receive, spawn/join, shutdown, and parameter
+;;; propagation separately so agents do not collapse all actor behavior into
+;;; one all-purpose control loop.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-actor-runtime-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-actor-runtime-boundary-facts file))
+    ["actor-runtime-boundary"
+     "mailbox-protocol-boundary"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-actor-runtime-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-actor-runtime-boundary-facts file)
+   ["split actor spawn, mailbox send/receive, and shutdown boundaries"
+    "keep mailbox protocol helpers explicit"
+    "preserve supervision and cleanup at the actor boundary"
+    "propagate thread parameters at actor spawn instead of inside handlers"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-actor-runtime-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-actor-runtime-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-actor-runtime-boundary-facts file)
+  (filter typed-combinator-style-actor-runtime-boundary-fact?
+          (source-file-typed-contract-facts file)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-actor-runtime-boundary-fact? fact)
+  (>= (length (typed-combinator-style-actor-runtime-boundary-categories fact))
+      5))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-actor-runtime-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Actor" "actor"])
+                "actor")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Mailbox" "mailbox"])
+                "mailbox")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Send" "send" "Message" "message"])
+                "send")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Receive" "receive" "Recv" "recv"])
+                "receive")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Spawn" "spawn" "Thread" "thread"])
+                "spawn")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Join" "join" "Shutdown" "shutdown" "Stop" "stop"])
+                "shutdown")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Supervisor" "supervisor" "Supervision" "supervision"])
+                "supervision")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Parameter" "parameter" "Dynamic" "dynamic"])
+                "parameter")]))
+
+;;; MOP/C3 quality is learned from Gerbil runtime/interface.ss and runtime/c3.ss.
+;;; It keeps class/interface descriptors separate from precedence-list merging.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-mop-c3-linearization-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-mop-c3-linearization-boundary-facts file))
+    ["mop-c3-linearization-boundary"
+     "c3-precedence-boundary"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-mop-c3-linearization-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-mop-c3-linearization-boundary-facts file)
+   ["separate MOP descriptors from C3 precedence-list merging"
+    "keep superclass tail extraction in a local helper"
+    "name struct/class compatibility checks at the linearization boundary"
+    "avoid broad ad hoc superclass walkers when precedence facts are present"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-mop-c3-linearization-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-mop-c3-linearization-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-mop-c3-linearization-boundary-facts file)
+  (filter typed-combinator-style-mop-c3-linearization-boundary-fact?
+          (source-file-typed-contract-facts file)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-mop-c3-linearization-boundary-fact? fact)
+  (>= (length
+       (typed-combinator-style-mop-c3-linearization-boundary-categories fact))
+      4))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-mop-c3-linearization-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["MOP" "mop" "Interface" "interface" "Descriptor" "descriptor"
+                  "Prototype" "prototype"])
+                "mop")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["C3" "C4" "Linearization" "linearization" "Linearize"
+                  "linearize"])
+                "c3")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Precedence" "precedence" "Order" "order"])
+                "precedence")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Class" "class" "Struct" "struct"])
+                "class")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Super" "super" "Superclass" "superclass" "Supers" "supers"])
+                "super")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Merge" "merge" "Tail" "tail"])
+                "merge")]))
 
 ;;; Exception/continuation quality is learned from gerbil-utils/exception.ss.
 ;;; The repair target is a local error boundary that preserves context and

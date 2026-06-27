@@ -99,6 +99,12 @@
    higher-order-index
    control-flow-index))
 
+;;; Boundary:
+;;; - This is the single projection boundary from typed-comment entries to
+;;;   `TypedContractFact` records.
+;;; - Keep arity alignment, parser-quality reasons, matched implementation
+;;;   facts, and repair evidence assembled together so later policy splits can
+;;;   move whole evidence lanes without changing fact semantics.
 ;; : (-> Relpath Definition (Maybe TypedContractEntry) HashTable HashTable HashTable (Maybe TypedContractFact) )
 (def (typed-contract-fact-from-entry relpath definition entry call-index higher-order-index control-flow-index)
   (and entry

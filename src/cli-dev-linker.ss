@@ -1,26 +1,27 @@
 ;;; -*- Gerbil -*-
 ;;; Development executable root for gslph.
 
-(import :gerbil/gambit)
+(import :gerbil/gambit
+        (only-in :search-light-launcher try-search-light-main))
+
 (export main)
 
 ;;; Dev binary boundary:
-;;; - This root is a native fast-path artifact for hook selector reads.
-;;; - Full command graphs belong to the release linker; pulling them into
-;;;   compile --binary makes the local development artifact too slow to build.
+;;; - This root is a native fast-path artifact for hook selector reads and
+;;;   lightweight search.
+;;; - Full check/evidence command graphs belong to the release linker.
 
 ;; : String
 (def +dev-help+
-  "gslph - Gerbil Scheme semantic search and project harness\n\nUsage:\n  gslph query --from-hook direct-source-read --selector <path:start-end> [--workspace PROJECT_ROOT] [--json]\n  gslph --help\n\nFull search/check/evidence commands are provided by the release linker.\n")
+  "gslph - Gerbil Scheme semantic search and project harness\n\nUsage:\n  gslph query --selector <path:start-end> [--workspace PROJECT_ROOT] [--json]\n  gslph search rg-query <query> [--workspace PROJECT_ROOT] [--view seeds|hits]\n  gslph search fd-query <query> [--workspace PROJECT_ROOT] [--view seeds|hits]\n  gslph --help\n\nFull check/evidence commands are provided by the release linker.\n")
 
-;; : (-> String (List String) (U String #f))
+;; : (-> String (List String) (Maybe String))
 (def (option name args)
   (cond
-   ((null? args) #f)
-   ((equal? (car args) name)
-    (and (pair? (cdr args)) (cadr args)))
-   (else
-    (option name (cdr args)))))
+    ((null? args) #f)
+    ((equal? (car args) name)
+     (and (pair? (cdr args)) (cadr args)))
+    (else (option name (cdr args)))))
 
 ;; : (-> String (List String) Boolean)
 (def (flag? name args)
@@ -34,11 +35,11 @@
 ;; : (-> String String String)
 (def (join-path root path)
   (cond
-   ((absolute-path? path) path)
-   ((or (equal? root ".") (equal? root "")) path)
-   (else (string-append root "/" path))))
+    ((absolute-path? path) path)
+    ((or (equal? root ".") (equal? root "")) path)
+    (else (string-append root "/" path))))
 
-;; : (-> Selector SelectorParts)
+;; : (-> SelectorText SelectorParts)
 (def (split-selector selector)
   (let (ix (string-rindex selector #\:))
     (if ix
@@ -58,79 +59,30 @@
               [path end end]))))
       [selector #f #f])))
 
-;; line-in-range?
-;;   : (-> Integer Integer Integer Boolean)
-;;   | doc m%
-;;       Return whether `line` belongs to the inclusive one-based
-;;       `[start, end]` projection range.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (line-in-range? 3 2 4)
-;;       ;; => #t
-;;       ```
-;;     %
+;; : (-> Integer Integer Integer Boolean)
 (def (line-in-range? line start end)
   (and (>= line start) (<= line end)))
 
-;; selected-lines
-;;   : (-> String Integer Integer (List String))
-;;   | doc m%
-;;       Select the line texts inside the inclusive one-based range without
-;;       coupling source projection to port iteration.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (selected-lines "a\nb\nc\n" 2 3)
-;;       ;; => ("b" "c")
-;;       ```
-;;     %
+;; : (-> String Integer Integer (List String))
 (def (selected-lines text start end)
-  (let (lines (string-split text #\newline))
-    (filter-map (lambda (line-number line)
-                  (and (line-in-range? line-number start end)
-                       line))
-                (iota (length lines) 1)
-                lines)))
+  (filter-map
+   (lambda (line-number line)
+     (and (line-in-range? line-number start end) line))
+   (iota (length (string-split text #\newline)) 1)
+   (string-split text #\newline)))
 
-;; lines->source-projection
-;;   : (-> (List String) String)
-;;   | doc m%
-;;       Render selected source lines with the newline shape expected by hook
-;;       source projections.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (lines->source-projection ["a" "b"])
-;;       ;; => "a\nb\n"
-;;       ```
-;;     %
+;; : (-> (List String) String)
 (def (lines->source-projection lines)
   (if (null? lines)
     ""
     (string-append (string-join lines "\n") "\n")))
 
-;; read-line-range
-;;   : (-> Path Integer Integer String)
-;;   | doc m%
-;;       Read the inclusive one-based line range from `path` and preserve the
-;;       trailing newline shape expected by hook source projections.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (read-line-range "src/cli-dev-linker.ss" 1 1)
-;;       ;; => first source line plus newline
-;;       ```
-;;     %
+;; : (-> String Integer Integer String)
 (def (read-line-range path start end)
   (lines->source-projection
    (selected-lines (read-file-string path) start end)))
 
-;; : (-> ProjectRoot Selector String)
+;; : (-> String String String)
 (def (read-selector root selector)
   (let* ((parts (split-selector selector))
          (path (car parts))
@@ -169,14 +121,20 @@
       (and (null? (cdr args))
            (member (car args) '("-h" "--help" "help")))))
 
-;; : (-> Args Integer)
+;; : (-> (List String) Boolean)
+(def (direct-source-query? args)
+  (and (pair? args)
+       (equal? (car args) "query")
+       (or (option "--selector" (cdr args))
+           (equal? (option "--from-hook" (cdr args)) "direct-source-read"))))
+
+;; : (-> (List String) Integer)
 (def (main . args)
   (cond
-   ((help-args? args)
-    (emit-help 0))
-   ((and (pair? args)
-         (equal? (car args) "query")
-         (equal? (option "--from-hook" (cdr args)) "direct-source-read"))
-    (emit-direct-source-query (cdr args)))
-   (else
-    (emit-help 2))))
+    ((help-args? args) (emit-help 0))
+    ((and (pair? args) (equal? (car args) "search"))
+     (or (try-search-light-main (cdr args))
+         (emit-help 2)))
+    ((direct-source-query? args)
+     (emit-direct-source-query (cdr args)))
+    (else (emit-help 2))))

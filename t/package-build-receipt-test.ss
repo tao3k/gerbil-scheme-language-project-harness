@@ -9,17 +9,34 @@
 
 (export package-build-receipt-test)
 
+;; : Path
 (def +package-build-receipt-test-root+
   (path-expand ".cache/agent-semantic-protocol/test/package-build-receipt"
                (current-directory)))
 
-;; : (-> String Void)
+;; package-build-receipt-strip-trailing-slashes
+;;   : (-> Path Path)
+;;   | doc m%
+;;       `package-build-receipt-strip-trailing-slashes` normalizes fixture
+;;       directory paths before recursive directory creation.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (package-build-receipt-strip-trailing-slashes "a/b/")
+;;       ;; => "a/b"
+;;       ```
+;;     %
 (def (package-build-receipt-strip-trailing-slashes path)
-  (let loop ((end (string-length path)))
-    (if (and (> end 1)
-             (char=? (string-ref path (- end 1)) #\/))
-      (loop (- end 1))
-      (substring path 0 end))))
+  (package-build-receipt-strip-trailing-slashes/end path
+                                                   (string-length path)))
+
+;; : (-> Path Integer Path)
+(def (package-build-receipt-strip-trailing-slashes/end path end)
+  (if (and (> end 1)
+           (char=? (string-ref path (- end 1)) #\/))
+    (package-build-receipt-strip-trailing-slashes/end path (- end 1))
+    (substring path 0 end)))
 
 ;; : (-> String Void)
 (def (package-build-receipt-ensure-directory* path)
@@ -50,6 +67,7 @@
 (def (package-build-receipt-reset!)
   (package-build-receipt-ensure-directory* +package-build-receipt-test-root+))
 
+;; : TestSuite
 (def package-build-receipt-test
   (test-suite "package build receipt api"
     (test-case "creates nested cache directories from a fresh parent"

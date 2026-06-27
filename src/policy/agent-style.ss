@@ -6,6 +6,7 @@
         :policy/agent-style-gerbil-signals
         :policy/agent-style-destructuring-signals
         :policy/agent-style-docs
+        :policy/agent-style-performance-signals
         :policy/gerbil-utils-source
         :policy/agent-support
         :policy/agent-style-shape
@@ -276,6 +277,24 @@
          (typed-combinator-style-concurrency-control-signals file))
         (concurrencyControlBoundaryTargets
          (typed-combinator-style-concurrency-control-targets file))
+        (ssxiOptimizerMetadataBoundarySignals
+         (typed-combinator-style-ssxi-optimizer-metadata-boundary-signals
+          file))
+        (ssxiOptimizerMetadataBoundaryTargets
+         (typed-combinator-style-ssxi-optimizer-metadata-boundary-targets
+          file))
+        (expanderRootBoundarySignals
+         (typed-combinator-style-expander-root-boundary-signals file))
+        (expanderRootBoundaryTargets
+         (typed-combinator-style-expander-root-boundary-targets file))
+        (actorRuntimeBoundarySignals
+         (typed-combinator-style-actor-runtime-boundary-signals file))
+        (actorRuntimeBoundaryTargets
+         (typed-combinator-style-actor-runtime-boundary-targets file))
+        (mopC3LinearizationBoundarySignals
+         (typed-combinator-style-mop-c3-linearization-boundary-signals file))
+        (mopC3LinearizationBoundaryTargets
+         (typed-combinator-style-mop-c3-linearization-boundary-targets file))
         (exceptionContinuationBoundarySignals
          (typed-combinator-style-exception-continuation-boundary-signals
           file))
@@ -286,6 +305,10 @@
          (typed-combinator-style-macro-family-signals file))
         (macroFamilyTargets
          (typed-combinator-style-macro-family-targets file))
+        (phaseAwareMacroBoundarySignals
+         (typed-combinator-style-phase-aware-macro-boundary-signals file))
+        (phaseAwareMacroBoundaryTargets
+         (typed-combinator-style-phase-aware-macro-boundary-targets file))
         (controlledMacroSyntaxSignals
          (typed-combinator-style-controlled-macro-syntax-signals file))
         (controlledMacroTargets
@@ -514,9 +537,16 @@
     (typed-combinator-style-serialization-boundary-quality-facets file)
     (typed-combinator-style-slot-lens-boundary-quality-facets file)
     (typed-combinator-style-concurrency-control-quality-facets file)
+    (typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets
+     file)
+    (typed-combinator-style-expander-root-boundary-quality-facets file)
+    (typed-combinator-style-actor-runtime-boundary-quality-facets file)
+    (typed-combinator-style-mop-c3-linearization-boundary-quality-facets file)
     (typed-combinator-style-exception-continuation-boundary-quality-facets file)
     (typed-combinator-style-macro-family-quality-facets file)
+    (typed-combinator-style-phase-aware-macro-boundary-quality-facets file)
     (typed-combinator-style-controlled-macro-quality-facets file)
+    (typed-combinator-style-upstream-performance-quality-facets file)
     (typed-combinator-style-result-index-scaffold-quality-facets file)
     (typed-combinator-style-typeclass-quality-facets file))))
 
@@ -570,8 +600,14 @@
                                 "result-index-scaffold"
                                 "slot-lens-boundary"
                                 "concurrency-control-boundary"
+                                "ssxi-optimizer-metadata-boundary"
+                                "actor-runtime-boundary"
                                 "exception-continuation-boundary"
-                                "macro-family-boundary"]))
+                                "macro-family-boundary"
+                                "phase-aware-macro-boundary"
+                                "macro-phase-optimizer-visible-fast-path"
+                                "gambit-numeric-primitive-boundary"
+                                "gerbil-inline-rule-call-shape"]))
       (and (typed-combinator-style-runtime-wrapper-source-file? file)
            (not (typed-combinator-style-positive-quality-covered?
                  quality-facets))

@@ -67,6 +67,134 @@
                     "repair method-table lambdas by extracting slot-shaped helpers, compiler-style AST pass handlers, or cut/curry/compose adapters while preserving the receiver/protocol boundary"
                     (hash-get details 'qualityFacetSteering))
                    => #t)))
+(test-case "agent policy validates Gambit numeric primitive scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "gambit-fixnum-flonum-arithmetic-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "gambit-fixnum-flonum-arithmetic-boundary"
+             "gambit-fixnum-flonum-arithmetic-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gambit://tests/unit-tests/01-fixnum/fxadd.scm"
+              "gambit://tests/unit-tests/02-flonum/fladd.scm"]
+             ["gambit-numeric-primitives"
+              "typed-hot-loop-boundary"
+              "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "fixnum/flonum primitive arithmetic with checked boundary tests")
+            (check (agent-style-member?
+                    "gambit-numeric-primitive-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "generic-numeric-hot-loop"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gambit-numeric-primitive-domain-boundary")
+            (check (agent-style-member?
+                    "gambit://tests/unit-tests/01-fixnum/fxadd.scm#fixnum-overflow-exception"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "hot-loop-primitive-family"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "when parser facts show a numeric hot loop with generic arithmetic, state the fixnum/flonum domain at the boundary, keep overflow/type behavior tested, and use Gambit fx/fl primitive families only inside that proven lane"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
+(test-case "agent policy validates Gerbil inline-rule call-shape scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "gerbil-inline-rule-call-shape"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "gerbil-inline-rule-call-shape"
+             "gerbil-inline-rule-call-shape")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://gerbil/builtin-inline-rules.ssxi.ss"
+              "gerbil://gerbil/compiler/optimize-top.ss"]
+             ["builtin-inline-rule-shape"
+              "dispatch-lambda-form"
+              "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "compiler-recognizable inline primitive call shape")
+            (check (agent-style-member?
+                    "gerbil-inline-rule-call-shape"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "dynamic-apply-hot-loop"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-builtin-inline-rule-call-shape")
+            (check (agent-style-member?
+                    "gerbil://gerbil/builtin-inline-rules.ssxi.ss#ast-rules"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "no-dynamic-apply"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "when parser facts show repeated dynamic apply in a hot loop, keep primitive targets lexical and direct so Gerbil builtin inline rules and unchecked call optimization can see the call shape"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
+(test-case "agent policy validates macro phase optimizer-visible scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "macro-phase-optimizer-visible-fast-path"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "macro-phase-optimizer-visible-fast-path"
+             "macro-phase-optimizer-visible-fast-path")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://README.md"
+              "gerbil://gerbil/expander/top.ss"
+              "gerbil://gerbil/compiler/ssxi.ss"
+              "gerbil://gerbil/compiler/optimize-call.ss"]
+             ["phase-aware-macro-dsl"
+              "generated-runtime-helper"
+              "known-procedure-call-fast-path"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "macro-generated runtime helpers that preserve lexical direct calls")
+            (check (agent-style-member?
+                    "macro-phase-optimizer-visible-fast-path"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "phase-macro-generated-wrapper"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (hash-get quality-reference 'referencePattern)
+                   => "macro-phase-optimizer-visible-fast-path")
+            (check (agent-style-member?
+                    "gerbil://gerbil/expander/top.ss#begin-syntax-phi-plus-one"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "optimizer-visible-call-shape"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "when a macro DSL generates runtime hot paths, keep the macro surface thin but generate lexical direct helpers so SSXI metadata and known-call optimization can still see the call boundary"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
 (test-case "agent policy validates exception continuation scenario under performance gate"
           (let* ((context
                   (agent-style-policy-r013-scenario-context
@@ -95,120 +223,4 @@
              context
              (list 0 1)
              (list 0 2))))
-(test-case "agent policy validates higher-order composition scenario under performance gate"
-          (let* ((context
-                  (agent-style-policy-r013-scenario-context
-                   "higher-order-composition-performance"))
-                 (result (hash-get context 'result))
-                 (benchmark-contract (hash-get context 'benchmarkContract))
-                 (details (hash-get context 'details))
-                 (quality-reference (hash-get context 'qualityReference))
-                 (after-index (policy-scenario-index result 'after))
-                 (after-file
-                  (project-index-source-file-by-path
-                   after-index
-                   "src/orders/core.ss"))
-                 (higher-order-roles
-                  (source-file-higher-order-roles after-file)))
-            (agent-style-check-r013-scenario!
-             context
-             "higher-order-composition-performance"
-             "higher-order-composition")
-            (agent-style-check-r013-scenario-learning!
-             context
-             ["gerbil://" "gerbil-utils"]
-             ["higher-order-composition" "anti-ai-scaffold"])
-            (check (hash-get benchmark-contract 'optimizationFocus)
-                   => "wrapper lambda to composition boundary")
-            (check (agent-style-member?
-                    "gerbil://std/actor-v18/executor.ss#cut-prefix-predicate"
-                    (hash-get benchmark-contract 'expectedReferenceExamples))
-                   => #t)
-            (check (agent-style-member?
-                    "cut-prefix-predicate"
-                    (hash-get benchmark-contract 'expectedQualitySignals))
-                   => #t)
-            (check (agent-style-member?
-                    "wrapper-lambda-drift"
-                    (hash-get details 'qualityFacets))
-                   => #t)
-            (check (agent-style-member?
-                    "function-specialization-opportunity"
-                    (hash-get details 'qualityFacets))
-                   => #t)
-            (check (hash-get quality-reference 'referencePattern)
-                   => "gerbil-utils-higher-order-expression")
-            (check (agent-style-member?
-                    "gerbil-utils/base.ss#left-to-right"
-                    (hash-get quality-reference 'referenceExamples))
-                   => #t)
-            (check (agent-style-member?
-                    "gerbil://std/actor-v18/executor.ss#cut-prefix-predicate"
-                    (hash-get quality-reference 'referenceExamples))
-                   => #t)
-            (check (agent-style-member?
-                    "cut-prefix-predicate"
-                    (hash-get quality-reference 'qualitySignals))
-                   => #t)
-            (check (agent-style-member?
-                    "thin-wrapper-elimination"
-                    (hash-get quality-reference 'qualitySignals))
-                   => #t)
-            (check (agent-style-member? "function-composition" higher-order-roles)
-                   => #t)))
-(test-case "agent policy validates case-lambda function factory scenario under performance gate"
-          (let* ((context
-                  (agent-style-policy-r013-scenario-context
-                   "case-lambda-function-factory"))
-                 (result (hash-get context 'result))
-                 (benchmark-contract (hash-get context 'benchmarkContract))
-                 (details (hash-get context 'details))
-                 (quality-reference (hash-get context 'qualityReference))
-                 (after-index (policy-scenario-index result 'after))
-                 (after-file
-                  (project-index-source-file-by-path
-                   after-index
-                   "src/orders/core.ss"))
-                 (higher-order-roles
-                  (source-file-higher-order-roles after-file)))
-            (agent-style-check-r013-scenario!
-             context
-             "case-lambda-function-factory"
-             "case-lambda-function-factory")
-            (agent-style-check-r013-scenario-learning!
-             context
-             ["gerbil-utils"]
-             ["case-lambda-function-factory" "anti-ai-scaffold"])
-            (check (hash-get benchmark-contract 'optimizationFocus)
-                   => "case-lambda arity-specialized function factory")
-            (check (agent-style-member?
-                    "gerbil-utils/base.ss#case-lambda specializers"
-                    (hash-get benchmark-contract 'expectedReferenceExamples))
-                   => #t)
-            (check (agent-style-member?
-                    "multi-arity-abstraction"
-                    (hash-get benchmark-contract 'expectedQualitySignals))
-                   => #t)
-            (check (agent-style-member?
-                    "wrapper-lambda-drift"
-                    (hash-get details 'qualityFacets))
-                   => #t)
-            (check (agent-style-member?
-                    "function-specialization-opportunity"
-                    (hash-get details 'qualityFacets))
-                   => #t)
-            (check (hash-get quality-reference 'referencePattern)
-                   => "gerbil-utils-higher-order-expression")
-            (check (agent-style-member?
-                    "gerbil-utils/base.ss#case-lambda specializers"
-                    (hash-get quality-reference 'referenceExamples))
-                   => #t)
-            (check (agent-style-member?
-                    "multi-arity-abstraction"
-                    (hash-get quality-reference 'qualitySignals))
-                   => #t)
-            (check (agent-style-member?
-                    "multi-arity-function"
-                    higher-order-roles)
-                   => #t)))
   ))

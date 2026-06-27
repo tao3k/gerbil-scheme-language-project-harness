@@ -6,6 +6,18 @@
                  typed-combinator-style-concurrency-control-quality-facets
                  typed-combinator-style-concurrency-control-signals
                  typed-combinator-style-concurrency-control-targets
+                 typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets
+                 typed-combinator-style-ssxi-optimizer-metadata-boundary-signals
+                 typed-combinator-style-ssxi-optimizer-metadata-boundary-targets
+                 typed-combinator-style-expander-root-boundary-quality-facets
+                 typed-combinator-style-expander-root-boundary-signals
+                 typed-combinator-style-expander-root-boundary-targets
+                 typed-combinator-style-actor-runtime-boundary-quality-facets
+                 typed-combinator-style-actor-runtime-boundary-signals
+                 typed-combinator-style-actor-runtime-boundary-targets
+                 typed-combinator-style-mop-c3-linearization-boundary-quality-facets
+                 typed-combinator-style-mop-c3-linearization-boundary-signals
+                 typed-combinator-style-mop-c3-linearization-boundary-targets
                  typed-combinator-style-exception-continuation-boundary-quality-facets
                  typed-combinator-style-exception-continuation-boundary-signals
                  typed-combinator-style-exception-continuation-boundary-targets
@@ -55,12 +67,27 @@
         typed-combinator-style-concurrency-control-quality-facets
         typed-combinator-style-concurrency-control-signals
         typed-combinator-style-concurrency-control-targets
+        typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets
+        typed-combinator-style-ssxi-optimizer-metadata-boundary-signals
+        typed-combinator-style-ssxi-optimizer-metadata-boundary-targets
+        typed-combinator-style-expander-root-boundary-quality-facets
+        typed-combinator-style-expander-root-boundary-signals
+        typed-combinator-style-expander-root-boundary-targets
+        typed-combinator-style-actor-runtime-boundary-quality-facets
+        typed-combinator-style-actor-runtime-boundary-signals
+        typed-combinator-style-actor-runtime-boundary-targets
+        typed-combinator-style-mop-c3-linearization-boundary-quality-facets
+        typed-combinator-style-mop-c3-linearization-boundary-signals
+        typed-combinator-style-mop-c3-linearization-boundary-targets
         typed-combinator-style-exception-continuation-boundary-quality-facets
         typed-combinator-style-exception-continuation-boundary-signals
         typed-combinator-style-exception-continuation-boundary-targets
         typed-combinator-style-macro-family-quality-facets
         typed-combinator-style-macro-family-signals
         typed-combinator-style-macro-family-targets
+        typed-combinator-style-phase-aware-macro-boundary-quality-facets
+        typed-combinator-style-phase-aware-macro-boundary-signals
+        typed-combinator-style-phase-aware-macro-boundary-targets
         typed-combinator-style-controlled-macro-quality-facets
         typed-combinator-style-controlled-macro-syntax-signals
         typed-combinator-style-controlled-macro-targets

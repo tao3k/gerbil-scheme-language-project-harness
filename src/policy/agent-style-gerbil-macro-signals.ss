@@ -5,12 +5,16 @@
         (only-in :policy/agent-style-gerbil-signal-support
                  typed-combinator-style-facts->quality-facet
                  typed-combinator-style-facts->signals
-                 typed-combinator-style-facts->targets)
+                 typed-combinator-style-facts->targets
+                 typed-contract-fact-mentions-any?)
         (only-in :std/sugar filter ormap))
 
 (export typed-combinator-style-macro-family-quality-facets
         typed-combinator-style-macro-family-signals
         typed-combinator-style-macro-family-targets
+        typed-combinator-style-phase-aware-macro-boundary-quality-facets
+        typed-combinator-style-phase-aware-macro-boundary-signals
+        typed-combinator-style-phase-aware-macro-boundary-targets
         typed-combinator-style-controlled-macro-quality-facets
         typed-combinator-style-controlled-macro-syntax-signals
         typed-combinator-style-controlled-macro-targets
@@ -45,6 +49,73 @@
   (typed-combinator-style-facts->targets
    (source-file-macro-family-facts file)
    macro-family-fact-prefix))
+
+;;; Phase-aware macro facts catch one owner mixing meta-syntactic tower,
+;;; phase/context state, transformer parsing, expansion, and runtime helper
+;;; responsibilities. Detection stays parser-owned: macro facts prove the file
+;;; has a syntax owner, and typed-contract facts prove the mixed boundary.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-phase-aware-macro-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-phase-aware-macro-boundary-facts file))
+    ["phase-aware-macro-boundary"
+     "meta-syntactic-tower-boundary"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-phase-aware-macro-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-phase-aware-macro-boundary-facts file)
+   ["split phase/context parsing from runtime helper generation"
+    "keep transformer expansion as a thin hygienic syntax boundary"
+    "move reusable runtime behavior into ordinary helpers"
+    "document the expansion contract and phase boundary"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-phase-aware-macro-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-phase-aware-macro-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-phase-aware-macro-boundary-facts file)
+  (if (pair? (source-file-macros file))
+    (filter typed-combinator-style-phase-aware-macro-boundary-fact?
+            (source-file-typed-contract-facts file))
+    []))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-phase-aware-macro-boundary-fact? fact)
+  (>= (length
+       (typed-combinator-style-phase-aware-macro-boundary-categories fact))
+      5))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-phase-aware-macro-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Phase" "phase" "Phi" "phi"])
+                "phase")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Macro" "macro" "Syntax" "syntax"])
+                "macro")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Context" "context" "Expander" "expander"])
+                "context")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Transformer" "transformer" "Transform" "transform"])
+                "transformer")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Expansion" "expansion" "Expand" "expand"])
+                "expansion")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Runtime" "runtime" "Helper" "helper"])
+                "runtime")]))
 
 ;;; Macro facts already classify syntax owners.  R013 exposes the engineering
 ;;; steering so macro-heavy files use upstream macro-library idioms without

@@ -90,6 +90,35 @@
      "generator-composition"]
     "gerbil-utils and gerbil:// study: prefer real higher-order expression idioms before inventing helper-only rewrites")
    (make-gerbil-utils-source-profile
+    'macro-phase-optimizer-visible-fast-path
+    "macro-phase-optimizer-visible-fast-path"
+    ["gerbil://README.md#meta-syntactic-tower"
+     "gerbil://gerbil/expander/top.ss#begin-syntax-phi-plus-one"
+     "gerbil://gerbil/compiler/ssxi.ss#declare-inline-rule!"
+     "gerbil://gerbil/compiler/optimize-call.ss#%#call-unchecked"
+     "gerbil://gerbil/compiler/method.ss#defcompile-method"]
+    ["phase-aware-macro-boundary"
+     "generated-runtime-helper"
+     "lexical-direct-helper"
+     "optimizer-visible-call-shape"
+     "known-call-fast-path-preserved"]
+   "gerbil:// study: the strongest Gerbil macro DSLs keep expansion powerful while generating ordinary lexical runtime helpers that remain visible to SSXI metadata and known-call optimization")
+   (make-gerbil-utils-source-profile
+    'phase-aware-macro-boundary
+    "gerbil-phase-aware-macro-boundary"
+    ["gerbil://README.md#meta-syntactic-tower"
+     "gerbil://gerbil/expander/top.ss#begin-syntax-phi-plus-one"
+     "gerbil://gerbil/expander/core.ss#core-context-shift"
+     "gerbil://gerbil/expander/module.ss#core-expand-module-begin"
+     "gerbil-utils/syntax.ss#begin-syntax-parse-formals"]
+    ["meta-syntactic-tower-boundary"
+     "phase-aware-macro-boundary"
+     "phase-shift-context-boundary"
+     "hygienic-transformer-boundary"
+     "runtime-helper-boundary"
+     "expansion-contract-doc"]
+    "gerbil:// expander study: phase-aware macro quality comes from separating phase/context parsing, hygienic transformer expansion, and ordinary runtime helpers instead of mixing the meta-syntactic tower into one runtime-facing owner")
+   (make-gerbil-utils-source-profile
     'gerbil-upstream-idiom-performance
     "gerbil-upstream-idiom-performance"
     ["gerbil://gerbil/core/match.ss#match/match*"
@@ -97,13 +126,59 @@
      "gerbil://gerbil/compiler/optimize-spec.ss#make-hash-table-eq-method-calls"
      "gerbil://gerbil/compiler/optimize-spec.ss#cut-compile-e"
      "gerbil://gerbil/compiler/optimize-top.ss#optimizer-cache-facts"]
-    ["gerbil-upstream-idiom-boundary"
+   ["gerbil-upstream-idiom-boundary"
      "match-shape-dispatch"
      "with-destructuring-boundary"
      "eq-hash-index-hot-path"
      "cut-helper-plumbing"
      "hash-index-outside-traversal"]
     "gerbil:// core/compiler study: high-value AI-scaffold repair starts with match/with shape dispatch, precomputed eq hash indexes for repeated symbol or identifier lookups, and cut/curry helper plumbing instead of broad manual loops or wrapper lambdas")
+   (make-gerbil-utils-source-profile
+    'gambit-numeric-primitive-domain-boundary
+    "gambit-numeric-primitive-domain-boundary"
+    ["gerbil://doc/reference/dev/optimizing.md#specialized-arithmetic"
+     "gerbil://doc/reference/dev/optimizing.md#declare-fixnum-flonum"
+     "gerbil://gerbil/compiler/optimize-call.ss#unchecked-signature"
+     "gambit://tests/unit-tests/01-fixnum/fxadd.scm#fx+"
+     "gambit://tests/unit-tests/01-fixnum/fxadd.scm#fixnum-overflow-exception"
+     "gambit://tests/unit-tests/02-flonum/fladd.scm#fl+"]
+    ["numeric-domain-contract"
+     "fixnum-overflow-covered"
+     "flonum-type-covered"
+     "hot-loop-primitive-family"
+     "gambit-fx-fl-lane"]
+    "gerbil:// and gambit:// study: numeric hot-loop quality comes from proving the fixnum/flonum domain at the boundary, testing failure modes, and using fx/fl primitive families only in that bounded lane")
+   (make-gerbil-utils-source-profile
+    'gerbil-inline-rule-call-shape
+    "gerbil-builtin-inline-rule-call-shape"
+    ["gerbil://gerbil/runtime/util.ss#declare-inline"
+     "gerbil://gerbil/builtin-inline-rules.ssxi.ss#declare-inline-rules!"
+     "gerbil://gerbil/builtin-inline-rules.ssxi.ss#ast-rules"
+     "gerbil://gerbil/compiler/ssxi.ss#declare-inline-rule!"
+     "gerbil://gerbil/compiler/optimize-call.ss#call-unchecked"
+     "gerbil://gerbil/compiler/optimize-top.ss#dispatch-lambda-form?"]
+    ["lexical-primitive-call"
+     "direct-call-shape"
+     "fixnum-boundary"
+     "no-dynamic-apply"
+     "compiler-inline-rule-visible"]
+   "gerbil:// compiler study: inline-rule quality comes from lexical direct primitive calls and bounded fixnum lanes instead of dynamic tables or repeated apply that hide call shape from the optimizer")
+   (make-gerbil-utils-source-profile
+    'ssxi-optimizer-metadata-boundary
+    "gerbil-ssxi-optimizer-metadata-boundary"
+    ["gerbil://gerbil/compiler/ssxi.ss#declare-inline-rule!"
+     "gerbil://gerbil/builtin-inline-rules.ssxi.ss#declare-inline-rules!"
+     "gerbil://gerbil/builtin-inline-rules.ssxi.ss#ast-rules"
+     "gerbil://gerbil/compiler/optimize-call.ss#call-unchecked"
+     "gerbil://gerbil/compiler/optimize-top.ss#dispatch-lambda-form?"
+     "gerbil://gerbil/runtime/util.ss#declare-inline"]
+    ["ssxi-metadata-boundary"
+     "declare-inline-rule-boundary"
+     "lexical-primitive-call"
+     "direct-call-shape"
+     "unchecked-call-visibility"
+     "no-dynamic-primitive-table"]
+    "gerbil:// compiler study: SSXI metadata is useful only when inline rules, direct primitive calls, and unchecked-call assumptions remain visible at one named optimizer boundary instead of being hidden behind dynamic dispatch tables")
    (make-gerbil-utils-source-profile
     'list-combinator-boundary
     "list-combinator-boundary"
@@ -290,7 +365,22 @@
      "race-shutdown-boundary"
      "parallel-map-join-boundary"
      "thread-parameter-propagation"]
-    "gerbil:// runtime control and gerbil-utils/concurrency.ss study: concurrency quality comes from preserving dynamic-wind reentry guards and unwind cleanup while naming spawn/join, mutex sequentialization, race shutdown, parallel map, and thread-parameter propagation boundaries without requiring a gerbil-utils dependency")
+   "gerbil:// runtime control and gerbil-utils/concurrency.ss study: concurrency quality comes from preserving dynamic-wind reentry guards and unwind cleanup while naming spawn/join, mutex sequentialization, race shutdown, parallel map, and thread-parameter propagation boundaries without requiring a gerbil-utils dependency")
+   (make-gerbil-utils-source-profile
+    'actor-runtime-boundary
+    "gerbil-actor-runtime-boundary"
+    ["gerbil://std/actor-v18/executor.ss#spawn-actor-worker"
+     "gerbil://std/actor-v18/server.ss#actor-server-loop"
+     "gerbil://std/actor-v18/message.ss#mailbox-message"
+     "gerbil://gerbil/runtime/control.ss#call-with-parameters"
+     "gerbil-utils/concurrency.ss#spawn/name/params"]
+    ["actor-runtime-boundary"
+     "mailbox-protocol-boundary"
+     "actor-lifecycle-helper"
+     "actor-shutdown-boundary"
+     "actor-parameter-propagation"
+     "supervision-cleanup-boundary"]
+    "gerbil:// actor/runtime study: actor quality comes from explicit mailbox protocol, lifecycle, shutdown, supervision, and parameter propagation helpers instead of a single collapsed handler loop")
    (make-gerbil-utils-source-profile
     'exception-continuation-boundary
     "exception-continuation-boundary"
@@ -431,6 +521,17 @@
 ;; : (-> SourceFile QualityFacets PatternKind )
 (def (typed-combinator-style-gerbil-utils-source-kind file quality-facets)
   (cond
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["macro-phase-optimizer-visible-fast-path"
+      "phase-macro-generated-wrapper"
+      "optimizer-visible-call-shape"])
+    'macro-phase-optimizer-visible-fast-path)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["phase-aware-macro-boundary"
+      "meta-syntactic-tower-boundary"])
+    'phase-aware-macro-boundary)
    ((pair? (source-file-macros file)) 'macro-helper)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
@@ -456,6 +557,11 @@
     'concurrency-control-boundary)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
+     ["actor-runtime-boundary"
+      "mailbox-protocol-boundary"])
+    'actor-runtime-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
      ["exception-continuation-boundary"])
     'exception-continuation-boundary)
    ((gerbil-utils-source-quality-facet-any?
@@ -466,6 +572,23 @@
      quality-facets
      ["gerbil-upstream-idiom-boundary"])
     'gerbil-upstream-idiom-performance)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["gambit-numeric-primitive-boundary"
+      "numeric-domain-contract"
+      "generic-numeric-hot-loop"])
+    'gambit-numeric-primitive-domain-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["gerbil-inline-rule-call-shape"
+      "dynamic-apply-hot-loop"
+      "compiler-inline-rule-obscured"])
+    'gerbil-inline-rule-call-shape)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["ssxi-optimizer-metadata-boundary"
+      "optimizer-metadata-contract"])
+    'ssxi-optimizer-metadata-boundary)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["list-combinator-boundary"])

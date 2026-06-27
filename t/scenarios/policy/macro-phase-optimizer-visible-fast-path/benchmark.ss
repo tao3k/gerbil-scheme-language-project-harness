@@ -1,0 +1,63 @@
+((max_total . 25ms)
+ (observed_total . 5ms)
+ (target_total . 15ms)
+ (regression_budget . 20ms)
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 1))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 1)))
+ (targetRationale
+  .
+  "observed macro-phase-optimizer-visible-fast-path receipt is 5ms total; target keeps the macro-to-optimizer visibility scenario in the small millisecond budget while max_total remains the hard regression ceiling")
+ (maxCollectMs . 10)
+ (maxParseMs . 15)
+ (maxFileMs . 5)
+ (maxPhaseMs . 6)
+ (maxRssMb . 512)
+ (memoryMetric . resident-set-size)
+ (memoryUnit . "MB")
+ (iterations . 1)
+ (unit . "ms")
+ (purpose . "R013 connects Gerbil phase-aware macro DSLs to optimizer-visible runtime call shapes")
+ (feature . "macro-phase-optimizer-visible-fast-path")
+ (rule . "GERBIL-SCHEME-AGENT-R013")
+ (optimizationFocus . "macro-generated runtime helpers that preserve lexical direct calls")
+ (inputShape
+  .
+  "macro DSL generates a hot runtime helper that routes a known operation through a dynamic table and repeated apply")
+ (expectedRepair
+  .
+  "keep the macro surface thin, pass the checked helper lexically, and generate a loop whose hot call remains direct and optimizer-visible")
+ (expectedReferencePattern . "macro-phase-optimizer-visible-fast-path")
+ (expectedReferenceExamples
+  "gerbil://README.md#meta-syntactic-tower"
+  "gerbil://gerbil/expander/top.ss#begin-syntax-phi-plus-one"
+  "gerbil://gerbil/compiler/ssxi.ss#declare-inline-rule!"
+  "gerbil://gerbil/compiler/optimize-call.ss#%#call-unchecked")
+ (expectedQualitySignals
+  "phase-aware-macro-boundary"
+  "generated-runtime-helper"
+  "lexical-direct-helper"
+  "optimizer-visible-call-shape")
+ (learnedStyleSources
+  "gerbil://README.md"
+  "gerbil://gerbil/expander/top.ss"
+  "gerbil://gerbil/compiler/ssxi.ss"
+  "gerbil://gerbil/compiler/optimize-call.ss")
+ (antiAiScaffoldIntent
+  .
+  "reject generated macro DSL helpers that hide known runtime calls behind dynamic tables or apply and therefore erase Gerbil optimizer visibility")
+ (scenarioQualityAxes
+  "phase-aware-macro-dsl"
+  "generated-runtime-helper"
+  "known-procedure-call-fast-path"
+  "anti-ai-scaffold")
+ (measurementPhases
+  "collect-before"
+  "collect-after"
+  "policy-before"
+  "policy-after"
+  "assert-time-gate"
+  "assert-memory-gate")
+ (tags "style" "gerbil-native" "macro" "phase" "compiler" "optimizer" "direct-call"))
