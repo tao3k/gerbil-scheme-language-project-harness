@@ -61,7 +61,7 @@
    "downstream"
    ["|cmd downstream-install=from harness checkout run: gxpkg build"
    "|downstream gerbil.pkg-depend=(depend: (\"github.com/tao3k/gerbil-scheme-language-project-harness\"))"
-   "|downstream gxtest-import=(import :policy/gxtest)"
+   "|downstream gxtest-import=(import :gslph/src/policy/gxtest)"
    "|downstream gxtest-fixture=(def project-policy-test (make-project-policy-test \".\"))"
    "|cmd downstream-test=gxtest t/project-policy-test.ss"
    "|cmd downstream-policy-check=gerbil-scheme-harness check --full ."

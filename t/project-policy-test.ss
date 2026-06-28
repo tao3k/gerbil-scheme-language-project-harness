@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Explicit full-project policy gate.
 
-(import :policy/gxtest)
+(import :gslph/src/policy/gxtest)
 (export project-policy-test)
 
 ;; : TestSuite

@@ -57,7 +57,7 @@ Create a small test owner such as =t/project-policy-test.ss=:
 #+begin_src scheme
 ;;; -*- Gerbil -*-
 (import :std/test
-        :policy/gxtest)
+        :gslph/src/policy/gxtest)
 
 (export project-policy-test)
 

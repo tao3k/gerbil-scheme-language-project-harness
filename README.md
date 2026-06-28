@@ -33,7 +33,7 @@ Add a small `gxtest` fixture, for example `t/project-policy-test.ss`:
 ```scheme
 ;;; -*- Gerbil -*-
 (import :std/test
-        :policy/gxtest)
+        :gslph/src/policy/gxtest)
 (export project-policy-test)
 (def project-policy-test
   (make-project-policy-test "."))

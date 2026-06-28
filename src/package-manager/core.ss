@@ -52,7 +52,7 @@
         (installHint
          (string-append +gerbil-package-manager-id+ " install " package-name))
         (globalBuildHint "run gxpkg build from the package checkout when developing locally")
-        (gxtestImportHint "(import :policy/gxtest)")
+        (gxtestImportHint "(import :gslph/src/policy/gxtest)")
         (testEntrypointHint "(make-project-policy-test \".\")")
         (owner "asp-client")))
 ;; : (-> Repository Json )
@@ -73,6 +73,6 @@
         (missingLocalAction "install-package-before-repository-fallback")
         (localStateWarning
          "do not create repository-local .gerbil state; gxpkg state belongs under ~/.gerbil")
-        (gxtestImportHint "(import :policy/gxtest)")
+        (gxtestImportHint "(import :gslph/src/policy/gxtest)")
         (testEntrypointHint "(make-project-policy-test \".\")")
         (fallbackPolicy "repository-source-after-install-check")))
