@@ -18,6 +18,12 @@
         typed-combinator-style-controlled-macro-quality-facets
         typed-combinator-style-controlled-macro-syntax-signals
         typed-combinator-style-controlled-macro-targets
+        typed-combinator-style-match-extension-boundary-quality-facets
+        typed-combinator-style-match-extension-boundary-signals
+        typed-combinator-style-match-extension-boundary-targets
+        typed-combinator-style-mop-class-macro-boundary-quality-facets
+        typed-combinator-style-mop-class-macro-boundary-signals
+        typed-combinator-style-mop-class-macro-boundary-targets
         typed-combinator-style-typeclass-quality-facets
         typed-combinator-style-typeclass-algebra-signals
         typed-combinator-style-typeclass-algebra-targets
@@ -155,6 +161,161 @@
   (typed-combinator-style-facts->targets
    (source-file-macros file)
    macro-fact-name))
+
+;;; Gerbil core/match.ss supports match-specific extension macros through
+;;; defsyntax-for-match, syntax-local match macro lookup, applicative
+;;; destructuring, and struct/class accessor extraction.  Detection stays
+;;; parser-owned: macro facts prove the syntax surface, while typed contracts
+;;; prove the owner mixes match extension responsibilities.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-match-extension-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-match-extension-boundary-facts file))
+    ["match-extension-boundary"
+     "match-macro-destructuring-boundary"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-match-extension-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-match-extension-boundary-facts file)
+   ["use defsyntax-for-match for match-only pattern extensions"
+    "keep pattern parsing separate from runtime predicate helpers"
+    "prefer applicative destructuring or struct/class accessors over manual dispatcher tables"
+    "raise syntax errors at the pattern boundary with source context"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-match-extension-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-match-extension-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-match-extension-boundary-facts file)
+  (if (pair? (source-file-macros file))
+    (filter typed-combinator-style-match-extension-boundary-fact?
+            (source-file-typed-contract-facts file))
+    []))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-match-extension-boundary-fact? fact)
+  (>= (length
+       (typed-combinator-style-match-extension-boundary-categories fact))
+      5))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-match-extension-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Match" "match" "Pattern" "pattern"])
+                "match-pattern")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Macro" "macro" "Syntax" "syntax"])
+                "macro-syntax")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["SyntaxLocal" "syntax-local" "syntax local" "Expander" "expander"])
+                "syntax-local")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Struct" "struct" "Class" "class"])
+                "struct-class")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Accessor" "accessor" "Field" "field" "Slot" "slot"])
+                "accessor")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Apply" "apply" "Applicative" "applicative"])
+                "applicative")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Parse" "parse" "Parser" "parser"])
+                "parser")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Error" "error" "Source" "source"])
+                "source-error")]))
+
+;;; Gerbil core/mop.ss shows that class macros should keep expansion-time
+;;; class descriptors, slot layout, mixin accessors, and runtime method binding
+;;; as named boundaries.  Detection stays parser-owned: macro facts prove the
+;;; owner is a syntax surface, and typed contracts prove the mixed MOP surface.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-mop-class-macro-boundary-quality-facets file)
+  (if (pair? (typed-combinator-style-mop-class-macro-boundary-facts file))
+    ["mop-class-macro-boundary"
+     "class-descriptor-macro-boundary"]
+    []))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-mop-class-macro-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-mop-class-macro-boundary-facts file)
+   ["split defclass-style descriptor generation from runtime helpers"
+    "keep slot layout, mixin slots, accessors, and mutators in named MOP helpers"
+    "bind methods through a narrow runtime method boundary"
+    "keep constructor, predicate, metaclass, and slot contract metadata explicit"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-mop-class-macro-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-mop-class-macro-boundary-facts file)
+   typed-contract-fact-definition-name))
+
+;; : (-> SourceFile (List TypedContractFact) )
+(def (typed-combinator-style-mop-class-macro-boundary-facts file)
+  (if (pair? (source-file-macros file))
+    (filter typed-combinator-style-mop-class-macro-boundary-fact?
+            (source-file-typed-contract-facts file))
+    []))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-mop-class-macro-boundary-fact? fact)
+  (>= (length
+       (typed-combinator-style-mop-class-macro-boundary-categories fact))
+      6))
+
+;; : (-> TypedContractFact (List String) )
+(def (typed-combinator-style-mop-class-macro-boundary-categories fact)
+  (filter (lambda (category) category)
+          [(and (typed-contract-fact-mentions-any?
+                 fact
+                 ["MOP" "mop" "Metaobject" "metaobject"])
+                "mop")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Class" "class" "Defclass" "defclass"])
+                "class")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Descriptor" "descriptor" "TypeInfo" "type-info"])
+                "descriptor")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Slot" "slot" "Layout" "layout"])
+                "slot")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Mixin" "mixin" "Super" "super"])
+                "mixin")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Accessor" "accessor" "Mutator" "mutator"])
+                "accessor-mutator")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Method" "method" "Bind" "bind"])
+                "method")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Constructor" "constructor" "Predicate" "predicate"])
+                "constructor-predicate")
+           (and (typed-contract-fact-mentions-any?
+                 fact
+                 ["Metaclass" "metaclass" "Contract" "contract" "Default" "default"])
+                "metadata")]))
 
 ;;; POO typeclass facts come from the parser's options, not source text scans.
 ;;; The details expose concrete targets for gerbil-poo/fun.ss style repair.

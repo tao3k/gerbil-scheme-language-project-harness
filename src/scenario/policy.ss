@@ -108,6 +108,31 @@
          (policy-scenario-benchmark-required-duration datum 'target_total))
         (regression_budget
          (policy-scenario-benchmark-required-duration datum 'regression_budget))
+        (maxCollectMs
+         (policy-scenario-benchmark-required-value datum 'maxCollectMs))
+        (observedCollectMs
+         (policy-scenario-benchmark-required-value datum 'observedCollectMs))
+        (maxParseMs
+         (policy-scenario-benchmark-required-value datum 'maxParseMs))
+        (observedParseMs
+         (policy-scenario-benchmark-required-value datum 'observedParseMs))
+        (maxFileMs
+         (policy-scenario-benchmark-required-value datum 'maxFileMs))
+        (observedFileMs
+         (policy-scenario-benchmark-required-value datum 'observedFileMs))
+        (maxPhaseMs
+         (policy-scenario-benchmark-required-value datum 'maxPhaseMs))
+        (observedPhaseMs
+         (policy-scenario-benchmark-required-value datum 'observedPhaseMs))
+        (expected_over_input_budget
+         (policy-scenario-benchmark-value
+          datum
+          'expected_over_input_budget
+          (policy-scenario-benchmark-required-duration
+           datum
+           'regression_budget)))
+        (expected_over_input_note
+         (policy-scenario-benchmark-value datum 'expected_over_input_note #f))
         (observedTimings
          (policy-scenario-benchmark-required-value datum 'observedTimings))
         (targetRationale
@@ -243,6 +268,19 @@
          (total-ms (duration-nanos->ms total-ns))
          (benchmark-contract
           (policy-scenario-benchmark-contract scenario))
+         (input-total-ns
+          (+ (hash-get before-index-timing 'durationNs)
+             (hash-get before-policy-timing 'durationNs)))
+         (expected-total-ns
+          (+ (hash-get after-index-timing 'durationNs)
+             (hash-get after-policy-timing 'durationNs)))
+         (input-expected-comparison
+          (policy-scenario-input-expected-comparison
+           input-total-ns
+           expected-total-ns
+           (hash-get benchmark-contract 'expected_over_input_budget)
+           (hash-get benchmark-contract 'expected_over_input_note)
+           (hash-get benchmark-contract 'targetRationale)))
          (max-total
           (policy-scenario-benchmark-max-total benchmark-contract))
          (result
@@ -256,6 +294,23 @@
           (scenarioId (policy-scenario-id scenario))
           (totalMs total-ms)
           (totalNs total-ns)
+          (total (duration-nanos->text total-ns))
+          (inputTotalMs (duration-nanos->ms input-total-ns))
+          (inputTotalNs input-total-ns)
+          (inputTotal (duration-nanos->text input-total-ns))
+          (expectedTotalMs (duration-nanos->ms expected-total-ns))
+          (expectedTotalNs expected-total-ns)
+          (expectedTotal (duration-nanos->text expected-total-ns))
+          (expectedOverInputNs (- expected-total-ns input-total-ns))
+          (expectedOverInput
+           (duration-nanos->text (- expected-total-ns input-total-ns)))
+          (expected_over_input_budget
+           (hash-get benchmark-contract 'expected_over_input_budget))
+          (expected_over_input_note
+           (hash-get benchmark-contract 'expected_over_input_note))
+          (inputExpectedStatus
+           (hash-get input-expected-comparison 'status))
+          (inputExpectedComparison input-expected-comparison)
           (timings timings)
           (benchmarkContract benchmark-contract)
           (benchmarkFeature (hash-get benchmark-contract 'feature))
@@ -277,6 +332,77 @@
           (performanceStatus
            (policy-scenario-performance-status total-ns max-total))
           (result result))))
+
+;;; Input/expected comparison boundary:
+;;; - input side measures the failing/original project shape.
+;;; - expected side measures the repaired project shape.
+;;; - The repaired side may be slower only inside the scenario-owned budget.
+;; : (-> (U String False) (U String False) (U Pair False))
+(def (policy-scenario-input-expected-annotation expected-over-input-note
+                                                target-rationale)
+  (cond
+   ((and (string? expected-over-input-note)
+         (> (string-length expected-over-input-note) 0))
+    (cons 'expected_over_input_note expected-over-input-note))
+   ((and (string? target-rationale)
+         (> (string-length target-rationale) 0))
+    (cons 'targetRationale target-rationale))
+   (else #f)))
+
+;; : (-> Nanoseconds Nanoseconds DurationLiteral (U String False) (U String False) HashTable )
+(def (policy-scenario-input-expected-comparison input-total-ns
+                                                expected-total-ns
+                                                expected-over-input-budget
+                                                expected-over-input-note
+                                                target-rationale)
+  (let ((delta-ns (- expected-total-ns input-total-ns))
+        (budget-ns
+         (duration-literal->nanos expected-over-input-budget))
+        (annotation
+         (policy-scenario-input-expected-annotation
+          expected-over-input-note
+          target-rationale)))
+    (if budget-ns
+      (hash (schemaId
+             "agent.semantic-protocols.gerbil-scheme-input-expected-performance")
+            (schemaVersion "1")
+            (relation
+             (if (< expected-total-ns input-total-ns)
+               "expected-faster"
+               "expected-not-faster"))
+            (inputTotalMs (duration-nanos->ms input-total-ns))
+            (inputTotalNs input-total-ns)
+            (inputTotal (duration-nanos->text input-total-ns))
+            (expectedTotalMs (duration-nanos->ms expected-total-ns))
+            (expectedTotalNs expected-total-ns)
+            (expectedTotal (duration-nanos->text expected-total-ns))
+            (expectedOverInputNs delta-ns)
+            (expectedOverInput (duration-nanos->text delta-ns))
+            (expected_over_input_budget expected-over-input-budget)
+            (annotationSource (and annotation (car annotation)))
+            (annotation (and annotation (cdr annotation)))
+            (status
+             (cond
+              ((> expected-total-ns (+ input-total-ns budget-ns))
+               (string-append
+                "fail expectedNs="
+                (number->string expected-total-ns)
+                " inputNs="
+                (number->string input-total-ns)
+                " budgetNs="
+                (number->string budget-ns)))
+              ((< expected-total-ns input-total-ns) "pass")
+              (annotation "pass annotated")
+              (else
+               (string-append
+                "fail expected-not-faster annotation=missing"
+                " expectedNs="
+                (number->string expected-total-ns)
+                " inputNs="
+                (number->string input-total-ns))))))
+      (error "policy scenario benchmark invalid duration literal"
+             'expected_over_input_budget
+             expected-over-input-budget))))
 
 ;;; Status boundary:
 ;;; - Unbounded scenarios still return timing receipts.

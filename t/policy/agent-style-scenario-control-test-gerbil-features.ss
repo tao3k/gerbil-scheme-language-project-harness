@@ -8,6 +8,110 @@
 ;; PolicyTest
 (def agent-style-scenario-control-gerbil-features-policy-test
   (test-suite "agent style Gerbil feature scenario control policy"
+(test-case "agent policy validates parser combinator boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "parser-combinator-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "parser-combinator-boundary"
+             "parser-combinator-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://std/parser/defparser.ss"
+              "gerbil://std/parser/rx-parser.ss"]
+             ["parser-combinator-boundary"
+              "manual-parser-state-machine"
+              "source-aware-parse-error"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "manual string cursor parser state machine to std/parser defparser grammar boundary")
+            (check (agent-style-member?
+                    "parser-combinator-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "manual-parser-state-machine"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "replace manual string cursor parsers with std/parser defparser grammar boundaries"
+                    (hash-get details 'parserCombinatorBoundarySignals))
+                   => #t)
+            (check (hash-get details 'parserCombinatorBoundaryTargets)
+                   => ["parse-binding"])
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-std-parser-combinator-boundary")
+            (check (agent-style-member?
+                    "gerbil://std/parser/defparser.ss#defparser"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "gerbil://std/parser/rx-parser.ss#raise-parse-error"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "defparser-grammar-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "replace hand-written string cursor parser state machines with std/parser defparser grammar boundaries, using parser-fail/parser-rewind and raise-parse-error for source-aware failures"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
+(test-case "agent policy validates dynamic scope cleanup boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "dynamic-scope-cleanup-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "dynamic-scope-cleanup-boundary"
+             "dynamic-scope-cleanup-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://gerbil/runtime/control.ss"
+              "poo-flow/build.ss"
+              "gerbil-scheme-harness/src/build-api/source-coverage.ss"]
+             ["dynamic-scope-cleanup-boundary"
+              "anti-ai-dynamic-state-restore"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "manual dynamic state save/restore to dynamic-wind or parameterize cleanup boundary")
+            (check (agent-style-member?
+                    "dynamic-scope-cleanup-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "manual-dynamic-scope-restore"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "wrap current-directory/current-port changes in dynamic-wind, with-unwind-protect, or parameterize"
+                    (hash-get details 'dynamicScopeCleanupSignals))
+                   => #t)
+            (check (hash-get details 'dynamicScopeCleanupTargets)
+                   => ["with-directory"])
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-runtime-dynamic-scope-cleanup-boundary")
+            (check (agent-style-member?
+                    "gerbil://gerbil/runtime/control.ss#dynamic-wind"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "poo-flow/build.ss#poo-flow-with-directory"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "dynamic-wind-cleanup-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "wrap manual current-directory/current-port save and restore in dynamic-wind, with-unwind-protect, or parameterize so cleanup runs across exceptions and continuations"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
 (test-case "agent policy validates phase-aware macro boundary scenario under performance gate"
           (let* ((context
                   (agent-style-policy-r013-scenario-context
@@ -135,6 +239,118 @@
             (check (agent-style-member?
                     "with-syntax-reconstruction-boundary"
                     (hash-get quality-reference 'qualitySignals))
+                   => #t)))
+(test-case "agent policy validates match extension boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "match-extension-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "match-extension-boundary"
+             "match-extension-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://gerbil/core/match.ss#defsyntax-for-match"
+              "gerbil://gerbil/core/match.ss#syntax-local-match-macro?"]
+             ["match-extension-boundary"
+              "match-macro-destructuring-boundary"
+              "applicative-destructuring-boundary"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "Gerbil core/match match macro extension, syntax-local lookup, and applicative destructuring boundaries")
+            (check (agent-style-member?
+                    "match-extension-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "match-macro-destructuring-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "use defsyntax-for-match for match-only pattern extensions"
+                    (hash-get details 'matchExtensionBoundarySignals))
+                   => #t)
+            (check (hash-get details 'matchExtensionBoundaryTargets)
+                   => ["define-shape-match"])
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-core-match-extension-boundary")
+            (check (agent-style-member?
+                    "gerbil://gerbil/core/match.ss#defsyntax-for-match"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "gerbil://gerbil/core/match.ss#struct-field-accessors"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "syntax-local-match-macro-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "source-aware-pattern-error-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "when one macro owner mixes match pattern parsing, syntax-local match macro lookup, applicative destructuring, struct/class accessors, and source-aware parse errors, use defsyntax-for-match or applicative match helpers instead of a hand-rolled dispatcher"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
+(test-case "agent policy validates MOP class macro boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "mop-class-macro-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details))
+                 (quality-reference (hash-get context 'qualityReference)))
+            (agent-style-check-r013-scenario!
+             context
+             "mop-class-macro-boundary"
+             "mop-class-macro-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://gerbil/core/mop.ss#defclass"
+              "gerbil://gerbil/core/mop.ss#defmethod"]
+             ["mop-class-macro-boundary"
+              "class-descriptor-macro-boundary"
+              "method-binding-boundary"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "Gerbil core/mop defclass descriptor, mixin slot accessor, and defmethod binding boundaries")
+            (check (agent-style-member?
+                    "mop-class-macro-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "class-descriptor-macro-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "split defclass-style descriptor generation from runtime helpers"
+                    (hash-get details 'mopClassMacroBoundarySignals))
+                   => #t)
+            (check (hash-get details 'mopClassMacroBoundaryTargets)
+                   => ["define-model-class"])
+            (check (hash-get quality-reference 'referencePattern)
+                   => "gerbil-core-mop-class-macro-boundary")
+            (check (agent-style-member?
+                    "gerbil://gerbil/core/mop.ss#generate-defclass"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "gerbil://gerbil/core/mop.ss#get-mixin-slots"
+                    (hash-get quality-reference 'referenceExamples))
+                   => #t)
+            (check (agent-style-member?
+                    "mixin-slot-accessor-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "method-binding-boundary"
+                    (hash-get quality-reference 'qualitySignals))
+                   => #t)
+            (check (agent-style-member?
+                    "when one macro owner mixes class descriptors, slot layout, mixin accessors, mutators, constructor/predicate metadata, and method binding, replace table-shaped class generation with defclass-style descriptor helpers and narrow defmethod/runtime binding boundaries"
+                    (hash-get details 'qualityFacetSteering))
                    => #t)))
 (test-case "agent policy validates SSXI optimizer metadata scenario under performance gate"
           (let* ((context

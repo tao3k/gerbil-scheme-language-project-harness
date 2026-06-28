@@ -29,6 +29,15 @@
 ;; (List String)
 (def +reader-driver-callees+ '("read" "read-line" "read-syntax"))
 ;; (List String)
+(def +parser-driver-callees+
+  '("string-length" "string-ref" "substring" "string->list" "list->string"
+    "char=?" "char<?" "char>?" "char-whitespace?" "char-numeric?"
+    "char-alphabetic?" "char-upper-case?" "char-lower-case?"))
+;; (List String)
+(def +parser-combinator-callees+
+  '("defparser" "parser-parse" "parser-fail" "parser-rewind"
+    "raise-parse-error" "make-token"))
+;; (List String)
 (def +state-mutation-callees+
   '("set!" "set-car!" "set-cdr!" "vector-set!" "hash-put!" "hash-remove!"
     "hash-clear!" "table-set!" "table-delete!" ".put!" ".slot-set!"))
@@ -520,6 +529,9 @@
 (def (loop-driver-kind calls higher-order-forms fact)
   (let (caller (control-flow-fact-caller fact))
     (cond
+     ((and (caller-has-callee? calls caller +parser-driver-callees+)
+           (not (caller-has-callee? calls caller +parser-combinator-callees+)))
+      "manual-parser-state-machine")
      ((caller-has-callee? calls caller +reader-driver-callees+)
       "io-reader-driver")
      ((caller-has-callee? calls caller +state-mutation-callees+)
@@ -535,6 +547,9 @@
   (cond
    ((equal? driver-kind "pure-transform-candidate")
     ["manual-loop-drift" "combinator-candidate"])
+   ((equal? driver-kind "manual-parser-state-machine")
+    ["manual-parser-state-machine" "parser-combinator-boundary"
+     "anti-ai-parser-scaffold"])
    ((equal? driver-kind "io-reader-driver")
     ["preserve-named-let-driver" "io-state-boundary"])
    ((equal? driver-kind "higher-order-boundary")
@@ -546,6 +561,8 @@
   (cond
    ((equal? driver-kind "pure-transform-candidate")
     "prefer fold/filter-map/map or predicate helpers if behavior is a pure data transform")
+   ((equal? driver-kind "manual-parser-state-machine")
+    "replace manual string cursor parsing with a std/parser defparser grammar, parser-fail/parser-rewind, and source-aware parse errors")
    ((equal? driver-kind "io-reader-driver")
     "preserve named let unless a runtime witness proves the IO state machine can be simplified")
    ((equal? driver-kind "higher-order-boundary")

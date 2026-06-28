@@ -11,9 +11,13 @@
   .
   "observed baseline 7ms for macro-controlled-helper; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 12)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 8)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

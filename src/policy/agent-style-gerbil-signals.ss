@@ -56,6 +56,9 @@
         typed-combinator-style-loop-driver-quality-facets
         typed-combinator-style-loop-driver-signals
         typed-combinator-style-loop-driver-targets
+        typed-combinator-style-parser-combinator-boundary-quality-facets
+        typed-combinator-style-parser-combinator-boundary-signals
+        typed-combinator-style-parser-combinator-boundary-targets
         typed-combinator-style-generator-combinator-signals
         typed-combinator-style-generator-contract-targets
         typed-combinator-style-serialization-boundary-quality-facets
@@ -67,6 +70,9 @@
         typed-combinator-style-concurrency-control-quality-facets
         typed-combinator-style-concurrency-control-signals
         typed-combinator-style-concurrency-control-targets
+        typed-combinator-style-dynamic-scope-cleanup-quality-facets
+        typed-combinator-style-dynamic-scope-cleanup-signals
+        typed-combinator-style-dynamic-scope-cleanup-targets
         typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets
         typed-combinator-style-ssxi-optimizer-metadata-boundary-signals
         typed-combinator-style-ssxi-optimizer-metadata-boundary-targets
@@ -91,6 +97,12 @@
         typed-combinator-style-controlled-macro-quality-facets
         typed-combinator-style-controlled-macro-syntax-signals
         typed-combinator-style-controlled-macro-targets
+        typed-combinator-style-match-extension-boundary-quality-facets
+        typed-combinator-style-match-extension-boundary-signals
+        typed-combinator-style-match-extension-boundary-targets
+        typed-combinator-style-mop-class-macro-boundary-quality-facets
+        typed-combinator-style-mop-class-macro-boundary-signals
+        typed-combinator-style-mop-class-macro-boundary-targets
         typed-combinator-style-typeclass-quality-facets
         typed-combinator-style-typeclass-algebra-signals
         typed-combinator-style-typeclass-algebra-targets)
@@ -137,6 +149,42 @@
    "map/filter/filter-map/fold"
    "andmap/ormap/every/any predicate folds"
    "with-list-builder"])
+
+;;; Dynamic scope cleanup boundary:
+;;; - Function-quality profiles own the call-fact correlation.
+;;; - This layer projects that parser-owned facet into bounded repair signals.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-dynamic-scope-cleanup-quality-facets file)
+  (typed-combinator-style-facts->quality-facet
+   (typed-combinator-style-dynamic-scope-cleanup-facts file)
+   "dynamic-scope-cleanup-boundary"))
+
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-dynamic-scope-cleanup-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-dynamic-scope-cleanup-facts file)
+   ["wrap current-directory/current-port changes in dynamic-wind, with-unwind-protect, or parameterize"
+    "restore dynamic state in an after thunk so exceptions and continuations cannot skip cleanup"
+    "keep dynamic state changes at a narrow helper boundary"
+    "prefer parameterize when the state is a parameter binding rather than a manual setter"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-dynamic-scope-cleanup-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-dynamic-scope-cleanup-facts file)
+   function-quality-profile-name))
+
+;; : (-> SourceFile (List FunctionQualityProfile) )
+(def (typed-combinator-style-dynamic-scope-cleanup-facts file)
+  (filter typed-combinator-style-dynamic-scope-cleanup-profile?
+          (source-file-function-quality-profiles file)))
+
+;; : (-> FunctionQualityProfile Boolean )
+(def (typed-combinator-style-dynamic-scope-cleanup-profile? profile)
+  (if (member "manual-dynamic-scope-restore"
+              (function-quality-profile-quality-facets profile))
+    #t
+    #f))
 
 ;;; Projection boundary:
 ;;; - These strings describe how upstream Gerbil contracts reach harness facts.
@@ -424,6 +472,44 @@
              (not (string-empty? caller)))
       caller
       (loop-driver-fact-name fact))))
+
+;;; Parser-combinator boundary:
+;;; - std/parser/defparser.ss teaches grammar-owned parser construction.
+;;; - Emit only when parser-owned loop facts prove string cursor parsing drift.
+;; : (-> SourceFile (List QualityFacet) )
+(def (typed-combinator-style-parser-combinator-boundary-quality-facets file)
+  (typed-combinator-style-facts->quality-facet
+   (typed-combinator-style-parser-combinator-boundary-facts file)
+   "parser-combinator-boundary"))
+
+;;; Guidance boundary:
+;;; - Manual cursor parsing is the high-impact AI scaffold this rule repairs.
+;;; - The repair stays local to parser grammar and error boundaries.
+;; : (-> SourceFile (List String) )
+(def (typed-combinator-style-parser-combinator-boundary-signals file)
+  (typed-combinator-style-facts->signals
+   (typed-combinator-style-parser-combinator-boundary-facts file)
+   ["replace manual string cursor parsers with std/parser defparser grammar boundaries"
+    "use parser-fail/parser-rewind and raise-parse-error for source-aware parser failures"
+    "keep token/domain construction at the parser boundary instead of leaking substring cursor tuples"]))
+
+;; : (-> SourceFile (List TargetName) )
+(def (typed-combinator-style-parser-combinator-boundary-targets file)
+  (typed-combinator-style-facts->targets
+   (typed-combinator-style-parser-combinator-boundary-facts file)
+   typed-combinator-style-loop-driver-target-name))
+
+;; : (-> SourceFile (List LoopDriverFact) )
+(def (typed-combinator-style-parser-combinator-boundary-facts file)
+  (filter typed-combinator-style-parser-combinator-boundary-fact?
+          (source-file-loop-driver-facts file)))
+
+;; : (-> LoopDriverFact Boolean )
+(def (typed-combinator-style-parser-combinator-boundary-fact? fact)
+  (and (equal? (loop-driver-fact-driver-kind fact)
+               "manual-parser-state-machine")
+       (member "parser-combinator-boundary"
+               (loop-driver-fact-quality-facets fact))))
 
 ;;; Fact boundary:
 ;;; - A List contract alone is not enough: the parser must also classify a

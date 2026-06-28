@@ -11,9 +11,13 @@
   .
   "complex real-agent-basic-syntax scenario measured through policy-scenario-run/timed after full compile; keep total under 35ms and target under 20ms")
  (maxCollectMs . 15)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 10)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

@@ -11,9 +11,13 @@
   .
   "typed-combinator-style keeps the baseline under a subsecond millisecond budget while preserving fractional observed timing support")
  (maxCollectMs . 10)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 6)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

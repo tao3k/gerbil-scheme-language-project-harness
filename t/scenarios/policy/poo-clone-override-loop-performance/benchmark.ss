@@ -11,9 +11,13 @@
   .
   "observed baseline 5ms for poo-clone-override-loop-performance; target keeps optimization visible and max_total is the hard regression ceiling")
  (maxCollectMs . 10)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 6)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

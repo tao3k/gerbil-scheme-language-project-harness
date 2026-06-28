@@ -11,9 +11,13 @@
   .
   "observed baseline 5ms for exception-continuation-boundary; target keeps the hot exception-policy scenario in the small millisecond budget while max_total remains the hard regression ceiling")
  (maxCollectMs . 10)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 5)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

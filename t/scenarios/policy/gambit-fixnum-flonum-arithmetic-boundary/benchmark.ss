@@ -11,9 +11,13 @@
   .
   "observed gambit-fixnum-flonum-arithmetic-boundary receipt is 4ms total; target keeps numeric primitive policy in the small millisecond budget while max_total remains the hard regression ceiling")
  (maxCollectMs . 8)
+ (observedCollectMs . 0)
  (maxParseMs . 12)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 5)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

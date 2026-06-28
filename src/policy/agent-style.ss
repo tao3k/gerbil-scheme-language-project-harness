@@ -265,6 +265,10 @@
          (typed-combinator-style-loop-driver-signals file))
         (loopDriverCombinatorTargets
          (typed-combinator-style-loop-driver-targets file))
+        (parserCombinatorBoundarySignals
+         (typed-combinator-style-parser-combinator-boundary-signals file))
+        (parserCombinatorBoundaryTargets
+         (typed-combinator-style-parser-combinator-boundary-targets file))
         (destructuringBoundarySignals
          (typed-combinator-style-destructuring-signals file))
         (destructuringBoundaryTargets
@@ -277,6 +281,10 @@
          (typed-combinator-style-concurrency-control-signals file))
         (concurrencyControlBoundaryTargets
          (typed-combinator-style-concurrency-control-targets file))
+        (dynamicScopeCleanupSignals
+         (typed-combinator-style-dynamic-scope-cleanup-signals file))
+        (dynamicScopeCleanupTargets
+         (typed-combinator-style-dynamic-scope-cleanup-targets file))
         (ssxiOptimizerMetadataBoundarySignals
          (typed-combinator-style-ssxi-optimizer-metadata-boundary-signals
           file))
@@ -313,6 +321,14 @@
          (typed-combinator-style-controlled-macro-syntax-signals file))
         (controlledMacroTargets
          (typed-combinator-style-controlled-macro-targets file))
+        (matchExtensionBoundarySignals
+         (typed-combinator-style-match-extension-boundary-signals file))
+        (matchExtensionBoundaryTargets
+         (typed-combinator-style-match-extension-boundary-targets file))
+        (mopClassMacroBoundarySignals
+         (typed-combinator-style-mop-class-macro-boundary-signals file))
+        (mopClassMacroBoundaryTargets
+         (typed-combinator-style-mop-class-macro-boundary-targets file))
         (typeclassAlgebraSignals
          (typed-combinator-style-typeclass-algebra-signals file))
         (typeclassAlgebraTargets
@@ -533,10 +549,12 @@
     (typed-combinator-style-list-combinator-quality-facets file)
     (typed-combinator-style-std-sugar-flow-quality-facets file)
     (typed-combinator-style-loop-driver-quality-facets file)
+    (typed-combinator-style-parser-combinator-boundary-quality-facets file)
     (typed-combinator-style-destructuring-quality-facets file)
     (typed-combinator-style-serialization-boundary-quality-facets file)
     (typed-combinator-style-slot-lens-boundary-quality-facets file)
     (typed-combinator-style-concurrency-control-quality-facets file)
+    (typed-combinator-style-dynamic-scope-cleanup-quality-facets file)
     (typed-combinator-style-ssxi-optimizer-metadata-boundary-quality-facets
      file)
     (typed-combinator-style-expander-root-boundary-quality-facets file)
@@ -546,6 +564,8 @@
     (typed-combinator-style-macro-family-quality-facets file)
     (typed-combinator-style-phase-aware-macro-boundary-quality-facets file)
     (typed-combinator-style-controlled-macro-quality-facets file)
+    (typed-combinator-style-match-extension-boundary-quality-facets file)
+    (typed-combinator-style-mop-class-macro-boundary-quality-facets file)
     (typed-combinator-style-upstream-performance-quality-facets file)
     (typed-combinator-style-result-index-scaffold-quality-facets file)
     (typed-combinator-style-typeclass-quality-facets file))))
@@ -565,6 +585,9 @@
                      "eta-wrapper-drift"
                      "lambda-match-destructuring"
                      "lambda-match-rewrite-opportunity"
+                     "dynamic-scope-cleanup-boundary"
+                     "manual-dynamic-scope-restore"
+                     "anti-ai-dynamic-state-restore"
                      "method-table-combinator-body"
                      "method-table-lambda-drift"
                      "method-table-low-level-body"]))
@@ -592,6 +615,7 @@
                                 "gerbil-upstream-idiom-boundary"
                                 "list-combinator-boundary"
                                 "std-sugar-flow-boundary"
+                                "parser-combinator-boundary"
                                 "destructuring-combinator-boundary"
                                 "gerbil-native-pattern-boundary"
                                 "match-with-destructuring-boundary"
@@ -600,6 +624,7 @@
                                 "result-index-scaffold"
                                 "slot-lens-boundary"
                                 "concurrency-control-boundary"
+                                "dynamic-scope-cleanup-boundary"
                                 "ssxi-optimizer-metadata-boundary"
                                 "actor-runtime-boundary"
                                 "exception-continuation-boundary"

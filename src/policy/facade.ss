@@ -56,6 +56,10 @@
         +agent-poo-slot-spec-mutation-loop-performance-rule+
         +agent-poo-slot-predicate-loop-performance-rule+
         +agent-poo-documentation-usage-rule+
+        +agent-list-growth-loop-performance-rule+
+        +agent-macro-expansion-io-boundary-rule+
+        +agent-list-random-access-loop-performance-rule+
+        +agent-string-growth-loop-performance-rule+
         repairable-finding?
         repairable-findings
         agent-repair-report-json
@@ -113,4 +117,8 @@
         policy-source-scope-finding
         alist-access-finding
         anonymous-pair-access-finding
+        list-growth-loop-performance-finding
+        list-random-access-loop-performance-finding
+        string-growth-loop-performance-finding
+        macro-expansion-io-boundary-finding
         facade-export-conflict-findings)

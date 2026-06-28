@@ -7,6 +7,10 @@
         :policy/gxtest
         :policy/modularity-test
         :policy/agent-basic-test
+        :policy/agent-list-growth-test
+        :policy/agent-list-random-access-test
+        :policy/agent-macro-io-test
+        :policy/agent-string-growth-test
         :policy/agent-alist-access-test
         :policy/agent-anonymous-pair-test
         :policy/agent-build-test
@@ -27,6 +31,10 @@
   (test-suite "gerbil scheme harness policy"
     modularity-policy-test
     agent-basic-policy-test
+    agent-list-growth-policy-test
+    agent-list-random-access-policy-test
+    agent-macro-io-policy-test
+    agent-string-growth-policy-test
     agent-alist-access-policy-test
     agent-anonymous-pair-policy-test
     agent-build-policy-test

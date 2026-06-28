@@ -212,7 +212,22 @@
      "fold-reducer-boundary"
      "map-fold-boundary"
      "lambda-match-list-destructuring"]
-    "gerbil:// source corpus, gerbil-utils/list.ss, and base.ss study: pure named-let drivers should become fold/map/filter-map style transform boundaries when parser facts show no IO, state, generator, or higher-order witness")
+   "gerbil:// source corpus, gerbil-utils/list.ss, and base.ss study: pure named-let drivers should become fold/map/filter-map style transform boundaries when parser facts show no IO, state, generator, or higher-order witness")
+   (make-gerbil-utils-source-profile
+    'parser-combinator-boundary
+    "gerbil-std-parser-combinator-boundary"
+    ["gerbil://std/parser/defparser.ss#defparser"
+     "gerbil://std/parser/defparser.ss#parser-fail"
+     "gerbil://std/parser/defparser.ss#parser-rewind"
+     "gerbil://std/parser/rx-parser.ss#raise-parse-error"
+     "gerbil://std/parser/rx-parser.ss#make-token"]
+    ["parser-combinator-boundary"
+     "manual-parser-state-machine"
+     "defparser-grammar-boundary"
+     "parser-rewind-fail-boundary"
+     "source-aware-parse-error"
+     "token-construction-boundary"]
+    "gerbil:// std/parser study: parser quality comes from defparser grammar owners, parser-fail/parser-rewind control, source-aware parse errors, and token construction at the grammar boundary instead of hand-written string cursor state machines")
    (make-gerbil-utils-source-profile
     'destructuring-combinator-boundary
     "destructuring-combinator-boundary"
@@ -367,6 +382,20 @@
      "thread-parameter-propagation"]
    "gerbil:// runtime control and gerbil-utils/concurrency.ss study: concurrency quality comes from preserving dynamic-wind reentry guards and unwind cleanup while naming spawn/join, mutex sequentialization, race shutdown, parallel map, and thread-parameter propagation boundaries without requiring a gerbil-utils dependency")
    (make-gerbil-utils-source-profile
+    'dynamic-scope-cleanup-boundary
+    "gerbil-runtime-dynamic-scope-cleanup-boundary"
+    ["gerbil://gerbil/runtime/control.ss#dynamic-wind"
+     "gerbil://gerbil/runtime/control.ss#with-unwind-protect"
+     "gerbil://gerbil/runtime/control.ss#call-with-parameters"
+     "poo-flow/build.ss#poo-flow-with-directory"
+     "gerbil-scheme-harness/src/build-api/source-coverage.ss#with-directory"]
+    ["dynamic-scope-cleanup-boundary"
+     "manual-dynamic-scope-restore"
+     "dynamic-wind-cleanup-boundary"
+     "parameterize-state-boundary"
+     "unwind-cleanup-boundary"]
+    "gerbil:// runtime control, poo-flow, and harness build helpers show dynamic state quality: current-directory/current-port changes must restore through dynamic-wind, with-unwind-protect, or parameterize instead of a post-thunk manual setter")
+   (make-gerbil-utils-source-profile
     'actor-runtime-boundary
     "gerbil-actor-runtime-boundary"
     ["gerbil://std/actor-v18/executor.ss#spawn-actor-worker"
@@ -428,7 +457,7 @@
      "gerbil-utils/autocurry.ss#syntax-rules"
      "gerbil-utils/base.ss#nest"
      "gerbil-utils/base.ss#left-to-right"]
-    ["controlled-macro-helper"
+   ["controlled-macro-helper"
      "macro-hygiene-boundary"
      "parameterized-expander-state"
      "typed-context-record-boundary"
@@ -441,7 +470,40 @@
      "thin-syntax-bridge"
      "runtime-helper-boundary"
      "expansion-contract-doc"]
-    "gerbil:// source corpus and gerbil-utils study: macros are allowed when they are thin hygienic syntax wrappers, use ast-case/syntax-case or syntax-rules for local parsing, reconstruct with with-syntax, parameterize expander phase/context state instead of mutating globals, and keep reusable runtime behavior outside the transformer")
+   "gerbil:// source corpus and gerbil-utils study: macros are allowed when they are thin hygienic syntax wrappers, use ast-case/syntax-case or syntax-rules for local parsing, reconstruct with with-syntax, parameterize expander phase/context state instead of mutating globals, and keep reusable runtime behavior outside the transformer")
+   (make-gerbil-utils-source-profile
+    'match-extension-boundary
+    "gerbil-core-match-extension-boundary"
+    ["gerbil://gerbil/core/match.ss#match-macro"
+     "gerbil://gerbil/core/match.ss#syntax-local-match-macro?"
+     "gerbil://gerbil/core/match.ss#parse-match-pattern"
+     "gerbil://gerbil/core/match.ss#struct-field-accessors"
+     "gerbil://gerbil/core/match.ss#defsyntax-for-match"
+     "gerbil://gerbil/core/match.ss#defrules-for-match"]
+    ["match-extension-boundary"
+     "match-macro-destructuring-boundary"
+     "syntax-local-match-macro-boundary"
+     "applicative-destructuring-boundary"
+     "struct-class-accessor-boundary"
+     "source-aware-pattern-error-boundary"]
+    "gerbil:// core/match.ss study: match extension quality comes from defsyntax-for-match, syntax-local match macro lookup, applicative destructuring, struct/class accessor extraction, and source-aware pattern errors instead of table-shaped runtime dispatchers")
+   (make-gerbil-utils-source-profile
+    'mop-class-macro-boundary
+    "gerbil-core-mop-class-macro-boundary"
+    ["gerbil://gerbil/core/mop.ss#defclass"
+     "gerbil://gerbil/core/mop.ss#defmethod"
+     "gerbil://gerbil/core/mop.ss#generate-defclass"
+     "gerbil://gerbil/core/mop.ss#class-type-info"
+     "gerbil://gerbil/core/mop.ss#get-mixin-slots"
+     "gerbil://gerbil/core/mop.ss#bind-method!"]
+    ["mop-class-macro-boundary"
+     "class-descriptor-macro-boundary"
+     "class-type-info-boundary"
+     "mixin-slot-accessor-boundary"
+     "method-binding-boundary"
+     "constructor-predicate-metadata-boundary"
+     "slot-contract-metadata-boundary"]
+    "gerbil:// core/mop.ss study: class macro quality comes from expansion-time class-type-info descriptors, generated slot/mixin accessors and mutators, explicit constructor/predicate/metaclass metadata, and narrow runtime method binding instead of table-shaped class DSLs")
    (make-gerbil-utils-source-profile
     'default
     "gerbil-utils-quality-pattern"
@@ -532,6 +594,16 @@
      ["phase-aware-macro-boundary"
       "meta-syntactic-tower-boundary"])
     'phase-aware-macro-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["mop-class-macro-boundary"
+      "class-descriptor-macro-boundary"])
+    'mop-class-macro-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["match-extension-boundary"
+      "match-macro-destructuring-boundary"])
+    'match-extension-boundary)
    ((pair? (source-file-macros file)) 'macro-helper)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
@@ -555,6 +627,11 @@
      quality-facets
      ["concurrency-control-boundary"])
     'concurrency-control-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["dynamic-scope-cleanup-boundary"
+      "manual-dynamic-scope-restore"])
+    'dynamic-scope-cleanup-boundary)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["actor-runtime-boundary"

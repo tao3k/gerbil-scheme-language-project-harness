@@ -11,6 +11,8 @@
         duration-micros
         micros->nanos
         duration-nanos->ms
+        duration-nanos->literal
+        duration-nanos->text
         duration-literal->nanos
         duration-literal?
         duration-literal<=?
@@ -35,6 +37,54 @@
 ;; : (-> Integer Number)
 (def (duration-nanos->ms nanos)
   (/ nanos 1000000.0))
+;; : (-> String Integer String)
+(def (duration-left-pad-zero text width)
+  (if (>= (string-length text) width)
+    text
+    (duration-left-pad-zero (string-append "0" text) width)))
+;; : (-> String String)
+(def (duration-trim-fraction-zero text)
+  (let loop ((end (string-length text)))
+    (cond
+     ((<= end 0) "")
+     ((char=? (string-ref text (- end 1)) #\0)
+      (loop (- end 1)))
+     (else
+      (substring text 0 end)))))
+;; : (-> Integer Integer String Integer String)
+(def (duration-nanos->unit-text nanos unit-nanos suffix digits)
+  (let* ((whole (quotient nanos unit-nanos))
+         (remainder-nanos (remainder nanos unit-nanos)))
+    (if (zero? remainder-nanos)
+      (string-append (number->string whole) suffix)
+      (string-append
+       (number->string whole)
+       "."
+       (duration-trim-fraction-zero
+        (duration-left-pad-zero
+         (number->string remainder-nanos)
+         digits))
+       suffix))))
+;; : (-> Integer Symbol)
+(def (duration-nanos->literal nanos)
+  (let ((magnitude (if (< nanos 0) (- 0 nanos) nanos))
+        (sign (if (< nanos 0) "-" "")))
+    (string->symbol
+     (string-append
+      sign
+      (cond
+       ((zero? magnitude) "0ns")
+       ((>= magnitude 1000000000)
+        (duration-nanos->unit-text magnitude 1000000000 "s" 9))
+       ((>= magnitude 1000000)
+        (duration-nanos->unit-text magnitude 1000000 "ms" 6))
+       ((>= magnitude 1000)
+        (duration-nanos->unit-text magnitude 1000 "us" 3))
+       (else
+        (string-append (number->string magnitude) "ns")))))))
+;; : (-> Integer String)
+(def (duration-nanos->text nanos)
+  (symbol->string (duration-nanos->literal nanos)))
 ;; pow10
 ;;   : (-> Integer Integer)
 ;;   | doc m%

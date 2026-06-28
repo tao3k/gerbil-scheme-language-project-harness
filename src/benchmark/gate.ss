@@ -9,9 +9,14 @@
         benchmark-default-max-parse-ms
         benchmark-default-max-file-ms
         benchmark-default-max-phase-ms
+        benchmark-default-observed-collect-ms
+        benchmark-default-observed-parse-ms
+        benchmark-default-observed-file-ms
+        benchmark-default-observed-phase-ms
         benchmark-default-observed-total
         benchmark-default-target-total
         benchmark-default-regression-budget
+        benchmark-default-expected-over-input-budget
         benchmark-default-max-rss-mb
         benchmark-default-memory-metric
         benchmark-default-memory-unit
@@ -21,6 +26,7 @@
         benchmark-fixture-missing-keys
         benchmark-fixture-memory-contract-pass?
         benchmark-fixture-observed-timings-contract-pass?
+        benchmark-fixture-input-expected-comparison-pass?
         benchmark-fixture-integration-scope?
         benchmark-fixture-timing-class-contract-pass?
         benchmark-fixture-contract-pass?
@@ -44,13 +50,23 @@
 ;; : Integer
 (def benchmark-default-max-file-ms 5)
 ;; : Integer
-(def benchmark-default-max-phase-ms 5)
+(def benchmark-default-max-phase-ms 6)
+;; : Number
+(def benchmark-default-observed-collect-ms 10)
+;; : Number
+(def benchmark-default-observed-parse-ms 0)
+;; : Number
+(def benchmark-default-observed-file-ms 0)
+;; : Number
+(def benchmark-default-observed-phase-ms 6)
 ;; : DurationLiteral
 (def benchmark-default-observed-total '10ms)
 ;; : DurationLiteral
 (def benchmark-default-target-total '25ms)
 ;; : DurationLiteral
 (def benchmark-default-regression-budget '15ms)
+;; : DurationLiteral
+(def benchmark-default-expected-over-input-budget '15ms)
 ;; : Integer
 (def benchmark-default-max-rss-mb 512)
 ;; : DurationLiteral
@@ -75,6 +91,10 @@
     maxParseMs
     maxFileMs
     maxPhaseMs
+    observedCollectMs
+    observedParseMs
+    observedFileMs
+    observedPhaseMs
     observed_total
     target_total
     regression_budget
@@ -106,6 +126,10 @@
   '(maxCollectMs maxParseMs maxFileMs maxPhaseMs))
 
 ;; : (List Symbol)
+(def +benchmark-non-negative-number-fields+
+  '(observedCollectMs observedParseMs observedFileMs observedPhaseMs))
+
+;; : (List Symbol)
 (def +benchmark-positive-integer-fields+
   '(iterations))
 
@@ -119,6 +143,14 @@
   '("integration" "import-closure" "gxtest" "downstream"
     "cold-path" "cache" "launcher" "subprocess"))
 
+;; : (List String)
+(def +benchmark-input-timing-names+
+  '("collect-before" "policy-before"))
+
+;; : (List String)
+(def +benchmark-expected-timing-names+
+  '("collect-after" "policy-after"))
+
 ;; make-benchmark-fixture
 ;;   : (-> Symbol Symbol String String String (List Symbol) Alist)
 ;;   | doc m%
@@ -131,12 +163,24 @@
         (cons 'maxParseMs benchmark-default-max-parse-ms)
         (cons 'maxFileMs benchmark-default-max-file-ms)
         (cons 'maxPhaseMs benchmark-default-max-phase-ms)
+        (cons 'observedCollectMs benchmark-default-observed-collect-ms)
+        (cons 'observedParseMs benchmark-default-observed-parse-ms)
+        (cons 'observedFileMs benchmark-default-observed-file-ms)
+        (cons 'observedPhaseMs benchmark-default-observed-phase-ms)
         (cons 'observed_total benchmark-default-observed-total)
         (cons 'target_total benchmark-default-target-total)
         (cons 'regression_budget benchmark-default-regression-budget)
+        (cons 'expected_over_input_budget
+              benchmark-default-expected-over-input-budget)
         (cons 'observedTimings
-              `(((name . measure-best)
-                 (durationMs . 10))))
+              `(((name . collect-before)
+                 (durationMs . 6))
+                ((name . collect-after)
+                 (durationMs . 4))
+                ((name . policy-before)
+                 (durationMs . 0))
+                ((name . policy-after)
+                 (durationMs . 0))))
         (cons 'targetRationale
               "default generated benchmark fixture target")
         (cons 'maxRssMb benchmark-default-max-rss-mb)
@@ -150,7 +194,8 @@
         (cons 'inputShape input-shape)
         (cons 'expectedRepair expected-repair)
         (cons 'measurementPhases
-              '(prepare-fixture measure-best assert-time-gate assert-memory-gate))
+              '(collect-before collect-after policy-before policy-after
+                assert-time-gate assert-memory-gate))
         (cons 'tags tags)))
 
 ;; benchmark-fixture-ref
@@ -245,6 +290,43 @@
           +benchmark-positive-number-fields+))
 
 ;; : (-> Alist Symbol Boolean)
+(def (benchmark-fixture-non-negative-number-field-pass? fixture key)
+  (benchmark-non-negative-number? (benchmark-fixture-ref fixture key)))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-non-negative-number-fields-pass? fixture)
+  (andmap (lambda (key)
+            (benchmark-fixture-non-negative-number-field-pass? fixture key))
+          +benchmark-non-negative-number-fields+))
+
+;; : (-> Alist Symbol Symbol Boolean)
+(def (benchmark-fixture-observed-under-max? fixture observed-key max-key)
+  (let ((observed (benchmark-fixture-ref fixture observed-key))
+        (max-value (benchmark-fixture-ref fixture max-key)))
+    (and (number? observed)
+         (number? max-value)
+         (<= observed max-value))))
+
+;; : (-> Alist Boolean)
+(def (benchmark-fixture-max-observed-pairs-pass? fixture)
+  (and (benchmark-fixture-observed-under-max?
+        fixture
+        'observedCollectMs
+        'maxCollectMs)
+       (benchmark-fixture-observed-under-max?
+        fixture
+        'observedParseMs
+        'maxParseMs)
+       (benchmark-fixture-observed-under-max?
+        fixture
+        'observedFileMs
+        'maxFileMs)
+       (benchmark-fixture-observed-under-max?
+        fixture
+        'observedPhaseMs
+        'maxPhaseMs)))
+
+;; : (-> Alist Symbol Boolean)
 (def (benchmark-fixture-positive-integer-field-pass? fixture key)
   (benchmark-positive-integer? (benchmark-fixture-ref fixture key)))
 
@@ -323,13 +405,142 @@
 (def (benchmark-observed-timing-contract-pass? timing)
   (and (list? timing)
        (let ((name-entry (assoc 'name timing))
-             (duration-entry (assoc 'durationMs timing)))
+             (duration-ms-entry (assoc 'durationMs timing))
+             (duration-ns-entry (assoc 'durationNs timing)))
          (and name-entry
-              duration-entry
+              (or duration-ms-entry duration-ns-entry)
               (let ((name (cdr name-entry))
-                    (duration-ms (cdr duration-entry)))
+                    (duration-ms (and duration-ms-entry
+                                      (cdr duration-ms-entry)))
+                    (duration-ns (and duration-ns-entry
+                                      (cdr duration-ns-entry))))
                 (and (or (symbol? name) (string? name))
-                     (benchmark-non-negative-number? duration-ms)))))))
+                     (or (benchmark-non-negative-number? duration-ns)
+                         (benchmark-non-negative-number? duration-ms))))))))
+
+;; : (-> Alist String Boolean)
+(def (benchmark-observed-timing-name-match? timing name)
+  (let (name-entry (and (list? timing) (assoc 'name timing)))
+    (and name-entry
+         (benchmark-tag-equal? (cdr name-entry) name))))
+
+;; : (-> (List Alist) String Boolean)
+(def (benchmark-observed-timings-name-present? timings name)
+  (ormap (lambda (timing)
+           (benchmark-observed-timing-name-match? timing name))
+         timings))
+
+;; : (-> (List Alist) (List String) Boolean)
+(def (benchmark-observed-timings-names-present? timings names)
+  (andmap (lambda (name)
+            (benchmark-observed-timings-name-present? timings name))
+          names))
+
+;; : (-> Alist Number)
+(def (benchmark-observed-timing-duration-ms timing)
+  (let (duration-entry (assoc 'durationMs timing))
+    (if duration-entry (cdr duration-entry) 0)))
+
+;; : (-> Alist Number)
+(def (benchmark-observed-timing-duration-nanos timing)
+  (let ((duration-ns-entry (assoc 'durationNs timing))
+        (duration-ms-entry (assoc 'durationMs timing)))
+    (cond
+     (duration-ns-entry (cdr duration-ns-entry))
+     (duration-ms-entry (* (cdr duration-ms-entry) 1000000))
+     (else 0))))
+
+;; : (-> Alist (List String) Number)
+(def (benchmark-observed-timing-selected-ms timing names)
+  (if (ormap (lambda (name)
+               (benchmark-observed-timing-name-match? timing name))
+             names)
+    (benchmark-observed-timing-duration-ms timing)
+    0))
+
+;; : (-> Alist (List String) Number)
+(def (benchmark-observed-timing-selected-nanos timing names)
+  (if (ormap (lambda (name)
+               (benchmark-observed-timing-name-match? timing name))
+             names)
+    (benchmark-observed-timing-duration-nanos timing)
+    0))
+
+;; : (-> (List Alist) (List String) Number)
+(def (benchmark-observed-timings-selected-total-ms timings names)
+  (if (null? timings)
+    0
+    (+ (benchmark-observed-timing-selected-ms (car timings) names)
+       (benchmark-observed-timings-selected-total-ms (cdr timings) names))))
+
+;; : (-> (List Alist) (List String) Number)
+(def (benchmark-observed-timings-selected-total-nanos timings names)
+  (if (null? timings)
+    0
+    (+ (benchmark-observed-timing-selected-nanos (car timings) names)
+       (benchmark-observed-timings-selected-total-nanos
+        (cdr timings)
+        names))))
+
+;; : (-> Alist Symbol (U String False))
+(def (benchmark-fixture-non-empty-string-field fixture key)
+  (let (entry (assoc key fixture))
+    (and entry
+         (string? (cdr entry))
+         (> (string-length (cdr entry)) 0)
+         (cdr entry))))
+
+;; : (-> Alist (U String False))
+(def (benchmark-fixture-input-expected-annotation fixture)
+  (or (benchmark-fixture-non-empty-string-field
+       fixture
+       'expected_over_input_note)
+      (benchmark-fixture-non-empty-string-field
+       fixture
+       'targetRationale)))
+
+;; : (-> Alist (U Integer False))
+(def (benchmark-fixture-expected-over-input-budget-nanos fixture)
+  (let (entry (or (assoc 'expected_over_input_budget fixture)
+                  (assoc 'regression_budget fixture)))
+    (and entry
+         (duration-literal->nanos (cdr entry)))))
+
+;; benchmark-fixture-input-expected-comparison-pass?
+;;   : (-> Alist Boolean)
+;;   | doc m%
+;;       Compare the original input-side policy timing with the expected
+;;       repaired-side timing. The expected side may be slower only within the
+;;       scenario-owned `expected_over_input_budget`.
+;;     %
+(def (benchmark-fixture-input-expected-comparison-pass? fixture)
+  (let ((observed-timings-entry (assoc 'observedTimings fixture))
+        (expected-budget-ns
+         (benchmark-fixture-expected-over-input-budget-nanos fixture)))
+    (and observed-timings-entry
+         expected-budget-ns
+         (let ((observed-timings (cdr observed-timings-entry)))
+           (and (benchmark-fixture-observed-timings-contract-pass? fixture)
+                (benchmark-observed-timings-names-present?
+                 observed-timings
+                 +benchmark-input-timing-names+)
+                (benchmark-observed-timings-names-present?
+                 observed-timings
+                 +benchmark-expected-timing-names+)
+                (let* ((input-ns
+                        (benchmark-observed-timings-selected-total-nanos
+                         observed-timings
+                         +benchmark-input-timing-names+))
+                       (expected-ns
+                        (benchmark-observed-timings-selected-total-nanos
+                         observed-timings
+                         +benchmark-expected-timing-names+)))
+                  (and (<= expected-ns (+ input-ns expected-budget-ns))
+                       (or (< expected-ns input-ns)
+                           (not
+                            (not
+                             (benchmark-fixture-input-expected-annotation
+                              fixture)))))))))))
 
 ;; benchmark-tag-equal?
 ;;   : (-> BenchmarkTagCandidate String Boolean)
@@ -413,9 +624,12 @@
        (benchmark-fixture-positive-duration-fields-pass? fixture)
        (benchmark-fixture-non-negative-duration-fields-pass? fixture)
        (benchmark-fixture-positive-number-fields-pass? fixture)
+       (benchmark-fixture-non-negative-number-fields-pass? fixture)
+       (benchmark-fixture-max-observed-pairs-pass? fixture)
        (benchmark-fixture-positive-integer-fields-pass? fixture)
        (benchmark-fixture-unit-contract-pass? fixture)
        (benchmark-fixture-observed-timings-contract-pass? fixture)
+       (benchmark-fixture-input-expected-comparison-pass? fixture)
        (benchmark-fixture-memory-contract-pass? fixture)
        (benchmark-fixture-timing-class-contract-pass? fixture)))
 

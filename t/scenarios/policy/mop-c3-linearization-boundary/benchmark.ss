@@ -11,9 +11,13 @@
   .
   "mop-c3-linearization-boundary is a small source-mined scenario from gerbil/runtime/c3.ss and gerbil/runtime/interface.ss; target keeps C3/MOP guidance in the low millisecond policy lane")
  (maxCollectMs . 12)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 8)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

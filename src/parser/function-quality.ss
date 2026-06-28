@@ -10,17 +10,29 @@
 
 (export function-quality-profiles-from-source)
 
+;; (List Callee)
+(def +function-quality-dynamic-state-callees+
+  '("current-directory" "current-input-port" "current-output-port"
+    "current-error-port"))
+
+;; (List Callee)
+(def +function-quality-dynamic-cleanup-callees+
+  '("dynamic-wind" "with-unwind-protect" "parameterize"
+    "call-with-parameters"))
+
 ;;; Profile fan-out is a pure definition-to-profile transform.
 ;;; The cut captures shared owner evidence once, then map keeps each function
 ;;; profile independent so policy can repair one function boundary at a time.
-;; : (-> Relpath Exports Definitions TypedContracts CommentFacts ControlFlowFacts HigherOrderFacts PredicateFamilies FieldAccessFacts LoopDrivers MacroFacts PooFacts (List FunctionQualityProfile) )
-(def (function-quality-profiles-from-source relpath exports definitions typed-contracts comment-facts control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
+;; : (-> Relpath Exports Definitions CallFacts TypedContracts CommentFacts ControlFlowFacts HigherOrderFacts PredicateFamilies FieldAccessFacts LoopDrivers MacroFacts PooFacts (List FunctionQualityProfile) )
+(def (function-quality-profiles-from-source relpath exports definitions calls typed-contracts comment-facts control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
   (let ((typed-contract-index
          (function-quality-index-by-field
           typed-contract-fact-definition-name typed-contracts))
         (comment-index
          (function-quality-index-by-field
           comment-quality-fact-target-name comment-facts))
+        (call-index
+         (function-quality-index-by-field call-fact-caller calls))
         (control-flow-index
          (function-quality-index-by-field
           control-flow-fact-caller control-flow-forms))
@@ -48,6 +60,7 @@
     (map (cut function-quality-profile-from-definition/indexed
               relpath exports <>
               typed-contract-index comment-index
+              call-index
               control-flow-index higher-order-index
               predicate-family-index field-access-index
               loop-driver-index macro-index poo-index)
@@ -56,14 +69,15 @@
 ;;; Profile materialization stays parser-owned: policy receives one
 ;;; function-level packet instead of re-joining typed, comment, control-flow,
 ;;; higher-order, POO, macro, and predicate-family evidence.
-;; : (-> Relpath Exports Definition TypedContracts CommentFacts ControlFlowFacts HigherOrderFacts PredicateFamilies FieldAccessFacts LoopDrivers MacroFacts PooFacts FunctionQualityProfile )
-(def (function-quality-profile-from-definition relpath exports definition typed-contracts comment-facts control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
+;; : (-> Relpath Exports Definition CallFacts TypedContracts CommentFacts ControlFlowFacts HigherOrderFacts PredicateFamilies FieldAccessFacts LoopDrivers MacroFacts PooFacts FunctionQualityProfile )
+(def (function-quality-profile-from-definition relpath exports definition calls typed-contracts comment-facts control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
   (function-quality-profile-from-definition/indexed
    relpath exports definition
    (function-quality-index-by-field
     typed-contract-fact-definition-name typed-contracts)
    (function-quality-index-by-field
     comment-quality-fact-target-name comment-facts)
+   (function-quality-index-by-field call-fact-caller calls)
    (function-quality-index-by-field
     control-flow-fact-caller control-flow-forms)
    (function-quality-index-by-field
@@ -85,13 +99,15 @@
 ;;; The indexed path is the hot path for whole-file parsing.  It keeps the
 ;;; profile join linear in facts plus definitions instead of scanning every fact
 ;;; family for every definition.
-;; : (-> Relpath Exports Definition HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable FunctionQualityProfile )
-(def (function-quality-profile-from-definition/indexed relpath exports definition typed-contract-index comment-index control-flow-index higher-order-index predicate-family-index field-access-index loop-driver-index macro-index poo-index)
+;; : (-> Relpath Exports Definition HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable HashTable FunctionQualityProfile )
+(def (function-quality-profile-from-definition/indexed relpath exports definition typed-contract-index comment-index call-index control-flow-index higher-order-index predicate-family-index field-access-index loop-driver-index macro-index poo-index)
   (let* ((name (definition-name definition))
          (typed-contract
           (function-quality-first-indexed-fact typed-contract-index name))
          (comment-fact
           (matching-comment-quality/indexed name comment-index))
+         (matched-calls
+          (function-quality-indexed-facts call-index name))
          (matched-control-flow
           (function-quality-indexed-facts control-flow-index name))
          (matched-higher-order
@@ -119,6 +135,7 @@
          (quality-facets
           (function-quality-facets role exported? typed-quality comment-quality
                                    typed-contract comment-fact
+                                   matched-calls
                                    matched-control-flow matched-higher-order
                                    matched-predicate-families matched-field-access
                                    matched-loop-drivers matched-macros matched-poo))
@@ -133,6 +150,7 @@
                                          matched-predicate-families))
          (parser-confidence
           (function-quality-parser-confidence typed-contract comment-fact
+                                              matched-calls
                                               matched-control-flow
                                               matched-higher-order
                                               matched-predicate-families
@@ -411,8 +429,8 @@
 ;;; Facet aggregation is the profile's searchable vocabulary.
 ;;; Each parser fact family contributes only stable role/facet tokens so search
 ;;; and policy can compose repairs without reading source text.
-;; : (-> Role Exported? TypedQuality CommentQuality TypedContract CommentFact ControlFlow HigherOrder PredicateFamilies FieldAccess LoopDrivers Macros PooFacts (List QualityFacet) )
-(def (function-quality-facets role exported? typed-quality comment-quality typed-contract comment-fact control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
+;; : (-> Role Exported? TypedQuality CommentQuality TypedContract CommentFact CallFacts ControlFlow HigherOrder PredicateFamilies FieldAccess LoopDrivers Macros PooFacts (List QualityFacet) )
+(def (function-quality-facets role exported? typed-quality comment-quality typed-contract comment-fact calls control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
   (unique
    (filter identity
            (append ["function-quality-profile"
@@ -443,6 +461,8 @@
                                (if comment-fact [comment-fact] [])))
                    (function-quality-higher-order-profile-facets
                     higher-order-forms)
+                   (function-quality-dynamic-scope-cleanup-facets
+                    calls)
                    (map control-flow-fact-role control-flow-forms)
                    (map higher-order-fact-role higher-order-forms)
                    (apply append
@@ -468,7 +488,7 @@
 (def (function-quality-poo-profile-facets fact)
   (unique
    (filter identity
-           (append [(and (member "methodTableBody:combinator"
+          (append [(and (member "methodTableBody:combinator"
                                  (poo-form-fact-options fact))
                          "method-table-combinator-body")
                     (and (member "methodTableBody:validation-boundary"
@@ -490,6 +510,39 @@
   (cond
    ((string-prefix? "methodBodyQuality:" option) option)
    (else #f)))
+
+;;; Dynamic scope cleanup boundary:
+;;; - A same-owner save/set/restore shape calls current dynamic state more than
+;;;   once but lacks dynamic-wind, with-unwind-protect, or parameterize.
+;;; - The detector uses parser-owned call facts, not source text.
+;; : (-> CallFacts (List QualityFacet) )
+(def (function-quality-dynamic-scope-cleanup-facets calls)
+  (if (and (>= (function-quality-call-count-any
+                calls
+                +function-quality-dynamic-state-callees+)
+               2)
+           (not (function-quality-call-any?
+                 calls
+                 +function-quality-dynamic-cleanup-callees+)))
+    ["dynamic-scope-cleanup-boundary"
+     "manual-dynamic-scope-restore"
+     "anti-ai-dynamic-state-restore"]
+    []))
+
+;; : (-> CallFacts (List Callee) Integer )
+(def (function-quality-call-count-any calls callees)
+  (let loop ((rest calls) (count 0))
+    (cond
+     ((null? rest) count)
+     ((member (call-fact-callee (car rest)) callees)
+      (loop (cdr rest) (+ count 1)))
+     (else (loop (cdr rest) count)))))
+
+;; : (-> CallFacts (List Callee) Boolean )
+(def (function-quality-call-any? calls callees)
+  (ormap (lambda (call)
+           (member (call-fact-callee call) callees))
+         calls))
 
 ;;; Typed-contract profile facets forward parser-owned contract quality.
 ;;; Keeping this as a helper makes the aggregate facet pipeline uniform.
@@ -654,19 +707,27 @@
 ;;; The driver kind decides whether policy may suggest a pure transform rewrite.
 ;; : (-> LoopDriverFact PreservationReason )
 (def (loop-driver-preservation-reason fact)
-  (if (member (loop-driver-fact-driver-kind fact)
+  (let (driver-kind (loop-driver-fact-driver-kind fact))
+    (cond
+     ((equal? driver-kind "manual-parser-state-machine")
+      "parser-combinator-rewrite-allowed-when-grammar-tests-preserve-behavior")
+     ((member driver-kind
               '("io-reader-driver" "state-driver-candidate"
                 "higher-order-boundary"))
-    (string-append "preserve-" (loop-driver-fact-driver-kind fact))
-    "pure-transform-rewrite-allowed-when-tests-preserve-behavior"))
+      (string-append "preserve-" driver-kind))
+     (else "pure-transform-rewrite-allowed-when-tests-preserve-behavior"))))
 
 ;;; Repair class is ordered from structural drift to comment polish.
 ;;; Comment repair is chosen only after parser facts rule out stronger shape or
 ;;; boundary repairs.
 ;; : (-> TypedQuality CommentQuality QualityFacets PredicateFamilies RepairClass )
 (def (function-quality-repair-class typed-quality comment-quality quality-facets predicate-family-facts)
-  (cond
+   (cond
+   ((member "dynamic-scope-cleanup-boundary" quality-facets)
+    "typed-combinator-style")
    ((pair? predicate-family-facts) "predicate-family-combinator")
+   ((member "parser-combinator-boundary" quality-facets)
+    "typed-combinator-style")
    ((member "manual-loop-drift" quality-facets) "typed-combinator-style")
    ((member "wrapper-lambda-drift" quality-facets) "typed-combinator-style")
    ((member "function-specialization-opportunity" quality-facets)
@@ -687,11 +748,12 @@
 
 ;;; Parser confidence is a simple evidence count, not a semantic proof.
 ;;; It tells downstream ranking how much native evidence backs the profile.
-;; : (-> TypedContract CommentFact ControlFlow HigherOrder PredicateFamilies FieldAccess LoopDrivers MacroFacts PooFacts ParserConfidence )
-(def (function-quality-parser-confidence typed-contract comment-fact control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
+;; : (-> TypedContract CommentFact CallFacts ControlFlow HigherOrder PredicateFamilies FieldAccess LoopDrivers MacroFacts PooFacts ParserConfidence )
+(def (function-quality-parser-confidence typed-contract comment-fact calls control-flow-forms higher-order-forms predicate-family-facts field-access-pattern-facts loop-driver-facts macros poo-forms)
   (let (evidence-count
         (+ (if typed-contract 1 0)
            (if comment-fact 1 0)
+           (length calls)
            (length control-flow-forms)
            (length higher-order-forms)
            (length predicate-family-facts)
@@ -710,6 +772,8 @@
 ;; : (-> RepairClass PreservationReasons QualityFacets Advice )
 (def (function-quality-advice repair-class preservation-reasons quality-facets)
   (cond
+   ((member "dynamic-scope-cleanup-boundary" quality-facets)
+    "wrap dynamic state changes in dynamic-wind, with-unwind-protect, or parameterize so cleanup runs across exceptions and continuations")
    ((equal? repair-class "predicate-family-combinator")
     "repair predicate drift with small selector helpers or a bounded predicate combinator; keep public predicate names stable")
    ((member "wrapper-lambda-drift" quality-facets)

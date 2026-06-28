@@ -51,7 +51,11 @@
         +agent-poo-debug-instrumentation-loop-performance-rule+
         +agent-poo-slot-spec-mutation-loop-performance-rule+
         +agent-poo-slot-predicate-loop-performance-rule+
-        +agent-poo-documentation-usage-rule+)
+        +agent-poo-documentation-usage-rule+
+        +agent-list-growth-loop-performance-rule+
+        +agent-macro-expansion-io-boundary-rule+
+        +agent-list-random-access-loop-performance-rule+
+        +agent-string-growth-loop-performance-rule+)
 ;; PolicyRuleStruct
 (defstruct policy-rule (id severity))
 ;; Integer
@@ -189,3 +193,15 @@
 ;; ConfigConstant
 (def +agent-poo-documentation-usage-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-R038" "warning"))
+;; ConfigConstant
+(def +agent-list-growth-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R039" "warning"))
+;; ConfigConstant
+(def +agent-macro-expansion-io-boundary-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R040" "warning"))
+;; ConfigConstant
+(def +agent-list-random-access-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R041" "warning"))
+;; ConfigConstant
+(def +agent-string-growth-loop-performance-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-R042" "warning"))

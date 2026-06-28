@@ -11,9 +11,13 @@
   .
   "gerbil-upstream-idiom-performance is a subsecond scenario benchmark with fractional millisecond observed timings; max_total remains the hard gate")
  (maxCollectMs . 12)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 8)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

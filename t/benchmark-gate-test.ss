@@ -52,6 +52,27 @@
         (benchmark-gate-without 'observedTimings benchmark-gate-fixture)))
 
 ;; : Alist
+(def benchmark-gate-slow-expected-fixture
+  (benchmark-gate-with
+   'expected_over_input_budget
+   '1ms
+   (benchmark-gate-with
+    'observedTimings
+    '(((name . collect-before) (durationMs . 1))
+      ((name . policy-before) (durationMs . 0))
+      ((name . collect-after) (durationMs . 3))
+      ((name . policy-after) (durationMs . 0)))
+    benchmark-gate-fixture)))
+
+;; : Alist
+(def benchmark-gate-missing-observed-peer-fixture
+  (benchmark-gate-without 'observedCollectMs benchmark-gate-fixture))
+
+;; : Alist
+(def benchmark-gate-observed-over-max-fixture
+  (benchmark-gate-with 'observedPhaseMs 7 benchmark-gate-fixture))
+
+;; : Alist
 (def benchmark-gate-subsecond-fixture
   (benchmark-gate-with
    'max_total
@@ -66,10 +87,15 @@
       'regression_budget
       '250us
       (benchmark-gate-with
-       'observedTimings
-       '(((name . collect-before) (durationMs . 0.125))
-         ((name . policy-before) (durationMs . 0.125)))
-       benchmark-gate-fixture))))))
+       'expected_over_input_budget
+       '125us
+       (benchmark-gate-with
+        'observedTimings
+        '(((name . collect-before) (durationMs . 0.125) (durationNs . 125000))
+          ((name . policy-before) (durationMs . 0) (durationNs . 0))
+          ((name . collect-after) (durationMs . 0.125) (durationNs . 125000))
+          ((name . policy-after) (durationMs . 0) (durationNs . 0)))
+        benchmark-gate-fixture)))))))
 
 ;; : Alist
 (def benchmark-gate-slow-hot-fixture
@@ -369,8 +395,34 @@
              => '25ms)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'regression_budget)
              => '15ms)
+      (check (number?
+              (benchmark-fixture-ref benchmark-gate-fixture 'maxCollectMs))
+             => #t)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedCollectMs)
+             => 10)
+      (check (number?
+              (benchmark-fixture-ref benchmark-gate-fixture 'maxParseMs))
+             => #t)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedParseMs)
+             => 0)
+      (check (number?
+              (benchmark-fixture-ref benchmark-gate-fixture 'maxFileMs))
+             => #t)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedFileMs)
+             => 0)
+      (check (number?
+              (benchmark-fixture-ref benchmark-gate-fixture 'maxPhaseMs))
+             => #t)
+      (check (benchmark-fixture-ref benchmark-gate-fixture 'observedPhaseMs)
+             => 6)
+      (check (benchmark-fixture-ref benchmark-gate-fixture
+                                    'expected_over_input_budget)
+             => '15ms)
       (check (benchmark-fixture-ref benchmark-gate-fixture 'observedTimings)
-             => '(((name . measure-best) (durationMs . 10))))
+             => '(((name . collect-before) (durationMs . 6))
+                  ((name . collect-after) (durationMs . 4))
+                  ((name . policy-before) (durationMs . 0))
+                  ((name . policy-after) (durationMs . 0))))
       (check (benchmark-fixture-ref benchmark-gate-fixture 'targetRationale)
              => "default generated benchmark fixture target")
       (check (member 'assert-memory-gate
@@ -384,6 +436,9 @@
       (check (benchmark-fixture-memory-contract-pass? benchmark-gate-fixture)
              => #t)
       (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-fixture)
+             => #t)
+      (check (benchmark-fixture-input-expected-comparison-pass?
               benchmark-gate-fixture)
              => #t)
       (check (benchmark-fixture-timing-class-contract-pass?
@@ -408,6 +463,31 @@
               benchmark-gate-invalid-observed-fixture)
              => #f))
 
+    (test-case "max gates require observed peer fields"
+      (check (not
+              (not
+               (member 'observedCollectMs
+                       (benchmark-fixture-missing-keys
+                        benchmark-gate-missing-observed-peer-fixture))))
+             => #t)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-missing-observed-peer-fixture)
+             => #f)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-observed-over-max-fixture)
+             => #f))
+
+    (test-case "input and expected timing comparison is enforced"
+      (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-slow-expected-fixture)
+             => #t)
+      (check (benchmark-fixture-input-expected-comparison-pass?
+              benchmark-gate-slow-expected-fixture)
+             => #f)
+      (check (benchmark-fixture-contract-pass?
+              benchmark-gate-slow-expected-fixture)
+             => #f))
+
     (test-case "subsecond timing baselines satisfy the gate contract"
       (check (benchmark-fixture-ref benchmark-gate-subsecond-fixture
                                     'max_total)
@@ -416,6 +496,9 @@
                                     'observed_total)
              => '250us)
       (check (benchmark-fixture-observed-timings-contract-pass?
+              benchmark-gate-subsecond-fixture)
+             => #t)
+      (check (benchmark-fixture-input-expected-comparison-pass?
               benchmark-gate-subsecond-fixture)
              => #t)
       (check (benchmark-fixture-contract-pass?
@@ -478,7 +561,10 @@
         (check (benchmark-fixture-ref receipt 'regression_budget)
                => '15ms)
         (check (benchmark-fixture-ref receipt 'observedTimings)
-               => '(((name . measure-best) (durationMs . 10))))
+               => '(((name . collect-before) (durationMs . 6))
+                    ((name . collect-after) (durationMs . 4))
+                    ((name . policy-before) (durationMs . 0))
+                    ((name . policy-after) (durationMs . 0))))
         (check (benchmark-fixture-ref receipt 'targetRationale)
                => "default generated benchmark fixture target")
         (check (benchmark-receipt-pass? receipt) => #t)))

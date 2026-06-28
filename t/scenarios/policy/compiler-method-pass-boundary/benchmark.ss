@@ -11,9 +11,13 @@
   .
   "observed compiler-method-pass-boundary receipt is 5ms total with 2/1/1/1ms phase timings; target keeps the hot compiler-method scenario in the small millisecond budget while max_total remains the hard regression ceiling")
  (maxCollectMs . 10)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 6)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

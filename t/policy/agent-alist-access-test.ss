@@ -6,6 +6,7 @@
         :parser/facade
         :policy/facade
         :policy/fixtures
+        :scenario/policy
         :types/facade)
 
 (export agent-alist-access-policy-test)
@@ -59,4 +60,103 @@
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
                (matching (filter-rule "GERBIL-SCHEME-AGENT-R022" findings)))
-          (check matching => []))))))
+          (check matching => []))))
+    (test-case "agent policy validates alist index scenario under performance gate"
+      (let* ((scenario
+              (make-policy-scenario
+               "alist-index-boundary"
+               "t/scenarios/policy/alist-index-boundary"))
+             (timing (policy-scenario-run/timed scenario))
+             (result (hash-get timing 'result))
+             (timings (hash-get timing 'timings))
+             (benchmark-contract (hash-get timing 'benchmarkContract))
+             (comparison (hash-get timing 'inputExpectedComparison))
+             (before-matching
+              (policy-scenario-findings
+               result
+               'before
+               "GERBIL-SCHEME-AGENT-R022"))
+             (after-matching
+              (policy-scenario-findings
+               result
+               'after
+               "GERBIL-SCHEME-AGENT-R022"))
+             (finding (car before-matching))
+             (details (type-finding-details finding)))
+        (check (hash-get timing 'schemaId)
+               => "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
+        (check (hash-get timing 'scenarioId) => "alist-index-boundary")
+        (check (length timings) => 4)
+        (check (hash-get timing 'performanceStatus) => "pass")
+        (check (or (equal? (hash-get timing 'inputExpectedStatus) "pass")
+                   (equal? (hash-get timing 'inputExpectedStatus)
+                           "pass annotated"))
+               => #t)
+        (check (hash-get benchmark-contract 'feature) => "alist-index-boundary")
+        (check (hash-get benchmark-contract 'rule)
+               => "GERBIL-SCHEME-AGENT-R022")
+        (check (string? (hash-get comparison 'annotation)) => #t)
+        (check (length before-matching) => 1)
+        (check after-matching => [])
+        (check (type-finding-path finding) => "src/events/access.ss")
+        (check (hash-get details 'kind) => "repeated-inline-alist-lookup")
+        (check (hash-get details 'lookupCount) => 4)
+        (check (if (member "alist:name" (hash-get details 'fieldKeys)) #t #f)
+               => #t)
+        (check (if (member "alist:owner" (hash-get details 'fieldKeys)) #t #f)
+               => #t)
+        (check (if (member "alist:route" (hash-get details 'fieldKeys)) #t #f)
+               => #t)
+        (check (if (member "alist:priority" (hash-get details 'fieldKeys)) #t #f)
+               => #t)))
+    (test-case "agent policy validates keyword option scenario under performance gate"
+      (let* ((scenario
+              (make-policy-scenario
+               "keyword-option-boundary"
+               "t/scenarios/policy/keyword-option-boundary"))
+             (timing (policy-scenario-run/timed scenario))
+             (result (hash-get timing 'result))
+             (timings (hash-get timing 'timings))
+             (benchmark-contract (hash-get timing 'benchmarkContract))
+             (comparison (hash-get timing 'inputExpectedComparison))
+             (before-matching
+              (policy-scenario-findings
+               result
+               'before
+               "GERBIL-SCHEME-AGENT-R022"))
+             (after-matching
+              (policy-scenario-findings
+               result
+               'after
+               "GERBIL-SCHEME-AGENT-R022"))
+             (finding (car before-matching))
+             (details (type-finding-details finding)))
+        (check (hash-get timing 'schemaId)
+               => "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
+        (check (hash-get timing 'scenarioId) => "keyword-option-boundary")
+        (check (length timings) => 4)
+        (check (hash-get timing 'performanceStatus) => "pass")
+        (check (or (equal? (hash-get timing 'inputExpectedStatus) "pass")
+                   (equal? (hash-get timing 'inputExpectedStatus)
+                           "pass annotated"))
+               => #t)
+        (check (hash-get benchmark-contract 'feature) => "keyword-option-boundary")
+        (check (hash-get benchmark-contract 'rule)
+               => "GERBIL-SCHEME-AGENT-R022")
+        (check (string? (hash-get comparison 'annotation)) => #t)
+        (check (length before-matching) => 1)
+        (check after-matching => [])
+        (check (type-finding-path finding) => "src/reports/options.ss")
+        (check (hash-get details 'kind) => "repeated-inline-alist-lookup")
+        (check (hash-get details 'lookupCount) => 3)
+        (check (if (member "alist:format" (hash-get details 'fieldKeys)) #t #f)
+               => #t)
+        (check (if (member "alist:limit" (hash-get details 'fieldKeys)) #t #f)
+               => #t)
+        (check (if (member "alist:metadata" (hash-get details 'fieldKeys)) #t #f)
+               => #t)
+        (check (if (member "gerbil-keyword-optional-parameters"
+                           (hash-get details 'repairStrategies))
+                 #t
+                 #f)
+               => #t)))))

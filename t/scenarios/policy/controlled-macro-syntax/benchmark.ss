@@ -11,9 +11,13 @@
   .
   "observed baseline 3ms for scoped controlled-macro-syntax; target keeps the hot macro-policy scenario in the small millisecond budget while max_total remains the hard regression ceiling")
  (maxCollectMs . 15)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 10)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

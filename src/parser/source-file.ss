@@ -465,6 +465,7 @@
                     relpath
                     ordered-exports
                     ordered-definitions
+                    ordered-calls
                     typed-contract-facts
                     comment-quality-facts
                     ordered-control-flow-forms

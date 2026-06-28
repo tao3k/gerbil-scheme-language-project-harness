@@ -12,6 +12,10 @@
         :policy/agent-comment
         :policy/agent-dependency-adapter
         :policy/agent-import
+        :policy/agent-list-growth
+        :policy/agent-list-random-access
+        :policy/agent-macro-io
+        :policy/agent-string-growth
         :policy/agent-poo
         :policy/agent-source-scope
         :policy/agent-style
@@ -55,6 +59,10 @@
         policy-source-scope-finding
         alist-access-finding
         anonymous-pair-access-finding
+        list-growth-loop-performance-finding
+        list-random-access-loop-performance-finding
+        string-growth-loop-performance-finding
+        macro-expansion-io-boundary-finding
         facade-export-conflict-findings)
 ;;; Agent policy aggregation boundary:
 ;;; - Specific semantic/style rules run before self-audit rules.
@@ -86,6 +94,10 @@
    (poo-slot-spec-mutation-loop-performance-findings index)
    (poo-slot-predicate-loop-performance-findings index)
    (poo-documentation-usage-findings index)
+   (list-growth-loop-performance-findings index)
+   (list-random-access-loop-performance-findings index)
+   (string-growth-loop-performance-findings index)
+   (macro-expansion-io-boundary-findings index)
    (macro-runtime-source-witness-findings index)
    (protocol-evidence-findings index)
    (typed-combinator-style-findings index)

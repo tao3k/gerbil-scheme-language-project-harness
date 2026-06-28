@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing self-audit for repeated inline alist lookup.
-;;; Repeated assq/cdr lookups are a common generated-code smell when a record,
-;;; profile accessor, or source-backed fact would make the shape explicit.
+;;; Repeated assq/cdr lookups are a common generated-code smell when keyword
+;;; parameters, a record, profile accessor, or source-backed fact would make the
+;;; shape explicit.
 
 (import :parser/facade
         :policy/model
@@ -24,7 +25,8 @@
 
 ;;; Threshold boundary:
 ;;; - One inline lookup can be a local bridge.
-;;; - Repetition means the owner needs a record, profile accessor, or helper.
+;;; - Repetition means the owner needs keyword/default parameters, a record,
+;;;   profile accessor, or helper.
 ;; : (-> SourceFile MaybeTypeFinding )
 (def (alist-access-finding file)
   (let (lookups (alist-inline-access-facts file))
@@ -34,7 +36,7 @@
           (policy-rule-id +agent-alist-access-rule+)
           (policy-rule-severity +agent-alist-access-rule+)
           (source-file-path file)
-          "repeated inline assq/cdr alist lookups hide a data model; use a record/defstruct, source-backed profile accessors, or one named lookup helper"
+          "repeated inline assq/cdr alist lookups hide a data model; use Gerbil #!key/#!optional parameters, a record/defstruct, source-backed profile accessors, or one named lookup helper"
           (field-access-pattern-fact-selector (car lookups))
           (alist-access-details lookups)))))
 
@@ -74,4 +76,11 @@
         (callers (apply append
                         (map field-access-pattern-fact-callers lookups)))
         (callees ["assq" "cdr"])
-        (repair "replace repeated inline (cdr (assq ...)) with a record/defstruct, typed profile accessor, or one named alist lookup helper")))
+        (repair "replace repeated inline (cdr (assq ...)) with Gerbil #!key/#!optional parameters for function option APIs, a record/defstruct, typed profile accessor, or one named alist lookup helper")
+        (repairStrategies ["gerbil-keyword-optional-parameters"
+                           "record-or-defstruct"
+                           "typed-profile-accessor"
+                           "named-alist-lookup-helper"])
+        (learnedStyleSources ["gerbil://gambit/gsc/tests/69-params/optional.scm"
+                              "gerbil://gambit/gsc/tests/69-params/optionalkeyrest.scm"
+                              "gerbil://std/markup/sxml/oleg/define-opt.scm"])))

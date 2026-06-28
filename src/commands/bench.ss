@@ -349,6 +349,50 @@
    (bench-collect-profile-findings
     collect-profile max-collect-ms max-parse-ms max-file-ms max-phase-ms)))
 
+;; : (-> (U #f CollectProfile) Number)
+(def (bench-observed-collect-ms collect-profile)
+  (if collect-profile
+    (hash-get/default collect-profile 'totalMs 0)
+    0))
+
+;; : (-> (U #f CollectProfile) Number)
+(def (bench-observed-parse-ms collect-profile)
+  (if collect-profile
+    (let (phase (collect-profile-phase collect-profile "parse-source-files"))
+      (if phase (hash-get/default phase 'durationMs 0) 0))
+    0))
+
+;; : (-> (U #f CollectProfile) Number)
+(def (bench-observed-file-ms collect-profile)
+  (if collect-profile
+    (let loop ((files (hash-get/default collect-profile 'slowestFiles '()))
+               (max-ms 0))
+      (match files
+        ([file-profile . more]
+         (let (duration-ms (hash-get/default file-profile 'durationMs 0))
+           (loop more (if (> duration-ms max-ms) duration-ms max-ms))))
+        (else max-ms)))
+    0))
+
+;; : (-> (U #f CollectProfile) Number)
+(def (bench-observed-phase-ms collect-profile)
+  (if collect-profile
+    (let loop-files ((files (hash-get/default collect-profile 'slowestFiles '()))
+                     (max-ms 0))
+      (match files
+        ([file-profile . more-files]
+         (let loop-phases ((phases (hash-get/default file-profile 'phases '()))
+                           (phase-max-ms max-ms))
+           (match phases
+             ([phase . more-phases]
+              (let (duration-ms (hash-get/default phase 'durationMs 0))
+                (loop-phases
+                 more-phases
+                 (if (> duration-ms phase-max-ms) duration-ms phase-max-ms))))
+             (else (loop-files more-files phase-max-ms)))))
+        (else max-ms)))
+    0))
+
 ;;; Boundary:
 ;;; - bench-interface-findings keeps ASP handoff performance separate from parser collection.
 ;;; - Only lightweight structural interface paths are judged here.
@@ -427,13 +471,21 @@
     (when max-interface-ms
       (hash-put! packet 'maxInterfaceMs max-interface-ms))
     (when max-collect-ms
-      (hash-put! packet 'maxCollectMs max-collect-ms))
+      (hash-put! packet 'maxCollectMs max-collect-ms)
+      (hash-put! packet 'observedCollectMs
+                 (bench-observed-collect-ms collect-profile)))
     (when max-parse-ms
-      (hash-put! packet 'maxParseMs max-parse-ms))
+      (hash-put! packet 'maxParseMs max-parse-ms)
+      (hash-put! packet 'observedParseMs
+                 (bench-observed-parse-ms collect-profile)))
     (when max-file-ms
-      (hash-put! packet 'maxFileMs max-file-ms))
+      (hash-put! packet 'maxFileMs max-file-ms)
+      (hash-put! packet 'observedFileMs
+                 (bench-observed-file-ms collect-profile)))
     (when max-phase-ms
-      (hash-put! packet 'maxPhaseMs max-phase-ms))
+      (hash-put! packet 'maxPhaseMs max-phase-ms)
+      (hash-put! packet 'observedPhaseMs
+                 (bench-observed-phase-ms collect-profile)))
     packet))
 ;; display-bench-packet
 ;;   : (-> JsonPacket Unit)

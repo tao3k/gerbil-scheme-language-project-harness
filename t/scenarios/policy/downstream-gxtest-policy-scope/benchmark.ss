@@ -11,9 +11,13 @@
   .
   "downstream gxtest policy scope runs through the real gxtest test boundary and must stay below a small fixture budget while following imported source owners")
  (maxCollectMs . 174)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 116)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")

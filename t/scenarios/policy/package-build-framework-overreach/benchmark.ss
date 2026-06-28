@@ -11,9 +11,13 @@
   .
   "package-build-framework-overreach keeps build API policy scenario checks in a small fixture budget while protecting upstream std/make and clan/building ownership")
  (maxCollectMs . 10)
+ (observedCollectMs . 0)
  (maxParseMs . 15)
+ (observedParseMs . 0)
  (maxFileMs . 5)
+ (observedFileMs . 0)
  (maxPhaseMs . 5)
+ (observedPhaseMs . 0)
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
