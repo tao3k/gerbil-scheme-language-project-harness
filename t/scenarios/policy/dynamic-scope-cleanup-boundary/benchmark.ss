@@ -26,7 +26,7 @@
  (unit . "ms")
  (purpose . "R013 dynamic scope cleanup scenario rejects manual dynamic state restore when dynamic-wind or parameterize is available")
  (feature . "dynamic-scope-cleanup-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "manual dynamic state save/restore to dynamic-wind or parameterize cleanup boundary")

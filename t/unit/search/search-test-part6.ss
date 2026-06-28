@@ -70,11 +70,11 @@
     (test-case "guide code routes repair witness and advanced scenarios to source only"
           (let* ((repair-output
                   (guide-output ["--code"
-                                 "--rule" "GERBIL-SCHEME-AGENT-R009"
+                                 "--rule" "GERBIL-SCHEME-AGENT-POLICY-009"
                                  "--intent" "repair"]))
                  (finding-output
                   (guide-output ["--code"
-                                 "--finding" "policy=GERBIL-SCHEME-AGENT-R009"
+                                 "--finding" "policy=GERBIL-SCHEME-AGENT-POLICY-009"
                                  "--intent" "repair"]))
                  (poo-output
                   (guide-output ["--code"
@@ -102,11 +102,11 @@
                                  "--level" "advanced"]))
                  (dependency-output
                   (guide-output ["--code"
-                                 "--rule" "GERBIL-SCHEME-AGENT-R017"
+                                 "--rule" "GERBIL-SCHEME-AGENT-POLICY-017"
                                  "--intent" "repair"]))
                  (dependency-more-output
                   (guide-output ["--code"
-                                 "--rule" "GERBIL-SCHEME-AGENT-R017"
+                                 "--rule" "GERBIL-SCHEME-AGENT-POLICY-017"
                                  "--intent" "repair"
                                  "--more"])))
             (for-each

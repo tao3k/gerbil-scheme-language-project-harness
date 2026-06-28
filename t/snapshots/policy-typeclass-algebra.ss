@@ -1,6 +1,6 @@
 (policyScenario
  (id "typeclass-algebra")
- (before (finding ("GERBIL-SCHEME-AGENT-R013"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-013"
                    "src/orders/core.ss"
                    "src/orders/core.ss"
                    "Scheme source owner has 2 definitions but only 0 adjacent typed-combinator-style algebraic contracts; parser-owned quality facets require repair toward compact expression-level composition; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))
@@ -56,7 +56,7 @@
                   ("replace generated-looking protocol scaffolding with local adapter boundaries; use compose or define-type methods.* shape when representation steps are already proven"
                    "when POO facts expose typeclass/functor/wrapper options, model the implementation after gerbil-poo/fun.ss algebra instead of raw object adapters or ad hoc tables")))))
  (after (r013Findings
-         (("GERBIL-SCHEME-AGENT-R013"
+         (("GERBIL-SCHEME-AGENT-POLICY-013"
            "src/orders/core.ss"
            "src/orders/core.ss"
            "Scheme source owner has 2 definitions but only 1 adjacent typed-combinator-style algebraic contracts; parser-owned quality facets require repair toward compact expression-level composition; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches")))))

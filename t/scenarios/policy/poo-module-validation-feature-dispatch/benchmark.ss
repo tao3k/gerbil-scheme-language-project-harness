@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 routes POO module validation drift toward compiler-style feature dispatch and local cache handlers")
  (feature . "poo-module-validation-feature-dispatch")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "resolved-field and cache receipt drift to compiler-style feature dispatch")
  (inputShape
   .

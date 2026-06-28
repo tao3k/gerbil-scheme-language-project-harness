@@ -42,7 +42,7 @@
              (pair? (agent-policy-disabled-rules policy))
              (not (agent-policy-disable-explanation-valid? policy)))
       [(make-type-finding
-        "GERBIL-SCHEME-AGENT-R024"
+        "GERBIL-SCHEME-AGENT-POLICY-024"
         "error"
         (or (and package (project-package-path package)) "gerbil.pkg")
         "agent-policy disabled-rules requires a non-empty explanation; rule disables without rationale are ignored so agents cannot escape policy gates"

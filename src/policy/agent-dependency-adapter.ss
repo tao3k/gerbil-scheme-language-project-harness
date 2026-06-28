@@ -25,7 +25,7 @@
 
 ;; Command
 (def +dependency-adapter-repair-code-command+
-  "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair")
+  "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-017 --intent repair")
 ;; Command
 (def +dependency-adapter-search-example-command+
   "asp gerbil-scheme search pattern poo rationaldict adapter --workspace . --view seeds")

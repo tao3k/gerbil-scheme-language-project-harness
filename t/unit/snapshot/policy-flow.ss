@@ -24,13 +24,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R009"))
+           "GERBIL-SCHEME-AGENT-POLICY-009"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R009")))
+           "GERBIL-SCHEME-AGENT-POLICY-009")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before
@@ -52,17 +52,17 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R009"))
+           "GERBIL-SCHEME-AGENT-POLICY-009"))
          (before-r014
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R014"))
+           "GERBIL-SCHEME-AGENT-POLICY-014"))
          (before-r028
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R028"))
+           "GERBIL-SCHEME-AGENT-POLICY-028"))
          (r009-details (type-finding-details before-r009))
          (r014-details (type-finding-details before-r014)))
     (list 'policyScenario
@@ -83,19 +83,19 @@
                            (policy-scenario-findings
                             result
                             'after
-                            "GERBIL-SCHEME-AGENT-R009")))
+                            "GERBIL-SCHEME-AGENT-POLICY-009")))
                 (list 'r014Findings
                       (map finding-snapshot-copy
                            (policy-scenario-findings
                             result
                             'after
-                            "GERBIL-SCHEME-AGENT-R014")))
+                            "GERBIL-SCHEME-AGENT-POLICY-014")))
                 (list 'r028Findings
                       (map finding-snapshot-copy
                            (policy-scenario-findings
                             result
                             'after
-                            "GERBIL-SCHEME-AGENT-R028")))))))
+                            "GERBIL-SCHEME-AGENT-POLICY-028")))))))
 
 (def (controlled-branch-shape-policy-snapshot)
   (let* ((scenario
@@ -107,13 +107,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R014"))
+           "GERBIL-SCHEME-AGENT-POLICY-014"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R014")))
+           "GERBIL-SCHEME-AGENT-POLICY-014")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before
@@ -135,13 +135,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R014"))
+           "GERBIL-SCHEME-AGENT-POLICY-014"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R014")))
+           "GERBIL-SCHEME-AGENT-POLICY-014")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before

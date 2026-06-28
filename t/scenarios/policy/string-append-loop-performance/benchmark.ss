@@ -28,7 +28,7 @@
   .
   "R042 string append scenario rejects generated O(n^2) render loops when an output port, string-join, or bytes/u8vector builder boundary should own concatenation")
  (feature . "string-append-loop-performance")
- (rule . "GERBIL-SCHEME-AGENT-R042")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-042")
  (optimizationFocus
   .
   "loop-local string-append accumulation to one output-string-port, string-join fragment list, or u8vector byte buffer boundary")

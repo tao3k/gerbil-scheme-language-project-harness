@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 pair tuple projection scenario keeps cons-built Pair result protocols under the scenario-owned timing gate while preferring Gerbil values when the pair is not the domain interface")
  (feature . "pair-tuple-projection-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "cons-built Pair result protocol to values/call-with-values tuple projection")
  (inputShape . "one helper returns a Pair with cons and a public config helper immediately splits it with car/cdr")
  (expectedRepair . "producer returns multiple values and consumer destructures with call-with-values while preserving the public config API")

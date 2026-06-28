@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R034 modular integer type construction repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-modular-integer-type-construction")
- (rule . "GERBIL-SCHEME-AGENT-R034")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-034")
  (optimizationFocus . "loop-local modular integer type construction")
  (inputShape . "manual loop repeatedly constructing stable Z/ type objects")
  (expectedRepair . "hoist stable Z/ type object to a named binding")

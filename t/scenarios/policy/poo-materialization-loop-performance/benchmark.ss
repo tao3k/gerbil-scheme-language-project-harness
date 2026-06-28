@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R029 materialization repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-materialization")
- (rule . "GERBIL-SCHEME-AGENT-R029")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "loop-local materialization")
  (inputShape . "manual loop repeatedly materializing POO object data")
  (expectedRepair . "materialize once at a boundary before iteration")

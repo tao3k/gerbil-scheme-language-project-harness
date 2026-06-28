@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 native Gerbil interface/contract scenario catches one-owner slot contract scaffolding and repairs it with local typed descriptor helpers")
  (feature . "gerbil-interface-contract-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "Gerbil native using/interface contract boundary")
  (inputShape
   .

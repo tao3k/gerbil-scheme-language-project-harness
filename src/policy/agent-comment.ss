@@ -40,7 +40,7 @@
   (let ((examples (take weak-facts (min 6 (length weak-facts))))
         (targets (take weak-facts (min 12 (length weak-facts)))))
     (hash (styleGuide "engineering-comment-quality")
-          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")
+          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-015 --intent style")
           (factSource "native-parser")
           (evidenceSource "parser-owned commentQualityFacts.evidence")
           (profileSource "parser-owned functionQualityProfiles when available")

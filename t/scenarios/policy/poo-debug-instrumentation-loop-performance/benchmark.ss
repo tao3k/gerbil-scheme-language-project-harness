@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R035 debug instrumentation repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-debug-instrumentation")
- (rule . "GERBIL-SCHEME-AGENT-R035")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-035")
  (optimizationFocus . "loop-local debug instrumentation")
  (inputShape . "manual loop repeatedly wrapping trace-poo instrumentation")
  (expectedRepair . "hoist trace-poo outside the loop")

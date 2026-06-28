@@ -1,6 +1,6 @@
 (policyScenario
  (id "controlled-macro-syntax")
- (before (finding ("GERBIL-SCHEME-AGENT-R013"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-013"
                    "src/macros/core.ss"
                    "src/macros/core.ss"
                    "Scheme source owner has 1 definitions but only 0 adjacent typed-combinator-style algebraic contracts; 1 public/policy-sensitive helpers need full typed doc blocks with | doc m%, # Examples, and result comments; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))

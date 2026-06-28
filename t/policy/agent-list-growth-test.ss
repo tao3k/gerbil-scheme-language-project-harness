@@ -29,7 +29,7 @@
          ";;; -*- Gerbil -*-\n(package: sample/reports)\n(export merge-chunks)\n(def (merge-chunks chunks)\n  (let loop ((remaining chunks) (acc '()))\n    (if (null? remaining)\n      acc\n      (loop (cdr remaining)\n            (append acc (car remaining))))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R039" findings))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-039" findings))
                (finding (car matching))
                (details (type-finding-details finding)))
           (check (length matching) => 1)
@@ -57,7 +57,7 @@
          ";;; -*- Gerbil -*-\n(package: sample/reports)\n(export merge-chunks)\n(def (merge-chunks chunks)\n  (let outer ((remaining chunks) (rev '()))\n    (if (null? remaining)\n      (reverse rev)\n      (let inner ((items (car remaining)) (next-rev rev))\n        (if (null? items)\n          (outer (cdr remaining) next-rev)\n          (inner (cdr items) (cons (car items) next-rev)))))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R039" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-039" findings)))
           (check matching => []))))
     (test-case "agent policy validates list append loop scenario under performance gate"
       (let* ((scenario
@@ -71,12 +71,12 @@
               (policy-scenario-findings
                result
                'before
-               "GERBIL-SCHEME-AGENT-R039"))
+               "GERBIL-SCHEME-AGENT-POLICY-039"))
              (after-matching
               (policy-scenario-findings
                result
                'after
-               "GERBIL-SCHEME-AGENT-R039"))
+               "GERBIL-SCHEME-AGENT-POLICY-039"))
              (finding (car before-matching))
              (details (type-finding-details finding)))
         (check (hash-get timing 'schemaId)
@@ -90,7 +90,7 @@
         (check (hash-get benchmark-contract 'feature)
                => "list-append-loop-performance")
         (check (hash-get benchmark-contract 'rule)
-               => "GERBIL-SCHEME-AGENT-R039")
+               => "GERBIL-SCHEME-AGENT-POLICY-039")
         (check (length before-matching) => 1)
         (check after-matching => [])
         (check (type-finding-path finding) => "src/reports/merge.ss")

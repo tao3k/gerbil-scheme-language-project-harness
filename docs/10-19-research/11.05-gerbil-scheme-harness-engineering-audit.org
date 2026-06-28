@@ -61,10 +61,10 @@ Commands and observed receipts:
     =pooFormFacts=, =higherOrderFacts=, =controlFlowFacts=, and
     =dependencyUsageFacts=.
   - =agentSteering.rules= includes:
-    - =GERBIL-SCHEME-AGENT-R008= POO method shape.
-    - =GERBIL-SCHEME-AGENT-R009= functional data transform.
-    - =GERBIL-SCHEME-AGENT-R011= macro runtime-source witness.
-    - =GERBIL-SCHEME-AGENT-R012= protocol evidence.
+    - =GERBIL-SCHEME-AGENT-POLICY-008= POO method shape.
+    - =GERBIL-SCHEME-AGENT-POLICY-009= functional data transform.
+    - =GERBIL-SCHEME-AGENT-POLICY-011= macro runtime-source witness.
+    - =GERBIL-SCHEME-AGENT-POLICY-012= protocol evidence.
   - =configurableInterface= exposes source scope, build scope fallback, and
     agent-policy fields owned by =gerbil.pkg= policy.
 
@@ -443,7 +443,7 @@ Why it matters:
 
 Finding shape:
 
-- id: =GERBIL-SCHEME-AGENT-R013=
+- id: =GERBIL-SCHEME-AGENT-POLICY-013=
 - trigger: repeated alist/hash object patterns under a package that declares POO
   capability
 - repair: suggest =defclass=, =defprotocol=, =defgeneric=, or =defmethod=
@@ -453,7 +453,7 @@ Finding shape:
 
 Finding shape:
 
-- id: =GERBIL-SCHEME-AGENT-R014=
+- id: =GERBIL-SCHEME-AGENT-POLICY-014=
 - trigger: macro owner changed or generated macro introduced without expansion
   test, roundtrip test, or runtime-source selector
 - repair: run runtime-source query, add expansion witness, then edit
@@ -462,7 +462,7 @@ Finding shape:
 
 Finding shape:
 
-- id: =GERBIL-SCHEME-AGENT-R015=
+- id: =GERBIL-SCHEME-AGENT-POLICY-015=
 - trigger: manual loop over pure data without state/IO/continuation evidence
 - repair: suggest =map=, =filter=, =fold=, =for/fold=, or =cut=
 - suppression: named-let preservation role with explicit state/IO/generator

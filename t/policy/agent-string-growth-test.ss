@@ -29,7 +29,7 @@
          ";;; -*- Gerbil -*-\n(package: sample/reports)\n(export render-lines)\n(def (render-lines lines)\n  (let loop ((remaining lines) (out \"\"))\n    (if (null? remaining)\n      out\n      (loop (cdr remaining)\n            (string-append out (car remaining) \"\\n\")))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R042" findings))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-042" findings))
                (finding (car matching))
                (details (type-finding-details finding)))
           (check (length matching) => 1)
@@ -57,7 +57,7 @@
          ";;; -*- Gerbil -*-\n(package: sample/reports)\n(export render-lines)\n(def (render-lines lines)\n  (string-append (string-join lines \"\\n\") \"\\n\"))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R042" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-042" findings)))
           (check matching => []))))
     (test-case "agent policy validates string append scenario under performance gate"
       (let* ((scenario
@@ -71,12 +71,12 @@
               (policy-scenario-findings
                result
                'before
-               "GERBIL-SCHEME-AGENT-R042"))
+               "GERBIL-SCHEME-AGENT-POLICY-042"))
              (after-matching
               (policy-scenario-findings
                result
                'after
-               "GERBIL-SCHEME-AGENT-R042"))
+               "GERBIL-SCHEME-AGENT-POLICY-042"))
              (finding (car before-matching))
              (details (type-finding-details finding)))
         (check (hash-get timing 'schemaId)
@@ -91,7 +91,7 @@
         (check (hash-get benchmark-contract 'feature)
                => "string-append-loop-performance")
         (check (hash-get benchmark-contract 'rule)
-               => "GERBIL-SCHEME-AGENT-R042")
+               => "GERBIL-SCHEME-AGENT-POLICY-042")
         (check (length before-matching) => 1)
         (check after-matching => [])
         (check (type-finding-path finding) => "src/reports/render.ss")

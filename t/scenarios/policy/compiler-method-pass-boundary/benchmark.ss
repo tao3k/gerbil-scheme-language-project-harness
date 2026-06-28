@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 compiler method-pass scenario routes method-table drift toward local AST pass handlers")
  (feature . "compiler-method-pass-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "method-table lambda drift to compiler-style pass handlers")
  (inputShape
   .

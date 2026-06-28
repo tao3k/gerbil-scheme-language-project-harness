@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 concurrency control scenario keeps learned dynamic-wind, spawn/join, and sequentialization repair within the scenario-owned timing gate")
  (feature . "concurrency-control-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "local dynamic-wind reentry, spawn/join/mutex/race/thread-parameter boundary")

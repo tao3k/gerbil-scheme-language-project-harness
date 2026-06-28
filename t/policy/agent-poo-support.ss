@@ -77,13 +77,13 @@
     "poo-z-type-construction-loop-performance"))
 
 (def +poo-real-dashboard-workflow-rule-ids+
-  '("GERBIL-SCHEME-AGENT-R028"
-    "GERBIL-SCHEME-AGENT-R029"
-    "GERBIL-SCHEME-AGENT-R030"
-    "GERBIL-SCHEME-AGENT-R031"
-    "GERBIL-SCHEME-AGENT-R033"
-    "GERBIL-SCHEME-AGENT-R035"
-    "GERBIL-SCHEME-AGENT-R037"))
+  '("GERBIL-SCHEME-AGENT-POLICY-028"
+    "GERBIL-SCHEME-AGENT-POLICY-029"
+    "GERBIL-SCHEME-AGENT-POLICY-030"
+    "GERBIL-SCHEME-AGENT-POLICY-031"
+    "GERBIL-SCHEME-AGENT-POLICY-033"
+    "GERBIL-SCHEME-AGENT-POLICY-035"
+    "GERBIL-SCHEME-AGENT-POLICY-037"))
 
 ;; : (-> PolicyScenarioResult Symbol (List String) (List TypeFinding) )
 (def (policy-scenario-findings/rules result phase rule-ids)

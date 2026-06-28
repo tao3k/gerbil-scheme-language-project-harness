@@ -20,12 +20,12 @@
 
 ;; (List RuleId)
 (def +poo-guidance-target-rule-ids+
-  ["GERBIL-SCHEME-AGENT-R006"
-   "GERBIL-SCHEME-AGENT-R007"
-   "GERBIL-SCHEME-AGENT-R008"
-   "GERBIL-SCHEME-AGENT-R010"
-   "GERBIL-SCHEME-AGENT-R017"
-   "GERBIL-SCHEME-AGENT-R026"])
+  ["GERBIL-SCHEME-AGENT-POLICY-006"
+   "GERBIL-SCHEME-AGENT-POLICY-007"
+   "GERBIL-SCHEME-AGENT-POLICY-008"
+   "GERBIL-SCHEME-AGENT-POLICY-010"
+   "GERBIL-SCHEME-AGENT-POLICY-017"
+   "GERBIL-SCHEME-AGENT-POLICY-026"])
 
 ;; : (-> ScenarioId Root PolicyScenarioSnapshot )
 (def (poo-guidance-scenario-policy-snapshot id root)
@@ -130,13 +130,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R013"))
+           "GERBIL-SCHEME-AGENT-POLICY-013"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R013")))
+           "GERBIL-SCHEME-AGENT-POLICY-013")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before
@@ -299,13 +299,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R020"))
+           "GERBIL-SCHEME-AGENT-POLICY-020"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R020")))
+           "GERBIL-SCHEME-AGENT-POLICY-020")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before
@@ -342,13 +342,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R017"))
+           "GERBIL-SCHEME-AGENT-POLICY-017"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R017")))
+           "GERBIL-SCHEME-AGENT-POLICY-017")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before

@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 teaches agents to use Gambit numeric primitive families only behind explicit type/range boundaries")
  (feature . "gambit-fixnum-flonum-arithmetic-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "fixnum/flonum primitive arithmetic with checked boundary tests")
  (inputShape
   .

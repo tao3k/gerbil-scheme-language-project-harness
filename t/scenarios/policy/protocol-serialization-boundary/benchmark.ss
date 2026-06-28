@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 serialization protocol scenario keeps learned representation-layer repair within the scenario-owned timing gate")
  (feature . "protocol-serialization-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "local JSON/string/bytes/marshal adapter boundary")
  (inputShape
   .

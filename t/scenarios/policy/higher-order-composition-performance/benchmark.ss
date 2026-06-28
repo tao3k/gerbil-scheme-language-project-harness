@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 higher-order composition scenario keeps wrapper-lambda repair within the scenario-owned timing gate")
  (feature . "higher-order-composition")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "wrapper lambda to composition boundary")
  (inputShape . "repeated wrapper lambdas around a reusable string transform")
  (expectedRepair . "compose/cut pipeline with full typed documentation")

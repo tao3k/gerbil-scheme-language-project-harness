@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 exception continuation scenario keeps learned exception-control repair within the scenario-owned timing gate")
  (feature . "exception-continuation-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "local exception continuation and contextual logging boundary")

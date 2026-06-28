@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 match extension scenario keeps Gerbil core/match defsyntax-for-match and applicative destructuring guidance under the scenario-owned timing gate")
  (feature . "match-extension-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "Gerbil core/match match macro extension, syntax-local lookup, and applicative destructuring boundaries")
  (inputShape
   .

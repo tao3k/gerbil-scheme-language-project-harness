@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 upstream idiom scenario connects gerbil:// match, compiler eq-hash indexing, and cut-style helper plumbing to agent-facing policy repair")
  (feature . "gerbil-upstream-idiom-performance")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "basic Scheme route scaffolding to match dispatch, one eq-hash index, and cut-specialized traversal")

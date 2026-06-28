@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R011 controlled macro helper scenario keeps macro runtime-source policy within the timing gate")
  (feature . "macro-helper-runtime-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R011")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-011")
  (optimizationFocus . "controlled macro helper boundary")
  (inputShape . "macro transformer without local parser helper")
  (expectedRepair . "syntax-case transformer with local syntax error helper")

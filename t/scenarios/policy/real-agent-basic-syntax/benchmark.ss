@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "realistic agent-authored Scheme scenario combines POO hot-loop mutation, manual event traversal, conditional dispatch, tuple projection, and threshold specialization")
  (feature . "real-agent-basic-syntax")
- (rule . "GERBIL-SCHEME-AGENT-R009/R014/R028")
+   (rule . "GERBIL-SCHEME-AGENT-REAL-BASIC-SYNTAX-028")
  (optimizationFocus
   .
   "replace basic Scheme scaffolding with Gerbil/Gambit idioms while preserving POO hot-path boundaries")

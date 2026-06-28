@@ -29,7 +29,7 @@
          ";;; -*- Gerbil -*-\n(package: sample/macros)\n(export load-fragment)\n(defsyntax (load-fragment stx)\n  (syntax-case stx ()\n    ((_ path)\n     (let* ((path-value (syntax->datum (syntax path)))\n            (forms (call-with-input-file path-value\n                     (lambda (port)\n                       (let loop ((out '()))\n                         (let (form (read port))\n                           (if (eof-object? form)\n                             (reverse out)\n                             (loop (cons form out)))))))))\n       (datum->syntax (syntax stx) (cons 'begin forms))))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R040" findings))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-040" findings))
                (finding (car matching))
                (details (type-finding-details finding)))
           (check (length matching) => 1)
@@ -56,7 +56,7 @@
          ";;; -*- Gerbil -*-\n(package: sample/macros)\n(export define-fragment)\n(defsyntax (define-fragment stx)\n  (syntax-case stx ()\n    ((_ binding form ...)\n     (syntax (def binding (begin form ...))))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R040" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-040" findings)))
           (check matching => []))))
     (test-case "agent policy validates macro expansion IO scenario under performance gate"
       (let* ((scenario
@@ -70,12 +70,12 @@
               (policy-scenario-findings
                result
                'before
-               "GERBIL-SCHEME-AGENT-R040"))
+               "GERBIL-SCHEME-AGENT-POLICY-040"))
              (after-matching
               (policy-scenario-findings
                result
                'after
-               "GERBIL-SCHEME-AGENT-R040"))
+               "GERBIL-SCHEME-AGENT-POLICY-040"))
              (finding (car before-matching))
              (details (type-finding-details finding)))
         (check (hash-get timing 'schemaId)
@@ -89,7 +89,7 @@
         (check (hash-get benchmark-contract 'feature)
                => "macro-expansion-io-boundary")
         (check (hash-get benchmark-contract 'rule)
-               => "GERBIL-SCHEME-AGENT-R040")
+               => "GERBIL-SCHEME-AGENT-POLICY-040")
         (check (length before-matching) => 1)
         (check after-matching => [])
         (check (type-finding-path finding) => "src/macros/load.ss")

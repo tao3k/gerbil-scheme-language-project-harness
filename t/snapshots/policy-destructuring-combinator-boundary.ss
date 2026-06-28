@@ -2,7 +2,7 @@
  (id "destructuring-combinator-boundary")
  (before
   (finding
-   ("GERBIL-SCHEME-AGENT-R013"
+   ("GERBIL-SCHEME-AGENT-POLICY-013"
     "src/events/core.ss"
     "src/events/core.ss"
     "Scheme source owner has 3 definitions but only 3 adjacent typed-combinator-style algebraic contracts; parser-owned expression-level implementation evidence covers 0/3 arity-bearing definitions, below minimum 2; parser-owned quality facets require repair toward compact expression-level composition; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))

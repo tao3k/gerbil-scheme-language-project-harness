@@ -67,7 +67,7 @@
     (check (> (json-get packet "files") 0) => #t)
     (check (> (json-get packet "definitions") 0) => #t)
     (check (not (not (member "macroFacts" (json-get steering "facts")))) => #t)
-    (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-R011") => #t)
+    (check (has-rule-id? (json-get steering "rules") "GERBIL-SCHEME-AGENT-POLICY-011") => #t)
     (check (json-get commands "check")
            => "gslph check .")))
 

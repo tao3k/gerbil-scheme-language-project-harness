@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 wrapper lambda scenario keeps function-factory repair within the scenario-owned timing gate")
  (feature . "wrapper-lambda-function-factory")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "repeated wrapper lambdas to named specializer and factory boundaries")

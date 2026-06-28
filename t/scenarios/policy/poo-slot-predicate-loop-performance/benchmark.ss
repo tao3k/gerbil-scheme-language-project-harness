@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R037 slot predicate repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-slot-predicate")
- (rule . "GERBIL-SCHEME-AGENT-R037")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-037")
  (optimizationFocus . "loop-local slot predicate")
  (inputShape . "manual loop repeatedly checking stable slot predicates")
  (expectedRepair

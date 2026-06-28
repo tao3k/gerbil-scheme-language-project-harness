@@ -67,7 +67,7 @@
                  (_ (write-dependency-protocol-adapter-project root #f #f))
                  (index (collect-project root))
                  (findings (run-policy-checks index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-017" findings))
                  (finding (car matching))
                  (details (type-finding-details finding))
                  (repair (finding-agent-repair-json finding)))
@@ -97,7 +97,7 @@
             (check (hash-get details 'searchExampleCommand)
                    => "asp gerbil-scheme search pattern poo rationaldict adapter --workspace . --view seeds")
             (check (hash-get details 'repairCodeCommand)
-                   => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair")
+                   => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-017 --intent repair")
             (check (hash-get details 'codeShapeExemplar)
                    => "gerbil-poo rationaldict-style typed protocol adapter")
             (check (hash-get details 'profileComposition)
@@ -153,7 +153,7 @@
             (check (not (not (member "run asp gerbil-scheme search pattern poo rationaldict adapter --workspace . --view seeds to inspect the dependency example before editing"
                                       (hash-get details 'allowedMoves))))
                    => #t)
-            (check (not (not (member "run asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R017 --intent repair to inspect local R017 parser/policy repair code"
+            (check (not (not (member "run asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-017 --intent repair to inspect local R017 parser/policy repair code"
                                       (hash-get details 'allowedMoves))))
                    => #t)
             (check (not (not (member "derive table/set/list/iteration/lens/sexp/json/bytes/marshal-facing capability from protocol slots"
@@ -172,7 +172,7 @@
                  (facts (project-dependency-adapter-quality-facts index))
                  (fact (car facts))
                  (findings (run-policy-checks index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-017" findings))
                  (finding (car matching))
                  (details (type-finding-details finding)))
             (check (not (not (member ".remove"
@@ -198,7 +198,7 @@
                  (facts (project-dependency-adapter-quality-facts index))
                  (fact (car facts))
                  (findings (run-policy-checks index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-017" findings)))
             (check (length facts) => 1)
             (check (dependency-adapter-quality-fact-quality fact) => "complete")
             (check (not (not (member "precise-only-in-import"
@@ -225,7 +225,7 @@
                  (facts (project-dependency-adapter-quality-facts index))
                  (fact (car facts))
                  (findings (run-policy-checks index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R017" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-017" findings)))
             (check (length facts) => 1)
             (check (dependency-adapter-quality-fact-quality fact) => "complete")
             (check matching => [])))))

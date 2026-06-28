@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R032 lens modify repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-lens")
- (rule . "GERBIL-SCHEME-AGENT-R032")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-032")
  (optimizationFocus . "loop-local lens modification")
  (inputShape . "manual loop repeatedly applying lens-style POO updates")
  (expectedRepair

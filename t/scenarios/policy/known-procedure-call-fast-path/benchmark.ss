@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 routes hot call-site drift toward Gerbil optimizer-style known-procedure fast paths")
  (feature . "known-procedure-call-fast-path")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "type-resolved procedure calls and source-preserving unchecked call lowering")
  (inputShape
   .

@@ -31,13 +31,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R026"))
+           "GERBIL-SCHEME-AGENT-POLICY-026"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R026")))
+           "GERBIL-SCHEME-AGENT-POLICY-026")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before

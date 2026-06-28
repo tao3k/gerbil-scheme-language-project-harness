@@ -23,7 +23,7 @@
              ";;; -*- Gerbil -*-\n(import :clan/base)\n(def (write-wrapper out)\n  (display \"if [ \\\"${1:-}\\\" = search ] && [ \\\"${2:-}\\\" = pattern ]; then\\n\" out))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R019" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-019" findings))
                    (finding (car matching)))
               (check (length matching) => 1)
               (check (type-finding-path finding) => "build.ss")
@@ -41,7 +41,7 @@
              ";;; -*- Gerbil -*-\n(import :clan/base)\n(def (write-native-link-wrapper build-prefix)\n  build-prefix)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R019" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-019" findings))
                    (finding (car matching)))
               (check (length matching) => 1)
               (check (type-finding-path finding) => "build.ss")
@@ -62,7 +62,7 @@
              ";;; -*- Gerbil -*-\n(def (shell-if condition body)\n  (string-append \"if [ \" condition \" ]; then\\n\" body \"\\nfi\\n\"))\n(def (shell-exec command)\n  (string-append \"exec \" command \" \\\"$@\\\"\\n\"))\n(def (write-wrapper out)\n  (display \"#!/bin/sh\\nset -eu\\n\" out)\n  (display \"find src -name '*.ss' -print | xargs gxc\\n\" out))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (finding (car matching))
                    (details (type-finding-details finding))
                    (groups (hash-get (type-finding-details finding)
@@ -93,7 +93,7 @@
              ";;; -*- Gerbil -*-\n(def (shell-if condition body)\n  [condition body])\n(def (shell-exec command)\n  [command])\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check matching => []))))
     (test-case "agent policy rejects direct native provider gxc executable compile"
           (let* ((root ".run/policy-build-support-direct-native-gxc")
@@ -109,7 +109,7 @@
              ";;; -*- Gerbil -*-\n(def (compile-native-fast-binary! name source)\n  (let ((tmp-binary (string-append name \".native-tmp\")))\n    (invoke \"gxc\" [\"-exe\" \"-o\" tmp-binary source])\n    (invoke \"mv\" [tmp-binary name])))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (finding (car matching))
                    (details (type-finding-details finding))
                    (groups (hash-get details 'evidenceGroups)))
@@ -144,7 +144,7 @@
              ";;; -*- Gerbil -*-\n(def (compile-build-support-executable! name source)\n  [name source])\n(def (compile-native-fast-binary! name source)\n  (invoke (compile-build-support-executable!\n           \"gerbil-native-link\"\n           \"build-support/native-wrapper-runtime.ss\")\n          [(string-append name \".native-tmp\") name source]))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check matching => []))))
     (test-case "agent policy rejects hardcoded runtime cache version identity"
           (let* ((root ".run/policy-build-runtime-cache-version-literal")
@@ -167,7 +167,7 @@
                               (equal? (hash-get (type-finding-details finding)
                                                 'kind)
                                       "build-runtime-cache-version-release-drift"))
-                            (filter-rule "GERBIL-SCHEME-AGENT-R020"
+                            (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020"
                                          findings)))
                    (finding (car matching))
                    (details (type-finding-details finding)))
@@ -200,7 +200,7 @@
                               (equal? (hash-get (type-finding-details finding)
                                                 'kind)
                                       "build-runtime-cache-version-release-drift"))
-                            (filter-rule "GERBIL-SCHEME-AGENT-R020"
+                            (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020"
                                          findings))))
               (check matching => []))))
     (test-case "agent policy rejects native-fast imports of full command adapters"
@@ -218,7 +218,7 @@
              ";;; -*- Gerbil -*-\n(import :commands/check)\n(export main)\n(def (main . args)\n  (check-main args))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (finding (car matching))
                    (details (type-finding-details finding))
                    (groups (hash-get details 'evidenceGroups)))
@@ -250,7 +250,7 @@
              ";;; -*- Gerbil -*-\n(import :gerbil/gambit)\n(export main)\n(def (main . args)\n  (display \"ok\\n\")\n  0)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check matching => [])))))
 )
 
@@ -269,7 +269,7 @@
              ";;; -*- Gerbil -*-\n(def (refresh!)\n  (invoke \"sh\" [\"-c\" \"find src -name '*.ss' -print | xargs gxc -static\"])\n  #t)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (shell-matching
                     (filter
                      (lambda (finding)
@@ -305,7 +305,7 @@
              ";;; -*- Gerbil -*-\n(import (only-in :std/misc/process run-process))\n(def (compile-all!)\n  (run-process [\"gxc\" \"-static\" \"src/main.ss\"])\n  (run-process [\"gsc\" \"-exe\" \"src/main.scm\"]))\n(def (main . args)\n  (compile-all!))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (finding (car matching))
                    (details (type-finding-details finding))
                    (groups (hash-get details 'evidenceGroups)))
@@ -330,9 +330,9 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (build-runtime-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (canonical-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (overreach-matching
                     (filter
                      (lambda (finding)
@@ -371,9 +371,9 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (build-runtime-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
                    (canonical-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (overreach-matching
                     (filter
                      (lambda (finding)
@@ -411,7 +411,7 @@
              ";;; -*- Gerbil -*-\n(import :std/make\n        (only-in :std/misc/process invoke))\n(def (compile-all!)\n  (setenv \"GERBIL_LOADPATH\" \"src:t\")\n  (make [\"src/main\"] srcdir: (current-directory))\n  (invoke \"gxc\" [\"-exe\" \"-o\" \".build/sample\" \"src/main.ss\"]))\n(def (main . args)\n  (compile-all!))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
@@ -441,7 +441,7 @@
              ";;; -*- Gerbil -*-\n(import (only-in :std/build-script defbuild-script))\n(defbuild-script\n  '((exe: \"src/main\")))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
@@ -460,7 +460,7 @@
              ";;; -*- Gerbil -*-\n(import :std/make)\n(def (provider-build-spec)\n  '(\"src/main\"))\n(def (build-keys)\n  [debug: #f])\n(def (make-provider! options)\n  (apply make (provider-build-spec) srcdir: (current-directory) (append options (build-keys))))\n(def (compile-fast!)\n  (invoke \"gxc\" [\"-exe\" \"src/main.ss\"]))\n(def (main . args)\n  (make-provider! []))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (finding (car matching))
                    (details (type-finding-details finding)))
               (check (length matching) => 1)
@@ -484,9 +484,9 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (runtime-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check canonical-matching => [])
               (check runtime-matching => []))))
      (test-case "agent policy accepts only-in clan/building package build"
@@ -502,9 +502,9 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (runtime-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
                (check canonical-matching => [])
                (check runtime-matching => []))))
     (test-case "agent policy accepts thin harness build API declarations"
@@ -512,9 +512,9 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R025" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings))
                    (runtime-matching
-                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check canonical-matching => [])
               (check runtime-matching => []))))
     (test-case "agent policy accepts compositional provider build stages"
@@ -529,7 +529,7 @@
              ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(defstruct provider-build-stage (name action))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(def (provider-build-stages)\n  [(make-provider-build-stage \"compile\" (lambda (args) args))])\n(def (provider-build-stage-ref name)\n  (find (lambda (stage) (equal? (provider-build-stage-name stage) name)) (provider-build-stages)))\n(def (run-provider-build-stage! stage args)\n  ((provider-build-stage-action stage) args))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R025" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings)))
               (check matching => []))))
     (test-case "agent policy accepts provider build-support stage owner"
           (let* ((root ".run/policy-package-build-canonical-provider-build-include")
@@ -548,7 +548,7 @@
              ";;; -*- Gerbil -*-\n(def (provider-build-spec)\n  '(\"src/main\"))\n(def (run-build! args)\n  (apply make (provider-build-spec) srcdir: (current-directory) []))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R025" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings)))
               (check matching => []))))
     (test-case "agent policy accepts native dispatcher build-support owner"
           (let* ((root ".run/policy-build-support-native-dispatcher")
@@ -565,9 +565,9 @@
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (build-support-matches
-                    (filter-rule "GERBIL-SCHEME-AGENT-R019" findings))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-019" findings))
                    (package-build-matches
-                    (filter-rule "GERBIL-SCHEME-AGENT-R020" findings)))
+                    (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check build-support-matches => [])
               (check package-build-matches => []))))))
 

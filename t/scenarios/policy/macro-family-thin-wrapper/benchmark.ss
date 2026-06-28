@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 macro-family scenario catches repeated same-prefix thin macro wrappers")
  (feature . "macro-family-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "collapse repeated same-prefix macro wrappers into one hygienic family helper")

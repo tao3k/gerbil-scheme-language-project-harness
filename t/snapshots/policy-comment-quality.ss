@@ -1,6 +1,6 @@
 (policyScenario
  (id "comment-quality")
- (before (finding ("GERBIL-SCHEME-AGENT-R015"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-015"
                    "src/orders/core.ss"
                    "src/orders/core.ss"
                    "1 key comment locations need engineering comments beyond typed contracts"))

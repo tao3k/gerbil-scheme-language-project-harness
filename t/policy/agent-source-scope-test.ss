@@ -29,7 +29,7 @@
          ";;; -*- Gerbil -*-\n(import (only-in :std/srfi/13 string-prefix?))\n(def (policy-file? path)\n  (not (string-prefix? \"t/scenarios/\" path)))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R021" findings))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-021" findings))
                (finding (car matching))
                (details (type-finding-details finding)))
           (check (length matching) => 1)
@@ -51,7 +51,7 @@
          ";;; -*- Gerbil -*-\n(import :parser/facade)\n(def (policy-file? path)\n  (not (equal? (source-path-class path) \"policy-scenario\")))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R021" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-021" findings)))
           (check matching => []))))
     (test-case "parser reads package source coverage from build API and default tests"
       (let* ((root ".run/policy-source-scope-build-api")

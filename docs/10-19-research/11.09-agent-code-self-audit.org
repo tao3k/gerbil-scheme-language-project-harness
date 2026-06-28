@@ -22,7 +22,7 @@ warning without teaching the parser what kind of source tree that path is.
 
 The fix moves =t/scenarios/= into parser-owned =source-path-class= as
 =policy-scenario=. The policy now branches on source classes instead of path
-prefixes. A new self-audit rule, =GERBIL-SCHEME-AGENT-R021=, rejects policy
+prefixes. A new self-audit rule, =GERBIL-SCHEME-AGENT-POLICY-021=, rejects policy
 source that hardcodes fixture, scenario, or snapshot path literals and tells the
 agent to move classification into =src/parser/source-class.ss=.
 
@@ -38,7 +38,7 @@ equivalent source-owner packet so policy can consume structured owner facts.
 
 Repeated =(cdr (assq ...))= is now treated as a generated-code smell. One helper
 can be a compatibility bridge, but repetition hides the data model and makes
-debugging depend on local key spelling. The new =GERBIL-SCHEME-AGENT-R022= rule
+debugging depend on local key spelling. The new =GERBIL-SCHEME-AGENT-POLICY-022= rule
 uses parser-owned call facts to report repeated inline =assq/cdr= lookups per
 source owner and directs repair toward records, typed profile accessors, or one
 named lookup helper.
@@ -48,7 +48,7 @@ named lookup helper.
 Repeated =(car result)= and =(cdr result)= in tests is another generated-code
 smell. A command boundary may return a pair, but repeated call sites should use
 named result accessors or a small record. The new
-=GERBIL-SCHEME-AGENT-R023= rule is intentionally narrow: it checks parser-owned
+=GERBIL-SCHEME-AGENT-POLICY-023= rule is intentionally narrow: it checks parser-owned
 call facts for repeated direct =car/cdr= access on a test variable named
 =result= and leaves ordinary list traversal alone.
 
@@ -116,11 +116,11 @@ the repetition is semantic, not string concatenation.
 - =typed-combinator-style-source-file?= and
   =typed-combinator-style-quality-repair-source-file?= consume source classes
   instead of direct scenario/fixture path checks.
-- New rule =GERBIL-SCHEME-AGENT-R021= detects policy source scope hardcoding
+- New rule =GERBIL-SCHEME-AGENT-POLICY-021= detects policy source scope hardcoding
   through parser-owned call facts.
-- New rule =GERBIL-SCHEME-AGENT-R022= detects repeated inline =assq/cdr= alist
+- New rule =GERBIL-SCHEME-AGENT-POLICY-022= detects repeated inline =assq/cdr= alist
   lookup through parser-owned call facts.
-- New rule =GERBIL-SCHEME-AGENT-R023= detects repeated anonymous result pair
+- New rule =GERBIL-SCHEME-AGENT-POLICY-023= detects repeated anonymous result pair
   access in tests through parser-owned call facts.
 - Higher-order parser facets now expose =gerbil-utils/base.ss=-style lambda,
   case-lambda, specialization, and pipeline abstraction evidence.

@@ -26,7 +26,7 @@
  (unit . "ms")
  (purpose . "R013 parser combinator scenario rejects hand-written string cursor parsers when std/parser grammar boundaries are available")
  (feature . "parser-combinator-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "manual string cursor parser state machine to std/parser defparser grammar boundary")

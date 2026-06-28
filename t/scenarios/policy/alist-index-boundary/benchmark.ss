@@ -31,7 +31,7 @@
   .
   "R022 alist index scenario rejects repeated inline alist probing when a symbolic index or named accessor boundary should own the event shape")
  (feature . "alist-index-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R022")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-022")
  (optimizationFocus
   .
   "repeated inline assq/cdr alist probing to make-hash-table-eq index or named accessor boundary")

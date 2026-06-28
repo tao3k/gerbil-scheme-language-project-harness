@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 generator control scenario keeps learned generator-boundary repair within the scenario-owned timing gate")
  (feature . "generator-control")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "push/pull generator control inversion boundary")
  (inputShape . "manual pull generator loop behind a Generating contract")
  (expectedRepair

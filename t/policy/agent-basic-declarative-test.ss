@@ -23,14 +23,14 @@
                  (_ (write-ffi-declare-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-005" findings)))
             (check matching => [])))
 (test-case "agent policy treats POO declarative bodies as declarative ranges"
           (let* ((root ".run/policy-poo-declarative-range")
                  (_ (write-poo-declarative-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-005" findings)))
             (check matching => [])))
 (test-case "agent policy treats user config and module object fragments as declarative"
       (let* ((root ".run/policy-agent-declarative-config")
@@ -52,7 +52,7 @@
          ";;; -*- Gerbil -*-\n(list\n (poo-flow-module-object\n  'demo\n  (list (poo-flow-module-field-contract 'name 'symbol))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-005" findings)))
           (check matching => []))))
 (test-case "agent policy treats single alist metadata files as declarative"
       (let* ((root ".run/policy-agent-declarative-alist-metadata")
@@ -71,7 +71,7 @@
          ";;; -*- Gerbil -*-\n((max_total . 120ms)\n (maxCollectMs . 1000)\n (feature . flow-strand-registry-merge)\n (measurementPhases prepare-fixture measure-best assert-time-gate))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-005" findings)))
           (check matching => []))))
 (test-case "agent policy treats begin-syntax as declarative expansion boundary"
       (let* ((root ".run/policy-agent-declarative-begin-syntax")
@@ -90,6 +90,6 @@
          ";;; -*- Gerbil -*-\n(begin-syntax\n  (def (syntax-helper stx) stx))\n(defsyntax (identity-syntax stx) (syntax-case stx () ((_ value) (syntax value))))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R005" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-005" findings)))
           (check matching => []))))
   ))

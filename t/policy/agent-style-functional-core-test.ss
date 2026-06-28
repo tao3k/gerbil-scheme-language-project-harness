@@ -26,7 +26,7 @@
                  (_ (write-functional-idiom-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R009" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-009" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-severity finding) => "warning")
@@ -97,7 +97,7 @@
                         ";;; -*- Gerbil -*-\n(package: sample/orders)\n(export resolve)\n;; : (-> Node Node)\n(def (resolve node)\n  (let walk ((current node))\n    (if (node-final? current)\n      current\n      (walk (node-parent current)))))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R009" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-009" findings)))
               (check matching => []))))
 (test-case "agent policy check output routes findings to guide code"
           (let* ((root ".run/policy-functional-idiom-check-output")
@@ -111,7 +111,7 @@
                    => #t)
             (check (not (not (string-contains
                               output
-                              "|agent-repair rule=GERBIL-SCHEME-AGENT-R009 severity=warning repairable=true active=true trigger=warning")))
+                              "|agent-repair rule=GERBIL-SCHEME-AGENT-POLICY-009 severity=warning repairable=true active=true trigger=warning")))
                    => #t)
             (check (not (not (string-contains
                               output
@@ -123,7 +123,7 @@
                    => #t)
             (check (not (not (string-contains
                               output
-                              "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")))
+                              "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-009 --intent repair")))
                    => #t)
             (check (not (not (string-contains
                               output
@@ -135,7 +135,7 @@
                    => #t)
             (check (not (not (string-contains
                               output
-                              "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))
+                              "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-015 --intent style")))
                    => #t)
             (check (not (not (string-contains
                               output
@@ -158,7 +158,7 @@
                  (_ (write-controlled-branch-shape-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R014" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-014" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-path finding) => "src/orders/core.ss")
@@ -185,5 +185,5 @@
               ([exit-code . output]
                (check exit-code => 1)
                (check (not (not (string-contains output "guideTopic=controlled-branch-shape"))) => #t)
-               (check (not (not (string-contains output "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style"))) => #t)))))
+               (check (not (not (string-contains output "nextCommand=asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-014 --intent style"))) => #t)))))
   ))

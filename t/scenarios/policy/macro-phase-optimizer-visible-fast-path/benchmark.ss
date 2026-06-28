@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 connects Gerbil phase-aware macro DSLs to optimizer-visible runtime call shapes")
  (feature . "macro-phase-optimizer-visible-fast-path")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "macro-generated runtime helpers that preserve lexical direct calls")
  (inputShape
   .

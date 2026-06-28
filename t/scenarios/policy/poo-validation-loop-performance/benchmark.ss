@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R031 validation repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-validation")
- (rule . "GERBIL-SCHEME-AGENT-R031")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-031")
  (optimizationFocus . "loop-local validation")
  (inputShape . "manual loop repeatedly validating the same POO shape")
  (expectedRepair . "validate once outside the loop")

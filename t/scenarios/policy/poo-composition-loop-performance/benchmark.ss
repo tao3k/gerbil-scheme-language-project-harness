@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R030 POO composition repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-composition")
- (rule . "GERBIL-SCHEME-AGENT-R030")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-030")
  (optimizationFocus . "loop-local POO composition")
  (inputShape . "manual loop repeatedly composing POO objects")
  (expectedRepair . "accumulate scalar state and apply one final composition")

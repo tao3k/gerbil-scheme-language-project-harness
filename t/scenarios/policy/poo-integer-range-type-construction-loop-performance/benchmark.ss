@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R034 integer range type construction repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-integer-range-type-construction")
- (rule . "GERBIL-SCHEME-AGENT-R034")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-034")
  (optimizationFocus . "loop-local integer range type construction")
  (inputShape
   .

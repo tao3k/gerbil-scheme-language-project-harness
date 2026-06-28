@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R029 slot projection repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-slot-projection")
- (rule . "GERBIL-SCHEME-AGENT-R029")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "loop-local slot projection")
  (inputShape . "manual loop repeatedly projecting POO slots")
  (expectedRepair . "project once at a boundary or use direct slot access")

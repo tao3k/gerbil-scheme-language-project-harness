@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R014 higher-order branch repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "typed-combinator-style")
- (rule . "GERBIL-SCHEME-AGENT-R014")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-014")
  (optimizationFocus . "higher-order branch repair")
  (inputShape . "conditional dispatch helper with repeated branch bodies")
  (expectedRepair . "source-backed fun/compose/curry style")

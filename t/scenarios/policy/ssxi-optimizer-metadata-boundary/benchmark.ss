@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 keeps SSXI optimizer metadata adjacent to compiler-visible primitive call shape")
  (feature . "ssxi-optimizer-metadata-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "SSXI metadata and inline-rule visibility for direct primitive calls")
  (inputShape
   .

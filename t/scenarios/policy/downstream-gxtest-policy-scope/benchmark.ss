@@ -27,7 +27,7 @@
   .
   "R013 downstream gxtest scenario reproduces unit-tests importing project-policy-test while source warnings live behind another imported test")
  (feature . "downstream-gxtest-policy-scope")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "gxtest files-scope import closure must include tested package-local source owners")

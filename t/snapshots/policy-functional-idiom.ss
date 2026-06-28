@@ -1,6 +1,6 @@
 (policyScenario
  (id "functional-idiom")
- (before (finding ("GERBIL-SCHEME-AGENT-R009"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-009"
                    "src/orders/core.ss"
                    "src/orders/core.ss:6-9"
                    "basic named-let/rest-accumulator loop looks like a redundant pure transform; rewrite toward Gerbil/Gambit idioms such as fold/filter-map, lambda-match/match, cut/curry/compose, case-lambda, or values/call-with-values unless parser facts show IO, stateful control flow, C3-style fixpoint selection, or generator/continuation driver"))

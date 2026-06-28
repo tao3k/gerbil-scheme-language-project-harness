@@ -1,6 +1,6 @@
 (policyScenario
  (id "package-build-canonical-shape")
- (before (finding ("GERBIL-SCHEME-AGENT-R025"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-025"
                    "build.ss"
                    "build.ss:8-8"
                    "package-level build.ss contains forbidden build control; use clan/building, std/build-script, or std/make build-spec, and do not hand-write GERBIL_LOADPATH/srcdir setup, manual compiler dispatch, or runtime routing in build.ss"))

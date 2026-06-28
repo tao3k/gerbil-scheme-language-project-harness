@@ -1,6 +1,6 @@
 (policyScenario
  (id "controlled-branch-shape")
- (before (finding ("GERBIL-SCHEME-AGENT-R014"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-014"
                    "src/orders/core.ss"
                    "src/orders/core.ss:7-9"
                    "caller decode-order has repeated match branches; keep the repair policy-driven and prefer lambda-match/lambda-ematch, fun, or a bounded selector pipeline before editing for style or performance"))
@@ -15,7 +15,7 @@
                  (advice "do not refactor opportunistically; wait for this policy finding, preserve behavior, and use guide code for controlled branch shape")
                  (styleGuide "controlled-branch-shape")
                  (styleCommand
-                  "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
+                  "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-014 --intent style")
                  (rewriteScope "same caller or extracted helper only")
                  (sourceBackedOwners
                   ("gerbil-utils/base.ss#lambda-match/lambda-ematch"

@@ -36,6 +36,6 @@
              ";;; -*- Gerbil -*-\n(import :clan/poo)\n(def (build-report-ref)\n  (.o id: \"orders\" status: \"hot\"))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-R027" findings)))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-027" findings)))
             (check matching => []))))
   ))

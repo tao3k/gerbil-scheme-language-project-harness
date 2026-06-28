@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R020 package build scenario catches agent-written local phase/cache/stamp and worker queue ownership layered on top of the native Gerbil build surface")
  (feature . "package-build-framework-overreach")
- (rule . "GERBIL-SCHEME-AGENT-R020")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-020")
  (optimizationFocus . "keep std/make and clan/building as build owners; expose acceleration and receipts as harness APIs")
  (inputShape . "build.ss imports std/make and clan/building, then defines local cache freshness, stamp writing, phase receipt control, and worker queue dispatch")
  (expectedRepair . "delete local phase/cache/stamp/worker ownership, keep the native build call path, and use a thin gslph API declaration for project coverage")

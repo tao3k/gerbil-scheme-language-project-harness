@@ -20,7 +20,7 @@
 
 ;; Relpath
 (def +agent-style-policy-scenario-fixtures-root+ "t/scenarios/policy")
-(def +agent-style-policy-r013-rule-id+ "GERBIL-SCHEME-AGENT-R013")
+(def +agent-style-policy-r013-rule-id+ "GERBIL-SCHEME-AGENT-POLICY-013")
 (def +agent-style-policy-scenario-timing-schema-id+
   "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
 (def +agent-style-policy-self-apply-r013-clean-owners+

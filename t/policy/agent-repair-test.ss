@@ -24,7 +24,7 @@
              (finding-groups (hash-get agent-repair "findingGroups"))
              (comment-group
               (find (lambda (group)
-                      (member "GERBIL-SCHEME-AGENT-R015"
+                      (member "GERBIL-SCHEME-AGENT-POLICY-015"
                               (hash-get group "rules")))
                     finding-groups))
              (comment-diagnostic (hash-get comment-group "diagnostic"))
@@ -33,10 +33,10 @@
              (comment-phases (hash-get comment-intent "repairPhases"))
              (finding (json-finding-by-rule
                        (hash-get packet "findings")
-                       "GERBIL-SCHEME-AGENT-R009"))
+                       "GERBIL-SCHEME-AGENT-POLICY-009"))
              (comment-finding (json-finding-by-rule
                                (hash-get packet "findings")
-                               "GERBIL-SCHEME-AGENT-R015"))
+                               "GERBIL-SCHEME-AGENT-POLICY-015"))
              (finding-repair (hash-get finding "agentRepair"))
              (finding-diagnostic (hash-get finding-repair "diagnostic"))
              (finding-location (hash-get finding-diagnostic "location")))
@@ -95,7 +95,7 @@
         (check (hash-get (cadr comment-phases) "name")
                => "dependent-comment-rationale")
         (check (hash-get (cadr comment-phases) "rules")
-               => ["GERBIL-SCHEME-AGENT-R015"])
+               => ["GERBIL-SCHEME-AGENT-POLICY-015"])
         (check (hash-get comment-intent "commentRepairOrder")
                => "comment-quality repairs run after structural/style repairs when both hit the same group")
         (check (hash-get finding-repair "repairable") => #t)
@@ -108,7 +108,7 @@
         (check (hash-get finding-repair "guideIntent") => "repair")
         (check (hash-get finding-repair "guideRole") => "evidence-only")
         (check (hash-get finding-repair "guideCommand")
-               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R009 --intent repair")
+               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-009 --intent repair")
         (check (hash-get finding-diagnostic "schema")
                => "gerbil-policy-diagnostic-v1")
         (check (hash-get finding-diagnostic "unit") => "finding")
@@ -116,7 +116,7 @@
                => ".run/policy-functional-idiom-check-json/demo.ss")
         (check (hash-get (hash-get comment-finding "agentRepair")
                          "guideCommand")
-               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R015 --intent style")))
+               => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-015 --intent style")))
     (test-case "agent repair replay calibrates repaired structural witnesses"
       (let* ((before-root ".run/policy-agent-repair-replay-input")
              (after-root ".run/policy-agent-repair-replay-after")

@@ -1,6 +1,6 @@
 (policyScenario
  (id "dependency-manual-object-adapter")
- (before (finding ("GERBIL-SCHEME-AGENT-R017"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-017"
                    "src/orders/dict.ss"
                    "src/orders/dict.ss:10-23"
                    "dependency adapter OrderDict. wraps :clan/pure/dict/orderdict but is missing manual-object-encoding-risk; lift dependency primitives into a thin typed protocol adapter and add a contract witness"))

@@ -32,7 +32,7 @@
              (input-r013
               (filter (lambda (finding)
                         (equal? (type-finding-rule-id finding)
-                                "GERBIL-SCHEME-AGENT-R013"))
+                                "GERBIL-SCHEME-AGENT-POLICY-013"))
                       input-findings)))
         (agent-style-check-r013-scenario!
          context

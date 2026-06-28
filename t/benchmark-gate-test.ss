@@ -19,7 +19,7 @@
 ;; : Alist
 (def benchmark-gate-fixture
   (make-benchmark-fixture
-   'GERBIL-SCHEME-AGENT-R000
+   'GERBIL-SCHEME-AGENT-POLICY-000
    'fixture-gate
    "reusable benchmark gate"
    "small deterministic thunk"

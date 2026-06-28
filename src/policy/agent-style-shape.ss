@@ -122,7 +122,7 @@
 ;; : (-> SourceFile PredicateFamilyFact PolicyDetails )
 (def (predicate-family-combinator-details file fact)
   (hash (styleGuide "predicate-family-combinator")
-        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style")
         (qualityReferenceCorpus "gerbil-utils")
         (qualityReference
          (gerbil-utils-source-details 'predicate-combinator))
@@ -146,7 +146,7 @@
                (constraints ["preserve public predicate behavior"
                              "stay in the same owner unless exports require a facade change"
                              "do not rewrite IO/runtime/macro boundaries without witness"])))
-        (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+        (next "guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style")))
 
 ;; : (-> SourceFile FieldAccessPatternFact TypeFinding )
 (def (field-access-helper-finding file fact)
@@ -233,7 +233,7 @@
 (def (field-access-helper-details fact detection)
   (let (details (detection-result-details detection))
     (hash (styleGuide "predicate-family-combinator")
-          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style")
           (qualityReference "gerbil-utils")
           (evidenceSource "parser-owned fieldAccessPatternFacts")
           (policySignals (hash-get details 'evidenceGroups))
@@ -256,7 +256,7 @@
           (fieldAccessPattern (field-access-pattern-repair-evidence fact))
           (agentRepairStandard
            "extract a local selector helper only after native parser evidence shows both high access count and cross-caller spread; keep packet keys stable and preserve caller behavior")
-          (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style"))))
+          (next "guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style"))))
 
 ;; : (-> FieldAccessPatternFact (List PolicySignal) )
 (def (field-access-helper-policy-signals fact)
@@ -309,7 +309,7 @@
 ;; : (-> BooleanConditionFact PolicyDetails )
 (def (boolean-condition-combinator-details fact)
   (hash (styleGuide "predicate-family-combinator")
-        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style")
         (qualityReferenceCorpus "gerbil-utils")
         (qualityReference
          (gerbil-utils-source-details 'predicate-combinator))
@@ -328,7 +328,7 @@
                (constraints ["preserve predicate truth table"
                              "keep the repair inside the owning source file unless exports demand a facade change"
                              "use parser-owned boolean evidence rather than string suffix or name matching"])))
-        (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")))
+        (next "guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style")))
 
 ;; : (-> BooleanConditionFact RepairEvidence )
 (def (boolean-condition-repair-evidence fact)
@@ -422,7 +422,7 @@
 (def (emitter-projection-burst-details fact detection)
   (let (details (detection-result-details detection))
     (hash (styleGuide "predicate-family-combinator")
-          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style")
+          (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style")
           (qualityReference "gerbil-utils")
           (evidenceSource "parser-owned projectionBurstFacts")
           (policySignals (hash-get details 'evidenceGroups))
@@ -445,7 +445,7 @@
           (projectionBurst (projection-burst-repair-evidence fact))
           (agentRepairStandard
            "extract selector helpers and line builders before changing output behavior; keep traversal and formatting separately testable")
-          (next "guide --code --rule GERBIL-SCHEME-AGENT-R016 --intent style"))))
+          (next "guide --code --rule GERBIL-SCHEME-AGENT-POLICY-016 --intent style"))))
 
 ;; : (-> ProjectionBurstFact RepairEvidence )
 (def (projection-burst-repair-evidence fact)
@@ -613,7 +613,7 @@
         (evidence "parser-owned controlFlowFacts role=pattern-branch, manual-loop bindingCount>=4, or conditional-branch count>=4")
         (advice "do not refactor opportunistically; wait for this policy finding, preserve behavior, and use guide code for controlled branch shape")
         (styleGuide "controlled-branch-shape")
-        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
+        (styleCommand "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-014 --intent style")
         (rewriteScope "same caller or extracted helper only")
         (qualityReferenceCorpus "gerbil-utils")
         (qualityReference
@@ -625,7 +625,7 @@
         (functionShape "source-backed Gerbil idioms first: lambda-match/lambda-ematch for unary match destructuring, fun for reusable local lambdas, cut/curry/rcurry for specialization, compose/rcompose/!>/!!> for pipelines")
         (agentRepairStandard "rewrite toward learned Gerbil style: choose the least powerful reference-backed higher-order idiom that preserves behavior; use plain helper extraction only when parser evidence shows no lambda-match, specialization, pipeline, fold, or generator shape")
         (expressionLevelRewrite "turn repeated branch or dispatch shape into lambda-match/lambda-ematch, fun, cut/curry/rcurry, compose/rcompose/!>/!!>, fold/filter-map, generator combinator, or a named helper in that order of evidence")
-        (next "guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")))
+        (next "guide --code --rule GERBIL-SCHEME-AGENT-POLICY-014 --intent style")))
 
 ;; : (-> String String Message )
 (def (controlled-branch-shape-message caller shape-kind)

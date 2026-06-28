@@ -61,25 +61,25 @@
                    => "pass")
             (check (>= (length before-findings) 7) => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R028" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-028" before-findings)
                    => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R029" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-029" before-findings)
                    => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R030" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-030" before-findings)
                    => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R031" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-031" before-findings)
                    => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R033" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-033" before-findings)
                    => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R035" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-035" before-findings)
                    => #t)
             (check (policy-rule-present?
-                    "GERBIL-SCHEME-AGENT-R037" before-findings)
+                    "GERBIL-SCHEME-AGENT-POLICY-037" before-findings)
                    => #t)
             (check after-findings => [])))
 (test-case "agent policy rejects direct POO writeenv calls"
@@ -87,11 +87,11 @@
                  (_ (write-poo-direct-writeenv-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R006" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-006" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-rule-id finding)
-                   => "GERBIL-SCHEME-AGENT-R006")
+                   => "GERBIL-SCHEME-AGENT-POLICY-006")
             (check (type-finding-path finding) => "src/orders/io.ss")
             (check (type-finding-message finding)
                    => "direct writeenv calls bypass POO IO runtime-source evidence; query search runtime-source writeenv printer hook first")))
@@ -100,11 +100,11 @@
                  (_ (write-poo-io-override-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R007" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-007" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-rule-id finding)
-                   => "GERBIL-SCHEME-AGENT-R007")
+                   => "GERBIL-SCHEME-AGENT-POLICY-007")
             (check (type-finding-path finding) => "src/orders/io.ss")
             (check (type-finding-message finding)
                    => "POO IO method overrides in src/ need runtime-source-backed writeenv/printer-hook witness coverage before being treated as verified")))
@@ -113,11 +113,11 @@
                  (_ (write-poo-method-shape-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R008" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-008" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-rule-id finding)
-                   => "GERBIL-SCHEME-AGENT-R008")
+                   => "GERBIL-SCHEME-AGENT-POLICY-008")
             (check (type-finding-path finding) => "src/orders/methods.ss")
             (check (type-finding-message finding)
                    => "POO method order-discount is missing parser-owned defgeneric,defclass-or-defprotocol facts; query POO pattern evidence and add defgeneric/defclass/defprotocol structure before extending methods")))
@@ -126,7 +126,7 @@
                  (_ (write-poo-documentation-usage-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings))
                  (finding (car matching))
                  (details (type-finding-details finding)))
             (check (length matching) => 1)
@@ -146,14 +146,14 @@
                  (_ (write-poo-documentation-usage-positive-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings)))
             (check matching => [])))
 (test-case "agent policy redirects outer POO constructor slot projection to prototype fixed point"
           (let* ((root ".run/policy-poo-prototype-fixed-point")
                  (_ (write-poo-prototype-fixed-point-drift-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R026" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-026" findings))
                  (finding (car matching))
                  (details (type-finding-details finding)))
             (check (length matching) => 1)
@@ -172,28 +172,28 @@
                  (_ (write-poo-prototype-fixed-point-positive-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R026" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-026" findings)))
             (check matching => [])))
 (test-case "agent policy allows isolated POO boundary reads without usage docs"
           (let* ((root ".run/policy-poo-documentation-boundary-read")
                  (_ (write-poo-prototype-boundary-read-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings)))
             (check matching => [])))
 (test-case "agent policy does not treat ordinary Scheme set! as POO usage"
           (let* ((root ".run/policy-poo-documentation-ordinary-set")
                  (_ (write-poo-documentation-ordinary-set-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R038" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings)))
             (check matching => [])))
 (test-case "agent policy allows isolated POO slot boundary reads"
           (let* ((root ".run/policy-poo-prototype-boundary-read")
                  (_ (write-poo-prototype-boundary-read-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R026" findings)))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-026" findings)))
             (check matching => [])))
 (test-case "agent policy redirects large data-shaped POO object construction to object<-alist"
           (let* ((scenario
@@ -207,12 +207,12 @@
                   (policy-scenario-findings
                    result
                    'before
-                   "GERBIL-SCHEME-AGENT-R027"))
+                   "GERBIL-SCHEME-AGENT-POLICY-027"))
                  (after-matching
                   (policy-scenario-findings
                    result
                    'after
-                   "GERBIL-SCHEME-AGENT-R027"))
+                   "GERBIL-SCHEME-AGENT-POLICY-027"))
                  (finding (car before-matching))
                    (details (type-finding-details finding)))
               (check (hash-get timing 'schemaId)

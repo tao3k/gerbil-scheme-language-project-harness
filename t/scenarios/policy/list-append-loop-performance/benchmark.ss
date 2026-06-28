@@ -28,7 +28,7 @@
   .
   "R039 list append loop scenario rejects generated O(n^2) list growth when a cons/reverse accumulator or hash-index merge boundary should own the hot path")
  (feature . "list-append-loop-performance")
- (rule . "GERBIL-SCHEME-AGENT-R039")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-039")
  (optimizationFocus
   .
   "loop-local append list growth to cons/reverse-once accumulator or hash-index ordered-key merge")

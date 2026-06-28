@@ -77,7 +77,7 @@ hash/alist/object outside the prototype.
 
 ** 51.02.4 R026 Repair Contract
 
-=GERBIL-SCHEME-AGENT-R026= is a soft warning. It should fire only for a
+=GERBIL-SCHEME-AGENT-POLICY-026= is a soft warning. It should fire only for a
 constructor/build function that performs a projection burst with =.ref=, =.@=,
 or =.get=.
 

@@ -1,15 +1,15 @@
 (policyScenario
  (id "real-agent-basic-syntax")
  (before (findings
-          (("GERBIL-SCHEME-AGENT-R009"
+          (("GERBIL-SCHEME-AGENT-POLICY-009"
             "src/dashboard/workflow.ss"
             "src/dashboard/workflow.ss:19-27"
             "basic named-let/rest-accumulator loop looks like a redundant pure transform; rewrite toward Gerbil/Gambit idioms such as fold/filter-map, lambda-match/match, cut/curry/compose, case-lambda, or values/call-with-values unless parser facts show IO, stateful control flow, C3-style fixpoint selection, or generator/continuation driver")
-           ("GERBIL-SCHEME-AGENT-R014"
+           ("GERBIL-SCHEME-AGENT-POLICY-014"
             "src/dashboard/workflow.ss"
             "src/dashboard/workflow.ss:33-41"
             "caller dispatch-dashboard has nested conditional dispatch; keep the repair policy-driven and choose source-backed Gerbil idioms such as fun, cut/curry/rcurry, compose/rcompose, or named fallback helpers before editing for style or performance")
-           ("GERBIL-SCHEME-AGENT-R028"
+           ("GERBIL-SCHEME-AGENT-POLICY-028"
             "src/dashboard/workflow.ss"
             "src/dashboard/workflow.ss:47-47"
             "POO loop loop repeatedly clones with .cc; prefer accumulating scalar state and applying one final .cc, or use .put! only when mutation is intentional")))
@@ -73,7 +73,7 @@
                   (advice "do not refactor opportunistically; wait for this policy finding, preserve behavior, and use guide code for controlled branch shape")
                   (styleGuide "controlled-branch-shape")
                   (styleCommand
-                   "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
+                   "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-014 --intent style")
                   (rewriteScope "same caller or extracted helper only")
                   (sourceBackedOwners
                    ("gerbil-utils/base.ss#lambda-match/lambda-ematch"

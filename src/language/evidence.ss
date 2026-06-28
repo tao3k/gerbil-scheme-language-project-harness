@@ -519,8 +519,8 @@
           (reference "https://git.cons.io/mighty-gerbils/gerbil-utils")
           (testDirectory "t")
           (policyRules ["GERBIL-SCHEME-MOD-R006"
-                        "GERBIL-SCHEME-AGENT-R004"
-                        "GERBIL-SCHEME-AGENT-R005"])
+                        "GERBIL-SCHEME-AGENT-POLICY-004"
+                        "GERBIL-SCHEME-AGENT-POLICY-005"])
           (styleDoc "docs/10-19-rfcs/10.05-cli-first-harness-ux/10.05.90-gerbil-scheme-style-conventions.org"))
     [(hash (role "style-reference")
            (symbol "generating<-list")

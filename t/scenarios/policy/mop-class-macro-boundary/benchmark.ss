@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 MOP class macro scenario keeps defclass-style descriptor generation and runtime method binding under the scenario-owned timing gate")
  (feature . "mop-class-macro-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "Gerbil core/mop defclass descriptor, mixin slot accessor, and defmethod binding boundaries")
  (inputShape
   .

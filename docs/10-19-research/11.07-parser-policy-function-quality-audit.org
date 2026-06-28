@@ -26,7 +26,7 @@ Commands used during this audit:
 asp org search toc docs/10-19-research
 asp org query --from-hook direct-source-read --selector docs/10-19-research/11.05-gerbil-scheme-harness-engineering-audit.org:234-478 docs/10-19-research
 asp org query --from-hook direct-source-read --selector docs/10-19-research/11.06-current-quality-gap-register.org:44-220 docs/10-19-research
-asp rg -query 'GERBIL-SCHEME-AGENT-R016|quality-shape|predicate-family' -query 'typed-combinator|controlled-branch|comment-quality' src t docs/10-19-research
+asp rg -query 'GERBIL-SCHEME-AGENT-POLICY-016|quality-shape|predicate-family' -query 'typed-combinator|controlled-branch|comment-quality' src t docs/10-19-research
 asp rg -query 'predicateFamilyFacts|fieldAccessPatternFacts|booleanConditionFacts|loopDriverFacts' -query 'structural|snapshot|search|packet|projection' src t
 asp rg -query 'quality-profile|function-quality|multi-layer|multilayer|correlat|priority|finding group|findingGroup' src t docs/10-19-research
 asp gerbil-scheme query --selector src/parser/quality-shape.ss:1-420 --workspace . --code
@@ -54,7 +54,7 @@ Important evidence:
   structural packet, and =src/snapshot/parser.ss= includes them in parser
   snapshots.
 - =src/policy/agent-style-shape.ss= turns parser-owned predicate-family facts
-  into =GERBIL-SCHEME-AGENT-R016= findings with agent repair evidence.
+  into =GERBIL-SCHEME-AGENT-POLICY-016= findings with agent repair evidence.
 - =src/policy/repair.ss= still reports aggregate repair counts and per-finding
   guide routes.  It does not group findings by function or compute a repair
   order when several rules hit the same owner/function.

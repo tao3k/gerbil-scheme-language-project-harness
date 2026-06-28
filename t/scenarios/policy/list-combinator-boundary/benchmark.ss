@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 list combinator scenario keeps anti-scaffold traversal repair within the scenario-owned timing gate")
  (feature . "list-combinator-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "manual list recursion to expression-level traversal boundary")

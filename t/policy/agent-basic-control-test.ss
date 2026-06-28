@@ -35,7 +35,7 @@
          ";;; -*- Gerbil -*-\n(def (dedupe values)\n  (let (seen (make-hash-table))\n    (let loop ((rest values) (out '()))\n      (cond\n       ((null? rest) (reverse out))\n       ((hash-get seen (car rest)) (loop (cdr rest) out))\n       (else\n        (hash-put! seen (car rest) #t)\n        (loop (cdr rest) (cons (car rest) out)))))))\n")
         (let* ((index (collect-project root))
                (findings (run-policy-checks index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R009" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-009" findings)))
           (check matching => []))))
 (test-case "agent policy preserves stateful conditional hot paths"
       (let* ((root ".run/policy-agent-stateful-branch-driver")
@@ -54,7 +54,7 @@
          ";;; -*- Gerbil -*-\n;;; Boundary: this owner keeps hash mutation explicit for a hot merge path.\n;; : (-> List List)\n(def (merge-values values)\n  (let (seen (make-hash-table))\n    (map (lambda (value)\n           (cond\n            ((not value) #f)\n            ((hash-get seen value) value)\n            ((symbol? value) (begin (hash-put! seen value #t) value))\n            ((pair? value) (begin (hash-put! seen value #t) value))\n            (else value)))\n         values)))\n")
         (let* ((index (collect-project root))
                (findings (run-policy-checks index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R014" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-014" findings)))
           (check matching => []))))
 (test-case "agent policy keeps positive combinator owners out of broad style warnings"
       (let* ((root ".run/policy-agent-positive-combinator-style")
@@ -73,8 +73,8 @@
          ";;; -*- Gerbil -*-\n;;; Boundary: sequence helpers stay expression-level and data-only.\n;; : (-> List List)\n(def (positive-symbols values)\n  (filter symbol? values))\n")
         (let* ((index (collect-project root))
                (findings (run-policy-checks index))
-               (r013 (filter-rule "GERBIL-SCHEME-AGENT-R013" findings))
-               (r015 (filter-rule "GERBIL-SCHEME-AGENT-R015" findings)))
+               (r013 (filter-rule "GERBIL-SCHEME-AGENT-POLICY-013" findings))
+               (r015 (filter-rule "GERBIL-SCHEME-AGENT-POLICY-015" findings)))
           (check r013 => [])
           (check r015 => []))))
 (test-case "agent policy ignores begin-syntax named-let loop drivers"
@@ -94,7 +94,7 @@
          ";;; -*- Gerbil -*-\n(begin-syntax\n  (def (syntax-list->list stx)\n    (let loop ((rest stx) (out '()))\n      (syntax-case rest ()\n        (() (reverse out))\n        ((head . tail)\n         (loop (syntax tail) (cons (syntax head) out)))\n        (_ #f)))))\n")
         (let* ((index (collect-project root))
                (findings (run-policy-checks index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R009" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-009" findings)))
           (check matching => []))))
 (test-case "agent policy allows direct imports when they are public re-exports"
       (let* ((root ".run/policy-agent-import-reexport")
@@ -118,7 +118,7 @@
          ";;; -*- Gerbil -*-\n(import :clan/poo/object)\n(export #t (import: :clan/poo/object))\n(def value (.o name: 'reexport))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R018" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-018" findings)))
           (check (length matching) => 1)
           (check (type-finding-path (car matching)) => "src/direct/core.ss"))))
 (test-case "package build policy accepts named std make build-spec helpers"
@@ -139,8 +139,8 @@
          "#!/usr/bin/env gxi\n;;; -*- Gerbil -*-\n(import (only-in :std/make make))\n(def sample-build-spec '((gxc: \"src/core\")))\n(def (main . args) (apply make sample-build-spec srcdir: \".\" []))\n(apply main (cdr (command-line)))\n")
         (let* ((index (collect-project root))
                (findings (run-policy-checks index))
-               (r020 (filter-rule "GERBIL-SCHEME-AGENT-R020" findings))
-               (r025 (filter-rule "GERBIL-SCHEME-AGENT-R025" findings)))
+               (r020 (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings))
+               (r025 (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings)))
           (check r020 => [])
           (check r025 => []))))
   ))

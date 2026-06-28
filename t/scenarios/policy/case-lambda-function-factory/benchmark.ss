@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 case-lambda function factory scenario keeps arity-specialized repair within the scenario-owned timing gate")
  (feature . "case-lambda-function-factory")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "case-lambda arity-specialized function factory")
  (inputShape . "single wrapper-lambda factory hiding distinct arity variants")
  (expectedRepair

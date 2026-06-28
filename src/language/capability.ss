@@ -82,7 +82,7 @@
             (macroSelectors
              (let (selectors (map macro-fact-selector macro-facts))
                (capability-selector-preview selectors))))
-      ["GERBIL-SCHEME-AGENT-R011"]
+      ["GERBIL-SCHEME-AGENT-POLICY-011"]
       ["macro-runtime-source-witness" "parser-owned-macro-heads"]
       "agent-edits-macro-or-syntax-transformer"
       "cite-runtime-source-and-parser-macro-fact-before-changing-transformers")
@@ -99,7 +99,7 @@
             (pooSelectors
              (let (selectors (map poo-form-fact-selector poo-facts))
                (capability-selector-preview selectors))))
-      ["GERBIL-SCHEME-AGENT-R008" "GERBIL-SCHEME-AGENT-R012"]
+      ["GERBIL-SCHEME-AGENT-POLICY-008" "GERBIL-SCHEME-AGENT-POLICY-012"]
       ["poo-method-shape" "protocol-evidence" "manual-object-encoding-opportunity"]
       "agent-models-objects-or-protocols-in-gerbil"
       "prefer-defclass-defgeneric-defmethod-or-protocol-when-poo-capability-is-active")
@@ -115,7 +115,7 @@
             (higherOrderSelectors
              (let (selectors (map higher-order-fact-selector higher-order-facts))
                (capability-selector-preview selectors))))
-      ["GERBIL-SCHEME-AGENT-R009"]
+      ["GERBIL-SCHEME-AGENT-POLICY-009"]
       ["functional-data-transform" "typed-combinator-style"]
       "agent-writes-data-transform-or-loop"
       "use-map-filter-fold-for-fold-cut-for-pure-transforms")
@@ -131,7 +131,7 @@
             (controlFlowSelectors
              (let (selectors (map control-flow-fact-selector control-flow-facts))
                (capability-selector-preview selectors))))
-      ["GERBIL-SCHEME-AGENT-R009"]
+      ["GERBIL-SCHEME-AGENT-POLICY-009"]
       ["manual-loop-functional-advice" "stateful-driver-exception"]
       "agent-edits-loop-or-driver"
       "preserve-named-let-for-io-state-generator-continuation-drivers")

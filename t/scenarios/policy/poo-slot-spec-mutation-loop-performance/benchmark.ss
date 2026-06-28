@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R036 slot spec mutation repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-slot-spec-mutation")
- (rule . "GERBIL-SCHEME-AGENT-R036")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-036")
  (optimizationFocus . "loop-local slot spec mutation")
  (inputShape . "manual loop repeatedly mutating POO slot definitions")
  (expectedRepair . "define slots once and mutate values intentionally")

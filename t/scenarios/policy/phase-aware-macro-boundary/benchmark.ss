@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 separates Gerbil meta-syntactic tower, phase/context parsing, expansion, and runtime helper responsibilities")
  (feature . "phase-aware-macro-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "phase/context macro parsing split from runtime helper generation")
  (inputShape
   .

@@ -7,7 +7,7 @@ project harness from `gerbil.pkg`.
   default, so the project receives the typed-combinator-style finding for the
   source shape in `src/orders/core.ss`.
 - `expected/gerbil.pkg` keeps the same dependency but disables
-  `GERBIL-SCHEME-AGENT-R013` with a required `explanation:`, so the same source
+  `GERBIL-SCHEME-AGENT-POLICY-013` with a required `explanation:`, so the same source
   tree is accepted by the package policy filter without giving agents a silent
   escape hatch.
 

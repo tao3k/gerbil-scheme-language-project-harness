@@ -26,7 +26,7 @@
                  (_ (write-controlled-branch-conditional-dispatch-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R014" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-014" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-path finding) => "src/orders/core.ss")
@@ -55,12 +55,12 @@
                   (policy-scenario-findings
                    result
                    'before
-                   "GERBIL-SCHEME-AGENT-R014"))
+                   "GERBIL-SCHEME-AGENT-POLICY-014"))
                  (after-matching
                   (policy-scenario-findings
                    result
                    'after
-                   "GERBIL-SCHEME-AGENT-R014"))
+                   "GERBIL-SCHEME-AGENT-POLICY-014"))
                  (after-index (policy-scenario-index result 'after))
                  (after-file
                   (project-index-source-file-by-path
@@ -80,13 +80,13 @@
             (check (hash-get benchmark-contract 'feature)
                    => "typed-combinator-style")
             (check (hash-get benchmark-contract 'rule)
-                   => "GERBIL-SCHEME-AGENT-R014")
+                   => "GERBIL-SCHEME-AGENT-POLICY-014")
             (check (hash-get benchmark-contract 'optimizationFocus)
                    => "higher-order branch repair")
             (check (hash-get timing 'benchmarkFeature)
                    => "typed-combinator-style")
             (check (hash-get timing 'benchmarkRule)
-                   => "GERBIL-SCHEME-AGENT-R014")
+                   => "GERBIL-SCHEME-AGENT-POLICY-014")
             (check (hash-get timing 'optimizationFocus)
                    => "higher-order branch repair")
             (check max-total => '1s)
@@ -110,7 +110,7 @@
                  (_ (write-controlled-branch-loop-shape-project root))
                  (index (collect-project root))
                  (findings (run-agent-policy index))
-                 (matching (filter-rule "GERBIL-SCHEME-AGENT-R014" findings))
+                 (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-014" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
             (check (type-finding-path finding) => "src/orders/core.ss")

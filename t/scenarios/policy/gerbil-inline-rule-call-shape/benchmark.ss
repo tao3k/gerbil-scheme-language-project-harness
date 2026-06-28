@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 routes hot primitive call drift toward Gerbil builtin inline-rule and dispatch-lambda shapes")
  (feature . "gerbil-inline-rule-call-shape")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "compiler-recognizable inline primitive call shape")
  (inputShape
   .

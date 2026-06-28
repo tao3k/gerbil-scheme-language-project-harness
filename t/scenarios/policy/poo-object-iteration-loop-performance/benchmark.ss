@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R029 object iteration repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-object-iteration")
- (rule . "GERBIL-SCHEME-AGENT-R029")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "loop-local object iteration")
  (inputShape . "manual loop repeatedly iterating a POO object")
  (expectedRepair . "iterate from a boundary snapshot or direct slot access")

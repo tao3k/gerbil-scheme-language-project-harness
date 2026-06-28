@@ -30,7 +30,7 @@
  (unit . "ms")
  (purpose . "real dashboard workflow proves POO API usage can stay boundary-oriented and performance-gated")
  (feature . "poo-real-dashboard-workflow")
- (rule . "GERBIL-SCHEME-AGENT-R028/R029/R030/R031/R033/R035/R037")
+   (rule . "GERBIL-SCHEME-AGENT-POO-DASHBOARD-WORKFLOW-037")
  (optimizationFocus . "multi-api POO workflow")
  (inputShape
   .

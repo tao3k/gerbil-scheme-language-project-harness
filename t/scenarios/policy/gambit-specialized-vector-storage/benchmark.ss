@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 teaches agents to choose Gambit specialized vectors for bytes and numeric arrays instead of boxed list/vector scaffolding")
  (feature . "gambit-specialized-vector-storage")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "packed byte and numeric storage with specialized vector primitives")
  (inputShape
   .

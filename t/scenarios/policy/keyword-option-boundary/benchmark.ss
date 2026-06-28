@@ -28,7 +28,7 @@
   .
   "R022 keyword option scenario rejects generated opts alist scanning when Gerbil keyword/default parameters should own the function option contract")
  (feature . "keyword-option-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R022")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-022")
  (optimizationFocus
   .
   "repeated inline assq/cdr option-bag probing to Gerbil #!key parameters with compiler-owned keyword dispatch")

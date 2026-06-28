@@ -1,6 +1,6 @@
 (policyScenario
  (id "dependency-protocol-adapter")
- (before (finding ("GERBIL-SCHEME-AGENT-R017"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-017"
                    "src/orders/dict.ss"
                    "src/orders/dict.ss:9-14"
                    "dependency adapter OrderDict. wraps :clan/pure/dict/orderdict but is missing protocol-slot-surface,typed-validation-boundary,conversion-boundary,equality-boundary,generic-contract-test-witness; lift dependency primitives into a thin typed protocol adapter and add a contract witness"))

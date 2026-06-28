@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R034 finite-field type construction repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-finite-field-type-construction")
- (rule . "GERBIL-SCHEME-AGENT-R034")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-034")
  (optimizationFocus . "loop-local finite-field type construction")
  (inputShape . "manual loop repeatedly constructing stable F_q type objects")
  (expectedRepair . "hoist stable F_q type object to a named binding")

@@ -84,124 +84,124 @@
   (make-policy-rule "GERBIL-SCHEME-MOD-R008" "warning"))
 ;; ConfigConstant
 (def +agent-intent-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R001" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-001" "warning"))
 ;; ConfigConstant
 (def +agent-generic-owner-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R002" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-002" "warning"))
 ;; ConfigConstant
 (def +agent-export-conflict-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R003" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-003" "warning"))
 ;; ConfigConstant
 (def +agent-vague-definition-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R004" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-004" "warning"))
 ;; ConfigConstant
 (def +agent-top-level-executable-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R005" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-005" "warning"))
 ;; ConfigConstant
 (def +agent-poo-direct-writeenv-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R006" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-006" "warning"))
 ;; ConfigConstant
 (def +agent-poo-io-runtime-witness-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R007" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-007" "warning"))
 ;; ConfigConstant
 (def +agent-poo-method-shape-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R008" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-008" "warning"))
 ;; String
 (def +agent-functional-idiom-advice-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R009" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-009" "warning"))
 ;; ConfigConstant
 (def +agent-poo-object-model-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R010" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-010" "warning"))
 ;; ConfigConstant
 (def +agent-macro-runtime-source-witness-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R011" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-011" "warning"))
 ;; String
 (def +agent-protocol-evidence-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R012" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-012" "warning"))
 ;; TypeSpec
 (def +agent-typed-combinator-style-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R013" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-013" "warning"))
 ;; ConfigConstant
 (def +agent-controlled-branch-shape-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R014" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-014" "warning"))
 ;; ConfigConstant
 (def +agent-comment-quality-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R015" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-015" "warning"))
 ;; ConfigConstant
 (def +agent-predicate-family-combinator-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R016" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-016" "warning"))
 ;; ConfigConstant
 (def +agent-dependency-protocol-adapter-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R017" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-017" "warning"))
 ;; ConfigConstant
 (def +agent-explicit-precise-import-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R018" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-018" "warning"))
 ;; ConfigConstant
 (def +agent-package-build-responsibility-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R019" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-019" "warning"))
 ;; ConfigConstant
 (def +agent-build-runtime-quality-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R020" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-020" "warning"))
 ;; ConfigConstant
 (def +agent-policy-source-scope-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R021" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-021" "warning"))
 ;; ConfigConstant
 (def +agent-alist-access-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R022" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-022" "warning"))
 ;; ConfigConstant
 (def +agent-anonymous-pair-access-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R023" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-023" "warning"))
 ;; ConfigConstant
 (def +agent-package-build-canonical-shape-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R025" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-025" "warning"))
 ;; ConfigConstant
 (def +agent-poo-prototype-fixed-point-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R026" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-026" "warning"))
 ;; ConfigConstant
 (def +agent-poo-construction-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R027" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-027" "warning"))
 ;; ConfigConstant
 (def +agent-poo-clone-override-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R028" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-028" "warning"))
 ;; ConfigConstant
 (def +agent-poo-materialization-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R029" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-029" "warning"))
 ;; ConfigConstant
 (def +agent-poo-composition-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R030" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-030" "warning"))
 ;; ConfigConstant
 (def +agent-poo-validation-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R031" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-031" "warning"))
 ;; ConfigConstant
 (def +agent-poo-lens-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R032" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-032" "warning"))
 ;; ConfigConstant
 (def +agent-poo-object-construction-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R033" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-033" "warning"))
 ;; ConfigConstant
 (def +agent-poo-type-construction-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R034" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-034" "warning"))
 ;; ConfigConstant
 (def +agent-poo-debug-instrumentation-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R035" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-035" "warning"))
 ;; ConfigConstant
 (def +agent-poo-slot-spec-mutation-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R036" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-036" "warning"))
 ;; ConfigConstant
 (def +agent-poo-slot-predicate-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R037" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-037" "warning"))
 ;; ConfigConstant
 (def +agent-poo-documentation-usage-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R038" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-038" "warning"))
 ;; ConfigConstant
 (def +agent-list-growth-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R039" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-039" "warning"))
 ;; ConfigConstant
 (def +agent-macro-expansion-io-boundary-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R040" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-040" "warning"))
 ;; ConfigConstant
 (def +agent-list-random-access-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R041" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-041" "warning"))
 ;; ConfigConstant
 (def +agent-string-growth-loop-performance-rule+
-  (make-policy-rule "GERBIL-SCHEME-AGENT-R042" "warning"))
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-042" "warning"))

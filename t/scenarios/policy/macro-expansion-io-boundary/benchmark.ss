@@ -28,7 +28,7 @@
   .
   "R040 macro expansion IO scenario rejects generated macro owners that hide filesystem reads, path resolution, and syntax generation inside one transformer")
  (feature . "macro-expansion-io-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R040")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-040")
  (optimizationFocus
   .
   "compile-time file IO in macro owners to explicit syntax payloads or source-backed build artifact boundaries")

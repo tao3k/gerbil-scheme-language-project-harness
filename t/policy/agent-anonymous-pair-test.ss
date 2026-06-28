@@ -27,7 +27,7 @@
          ";;; -*- Gerbil -*-\n(def (checks result)\n  [(car result) (cdr result) (car result) (cdr result) (car result) (cdr result)])\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R023" findings))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-023" findings))
                (finding (car matching))
                (details (type-finding-details finding)))
           (check (length matching) => 1)
@@ -48,6 +48,6 @@
          ";;; -*- Gerbil -*-\n(def (result-status result) (car result))\n(def (result-output result) (cdr result))\n(def (checks result)\n  [(result-status result) (result-output result) (result-status result) (result-output result)])\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R023" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-023" findings)))
           (check matching => []))))))
 

@@ -22,7 +22,7 @@
  (unit . "ms")
  (purpose . "R013 destructuring combinator scenario keeps repeated pair/alist access repair within the scenario-owned timing gate while preferring native match mechanisms when they remove runtime probing")
  (feature . "destructuring-combinator-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "temporary destructuring scaffolding to native match, selector, or syntax-local boundary")
  (inputShape . "three exported helpers repeat assq/cdr alist probing, defaults, and conditional routing over one event record")
  (expectedRepair . "single with/match destructuring boundary, RouteKey domain type, core match dispatch, and full typed documentation")

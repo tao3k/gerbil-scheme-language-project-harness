@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R033 object construction repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-object-construction")
- (rule . "GERBIL-SCHEME-AGENT-R033")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-033")
  (optimizationFocus . "loop-local object construction")
  (inputShape . "manual loop repeatedly constructing POO objects")
  (expectedRepair . "hoist stable construction or build one final object")

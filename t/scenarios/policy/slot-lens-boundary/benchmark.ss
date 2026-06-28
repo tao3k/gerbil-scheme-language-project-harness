@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 slot lens scenario keeps learned descriptor/lens repair within the scenario-owned timing gate")
  (feature . "slot-lens-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "local slot descriptor and lens boundary")
  (inputShape
   .

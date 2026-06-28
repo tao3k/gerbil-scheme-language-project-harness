@@ -74,7 +74,7 @@
             (check (contains? text-output "|interface source-scope=gerbil.pkg-policy") => #t)
             (check (contains? text-output "|interface build-scope=build.ss defbuild-script targets -> runtime-roots") => #t)
             (check (contains? text-output "|agent-steering facts=macroFacts,bindingFacts,pooFormFacts,higherOrderFacts,controlFlowFacts,predicateFamilyFacts,fieldAccessPatternFacts,booleanConditionFacts,loopDriverFacts,dependencyAdapterQualityFacts,functionQualityProfiles,typedContractFacts,commentQualityFacts,dependencyUsageFacts") => #t)
-            (check (contains? text-output "|agent-steering rules=GERBIL-SCHEME-AGENT-R006,R007,R008,R009,R010,R011,R012,R013,R014,R015,R016,R017") => #t)
+            (check (contains? text-output "|agent-steering rules=GERBIL-SCHEME-AGENT-POLICY-006,R007,R008,R009,R010,R011,R012,R013,R014,R015,R016,R017") => #t)
             (check (contains? text-output "|closure self-apply=gxi build.ss test") => #t)
             (check (contains? text-output "|closure check=gerbil-scheme-harness check .") => #t)
             (check (contains? text-output "|closure bench=gerbil-scheme-harness bench --iterations 1 --max-interface-ms 50 .") => #t)

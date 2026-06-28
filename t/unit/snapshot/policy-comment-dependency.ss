@@ -23,13 +23,13 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R015"))
+           "GERBIL-SCHEME-AGENT-POLICY-015"))
          (before-details (type-finding-details before-finding))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R015")))
+           "GERBIL-SCHEME-AGENT-POLICY-015")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before
@@ -54,12 +54,12 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R013"))
+           "GERBIL-SCHEME-AGENT-POLICY-013"))
          (after-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R013")))
+           "GERBIL-SCHEME-AGENT-POLICY-013")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before
@@ -87,22 +87,22 @@
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R024"))
+           "GERBIL-SCHEME-AGENT-POLICY-024"))
          (before-style-finding
           (policy-scenario-required-finding
            result
            'before
-           "GERBIL-SCHEME-AGENT-R013"))
+           "GERBIL-SCHEME-AGENT-POLICY-013"))
          (after-policy-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R024"))
+           "GERBIL-SCHEME-AGENT-POLICY-024"))
          (after-style-findings
           (policy-scenario-findings
            result
            'after
-           "GERBIL-SCHEME-AGENT-R013")))
+           "GERBIL-SCHEME-AGENT-POLICY-013")))
     (list 'policyScenario
           (list 'id (policy-scenario-result-id result))
           (list 'before

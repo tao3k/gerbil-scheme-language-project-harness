@@ -96,5 +96,5 @@
           (check status => 0)
           (check (and (string-contains output "poo-prototype-fixed-point") #t)
                  => #t)
-          (check (and (string-contains output "GERBIL-SCHEME-AGENT-R026") #t)
+          (check (and (string-contains output "GERBIL-SCHEME-AGENT-POLICY-026") #t)
                  => #t))))))

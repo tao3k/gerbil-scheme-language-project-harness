@@ -1,6 +1,6 @@
 (policyScenario
  (id "controlled-branch-conditional-dispatch")
- (before (finding ("GERBIL-SCHEME-AGENT-R014"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-014"
                    "src/orders/core.ss"
                    "src/orders/core.ss:9-19"
                    "caller dispatch-order has nested conditional dispatch; keep the repair policy-driven and choose source-backed Gerbil idioms such as fun, cut/curry/rcurry, compose/rcompose, or named fallback helpers before editing for style or performance"))
@@ -15,7 +15,7 @@
                  (advice "do not refactor opportunistically; wait for this policy finding, preserve behavior, and use guide code for controlled branch shape")
                  (styleGuide "controlled-branch-shape")
                  (styleCommand
-                  "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-R014 --intent style")
+                  "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-014 --intent style")
                  (rewriteScope "same caller or extracted helper only")
                  (sourceBackedOwners
                   ("gerbil-utils/base.ss#lambda-match/lambda-ematch"

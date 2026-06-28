@@ -28,7 +28,7 @@
   .
   "R041 list random access scenario rejects generated O(n^2) indexed traversals over lists when a vector or evector boundary should own random access")
  (feature . "list-random-access-loop-performance")
- (rule . "GERBIL-SCHEME-AGENT-R041")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-041")
  (optimizationFocus
   .
   "loop-local list-ref/list-tail random access to one list->vector boundary or std/misc/evector growable indexed storage")

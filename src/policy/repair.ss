@@ -435,12 +435,12 @@
 ;; : (-> RuleId Integer )
 (def (rule-repair-priority rule-id)
   (cond
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R017") 8)
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R016") 10)
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R014") 20)
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R013") 30)
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R015") 40)
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R011") 45)
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-017") 8)
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-016") 10)
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-014") 20)
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-013") 30)
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-015") 40)
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-011") 45)
    (else 90)))
 
 ;;; Definition names are best-effort metadata for repair receipts.
@@ -480,13 +480,13 @@
 ;;; revisit comments after code shape stabilizes.
 ;; : (-> (List RuleId) (List RuleId) )
 (def (suppressed-dependent-rules rules)
-  (if (and (member "GERBIL-SCHEME-AGENT-R015" rules)
+  (if (and (member "GERBIL-SCHEME-AGENT-POLICY-015" rules)
            (ormap (cut member <> rules)
-                  ["GERBIL-SCHEME-AGENT-R013"
-                   "GERBIL-SCHEME-AGENT-R014"
-                   "GERBIL-SCHEME-AGENT-R016"
-                   "GERBIL-SCHEME-AGENT-R017"]))
-    ["GERBIL-SCHEME-AGENT-R015"]
+                  ["GERBIL-SCHEME-AGENT-POLICY-013"
+                   "GERBIL-SCHEME-AGENT-POLICY-014"
+                   "GERBIL-SCHEME-AGENT-POLICY-016"
+                   "GERBIL-SCHEME-AGENT-POLICY-017"]))
+    ["GERBIL-SCHEME-AGENT-POLICY-015"]
     []))
 
 ;;; Required witnesses merge rule needs into a deduped checklist.
@@ -501,17 +501,17 @@
 ;; : (-> RuleId (List Witness) )
 (def (rule-required-witnesses rule-id)
   (cond
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R017")
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-017")
     ["dependencyAdapterQualityFacts" "moduleImportFacts" "genericContractTestWitness"])
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R016")
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-016")
     ["predicateFamilyFacts" "fieldAccessPatternFacts" "functionQualityProfile"])
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R014")
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-014")
     ["controlFlowFacts" "functionQualityProfile"])
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R013")
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-013")
     ["typedContractFacts" "higherOrderFacts" "functionQualityProfile"])
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R015")
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-015")
     ["commentQualityFacts" "functionQualityProfile"])
-   ((equal? rule-id "GERBIL-SCHEME-AGENT-R011")
+   ((equal? rule-id "GERBIL-SCHEME-AGENT-POLICY-011")
     ["runtimeSourceMacroWitness"])
    (else ["policyFinding"])))
 

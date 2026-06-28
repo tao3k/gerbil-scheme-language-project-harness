@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 controlled macro syntax scenario keeps macro guidance within the scenario-owned timing gate")
  (feature . "macro-hygiene")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "scoped expander state and controlled macro syntax boundary")
  (inputShape
   .

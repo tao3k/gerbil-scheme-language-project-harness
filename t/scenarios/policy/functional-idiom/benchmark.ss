@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 functional idiom scenario keeps manual fold and local destructuring repair within the scenario-owned timing gate")
  (feature . "functional-idiom")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus
   .
   "manual recursion to fold/pipeline and lambda-match boundary")

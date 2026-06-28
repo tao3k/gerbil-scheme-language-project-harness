@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 typed-combinator-style scenario keeps core Gerbil expression idiom repair under the scenario timing gate")
  (feature . "typed-combinator-style")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "manual traversal and missing expression evidence to Gerbil-native combinator style")
  (inputShape . "small owner exposes hand-written named-let traversal and no adjacent typed-combinator contracts")
  (expectedRepair . "typed docs, lambda-match shape dispatch, curry/rcurry, compose, and map traversal")

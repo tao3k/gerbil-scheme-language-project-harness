@@ -32,12 +32,12 @@
                   (policy-scenario-findings
                    result
                    'before
-                   "GERBIL-SCHEME-AGENT-R035"))
+                   "GERBIL-SCHEME-AGENT-POLICY-035"))
                  (after-matching
                   (policy-scenario-findings
                    result
                    'after
-                   "GERBIL-SCHEME-AGENT-R035"))
+                   "GERBIL-SCHEME-AGENT-POLICY-035"))
                  (finding (car before-matching))
                    (details (type-finding-details finding)))
               (check (length timings) => 4)
@@ -66,12 +66,12 @@
                   (policy-scenario-findings
                    result
                    'before
-                   "GERBIL-SCHEME-AGENT-R036"))
+                   "GERBIL-SCHEME-AGENT-POLICY-036"))
                  (after-matching
                   (policy-scenario-findings
                    result
                    'after
-                   "GERBIL-SCHEME-AGENT-R036"))
+                   "GERBIL-SCHEME-AGENT-POLICY-036"))
                  (finding (car before-matching))
                    (details (type-finding-details finding)))
               (check (length timings) => 4)
@@ -100,12 +100,12 @@
                   (policy-scenario-findings
                    result
                    'before
-                   "GERBIL-SCHEME-AGENT-R037"))
+                   "GERBIL-SCHEME-AGENT-POLICY-037"))
                  (after-matching
                   (policy-scenario-findings
                    result
                    'after
-                   "GERBIL-SCHEME-AGENT-R037"))
+                   "GERBIL-SCHEME-AGENT-POLICY-037"))
                  (finding (car before-matching))
                    (details (type-finding-details finding)))
               (check (length timings) => 4)

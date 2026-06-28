@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 teaches agents to use Gerbil iteration macros when the loop contract is static and can be generated hygienically")
  (feature . "gerbil-iteration-macro-loop-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "macro-generated iteration with binding contracts and filter clauses")
  (inputShape
   .

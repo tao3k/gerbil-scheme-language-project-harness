@@ -29,7 +29,7 @@
          ";;; -*- Gerbil -*-\n(def (profile-name profile)\n  (cdr (assq 'name profile)))\n(def (profile-owner profile)\n  (cdr (assq 'owner profile)))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R022" findings))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-022" findings))
                (finding (car matching))
                (details (type-finding-details finding)))
           (check (length matching) => 1)
@@ -59,7 +59,7 @@
          ";;; -*- Gerbil -*-\n(def (profile-ref profile key)\n  (cdr (assq key profile)))\n(def (profile-name profile)\n  (profile-ref profile 'name))\n(def (profile-owner profile)\n  (profile-ref profile 'owner))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
-               (matching (filter-rule "GERBIL-SCHEME-AGENT-R022" findings)))
+               (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-022" findings)))
           (check matching => []))))
     (test-case "agent policy validates alist index scenario under performance gate"
       (let* ((scenario
@@ -75,12 +75,12 @@
               (policy-scenario-findings
                result
                'before
-               "GERBIL-SCHEME-AGENT-R022"))
+               "GERBIL-SCHEME-AGENT-POLICY-022"))
              (after-matching
               (policy-scenario-findings
                result
                'after
-               "GERBIL-SCHEME-AGENT-R022"))
+               "GERBIL-SCHEME-AGENT-POLICY-022"))
              (finding (car before-matching))
              (details (type-finding-details finding)))
         (check (hash-get timing 'schemaId)
@@ -94,7 +94,7 @@
                => #t)
         (check (hash-get benchmark-contract 'feature) => "alist-index-boundary")
         (check (hash-get benchmark-contract 'rule)
-               => "GERBIL-SCHEME-AGENT-R022")
+               => "GERBIL-SCHEME-AGENT-POLICY-022")
         (check (string? (hash-get comparison 'annotation)) => #t)
         (check (length before-matching) => 1)
         (check after-matching => [])
@@ -123,12 +123,12 @@
               (policy-scenario-findings
                result
                'before
-               "GERBIL-SCHEME-AGENT-R022"))
+               "GERBIL-SCHEME-AGENT-POLICY-022"))
              (after-matching
               (policy-scenario-findings
                result
                'after
-               "GERBIL-SCHEME-AGENT-R022"))
+               "GERBIL-SCHEME-AGENT-POLICY-022"))
              (finding (car before-matching))
              (details (type-finding-details finding)))
         (check (hash-get timing 'schemaId)
@@ -142,7 +142,7 @@
                => #t)
         (check (hash-get benchmark-contract 'feature) => "keyword-option-boundary")
         (check (hash-get benchmark-contract 'rule)
-               => "GERBIL-SCHEME-AGENT-R022")
+               => "GERBIL-SCHEME-AGENT-POLICY-022")
         (check (string? (hash-get comparison 'annotation)) => #t)
         (check (length before-matching) => 1)
         (check after-matching => [])

@@ -70,9 +70,9 @@ Covered patterns:
 
 Harness rules:
 
-- =GERBIL-SCHEME-AGENT-R027=: broad data-shaped =.o= should move to
+- =GERBIL-SCHEME-AGENT-POLICY-027=: broad data-shaped =.o= should move to
   =object<-alist= or smaller named POO fragments.
-- =GERBIL-SCHEME-AGENT-R033=: stable object construction should be hoisted out
+- =GERBIL-SCHEME-AGENT-POLICY-033=: stable object construction should be hoisted out
   of loops or represented as scalar/list/hash loop state and built once.
 
 ** Clone And Override
@@ -88,9 +88,9 @@ Covered patterns:
 
 Harness rules:
 
-- =GERBIL-SCHEME-AGENT-R028=: repeated =.cc= clone overrides should move out of
+- =GERBIL-SCHEME-AGENT-POLICY-028=: repeated =.cc= clone overrides should move out of
   hot loops.
-- =GERBIL-SCHEME-AGENT-R032=: repeated =Lens .modify= over =slot-lens= should
+- =GERBIL-SCHEME-AGENT-POLICY-032=: repeated =Lens .modify= over =slot-lens= should
   move to scalar accumulation plus one final object update.
 
 ** Materialization And Projection
@@ -112,7 +112,7 @@ Covered patterns:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R029=: materialize, iterate, or project once outside
+- =GERBIL-SCHEME-AGENT-POLICY-029=: materialize, iterate, or project once outside
   the loop, or carry only the required scalar state.
 
 ** Composition
@@ -130,7 +130,7 @@ Covered patterns:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R030=: compose once at the boundary after scalar
+- =GERBIL-SCHEME-AGENT-POLICY-030=: compose once at the boundary after scalar
   accumulation.
 
 ** Validation
@@ -146,7 +146,7 @@ Covered patterns:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R031=: validate once before the loop or validate only
+- =GERBIL-SCHEME-AGENT-POLICY-031=: validate once before the loop or validate only
   changed scalar fields.
 
 ** Type Construction
@@ -167,7 +167,7 @@ Covered pattern:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R034=: hoist stable POO/MOP type construction to a named
+- =GERBIL-SCHEME-AGENT-POLICY-034=: hoist stable POO/MOP type construction to a named
   binding outside the loop.
 
 ** Debug Instrumentation
@@ -182,7 +182,7 @@ Covered pattern:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R035=: hoist =trace-poo= outside the loop and reuse the
+- =GERBIL-SCHEME-AGENT-POLICY-035=: hoist =trace-poo= outside the loop and reuse the
   traced object.
 
 ** Slot-Spec Mutation
@@ -200,7 +200,7 @@ Covered patterns:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R036=: keep slot definitions at setup boundaries; use
+- =GERBIL-SCHEME-AGENT-POLICY-036=: keep slot definitions at setup boundaries; use
   =.put!= for mutable values or a final =.cc= for pure updates.
 
 ** Slot Predicates
@@ -215,7 +215,7 @@ Covered pattern:
 
 Harness rule:
 
-- =GERBIL-SCHEME-AGENT-R037=: hoist stable =o?/slots= predicate results outside
+- =GERBIL-SCHEME-AGENT-POLICY-037=: hoist stable =o?/slots= predicate results outside
   the loop; hoist only the predicate closure when the object can change but the
   slot list is stable.
 

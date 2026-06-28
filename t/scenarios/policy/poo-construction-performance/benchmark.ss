@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R027 POO construction repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-construction")
- (rule . "GERBIL-SCHEME-AGENT-R027")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-027")
  (optimizationFocus . "large data-shaped object construction")
  (inputShape . "broad mostly-data POO object construction")
  (expectedRepair . "object<-alist construction boundary")

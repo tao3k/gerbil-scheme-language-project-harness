@@ -1,6 +1,6 @@
 (policyScenario
  (id "poo-prototype-fixed-point")
- (before (finding ("GERBIL-SCHEME-AGENT-R026"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-026"
                    "src/orders/core.ss"
                    "src/orders/core.ss:9-9"
                    "POO constructor make-order projects 3 slots with .ref; prefer prototype-local composition with {(:: @ super) slot: ...}, =>, =>.+, ?, and .mix so the object fixed point stays in one POO shape"))

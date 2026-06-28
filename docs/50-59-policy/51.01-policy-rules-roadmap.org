@@ -23,11 +23,11 @@ copying Rust-specific syntax:
   =facade.ss= instead.
 - =GERBIL-SCHEME-MOD-R005=: executable entrypoints under =bin/= must stay thin
   and must not contain implementation definitions.
-- =GERBIL-SCHEME-AGENT-R001=: facade source files must carry an
+- =GERBIL-SCHEME-AGENT-POLICY-001=: facade source files must carry an
   agent-readable intent comment near the file header.
-- =GERBIL-SCHEME-AGENT-R002=: source owner path segments must avoid generic
+- =GERBIL-SCHEME-AGENT-POLICY-002=: source owner path segments must avoid generic
   buckets such as =utils=, =common=, =helpers=, and =shared=.
-- =GERBIL-SCHEME-AGENT-R003=: unrelated facades must not export the same public
+- =GERBIL-SCHEME-AGENT-POLICY-003=: unrelated facades must not export the same public
   name.
 
 ** 51.01.2 Native Inputs

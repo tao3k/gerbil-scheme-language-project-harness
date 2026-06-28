@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R028 clone override repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-clone-override")
- (rule . "GERBIL-SCHEME-AGENT-R028")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-028")
  (optimizationFocus . "loop-local clone override")
  (inputShape . "manual loop repeatedly cloning POO state")
  (expectedRepair . "accumulate scalar loop state and apply one final clone")

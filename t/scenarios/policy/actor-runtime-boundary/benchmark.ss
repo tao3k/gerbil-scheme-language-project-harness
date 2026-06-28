@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 separates Gerbil actor runtime, mailbox protocol, lifecycle, shutdown, and parameter propagation responsibilities")
  (feature . "actor-runtime-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "actor mailbox protocol and lifecycle helper boundary")
  (inputShape
   .

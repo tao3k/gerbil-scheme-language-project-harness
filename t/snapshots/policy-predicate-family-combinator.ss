@@ -1,6 +1,6 @@
 (policyScenario
  (id "predicate-family-combinator")
- (before (finding ("GERBIL-SCHEME-AGENT-R016"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-016"
                    "src/orders/core.ss"
                    "src/orders/core.ss:6-20"
                    "predicate family over fact repeats field/role condition helpers; keep repair policy-driven, extract selector helpers or a bounded predicate combinator before editing for style or performance"))

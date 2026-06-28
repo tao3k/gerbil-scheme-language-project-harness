@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 MOP/C3 linearization scenario routes ad hoc superclass ordering toward local precedence descriptors and merge helpers")
  (feature . "mop-c3-linearization-boundary")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "C3 precedence-list boundary and MOP descriptor helpers")
  (inputShape
   .

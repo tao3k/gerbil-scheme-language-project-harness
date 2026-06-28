@@ -79,7 +79,7 @@
                   (guide-output ["--code" "--topic" "higher-order-control"]))
                  (more-output
                   (guide-output ["--code" "--topic" "higher-order-control" "--more"])))
-            (check (contains? guide "|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-R009") => #t)
+            (check (contains? guide "|guideExemplar id=gerbil.higher-order-control.filter-map topic=higher-order-control intent=study rule=GERBIL-SCHEME-AGENT-POLICY-009") => #t)
             (check (contains? guide "nextCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control\"") => #t)
             (check (contains? guide "moreCommand=\"gerbil-scheme-harness guide --code --topic higher-order-control --more\"") => #t)
             (check (guide-code-render-metadata-free? default-output) => #t)

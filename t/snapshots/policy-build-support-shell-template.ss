@@ -1,6 +1,6 @@
 (policyScenario
  (id "build-support-shell-template")
- (before (finding ("GERBIL-SCHEME-AGENT-R020"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-020"
                    "build-support/provider-cli.ss"
                    "build-support/provider-cli.ss:2-3"
                    "build/runtime support code is drifting back to shell-template or sh -c pipeline orchestration; use Gerbil runtime sources, std/misc/process, list command arguments, and small launcher/config writers"))

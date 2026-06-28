@@ -1,6 +1,6 @@
 (policyScenario
  (id "macro-controlled-helper")
- (before (finding ("GERBIL-SCHEME-AGENT-R011"
+ (before (finding ("GERBIL-SCHEME-AGENT-POLICY-011"
                    "src/macros/core.ss"
                    "src/macros/core.ss:3-4"
                    "macro with-order-field needs runtime-source or macro-expansion witness before agent edits; query search runtime-source macro sugar module-sugar and record gerbil.pkg macro-governance witness"))

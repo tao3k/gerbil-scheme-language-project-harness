@@ -25,7 +25,7 @@
  (unit . "ms")
  (purpose . "R013 typeclass wrapper scenario keeps learned wrap/unwrap method adapter repair within the scenario-owned timing gate")
  (feature . "typeclass-wrapper-adapter")
- (rule . "GERBIL-SCHEME-AGENT-R013")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "local wrapper/functor method adapter lift")
  (inputShape
   .
