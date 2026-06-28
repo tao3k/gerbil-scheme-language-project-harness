@@ -123,6 +123,7 @@
              (_ (write-functional-idiom-project before-root))
              (_ (write-functional-idiom-calibrated-project after-root))
              (report (project-policy-report before-root))
+             (report-summary (gxtest-report-summary report))
              (after-index (collect-project after-root))
              (after-findings (run-policy-checks after-index))
              (calibration
@@ -131,6 +132,12 @@
                after-index
                after-findings))
              (assertions (hash-get calibration 'assertions)))
+        (check (gxtest-report-status report) => "fail")
+        (check (gxtest-report-finding-count report)
+               => (length (gxtest-report-findings report)))
+        (check (hash-get report-summary 'status) => "fail")
+        (check (hash-get report-summary 'findingCount)
+               => (gxtest-report-finding-count report))
         (check after-findings => [])
         (check (hash-get calibration 'status) => "pass")
         (check (hash-get calibration 'groupCount) => 2)

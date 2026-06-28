@@ -67,7 +67,7 @@
    "|cmd downstream-policy-check=gerbil-scheme-harness check --full ."
    "|policy downstream-state-boundary=gxpkg package state belongs under ~/.gerbil; do not create, depend on, or commit repository-local .gerbil"
     "|policy downstream-policy-ownership=gerbil.pkg owns source-scope, runtime-roots, modularity config, and agent-policy overrides; gxtest should call the harness, not duplicate policy rules"
-    "|policy downstream-reporting=make-project-policy-test prints gerbil-gxtest compact findings plus agent repair lines on failure; use project-policy-report when custom tests need structured status/files/definitions/findings"]))
+    "|policy downstream-reporting=make-project-policy-test prints gerbil-gxtest compact findings plus agent repair lines on failure; use project-policy-report plus gxtest-report-* accessors for custom structured status/files/definitions/findings"]))
 
 ;; GuideSection
 (def +guide-extension-section+

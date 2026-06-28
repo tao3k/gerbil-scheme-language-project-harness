@@ -19,6 +19,14 @@
         policy-status
         policy-report
         make-project-policy-test
+        gxtest-report-ref
+        gxtest-report-status
+        gxtest-report-files
+        gxtest-report-definitions
+        gxtest-report-agent-repair
+        gxtest-report-findings
+        gxtest-report-finding-count
+        gxtest-report-summary
         project-policy-findings
         project-policy-status
         project-policy-report
@@ -189,16 +197,57 @@
           (definitions (length (project-definitions index)))
           (agentRepair (agent-repair-report-json findings))
           (findings findings)))
+
+;;; Boundary:
+;;; - Downstream agents should use these accessors instead of guessing the
+;;;   report container shape.
+;;; - Reports are Gerbil hash tables; the accessor names are the stable public
+;;;   contract for compact custom checks.
+;; : (-> PolicyReport Symbol Any)
+(def (gxtest-report-ref report key)
+  (hash-get report key))
+
+;; : (-> PolicyReport String)
+(def (gxtest-report-status report)
+  (gxtest-report-ref report 'status))
+
+;; : (-> PolicyReport Fixnum)
+(def (gxtest-report-files report)
+  (gxtest-report-ref report 'files))
+
+;; : (-> PolicyReport Fixnum)
+(def (gxtest-report-definitions report)
+  (gxtest-report-ref report 'definitions))
+
+;; : (-> PolicyReport Json)
+(def (gxtest-report-agent-repair report)
+  (gxtest-report-ref report 'agentRepair))
+
+;; : (-> PolicyReport (List TypeFinding))
+(def (gxtest-report-findings report)
+  (gxtest-report-ref report 'findings))
+
+;; : (-> PolicyReport Fixnum)
+(def (gxtest-report-finding-count report)
+  (length (gxtest-report-findings report)))
+
+;; : (-> PolicyReport Json)
+(def (gxtest-report-summary report)
+  (hash (status (gxtest-report-status report))
+        (files (gxtest-report-files report))
+        (definitions (gxtest-report-definitions report))
+        (findingCount (gxtest-report-finding-count report))))
+
 ;;; Boundary:
 ;;; - display-project-policy-report mirrors check output for failing gxtest runs.
 ;;; - Keep the line protocol compact so downstream CI logs stay readable.
 ;; : (-> PolicyReport Unit )
 (def (display-project-policy-report report)
-  (let (findings (hash-get report 'findings))
-    (displayln "[gerbil-gxtest] status=" (hash-get report 'status)
-               " files=" (hash-get report 'files)
-               " definitions=" (hash-get report 'definitions)
-               " findings=" (length findings))
+  (let (findings (gxtest-report-findings report))
+    (displayln "[gerbil-gxtest] status=" (gxtest-report-status report)
+               " files=" (gxtest-report-files report)
+               " definitions=" (gxtest-report-definitions report)
+               " findings=" (gxtest-report-finding-count report))
     (display-project-policy-agent-repair-summary findings)
     (for-each display-project-policy-finding findings)))
 ;; : (-> (List TypeFinding) Unit )

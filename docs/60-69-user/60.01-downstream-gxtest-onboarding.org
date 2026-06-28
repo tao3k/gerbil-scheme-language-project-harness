@@ -111,6 +111,10 @@ The downstream test surface is:
 | =policy-findings= | Raw =TypeFinding= values for a files-scoped custom test. |
 | =policy-status= | =pass= or =fail= status for a files-scoped custom test. |
 | =policy-report= | Structured files-scoped report with status, file count, definition count, agent repair, and raw findings. |
+| =gxtest-report-status= | Stable report accessor for =pass= or =fail= without inspecting the report container. |
+| =gxtest-report-findings= | Stable report accessor for raw =TypeFinding= values. |
+| =gxtest-report-finding-count= | Stable report accessor for compact custom failure summaries. |
+| =gxtest-report-summary= | Stable compact summary with status, files, definitions, and finding count. |
 | =make-project-policy-test= | Explicit full-project audit suite following the build-declared source coverage. |
 | =project-policy-findings= | Raw =TypeFinding= values for custom tests. |
 | =project-policy-status= | =pass= or =fail= status for a project root. |
@@ -123,6 +127,8 @@ when the runner entry files are known, for example =(make-gxtest-policy-test "."
 Use =policy-report= when a downstream package intentionally wants custom
 assertions over an explicit file scope. Use =project-policy-report= only for an
 explicit full-project audit.
+Do not destructure reports with alist helpers such as =assq=. Treat report
+container details as private and use the =gxtest-report-*= accessors.
 
 * Agent Contract
 Agents integrating the harness downstream should follow this order:
@@ -131,7 +137,7 @@ Agents integrating the harness downstream should follow this order:
    harness checkout or an equivalent global package install.
 2. Add the =gerbil.pkg= dependency without creating a repository-local
    =.gerbil= directory.
-3. Add =t/project-policy-test.ss= using =:policy/gxtest=.
+3. Add =t/project-policy-test.ss= using =:gslph/src/policy/gxtest=.
 4. Run =gxtest t/project-policy-test.ss=.
 5. If policy fails, follow the primary =|agent-repair= next command before
    editing downstream source.
