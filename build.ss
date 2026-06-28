@@ -3,10 +3,13 @@
 
 (import (only-in :std/cli/getopt flag)
         (only-in :std/cli/multicall define-entry-point define-multicall-main)
+        (only-in :std/misc/path path-directory path-expand)
         "src/build-api/source-coverage"
-        "build-support/gslph-build")
+        "build-support/gslph-package-spec")
 
-(configure-build-root! (path-directory (this-source-file)))
+(def +package-root+ (path-directory (this-source-file)))
+(def +heavy-build-support+ (path-expand "build-support/gslph-build.ss" +package-root+))
+(def +package-build-support+ (path-expand "build-support/gslph-package-build.ss" +package-root+))
 
 (gslph-source-coverage
  roots: '("src" "build-support" "t")
@@ -32,6 +35,26 @@
 
 (define-multicall-main)
 
+;; : (-> Void)
+(def (load-heavy-build-support!)
+  (load +heavy-build-support+)
+  (eval `(configure-build-root! ,+package-root+)))
+
+;; : (-> Void)
+(def (load-package-build-support!)
+  (load +package-build-support+)
+  (eval `(gslph-package-configure-build-root! ,+package-root+)))
+
+;; : (-> Datum Datum)
+(def (heavy-build-call form)
+  (load-heavy-build-support!)
+  (eval form))
+
+;; : (-> Datum Datum)
+(def (package-build-call form)
+  (load-package-build-support!)
+  (eval form))
+
 (define-entry-point (compile verbose: (verbose #f) debug: (debug #f)
                              no-optimize: (no-optimize #f)
                              optimized: (optimized #f)
@@ -40,7 +63,11 @@
                              binary: (binary #f))
   (help: "Compile the package"
    getopt: compile-getopt)
-  (compile-target verbose debug no-optimize optimized release full binary))
+  (if (or full release binary)
+    (heavy-build-call
+     `(compile-target ,verbose ,debug ,no-optimize ,optimized ,release ,full ,binary))
+    (package-build-call
+     `(gslph-package-compile-target ,verbose ,debug ,no-optimize ,optimized ,release))))
 
 (define-entry-point (spec verbose: (verbose #f) debug: (debug #f)
                           no-optimize: (no-optimize #f)
@@ -50,7 +77,10 @@
                           binary: (binary #f))
   (help: "Show the build specification"
    getopt: compile-getopt)
-  (pretty-print (compile-spec full release binary)))
+  (pretty-print
+   (if (or full release binary)
+     (heavy-build-call `(compile-spec ,full ,release ,binary))
+     (gslph-package-api-spec))))
 
 (define-entry-point (install verbose: (verbose #f) debug: (debug #f)
                              no-optimize: (no-optimize #f)
@@ -58,14 +88,15 @@
                              release: (release #f))
   (help: "Install optimized release gslph into $HOME/.local/bin"
    getopt: compile-getopt)
-  (install-target verbose debug no-optimize optimized release))
+  (heavy-build-call
+   `(install-target ,verbose ,debug ,no-optimize ,optimized ,release)))
 
 (define-entry-point (clean)
   (help: "Clean package-local development build artifacts"
    getopt: [])
-  (clean-target))
+  (heavy-build-call '(clean-target)))
 
 (define-entry-point (test)
   (help: "Compile the package and run top-level gxtest files"
    getopt: [])
-  (test-target))
+  (heavy-build-call '(test-target)))

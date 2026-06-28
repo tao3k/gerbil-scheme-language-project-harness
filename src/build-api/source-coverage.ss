@@ -2,9 +2,10 @@
 ;;; Build-time ASP source coverage declarations.
 
 (import :gerbil/gambit
-        (only-in :clan/building all-gerbil-modules)
-        (only-in :std/misc/path path-expand)
-        (only-in :std/sort sort))
+        (only-in :std/misc/path directory-files path-expand)
+        (only-in :std/sort sort)
+        (only-in :std/srfi/13 string-suffix?)
+        (only-in :std/sugar with-catch))
 
 (export gslph-source-coverage
         gslph-load-source-coverage
@@ -65,12 +66,56 @@
 ;; : (-> Root Path (List Path))
 (def (source-coverage-root-files root coverage-root)
   (let (directory (path-expand coverage-root root))
-    (with-directory directory
-      (lambda ()
-        (map (lambda (path)
-               (string-append coverage-root "/" path))
-             (all-gerbil-modules
-              exclude-dirs: (gslph-source-coverage-exclude-directories)))))))
+    (if (source-coverage-directory? directory)
+      (map (lambda (path)
+             (string-append coverage-root "/" path))
+           (source-coverage-directory-files directory ""))
+      [])))
+
+;; : (-> Path Boolean)
+(def (source-coverage-directory? path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (eq? (file-info-type (file-info path)) 'directory))))
+
+;; : (-> String Boolean)
+(def (source-coverage-gerbil-source? path)
+  (string-suffix? ".ss" path))
+
+;; : (-> Path Boolean)
+(def (source-coverage-skipped-entry? entry)
+  (or (member entry '("." ".."))
+      (member entry (gslph-source-coverage-exclude-directories))))
+
+;; : (-> Path Path)
+(def (source-coverage-child-path directory entry)
+  (path-expand entry directory))
+
+;; : (-> Path Path)
+(def (source-coverage-relative-path prefix entry)
+  (if (string=? prefix "")
+    entry
+    (string-append prefix "/" entry)))
+
+;; : (-> Path Path (List Path))
+(def (source-coverage-entry-files directory prefix entry)
+  (let* ((path (source-coverage-child-path directory entry))
+         (relative-path (source-coverage-relative-path prefix entry)))
+    (cond
+     ((source-coverage-skipped-entry? entry) [])
+     ((source-coverage-directory? path)
+      (source-coverage-directory-files path relative-path))
+     ((source-coverage-gerbil-source? entry)
+      [relative-path])
+     (else []))))
+
+;; : (-> Path Path (List Path))
+(def (source-coverage-directory-files directory prefix)
+  (apply append
+         (map (lambda (entry)
+                (source-coverage-entry-files directory prefix entry))
+              (sort (directory-files directory) string<?))))
 
 ;; : (forall (a) (-> Path (-> a) a))
 (def (with-directory directory thunk)

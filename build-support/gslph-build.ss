@@ -9,6 +9,7 @@
         (only-in :clan/building all-gerbil-modules)
         (only-in :gerbil/tools/env setup-local-pkg-env!)
         "../src/build-api/source-coverage"
+        "./gslph-package-spec"
         (only-in "./gslph-install-static-modules" cli-install-static-modules)
         (only-in "../src/support/time" monotonic-micros duration-micros)
         :gerbil/gambit
@@ -166,6 +167,7 @@
     "commands/info.ss"
     "search-light-launcher.ss"
     "build-api/source-coverage.ss"
+    "build-api/package-receipt.ss"
     "policy/gxtest.ss"
     "support/time.ss"
     "benchmark/gate.ss"
@@ -353,7 +355,7 @@
 ;; : (-> (List BuildSpec))
 (def (package-build-spec)
   (ensure-build-root!)
-  (append (cli-release-module-spec) (cli-release-spec)))
+  (gslph-package-api-spec))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (build-spec release?)
@@ -368,7 +370,7 @@
    (full? (library-spec))
    (release? (cli-binary-spec #t))
    (binary? (cli-binary-spec #f))
-   (else (library-spec))))
+   (else (gslph-package-api-spec))))
 
 ;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Boolean Void)
 (def (compile-target verbose debug no-optimize optimized release full binary)
