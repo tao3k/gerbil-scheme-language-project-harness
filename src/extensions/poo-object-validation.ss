@@ -1,17 +1,16 @@
 ;;; -*- Gerbil -*-
 ;;; Downstream-facing validation facade for POO object field contracts.
 ;;; Boundary:
-;;; - :extensions/poo-validation owns generic POO evidence shape validation.
-;;; - :types/facade owns TypeSpec parsing and semantic validation.
-;;; - This module composes those APIs for downstream module systems.
+;;; - Thin TypeSpec modules own parsing and semantic validation.
+;;; - This module owns runtime object contract validation for downstream module
+;;;   systems without importing agent-facing pattern registries.
 
 (import :gerbil/gambit
         (only-in :std/sugar hash)
-        (only-in :extensions/poo-validation
-                 poo-pattern-structural-validation)
-        (only-in :types/facade
+        (only-in :types/model
                  parse-type-sexpr
-                 type->string
+                 type->string)
+        (only-in :types/validation
                  type-spec-valid?
                  type-validation-diagnostics))
 
@@ -26,6 +25,10 @@
 
 (def +poo-object-field-merge-kinds+
   '(override append prepend remove node-extend node-remove))
+
+(def +poo-object-source-ref-slots+
+  '(kind manager dependency repository localSource repositorySource
+         indexHint pathPolicy selectorScheme))
 
 ;; : (-> Dyn String)
 ;;; Boundary: diagnostics must preserve the original datum spelling without
@@ -158,6 +161,30 @@
       (field-contract-ref field 'identity)
       'unknown-field))
 
+;; : (-> SourceRef Slot (List Diagnostic))
+(def (poo-object-source-ref-slot-diagnostic source-ref slot)
+  (if (hash-get source-ref slot)
+    []
+    [(string-append "sourceRef:missing:" (symbol->string slot))]))
+
+;; : (-> SourceRef Json)
+;;; Boundary: object-contract runtime validation needs only source-ref shape
+;;; evidence. Agent-facing POO pattern registries stay out of downstream package
+;;; installs, while the packet shape remains stable for consumers.
+(def (poo-object-source-ref-structural-validation source-ref)
+  (let (diagnostics
+        (append-lists
+         (map (lambda (slot)
+                (poo-object-source-ref-slot-diagnostic source-ref slot))
+              +poo-object-source-ref-slots+)))
+    (hash (kind "poo-pattern-structural-validation")
+          (schema "poo-pattern-evidence/v1")
+          (patternKind "type-validation")
+          (valid (not (pair? diagnostics)))
+          (diagnostics diagnostics)
+          (checkedSignals
+           ["source-ref-shape"]))))
+
 ;; : (-> Dyn Dyn Dyn Json)
 ;;; Boundary: this is the single-field adapter between POO structural evidence
 ;;; and TypeSpec validation. It keeps field shape, type validation, and default
@@ -173,7 +200,7 @@
          (metadata (field-contract-ref field 'metadata '()))
          (type-validation (poo-object-type-spec-validation value-kind))
          (structural-validation
-          (poo-pattern-structural-validation 'type-validation source-ref))
+          (poo-object-source-ref-structural-validation source-ref))
          (diagnostics
           (append (hash-get type-validation 'diagnostics)
                   (field-contract-diagnostics field-id
@@ -241,7 +268,7 @@
 ;; : (-> Dyn (List Dyn) Dyn Json)
 (def (poo-object-contract-validation object fields source-ref)
   (let* ((structural-validation
-          (poo-pattern-structural-validation 'type-validation source-ref))
+          (poo-object-source-ref-structural-validation source-ref))
          (field-contracts-validation
           (poo-object-field-contracts-validation object fields source-ref))
          (diagnostics

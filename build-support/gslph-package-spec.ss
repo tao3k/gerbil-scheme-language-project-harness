@@ -8,4 +8,8 @@
 ;; targets instead of every downstream `gxpkg deps --install`.
 (def (gslph-package-api-spec)
   '("build-api/source-coverage.ss"
-    "build-api/package-receipt.ss"))
+    "build-api/package-receipt.ss"
+    "types/model.ss"
+    "types/subtyping.ss"
+    "types/validation.ss"
+    "extensions/poo-object-validation.ss"))
