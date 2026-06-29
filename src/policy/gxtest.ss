@@ -203,7 +203,7 @@
 ;;;   report container shape.
 ;;; - Reports are Gerbil hash tables; the accessor names are the stable public
 ;;;   contract for compact custom checks.
-;; : (-> PolicyReport Symbol Any)
+;; : (-> PolicyReport Symbol (U #f Json))
 (def (gxtest-report-ref report key)
   (hash-get report key))
 

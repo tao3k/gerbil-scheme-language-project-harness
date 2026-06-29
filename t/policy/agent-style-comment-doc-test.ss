@@ -63,7 +63,7 @@
               (check (hash-get details 'typedCommentCount) => 0)
               (check (hash-get details 'missingTypedCommentCount) => 1)
               (check (hash-get details 'adjacency) => "definition-leading-comment"))))
-(test-case "typed-combinator-style policy covers t scheme owners"
+(test-case "typed-combinator-style policy keeps ordinary t owners outside R013"
           (let* ((root ".run/policy-typed-combinator-style-test-owner")
                  (test-dir (string-append root "/t")))
             (ensure-dir ".run")
@@ -75,12 +75,8 @@
                         ";;; -*- Gerbil -*-\n(import :std/test)\n(def (order-fixture order) order)\n")
             (let* ((index (collect-project root))
                    (findings (run-policy-checks index))
-                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-013" findings))
-                   (finding (car matching)))
-              (check (length matching) => 1)
-              (check (type-finding-path finding) => "t/orders-test.ss")
-              (check (hash-get (type-finding-details finding) 'scope)
-                     => "source-or-test-owner"))))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-013" findings)))
+              (check matching => []))))
 (test-case "typed-combinator-style policy requires macro helpers to use full typed doc blocks"
           (let* ((root ".run/policy-typed-combinator-style-exported-doc-missing")
                  (src (string-append root "/src"))
@@ -106,7 +102,7 @@
               (check (hash-get details 'expectedDocShape)
                      => "full form for role/facet risk boundaries: leading name matching the definition, ;;   : signature, optional ;;   | type/contract/requires/warning/rationale fields, and ;;   | doc m% with # Examples fenced Scheme input/result")
               (check (hash-get details 'typedDocRequiredWhen)
-                     => "arity-bearing macro/protocol/driver roles, or exported helpers that also carry parser-owned risk facets such as macro-runtime-source-witness, poo-protocol-evidence, or loop-driver-classified"))))
+                     => "arity-bearing macro/protocol/POO roles, or exported helpers that also carry parser-owned risk facets such as macro-runtime-source-witness, poo-protocol-evidence, or loop-driver-classified"))))
 (test-case "typed-combinator-style policy accepts macro helpers with full typed doc blocks"
           (let* ((root ".run/policy-typed-combinator-style-exported-doc-present")
                  (src (string-append root "/src"))

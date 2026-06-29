@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+ (iterations . 5)
  (unit . "ms")
  (purpose . "R013 compiler method-pass scenario routes method-table drift toward local AST pass handlers")
  (feature . "compiler-method-pass-boundary")

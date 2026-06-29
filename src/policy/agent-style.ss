@@ -6,6 +6,7 @@
         :policy/agent-style-gerbil-signals
         :policy/agent-style-destructuring-signals
         :policy/agent-style-docs
+        :policy/agent-style-message
         :policy/agent-style-performance-signals
         :policy/gerbil-utils-source
         :policy/agent-support
@@ -54,6 +55,7 @@
 
 ;; : Nat
 (def +typed-combinator-style-file-evidence-floor+ 5)
+
 ;;; Entry boundary: emit at most one typed-combinator finding per owner so repair stays file-scoped.
 ;; : (-> ProjectIndex (List TypeFinding) )
 (def (typed-combinator-style-findings index)
@@ -78,6 +80,10 @@
               (missing-count
                (typed-combinator-style-missing-count function-definition-count
                                                      valid-typed-comment-count))
+              (missing-contract-coverage?
+               (typed-combinator-style-missing-contract-triggered?
+                function-definition-count
+                missing-count))
               (implementation-evidence
                (typed-combinator-style-implementation-evidence file))
               (implementation-evidence-count
@@ -128,7 +134,7 @@
                 missing-count
                 module-engineering-comment?)))
          (and (ormap (lambda (triggered?) triggered?)
-                     [(> missing-count 0)
+                     [missing-contract-coverage?
                       (> invalid-typed-comment-count 0)
                       missing-implementation-evidence?
                       implementation-coverage-insufficient?
@@ -182,7 +188,7 @@
         (expectedCommentShape "adjacent Gerbil contract projection block such as ;; : (forall (a) (-> (-> a a Order) (List a) (List a) Order))")
         (signatureShape "adjacent Gerbil contract/signature projection using ;; : (forall (a) (-> Input Output)), optional ;; | type aliases, U unions, Values, and Refine predicates")
         (expectedDocShape "full form for role/facet risk boundaries: leading name matching the definition, ;;   : signature, optional ;;   | type/contract/requires/warning/rationale fields, and ;;   | doc m% with # Examples fenced Scheme input/result")
-        (typedDocRequiredWhen "arity-bearing macro/protocol/driver roles, or exported helpers that also carry parser-owned risk facets such as macro-runtime-source-witness, poo-protocol-evidence, or loop-driver-classified")
+        (typedDocRequiredWhen "arity-bearing macro/protocol/POO roles, or exported helpers that also carry parser-owned risk facets such as macro-runtime-source-witness, poo-protocol-evidence, or loop-driver-classified")
         (typedCommentMetadataFields +typed-comment-metadata-fields+)
         (runtimeWitnessPolicy
          "use | contract for runtime predicate evidence, | requires for named preconditions, and | warning/| rationale only with concrete parser-visible witness")
@@ -377,9 +383,7 @@
   (let (path (source-file-path file))
     (and path
          (typed-combinator-style-actionable-source-class? (source-path-class path))
-         (ormap (lambda (accept?) (accept? path))
-                [(cut index-source-runtime-file-path? index <>)
-                 (cut string-prefix? "t/" <>)]))))
+         (index-source-runtime-file-path? index path))))
 
 ;;; Quality-trigger scope excludes parser fixtures: fixture owners intentionally
 ;;; encode bad and unusual syntax that policy tests assert elsewhere.
@@ -646,11 +650,15 @@
 ;;; when the file lacks concrete combinator or expression-level evidence.
 ;; : (-> (List QualityFacet) Boolean )
 (def (typed-combinator-style-positive-quality-covered? facets)
-  (and (quality-facet-present? facets "expression-level-composition")
-       (quality-facet-any? facets
-                           ["higher-order-used"
-                            "combinator-backed"
-                            "base-style-combinator-composition"])))
+  (or (and (quality-facet-present? facets "expression-level-composition")
+           (quality-facet-any? facets
+                               ["higher-order-used"
+                                "combinator-backed"
+                                "base-style-combinator-composition"]))
+      (quality-facet-any? facets
+                          ["native-performance-evidence"
+                           "optimizer-visible-hot-loop"
+                           "optimizer-visible-call-shape"])))
 
 ;;; Facet membership is normalized once so policy triggers read as predicates
 ;;; instead of carrying generated double-negation scaffolding at call sites.
@@ -744,88 +752,3 @@
         (name (call-fact-callee fact))
         (caller (or (call-fact-caller fact) ""))
         (selector (call-fact-selector fact))))
-;;; Boundary:
-;;; - typed-combinator-style-message coordinates multiple evidence fields.
-;;; - Keep packet shape and invariants stable.
-;; : (-> Boolean String String )
-(def (typed-combinator-style-message-fragment condition text)
-  (if condition text ""))
-;; : (-> InvalidContractCount String )
-(def (typed-combinator-style-invalid-comment-fragment invalid-typed-comment-count)
-  (typed-combinator-style-message-fragment
-   (> invalid-typed-comment-count 0)
-   (string-append " and "
-                  (number->string invalid-typed-comment-count)
-                  " low-information typed comments")))
-;; : (-> Nat Nat Nat String )
-(def (typed-combinator-style-coverage-fragment covered-definition-count function-definition-count minimum-covered-definition-count)
-  (string-append
-   "; parser-owned expression-level implementation evidence covers "
-   (number->string covered-definition-count)
-   "/"
-   (number->string function-definition-count)
-   " arity-bearing definitions, below minimum "
-   (number->string minimum-covered-definition-count)))
-;; : (-> Boolean Nat String )
-(def (typed-combinator-style-doc-fragment typed-doc-missing? typed-doc-missing-count)
-  (typed-combinator-style-message-fragment
-   typed-doc-missing?
-   (string-append
-    "; "
-    (number->string typed-doc-missing-count)
-    " public/policy-sensitive helpers need full typed doc blocks with | doc m%, # Examples, and result comments")))
-;; : (-> DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Boolean Boolean Nat Nat Nat Nat Message )
-(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? typed-doc-missing? quality-repair-triggered? typed-doc-missing-count covered-definition-count function-definition-count minimum-covered-definition-count)
-  (string-append
-   "Scheme source owner has "
-   (number->string definition-count)
-   " definitions but only "
-   (number->string typed-comment-count)
-   " adjacent typed-combinator-style algebraic contracts"
-   (typed-combinator-style-invalid-comment-fragment invalid-typed-comment-count)
-   (typed-combinator-style-message-fragment
-    missing-implementation-evidence?
-    "; typed contracts are present but no parser-owned expression-level implementation evidence was found")
-   (typed-combinator-style-message-fragment
-    implementation-coverage-insufficient?
-    (typed-combinator-style-coverage-fragment
-     covered-definition-count
-     function-definition-count
-     minimum-covered-definition-count))
-   (typed-combinator-style-doc-fragment
-    typed-doc-missing?
-    typed-doc-missing-count)
-   (typed-combinator-style-message-fragment
-    quality-repair-triggered?
-    "; parser-owned quality facets require repair toward compact expression-level composition")
-   "; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))
-
-;;; Missing contract count:
-;;; - Clamp at zero so extra parser facts never produce negative diagnostics.
-;;; - The caller still reports invalid typed comments separately.
-;; : (-> Integer Integer Integer )
-(def (typed-combinator-style-missing-count definition-count typed-comment-count)
-  (if (> definition-count typed-comment-count)
-    (- definition-count typed-comment-count)
-    0))
-;; : (-> ProjectIndex SourceFile ContractSummary )
-(def (file-typed-combinator-style-summary index file)
-  (typed-contract-fact-summary (source-file-typed-contract-facts file)))
-;; : (-> ProjectIndex SourceFile Integer )
-(def (file-typed-combinator-style-count index file)
-  (cadr (file-typed-combinator-style-summary index file)))
-;;; Boundary:
-;;; - typed-contract-fact-summary composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; : (-> (List TypedContractFact) ContractSummary )
-(def (typed-contract-fact-summary facts)
-  (foldl (lambda (fact summary)
-           (if (equal? (typed-contract-fact-quality fact) "invalid")
-             (list (+ (car summary) 1)
-                   (cadr summary)
-                   (+ (caddr summary) 1))
-             (list (+ (car summary) 1)
-                   (+ (cadr summary) 1)
-                   (caddr summary))))
-         (list 0 0 0)
-         facts))

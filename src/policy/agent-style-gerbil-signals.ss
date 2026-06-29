@@ -34,6 +34,7 @@
                  typed-combinator-style-facts->signals
                  typed-combinator-style-facts->targets
                  typed-contract-fact-mentions-any?)
+        (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-contains string-empty?)
         (only-in :std/sugar cut filter ormap))
 
@@ -426,9 +427,12 @@
 ;;;   classifier and do not emit this repair signal.
 ;; : (-> SourceFile (List QualityFacet) )
 (def (typed-combinator-style-loop-driver-quality-facets file)
-  (typed-combinator-style-facts->quality-facet
-   (typed-combinator-style-loop-driver-facts file)
-   "manual-loop-drift"))
+  (let (facts (typed-combinator-style-loop-driver-facts file))
+    (if (null? facts)
+      []
+      (unique
+       (apply append
+              (map loop-driver-fact-quality-facets facts))))))
 
 ;;; Guidance boundary:
 ;;; - This is the combinator repair lane for pure transform owners.
@@ -438,8 +442,10 @@
   (typed-combinator-style-facts->signals
    (typed-combinator-style-loop-driver-facts file)
    ["replace pure named-let accumulator loops with map/filter/filter-map/fold when behavior is a data transform"
+    "split source/form reader loops from selector or projection helpers, then compose the caller with filter-map/map/fold"
+    "extract inline call-with-input-file reader loops into a port reader helper, then pass that helper to the file reader boundary"
     "extract mapper, predicate, and reducer helpers before rewriting the loop body"
-    "preserve named-let loops when parser facts show IO, state, generator, or higher-order boundary evidence"]))
+    "preserve named-let loops when parser facts show state, generator, higher-order, or pure reader-boundary evidence"]))
 
 ;;; Target boundary:
 ;;; - Use caller names when available, otherwise the loop label.
@@ -460,10 +466,8 @@
 
 ;; : (-> LoopDriverFact Boolean )
 (def (typed-combinator-style-loop-driver-fact? fact)
-  (and (equal? (loop-driver-fact-driver-kind fact)
-               "pure-transform-candidate")
-       (member "manual-loop-drift"
-               (loop-driver-fact-quality-facets fact))))
+  (member "manual-loop-drift"
+          (loop-driver-fact-quality-facets fact)))
 
 ;; : (-> LoopDriverFact TargetName )
 (def (typed-combinator-style-loop-driver-target-name fact)

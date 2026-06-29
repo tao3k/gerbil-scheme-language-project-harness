@@ -395,7 +395,15 @@
                      (tree-contains-symbol? datum 'quote-syntax))
                  "syntax-template-witness")
             (and (tree-contains-symbol? datum 'lambda)
-                 "lambda-transformer")])))
+                 "lambda-transformer")
+            (and (tree-contains-symbol? datum 'def)
+                 "generated-runtime-helper")
+            (and (tree-contains-symbol? datum 'apply)
+                 "macro-template-dynamic-apply")
+            (and (or (tree-contains-symbol? datum 'let)
+                     (tree-contains-symbol? datum 'let*)
+                     (tree-contains-symbol? datum 'letrec))
+                 "macro-template-runtime-binding")])))
 
 ;;; Macro-family evidence is derived from parser macro facts, not source text.
 ;;; It catches repeated same-prefix thin wrappers that should collapse into a

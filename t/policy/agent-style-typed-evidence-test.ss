@@ -57,7 +57,7 @@
                       "prefer map/filter/filter-map/fold pipelines; extract predicate, mapper, or reducer helpers before rewriting loops"
                       (hash-get details 'qualityFacetSteering))
                      => #t))))
-(test-case "typed-combinator-style policy triggers on native quality facets"
+(test-case "typed-combinator-style policy triggers on generic numeric hot loops"
           (let* ((root ".run/policy-typed-combinator-style-native-facets")
                  (src (string-append root "/src"))
                  (owner (string-append src "/orders")))
@@ -100,6 +100,94 @@
               (check (agent-style-member?
                       "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
                       (hash-get repair-evidence 'allowedMoves))
+                     => #t))))
+(test-case "typed-combinator-style policy preserves Gambit primitive evidence without warning"
+          (let* ((root ".run/policy-typed-combinator-style-gambit-hot-loop")
+                 (src (string-append root "/src"))
+                 (owner (string-append src "/orders")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/orders)\n")
+            (write-text (string-append owner "/core.ss")
+                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n(import :gerbil/gambit)\n;; : (-> (List Flonum) Flonum)\n(def (sum-samples samples)\n  (let loop ((rest samples) (count 0) (total 0.0))\n    (if (null? rest)\n      total\n      (loop (cdr rest)\n            (fx+ count 1)\n            (fl+ total (car rest))))))\n")
+            (let* ((index (collect-project root))
+                   (findings (run-policy-checks index))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-013" findings)))
+              (check matching => []))))
+(test-case "typed-combinator-style policy triggers on reader collection loops"
+          (let* ((root ".run/policy-typed-combinator-style-reader-collection")
+                 (src (string-append root "/src"))
+                 (owner (string-append src "/reader")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/reader)\n")
+            (write-text (string-append owner "/core.ss")
+                        ";;; -*- Gerbil -*-\n(package: sample/reader)\n;; : (-> Form (Maybe Symbol))\n(def (def-symbol form) (and (pair? form) (eq? (car form) 'def) (cadr form)))\n;; : (-> Path (List Symbol))\n(def (local-def-symbols file)\n  (call-with-input-file file\n    (lambda (port)\n      (let loop ((symbols []))\n        (let (form (read port))\n          (if (eof-object? form)\n            symbols\n            (let (symbol (def-symbol form))\n              (loop (if symbol (cons symbol symbols) symbols)))))))))\n")
+            (let* ((index (collect-project root))
+                   (findings (run-policy-checks index))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-013" findings))
+                   (finding (car matching))
+                   (details (type-finding-details finding)))
+              (check (length matching) => 1)
+              (check (agent-style-member?
+                      "reader-collection-boundary"
+                      (hash-get details 'qualityFacets))
+                     => #t)
+              (check (agent-style-member?
+                      "source-form-reader-boundary"
+                      (hash-get details 'qualityFacets))
+                     => #t)
+              (check (hash-get details 'loopDriverCombinatorTargets)
+                     => ["local-def-symbols"])
+              (check (agent-style-member?
+                      "split source/form reader loops from selector or projection helpers, then compose the caller with filter-map/map/fold"
+                      (hash-get details 'loopDriverCombinatorSignals))
+                     => #t)
+              (check (agent-style-member?
+                      "when a reader loop also does selection or projection, split a source/form reader helper and compose the public function with filter-map/map/fold"
+                      (hash-get details 'qualityFacetSteering))
+                     => #t))))
+(test-case "typed-combinator-style policy triggers on inline file reader loops"
+          (let* ((root ".run/policy-typed-combinator-style-inline-file-reader")
+                 (src (string-append root "/src"))
+                 (owner (string-append src "/reader")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/reader)\n")
+            (write-text (string-append owner "/core.ss")
+                        ";;; -*- Gerbil -*-\n(package: sample/reader)\n;; : (-> Path (List Form))\n(def (source-forms file)\n  (call-with-input-file file\n    (lambda (port)\n      (let loop ((forms []))\n        (let (form (read port))\n          (if (eof-object? form)\n            (reverse forms)\n            (loop (cons form forms))))))))\n")
+            (let* ((index (collect-project root))
+                   (findings (run-policy-checks index))
+                   (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-013" findings))
+                   (finding (car matching))
+                   (details (type-finding-details finding)))
+              (check (length matching) => 1)
+              (check (agent-style-member?
+                      "inline-file-reader-boundary"
+                      (hash-get details 'qualityFacets))
+                     => #t)
+              (check (agent-style-member?
+                      "source-form-reader-boundary"
+                      (hash-get details 'qualityFacets))
+                     => #t)
+              (check (hash-get details 'loopDriverCombinatorTargets)
+                     => ["source-forms"])
+              (check (agent-style-member?
+                      "extract inline call-with-input-file reader loops into a port reader helper, then pass that helper to the file reader boundary"
+                      (hash-get details 'loopDriverCombinatorSignals))
+                     => #t)
+              (check (agent-style-member?
+                      "when a file helper opens a port and owns the EOF loop inline, extract a port reader helper and pass it directly to call-with-input-file"
+                      (hash-get details 'qualityFacetSteering))
                      => #t))))
 (test-case "typed-combinator-style exposes generator combinator steering"
           (let* ((root ".run/policy-typed-combinator-style-generator-steering")

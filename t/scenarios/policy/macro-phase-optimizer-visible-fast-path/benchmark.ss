@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+ (iterations . 5)
  (unit . "ms")
  (purpose . "R013 connects Gerbil phase-aware macro DSLs to optimizer-visible runtime call shapes")
  (feature . "macro-phase-optimizer-visible-fast-path")

@@ -4,6 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/misc/path path-expand)
+        "../src/testing/model"
         "../src/testing/gxtest-runner")
 (export gxtest-runner-contract-test)
 
@@ -20,9 +21,10 @@
     (test-case "default gxtest files stay on the smoke gate"
       (configure-build-root! (current-directory))
       (let (files (default-gxtest-test-files))
-        (check (length files) => 5)
+        (check (length files) => 6)
         (check (member "t/agent-poo-scenario-contract-test.ss" files) ? true)
         (check (member "t/build-install-test.ss" files) ? true)
+        (check (member "t/self-apply-full-gate.ss" files) ? true)
         (check (member "t/package-build-receipt-test.ss" files) => #f)
         (check (member "t/extensions-test.ss" files) => #f)
         (check (member "t/gxtest-runner-contract-test.ss" files) => #f)
@@ -37,12 +39,14 @@
         (check (member "t/benchmark-gate-test.ss" files) => #f)
         (check (member "t/self-apply-test.ss" files) => #f)
         (check (member "t/snapshot-test.ss" files) => #f)))
-    (test-case "default gxtest selected closure stays on the hot path"
+    (test-case "default gxtest selected closure is explicit but not precompiled"
       (configure-build-root! (current-directory))
       (let (files (default-gxtest-test-files))
-        (check (<= (length (selected-gxtest-build-source-files files)) 15)
+        (check (member "t/self-apply-full-gate.ss" files) ? true)
+        (check (test-target-compile-selected-gxtest? files) => #f)
+        (check (<= (length (selected-gxtest-build-source-files files)) 160)
                => #t)
-        (check (<= (length (selected-gxtest-build-output-files files)) 15)
+        (check (<= (length (selected-gxtest-build-output-files files)) 160)
                => #t)))
     (test-case "gxtest build spec stays scoped to top-level test entries"
       (configure-build-root! (current-directory))
@@ -80,7 +84,44 @@
       (check (gxtest-file-exported-suite "t/build-install-test.ss")
              => 'build-install-test)
       (check (gxtest-source-load-batch-expression ["t/build-install-test.ss"])
-             => "(begin (add-load-path! \".\") (add-load-path! \"src\") (add-load-path! \"t\") (import :std/test) (load \"t/build-install-test.ss\") (run-test-suite! build-install-test))"))
+             => "(begin (add-load-path! \".\") (add-load-path! \"src\") (add-load-path! \"t\") (import :std/test) (load \"t/build-install-test.ss\") (let (ok #t) (unless (run-test-suite! build-install-test) (set! ok #f)) ok))"))
+    (test-case "gxtest delegate contract filters selected suites"
+      (configure-build-root! (current-directory))
+      (let (contract (gxtest-delegate-contract filter: 'build-install-test))
+        (check (gxtest-source-load-batch-expression
+                ["t/build-install-test.ss"
+                 "t/testing-framework-test.ss"]
+                contract)
+               => "(begin (add-load-path! \".\") (add-load-path! \"src\") (add-load-path! \"t\") (import :std/test) (load \"t/build-install-test.ss\") (let (ok #t) (unless (run-test-suite! build-install-test) (set! ok #f)) ok))")))
+    (test-case "gxtest delegate contract rejects unsupported switches with receipt"
+      (configure-build-root! (current-directory))
+      (let* ((contract
+              (gxtest-delegate-contract
+               quiet: #t
+               features: ['slow]))
+             (receipt
+              (gxtest-delegate-contract-receipt
+               contract
+               ["t/build-install-test.ss"]))
+             (diagnostics
+              (cdr (assq 'diagnostics
+                         (testing-receipt-details receipt)))))
+        (check (testing-receipt-ok? receipt) => #f)
+        (check (member 'quiet-option-unsupported diagnostics) ? true)
+        (check (member 'feature-options-unsupported diagnostics) ? true)))
+    (test-case "source-load gxtest batch returns false on suite failure"
+      (configure-build-root! (current-directory))
+      (let ((expression
+             (gxtest-source-load-batch-expression
+              ["t/fixtures/testing-framework/failing-local-suite.ss"]))
+            (result #t))
+        (call-with-output-string
+          (lambda (port)
+            (parameterize ((current-output-port port)
+                           (current-error-port port))
+              (set! result
+                (eval (call-with-input-string expression read))))))
+        (check result => #f)))
     (test-case "top-level smoke wrappers expose local suite bindings"
       (configure-build-root! (current-directory))
       (check (gxtest-file-local-suite? "t/agent-poo-scenario-contract-test.ss")
@@ -174,7 +215,11 @@
         (check (member "benchmark/gate.ss" stage) ? true)
         (check (member "testing/model.ss" stage) ? true)
         (check (member "testing/framework.ss" stage) ? true)
+        (check (member "testing/build.ss" stage) ? true)
         (check (member "testing/gxtest-smoke.ss" stage) ? true)
+        (check (member "testing/gxtest-context.ss" stage) ? true)
+        (check (member "testing/gxtest-discovery.ss" stage) ? true)
+        (check (member "testing/gxtest-delegate.ss" stage) ? true)
         (check (member "testing/gxtest-runner.ss" stage) ? true)
         (check (member "extensions/poo-source-ref-validation.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) => #f)))

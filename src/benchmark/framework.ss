@@ -2,7 +2,7 @@
 ;;; Reusable benchmark.ss framework helpers for downstream gxtest gates.
 
 (import :gerbil/gambit
-        :std/sort
+        (only-in :std/sort sort)
         :benchmark/gate)
 
 (export #t)
@@ -165,11 +165,15 @@
 (def (benchmark-read-source-file path)
   (call-with-input-file path
     (lambda (port)
-      (let loop ((lines []))
-        (let (line (read-line port))
-          (if (eof-object? line)
-            (apply string-append (reverse lines))
-            (loop (cons (string-append line "\n") lines))))))))
+      (call-with-output-string
+       []
+       (lambda (out)
+         (let loop ()
+           (let (line (read-line port))
+             (unless (eof-object? line)
+               (display line out)
+               (newline out)
+               (loop)))))))))
 
 ;; : (-> Path String)
 (def (benchmark-source-tree-text root)

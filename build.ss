@@ -106,7 +106,7 @@
   (native-build-call '(clean-target)))
 
 (define-entry-point (test)
-  (help: "Compile the package API and run the default fast top-level gxtest files"
+  (help: "Compile the package API and run the default testing gate"
    getopt: [])
   (configure-test-build-root! +package-root+)
   (gxtest-test-target))

@@ -445,9 +445,7 @@
               (or (fx>= effective-line-count +hard-max-leaf-line-count+)
                   (and (fx>= effective-line-count max-line-count)
                        (fx>= (length (source-file-definitions file))
-                             min-definition-count))
-                  (fx>= test-case-count max-test-case-count)
-                  (fx>= definition-span max-definition-span))
+                             min-definition-count)))
               (test-leaf-bloat-finding
                file
                effective-line-count

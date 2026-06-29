@@ -647,20 +647,16 @@
     'generator-control)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
-     ["gerbil-upstream-idiom-boundary"])
-    'gerbil-upstream-idiom-performance)
+     ["gerbil-inline-rule-call-shape"
+      "dynamic-apply-hot-loop"
+      "compiler-inline-rule-obscured"])
+    'gerbil-inline-rule-call-shape)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["gambit-numeric-primitive-boundary"
       "numeric-domain-contract"
       "generic-numeric-hot-loop"])
     'gambit-numeric-primitive-domain-boundary)
-   ((gerbil-utils-source-quality-facet-any?
-     quality-facets
-     ["gerbil-inline-rule-call-shape"
-      "dynamic-apply-hot-loop"
-      "compiler-inline-rule-obscured"])
-    'gerbil-inline-rule-call-shape)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["ssxi-optimizer-metadata-boundary"
@@ -678,6 +674,10 @@
      quality-facets
      ["destructuring-combinator-boundary"])
     'destructuring-combinator-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["gerbil-upstream-idiom-boundary"])
+    'gerbil-upstream-idiom-performance)
    ((or (pair? (source-file-higher-order-forms file))
         (gerbil-utils-source-quality-facet-any?
          quality-facets

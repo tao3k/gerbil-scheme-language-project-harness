@@ -227,6 +227,10 @@
     (cadr datum-rest))
    (else #f)))
 
+;; : (-> Symbol Boolean)
+(def (metadata-head? head)
+  (member head '(package: prelude: namespace:)))
+
 ;; parse-source-file
 ;;   : (-> String String SourceFile)
 ;;   | doc m%
@@ -302,7 +306,8 @@
                (next-rest (form-next-rest datum rest))
                (next-datum-rest (form-next-rest datum datum-rest))
                (top-form (top-form-from relpath form datum)))
-          (set! top-forms (cons top-form top-forms))
+          (unless (metadata-head? head)
+            (set! top-forms (cons top-form top-forms)))
           (cond
            ((eq? head 'package:)
             (set! package

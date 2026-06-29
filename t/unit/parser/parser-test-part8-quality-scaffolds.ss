@@ -224,4 +224,103 @@
             (check (not (not (member "expression-level-composition"
                                      (higher-order-quality-facets map-fact))))
                    => #t))))
+(test-case "parser distinguishes reader collection loops from pure reader boundaries"
+          (let* ((root (path-normalize ".run/parser-reader-collection-boundary"))
+                 (source-dir (string-append root "/src"))
+                 (package-path (string-append root "/gerbil.pkg"))
+                 (source-path (string-append source-dir "/core.ss")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir source-dir)
+            (write-text package-path "(package: sample/reader-collection)\n")
+            (write-text
+             source-path
+             ";;; -*- Gerbil -*-\n\
+(package: sample/reader-collection)\n\
+;; : (-> Form (Maybe Symbol))\n\
+(def (def-symbol form)\n\
+  (and (pair? form) (eq? (car form) 'def) (cadr form)))\n\
+;; : (-> Path (List Form))\n\
+(def (read-forms port)\n\
+  (let loop ((forms []))\n\
+    (let (form (read port))\n\
+      (if (eof-object? form)\n\
+        (reverse forms)\n\
+        (loop (cons form forms))))))\n\
+;; : (-> Path (List Form))\n\
+(def (source-forms file)\n\
+  (call-with-input-file file\n\
+    (lambda (port)\n\
+      (let loop ((forms []))\n\
+        (let (form (read port))\n\
+          (if (eof-object? form)\n\
+            (reverse forms)\n\
+            (loop (cons form forms))))))))\n\
+;; : (-> Path (List Symbol))\n\
+(def (local-def-symbols file)\n\
+  (call-with-input-file file\n\
+    (lambda (port)\n\
+      (let loop ((symbols []))\n\
+        (let (form (read port))\n\
+          (if (eof-object? form)\n\
+            symbols\n\
+            (let (symbol (def-symbol form))\n\
+              (loop (if symbol (cons symbol symbols) symbols)))))))))\n")
+            (let* ((file (parse-source-file root "src/core.ss"))
+                   (reader-facts (source-file-loop-driver-facts file))
+                   (read-forms-fact
+                    (find (lambda (fact)
+                            (equal? (loop-driver-fact-caller fact)
+                                    "read-forms"))
+                          reader-facts))
+                   (source-forms-fact
+                    (find (lambda (fact)
+                            (equal? (loop-driver-fact-caller fact)
+                                    "source-forms"))
+                          reader-facts))
+                   (local-defs-fact
+                    (find (lambda (fact)
+                            (equal? (loop-driver-fact-caller fact)
+                                    "local-def-symbols"))
+                          reader-facts))
+                   (local-profile
+                    (find-function-quality-profile
+                     (source-file-function-quality-profiles file)
+                     "local-def-symbols")))
+              (check (not read-forms-fact) => #f)
+              (check (loop-driver-fact-driver-kind read-forms-fact)
+                     => "io-reader-driver")
+              (check (quality-facet-member?
+                      (loop-driver-fact-quality-facets read-forms-fact)
+                      "io-state-boundary")
+                     => #t)
+              (check (not source-forms-fact) => #f)
+              (check (loop-driver-fact-driver-kind source-forms-fact)
+                     => "inline-file-reader-candidate")
+              (check (quality-facet-member?
+                      (loop-driver-fact-quality-facets source-forms-fact)
+                      "inline-file-reader-boundary")
+                     => #t)
+              (check (quality-facet-member?
+                      (loop-driver-fact-quality-facets source-forms-fact)
+                      "source-form-reader-boundary")
+                     => #t)
+              (check (not local-defs-fact) => #f)
+              (check (loop-driver-fact-driver-kind local-defs-fact)
+                     => "reader-collection-candidate")
+              (check (quality-facet-member?
+                      (loop-driver-fact-quality-facets local-defs-fact)
+                      "reader-collection-boundary")
+                     => #t)
+              (check (quality-facet-member?
+                      (function-quality-profile-quality-facets local-profile)
+                      "manual-loop-drift")
+                     => #t)
+              (check (quality-facet-member?
+                      (function-quality-profile-quality-facets local-profile)
+                      "source-form-reader-boundary")
+                     => #t)
+              (check (function-quality-profile-suggested-repair-class
+                      local-profile)
+                     => "typed-combinator-style"))))
   ))

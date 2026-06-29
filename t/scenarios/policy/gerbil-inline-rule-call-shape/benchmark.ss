@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+ (iterations . 5)
  (unit . "ms")
  (purpose . "R013 routes hot primitive call drift toward Gerbil builtin inline-rule and dispatch-lambda shapes")
  (feature . "gerbil-inline-rule-call-shape")

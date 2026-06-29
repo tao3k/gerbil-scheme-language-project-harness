@@ -6,7 +6,7 @@
         (only-in :std/srfi/13 string-prefix?)
         (only-in :std/sugar with-catch)
         (only-in :gerbil/tools/env setup-local-pkg-env!)
-        "./package-spec"
+        (only-in "./package-spec" gslph-package-api-spec)
         (only-in "./worker-count" sync-build-worker-count!)
         :gerbil/gambit)
 (export gslph-package-configure-build-root!

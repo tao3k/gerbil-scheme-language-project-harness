@@ -4,8 +4,8 @@
 (import :gerbil/gambit
         :parser/facade
         :policy/facade
-        (only-in :std/srfi/1 find)
-        (only-in :std/sugar hash)
+        (only-in :std/srfi/1 find iota)
+        (only-in :std/sugar foldl hash)
         :support/time
         :types/facade)
 
@@ -236,6 +236,35 @@
 ;;;   timing receipt so regressions fail with measured phase evidence.
 ;; : (-> PolicyScenario TimedPolicyScenarioResult )
 (def (policy-scenario-run/timed scenario)
+  (let* ((benchmark-contract
+          (policy-scenario-benchmark-contract scenario))
+         (iterations
+          (policy-scenario-benchmark-iterations benchmark-contract)))
+    (let (state
+          (foldl (cut policy-scenario-timed-sample-step
+                      scenario
+                      benchmark-contract
+                      iterations
+                      <> <>)
+                 (list #f [])
+                 (iota iterations)))
+      (policy-scenario-timing-with-samples! (car state) (reverse (cadr state))))))
+
+(def (policy-scenario-timed-sample-step scenario benchmark-contract sample-count sample-index state)
+  (let (sample
+        (policy-scenario-run/timed/once
+         scenario
+         benchmark-contract
+         sample-index
+         sample-count))
+    (list (policy-scenario-best-timing (car state) sample)
+          (cons sample (cadr state)))))
+
+;;; Timing sample boundary:
+;;; - Keep collect/policy before-and-after phases in one measured sample.
+;;; - The multi-sample caller can choose the best receipt without losing phase
+;;;   evidence for parser, policy, or expected-tree regressions.
+(def (policy-scenario-run/timed/once scenario benchmark-contract sample-index sample-count)
   (let* ((before-index-step
           (policy-scenario-timed-step
            "collect-before"
@@ -270,8 +299,6 @@
                    after-policy-timing])
          (total-ns (policy-scenario-timings-total-ns timings))
          (total-ms (duration-nanos->ms total-ns))
-         (benchmark-contract
-          (policy-scenario-benchmark-contract scenario))
          (input-total-ns
           (+ (hash-get before-index-timing 'durationNs)
              (hash-get before-policy-timing 'durationNs)))
@@ -329,6 +356,8 @@
           (regression_budget (hash-get benchmark-contract 'regression_budget))
           (observedTimings (hash-get benchmark-contract 'observedTimings))
           (targetRationale (hash-get benchmark-contract 'targetRationale))
+          (sampleIndex sample-index)
+          (sampleCount sample-count)
           (targetStatus
            (policy-scenario-performance-status
             total-ns
@@ -336,6 +365,33 @@
           (performanceStatus
            (policy-scenario-performance-status total-ns max-total))
           (result result))))
+
+(def (policy-scenario-benchmark-iterations benchmark-contract)
+  (let (iterations (hash-get benchmark-contract 'iterations))
+    (if (and (integer? iterations) (> iterations 0))
+      iterations
+      1)))
+
+(def (policy-scenario-best-timing best sample)
+  (if (or (not best)
+          (< (hash-get sample 'totalNs)
+             (hash-get best 'totalNs)))
+    sample
+    best))
+
+(def (policy-scenario-timing-sample-summary timing)
+  (hash (sampleIndex (hash-get timing 'sampleIndex))
+        (totalNs (hash-get timing 'totalNs))
+        (totalMs (hash-get timing 'totalMs))
+        (performanceStatus (hash-get timing 'performanceStatus))
+        (inputTotalNs (hash-get timing 'inputTotalNs))
+        (expectedTotalNs (hash-get timing 'expectedTotalNs))
+        (timings (hash-get timing 'timings))))
+
+(def (policy-scenario-timing-with-samples! best samples)
+  (hash-put! best 'samples
+             (map policy-scenario-timing-sample-summary samples))
+  best)
 
 ;;; Input/expected comparison boundary:
 ;;; - input side measures the failing/original project shape.

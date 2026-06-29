@@ -1,7 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Explicit slow self-apply policy gate for this harness.
 
-(import :std/test
+(import :build-api/source-coverage
+        :std/test
         :parser/facade
         :policy/facade
         :policy/fixtures
@@ -49,21 +50,24 @@
   (or +self-apply-index-cache+
       (begin
         (reset-fixture-root +self-apply-agent-repair-probe-root+)
-        (let (index (collect-project "."))
+        (gslph-load-source-coverage ".")
+        (let (index (collect-source-scope
+                     "."
+                     (gslph-source-coverage-files ".")))
         (set! +self-apply-index-cache+ index)
           index))))
-;; : (-> (List TypeFinding) )
+;; : (-> (List PolicyFinding) )
 (def (self-apply-findings)
   (or +self-apply-findings-cache+
-      (let (findings (run-type-checks (self-apply-index)))
+      (let (findings (run-policy-checks (self-apply-index)))
         (set! +self-apply-findings-cache+ findings)
         findings)))
-;; : (-> (List TypeFinding) SelfApplyDebtViolations )
+;; : (-> (List PolicyFinding) SelfApplyDebtViolations )
 (def (self-apply-debt-violations findings)
   (let (counts (finding-rule-counts findings))
     (append (unexpected-self-apply-rule-violations counts)
             (over-budget-self-apply-rule-violations counts))))
-;; : (-> (List TypeFinding) Integer )
+;; : (-> (List PolicyFinding) Integer )
 (def (finding-rule-counts findings)
   (foldl (lambda (finding counts)
            (increment-rule-count counts (type-finding-rule-id finding)))
@@ -113,7 +117,7 @@
    ((null? budgets) #f)
    ((equal? rule-id (car (car budgets))) (cadr (car budgets)))
    (else (self-apply-budget-limit* rule-id (cdr budgets)))))
-;; : (-> (List TypeFinding) Boolean )
+;; : (-> (List PolicyFinding) Boolean )
 (def (self-apply-debt-clear? findings)
   (let (violations (self-apply-debt-violations findings))
     (check violations => '())

@@ -49,7 +49,7 @@
   (or (member (definition-kind definition)
               '("defrule" "defsyntax" "defclass" "defgeneric" "defmethod" "defprotocol"))
       (member context
-              '("macro" "poo" "higher-order" "control-flow" "long-definition"))))
+              '("macro" "poo" "long-definition"))))
 
 ;; : (-> (List CommentLine) Boolean String CommentSummary )
 (def (comment-quality-summary comments required context)

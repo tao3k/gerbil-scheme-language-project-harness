@@ -64,7 +64,10 @@
 ;; : (-> String ParsedData )
 (def (read-project-package root)
   (let* ((package-form (read-package-form root))
-         (build-scope (read-build-source-scope-policy root)))
+         (build-scope (read-build-source-scope-policy root))
+         (package-scope (and package-form
+                             (package-source-scope-policy package-form)))
+         (source-scope (merge-source-scope-policies package-scope build-scope)))
     (cond
      (package-form
       (make-project-package "gerbil.pkg"
@@ -73,8 +76,7 @@
                             "gxpkg"
                             (package-test-directory-policy package-form)
                             (package-macro-governance-policy package-form)
-                            (or (package-source-scope-policy package-form)
-                                build-scope)
+                            source-scope
                             (package-modularity-policy root package-form)
                             (package-agent-policy package-form)))
      (build-scope
@@ -113,9 +115,37 @@
        (and entry
             (build-source-coverage-policy entry))))))
 ;;; Boundary:
-;;; - read-package-forms composes first-class procedures.
-;;; - Keep data-flow evidence visible.
-;; : (-> String Integer )
+;;; - merge-source-scope-policies keeps gerbil.pkg metadata and build.ss
+;;;   coverage declarations additive instead of letting one hide the other.
+;;; - Keep package/build precedence explicit at the parser boundary.
+;; : (-> MaybeSourceScopePolicy MaybeSourceScopePolicy SourceScopePolicy )
+(def (merge-source-scope-policies package-policy build-policy)
+  (cond
+   ((and package-policy build-policy)
+    (make-source-scope-policy
+     (unique (append (source-scope-policy-roots package-policy)
+                     (source-scope-policy-roots build-policy)))
+     (unique (append (source-scope-policy-runtime-roots package-policy)
+                     (source-scope-policy-runtime-roots build-policy)))
+     (unique (append (source-scope-policy-exclude-directories package-policy)
+                     (source-scope-policy-exclude-directories build-policy)))
+     (or (source-scope-policy-explanation package-policy)
+         (source-scope-policy-explanation build-policy))))
+   (package-policy package-policy)
+   (else build-policy)))
+;; read-package-forms
+;;   : (-> Path (List Datum))
+;;   | doc m%
+;;       `read-package-forms path` reads every form from a package or build
+;;       source file, preserving source order for policy projection.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (read-package-forms "gerbil.pkg")
+;;       ;; => package-forms
+;;       ```
+;;     %
 (def (read-package-forms path)
   (call-with-input-file path
     (lambda (port)
@@ -248,10 +278,10 @@
    (or (policy-string-list-field entry 'disabled-rules:)
        (policy-string-list-field entry 'disable:)
        '())
-   (policy-integer-field*
+   (policy-line-count-field*
     entry
     '(max-source-lines: max-source-line-count: source-max-lines:))
-   (policy-integer-field*
+   (policy-line-count-field*
     entry
     '(max-test-lines: max-test-line-count: test-max-lines:))
    (policy-integer-field*
@@ -420,6 +450,19 @@
 ;; : (-> Datum (List Symbol) Integer )
 (def (policy-integer-field* datum fields)
   (ormap (cut policy-integer-field datum <>) fields))
+
+;; : Integer
+(def +modularity-hard-max-line-count+ 1000)
+
+;;; Boundary:
+;;; - Modularity line limits are capped as package metadata is parsed.
+;;; - Downstream policy objects must not carry >1000 owner-line budgets.
+;; : (-> Datum (List Symbol) Integer )
+(def (policy-line-count-field* datum fields)
+  (let (value (policy-integer-field* datum fields))
+    (and value
+         (min value +modularity-hard-max-line-count+))))
+
 ;;; Boundary:
 ;;; - policy-integer-field normalizes numeric package policy values.
 ;;; - Keep invalid or absent values false so callers can use defaults.

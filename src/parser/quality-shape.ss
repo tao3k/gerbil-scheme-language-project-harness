@@ -29,6 +29,16 @@
 ;; (List String)
 (def +reader-driver-callees+ '("read" "read-line" "read-syntax"))
 ;; (List String)
+(def +inline-file-reader-callees+
+  '("call-with-input-file" "path-expand"))
+;; (List String)
+(def +reader-collection-infrastructure-callees+
+  '("call-with-input-file" "path-expand" "read" "read-line" "read-syntax"
+    "eof-object?" "cons" "append" "reverse" "list" "@list" "null?" "pair?"
+    "car" "cdr" "caar" "cadr" "cdar" "cddr"
+    "lambda" "let" "let*" "if" "cond" "begin" "loop"
+    "file" "port" "form" "forms" "symbol" "symbols"))
+;; (List String)
 (def +parser-driver-callees+
   '("string-length" "string-ref" "substring" "string->list" "list->string"
     "char=?" "char<?" "char>?" "char-whitespace?" "char-numeric?"
@@ -532,10 +542,16 @@
      ((and (caller-has-callee? calls caller +parser-driver-callees+)
            (not (caller-has-callee? calls caller +parser-combinator-callees+)))
       "manual-parser-state-machine")
-     ((caller-has-callee? calls caller +reader-driver-callees+)
-      "io-reader-driver")
      ((caller-has-callee? calls caller +state-mutation-callees+)
       "state-driver-candidate")
+     ((and (caller-has-callee? calls caller +reader-driver-callees+)
+           (caller-has-reader-collection-projection? calls caller))
+      "reader-collection-candidate")
+     ((and (caller-has-callee? calls caller +reader-driver-callees+)
+           (caller-has-callee? calls caller +inline-file-reader-callees+))
+      "inline-file-reader-candidate")
+     ((caller-has-callee? calls caller +reader-driver-callees+)
+      "io-reader-driver")
      ((caller-has-higher-order? higher-order-forms caller)
       "higher-order-boundary")
      ((>= (control-flow-fact-binding-count fact) 4)
@@ -550,6 +566,12 @@
    ((equal? driver-kind "manual-parser-state-machine")
     ["manual-parser-state-machine" "parser-combinator-boundary"
      "anti-ai-parser-scaffold"])
+   ((equal? driver-kind "reader-collection-candidate")
+    ["manual-loop-drift" "combinator-candidate"
+     "reader-collection-boundary" "source-form-reader-boundary"])
+   ((equal? driver-kind "inline-file-reader-candidate")
+    ["manual-loop-drift" "combinator-candidate"
+     "inline-file-reader-boundary" "source-form-reader-boundary"])
    ((equal? driver-kind "io-reader-driver")
     ["preserve-named-let-driver" "io-state-boundary"])
    ((equal? driver-kind "higher-order-boundary")
@@ -563,6 +585,8 @@
     "prefer fold/filter-map/map or predicate helpers if behavior is a pure data transform")
    ((equal? driver-kind "manual-parser-state-machine")
     "replace manual string cursor parsing with a std/parser defparser grammar, parser-fail/parser-rewind, and source-aware parse errors")
+   ((equal? driver-kind "reader-collection-candidate")
+    "split source/form reading into a reader helper, then use filter-map/map/fold for selection and projection")
    ((equal? driver-kind "io-reader-driver")
     "preserve named let unless a runtime witness proves the IO state machine can be simplified")
    ((equal? driver-kind "higher-order-boundary")
@@ -645,6 +669,26 @@
            (and (equal? (or (call-fact-caller call) "") (or caller ""))
                 (member (call-fact-callee call) callees)))
          calls))
+
+;; : (-> Calls Caller Boolean )
+(def (caller-has-reader-collection-projection? calls caller)
+  (ormap (cut reader-collection-projection-call? <> caller)
+         calls))
+
+(def (reader-collection-projection-call? call caller)
+  (and (call-caller-matches? call caller)
+       (call-callee-external-to-caller? call caller)
+       (call-callee-reader-projection? call)))
+
+(def (call-caller-matches? call caller)
+  (equal? (or (call-fact-caller call) "") (or caller "")))
+
+(def (call-callee-external-to-caller? call caller)
+  (not (equal? (call-fact-callee call) (or caller ""))))
+
+(def (call-callee-reader-projection? call)
+  (not (member (call-fact-callee call)
+               +reader-collection-infrastructure-callees+)))
 
 ;;; Higher-order presence is used as a conservative boundary: if native facts
 ;;; already show combinator ownership, the loop classifier avoids suggesting a

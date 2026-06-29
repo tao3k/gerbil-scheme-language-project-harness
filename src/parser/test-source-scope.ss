@@ -73,11 +73,19 @@
                         (parse-source-files root files)
                         package)))
 
-;;; Gxtest scope expansion:
-;;; - Start from the runner-supplied files, not the whole package.
-;;; - Follow only imports under the same Gerbil package prefix.
-;;; - Re-apply source-scope filtering to every discovered source path.
-;; : (-> Root MaybePackage (List Path) (List Path))
+;; test-source-scope-files
+;;   : (-> Root MaybePackage (List Path) (List Path))
+;;   | doc m%
+;;       `test-source-scope-files root package paths` expands only the files
+;;       selected by gxtest and package-local imports they actually reach.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (test-source-scope-files "." package '("t/unit-test.ss"))
+;;       ;; => selected-source-files
+;;       ```
+;;     %
 (def (test-source-scope-files root package paths)
   (let loop ((seen '())
              (queue (map (lambda (path) [path 0])
@@ -92,11 +100,12 @@
               (relpath (source-file-path file)))
          (if (member relpath seen)
            (loop seen rest)
-           (loop (cons relpath seen)
-                 (append rest
-                         (test-source-scope-import-entries
-                          root package relpath depth
-                          (source-file-imports file)))))))))))
+           (let (entries
+                 (test-source-scope-import-entries
+                  root package relpath depth
+                  (source-file-imports file)))
+             (loop (cons relpath seen)
+                   (foldr cons rest entries))))))))))
 
 ;; : (-> Root MaybePackage Path Integer (List ModuleRef) (List ScopeEntry))
 (def (test-source-scope-import-entries root package owner-path depth imports)
@@ -218,7 +227,19 @@
       (source-scope-policy-roots policy)
       ["src"])))
 
-;; : (-> Root (List ModuleSuffix) (Maybe Path))
+;; module-source-path/candidates
+;;   : (-> Root (List ModuleSuffix) (Maybe Path))
+;;   | doc m%
+;;       `module-source-path/candidates root candidates` returns the first
+;;       package-local module path whose Gerbil source file exists.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (module-source-path/candidates "." '("src/core"))
+;;       ;; => "src/core.ss"
+;;       ```
+;;     %
 (def (module-source-path/candidates root candidates)
   (let find-candidate ((rest candidates))
     (match rest
@@ -230,15 +251,11 @@
 
 ;; : (-> Root ModuleSuffix (Maybe Path))
 (def (module-source-path/candidate root suffix)
-  (let find-extension ((extensions +source-extensions+))
-    (match extensions
-      ([]
-       #f)
-      ([extension . rest]
-       (let (candidate (string-append suffix extension))
-         (if (file-exists? (path-expand candidate root))
-           candidate
-           (find-extension rest)))))))
+  (find (lambda (candidate)
+          (file-exists? (path-expand candidate root)))
+        (map (lambda (extension)
+               (string-append suffix extension))
+             +source-extensions+)))
 
 ;; collect-project-package-only
 ;;   : (-> String ProjectIndex )

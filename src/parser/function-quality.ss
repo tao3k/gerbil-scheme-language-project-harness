@@ -6,7 +6,7 @@
         (only-in :clan/base fun)
         (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
-        (only-in :std/sugar cut filter find ormap))
+        (only-in :std/sugar cut filter find foldl ormap))
 
 (export function-quality-profiles-from-source)
 
@@ -531,12 +531,12 @@
 
 ;; : (-> CallFacts (List Callee) Integer )
 (def (function-quality-call-count-any calls callees)
-  (let loop ((rest calls) (count 0))
-    (cond
-     ((null? rest) count)
-     ((member (call-fact-callee (car rest)) callees)
-      (loop (cdr rest) (+ count 1)))
-     (else (loop (cdr rest) count)))))
+  (foldl (lambda (call count)
+           (if (member (call-fact-callee call) callees)
+             (+ count 1)
+             count))
+         0
+         calls))
 
 ;; : (-> CallFacts (List Callee) Boolean )
 (def (function-quality-call-any? calls callees)
@@ -728,15 +728,15 @@
    ((pair? predicate-family-facts) "predicate-family-combinator")
    ((member "parser-combinator-boundary" quality-facets)
     "typed-combinator-style")
+   ((or (member "method-table-lambda-drift" quality-facets)
+        (member "method-table-low-level-body" quality-facets))
+    "poo-policy")
    ((member "manual-loop-drift" quality-facets) "typed-combinator-style")
    ((member "wrapper-lambda-drift" quality-facets) "typed-combinator-style")
    ((member "function-specialization-opportunity" quality-facets)
     "typed-combinator-style")
    ((member "lambda-match-rewrite-opportunity" quality-facets)
     "typed-combinator-style")
-   ((or (member "method-table-lambda-drift" quality-facets)
-        (member "method-table-low-level-body" quality-facets))
-    "poo-policy")
    ((member typed-quality '("missing" "invalid" "weak"))
     "typed-combinator-style")
    ((member comment-quality '("missing" "absent" "weak"))

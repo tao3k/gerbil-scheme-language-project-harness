@@ -1,12 +1,18 @@
 ;;; -*- Gerbil -*-
 ;;; Gxtest framework runner for package test targets.
 
-(import (only-in :std/misc/path directory-files path-directory path-expand path-normalize path-strip-directory)
+(import (only-in :std/misc/path directory-files path-directory path-expand path-strip-directory)
         (only-in :std/misc/process run-process)
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-prefix? string-suffix?)
-        "../build-api/package-receipt"
-        "../build-api/package-spec"
+        (only-in :std/srfi/1 find)
+        (only-in :std/srfi/13 string-join string-prefix? string-suffix?)
+        (only-in "../build-api/package-receipt"
+                 gslph-package-build-receipt-status
+                 gslph-package-build-receipt-status-line
+                 gslph-package-build-receipt-status-ref
+                 gslph-package-build-receipt-write)
+        (only-in "../build-api/package-spec"
+                 gslph-package-api-spec)
         (only-in "../build-api/worker-count"
                  build-worker-count
                  gxtest-worker-count
@@ -18,6 +24,40 @@
         (only-in "../support/time" monotonic-micros duration-micros)
         (only-in "./gxtest-smoke"
                  gslph-default-gxtest-smoke-files)
+        (only-in "./gxtest-context"
+                 package-root
+                 source-root
+                 test-root
+                 package-name
+                 configure-build-root!
+                 ensure-build-root!
+                 source-output-prefix
+                 test-output-prefix
+                 module-path-stem
+                 gxtest-test-module-path
+                 gxtest-source-module-path)
+        (only-in "./gxtest-discovery"
+                 gxtest-export-symbols
+                 gxtest-file-forms
+                 gxtest-file-exported-symbols
+                 gxtest-file-exported-suite
+                 gxtest-file-local-suite?
+                 gxtest-files-local-suite?
+                 gxtest-file-module-symbol
+                 gxtest-selected-source-files
+                 gxtest-selected-source-module-files
+                 gxtest-selected-test-files
+                 parallel-gxtest-files
+                 serial-gxtest-files
+                 gxtest-batches)
+        (only-in "./gxtest-delegate"
+                 gxtest-delegate-contract
+                 gxtest-delegate-contract-filter
+                 gxtest-delegate-contract-receipt
+                 gxtest-delegate-contract-supported?
+                 gxtest-filtered-files)
+        (only-in "./model"
+                 testing-receipt-details)
         :gerbil/gambit)
 (export clean-target
         compile-spec
@@ -30,6 +70,11 @@
         gxtest-batches
         gxtest-worker-count/cores
         gxtest-compiled-batch-expression
+        gxtest-delegate-contract
+        gxtest-delegate-contract-filter
+        gxtest-delegate-contract-receipt
+        gxtest-delegate-contract-supported?
+        gxtest-file-exported-symbols
         gxtest-file-exported-suite
         gxtest-file-local-suite?
         gxtest-file-module-symbol
@@ -63,61 +108,6 @@
         test-runner-worker-count
         write-package-api-build-receipt!)
 
-(def package-root #f)
-(def source-root #f)
-(def test-root #f)
-(def package-name #f)
-
-;; : (-> String Void)
-(def (configure-build-root! root)
-  (set! package-root (path-normalize root))
-  (current-directory package-root)
-  (setenv "GERBIL_PATH" (path-expand ".gerbil" package-root))
-  (set! source-root (path-expand "src" package-root))
-  (set! test-root (path-expand "t" package-root))
-  (set! package-name (read-build-package-name package-root)))
-
-;; : (-> Void)
-(def (ensure-build-root!)
-  (unless package-root
-    (configure-build-root! (current-directory))))
-
-;; : (-> Path MaybeString)
-(def (read-build-package-name root)
-  (let* ((package-file (path-expand "gerbil.pkg" root))
-         (plist (with-catch
-                 (lambda (_) #f)
-                 (lambda () (call-with-input-file package-file read))))
-         (name (and plist (plist-ref plist 'package: #f))))
-    (cond
-     ((symbol? name) (symbol->string name))
-     ((string? name) name)
-     (else #f))))
-
-;; : (-> List Symbol Datum Datum)
-(def (plist-ref plist key default)
-  (let lp ((rest plist))
-    (if (and (pair? rest) (pair? (cdr rest)))
-      (if (eq? (car rest) key)
-        (cadr rest)
-        (lp (cddr rest)))
-      default)))
-
-;; : (-> String String)
-(def (package-output-prefix root-name)
-  (ensure-build-root!)
-  (unless package-name
-    (error "gerbil.pkg must declare package: for build output prefix"))
-  (string-append package-name "/" root-name))
-
-;; : (-> String)
-(def (source-output-prefix)
-  (package-output-prefix "src"))
-
-;; : (-> String)
-(def (test-output-prefix)
-  (package-output-prefix "t"))
-
 ;; : (-> Path)
 (def (package-build-api-path)
   (path-expand "src/build-api/package-build.ss" package-root))
@@ -148,27 +138,6 @@
 ;; : (-> (List Path) (List ModulePath))
 (def (gxtest-files-spec files)
   (map gxtest-test-module-path files))
-
-;; : (-> Path ModulePath)
-(def (gxtest-test-module-path path)
-  (if (string-prefix? "t/" path)
-    (substring path 2 (string-length path))
-    path))
-
-;; : (-> Path ModulePath)
-(def (gxtest-source-module-path path)
-  (if (string-prefix? "src/" path)
-    (substring path 4 (string-length path))
-    path))
-
-;; : (-> ModulePath ModulePath)
-(def (gxtest-normalize-module-path module-path)
-  (if (and package-name
-           (string-prefix? (string-append package-name "/") module-path))
-    (substring module-path
-               (+ (string-length package-name) 1)
-               (string-length module-path))
-    module-path))
 
 ;; : (-> String Integer String)
 (def (test-phase-receipt-line name elapsed-micros)
@@ -423,95 +392,10 @@
 
 ;; : (-> Path String)
 (def (join-gxtest-args files)
-  (match files
-    ([] "")
-    ([file] (datum-string file))
-    ([file . rest]
-     (string-append (datum-string file) " " (join-gxtest-args rest)))))
+  (string-join (map datum-string files) " "))
 
 (def (join-strings values separator)
-  (match values
-    ([] "")
-    ([value] value)
-    ([value . rest]
-     (string-append value separator (join-strings rest separator)))))
-
-(def (gxtest-export-symbols form)
-  (if (and (pair? form)
-           (eq? (car form) 'export))
-    (gxtest-filter-map
-     (lambda (item)
-       (and (symbol? item) item))
-     (cdr form))
-    []))
-
-(def (gxtest-suite-symbol? symbol)
-  (string-suffix? "-test" (symbol->string symbol)))
-
-(def (gxtest-first pred values)
-  (cond
-   ((null? values) #f)
-   ((pred (car values)) (car values))
-   (else (gxtest-first pred (cdr values)))))
-
-(def (gxtest-file-exported-symbols file)
-  (let (path (path-expand file package-root))
-    (call-with-input-file path
-      (lambda (port)
-        (let loop ((symbols []))
-          (let (form (read port))
-            (if (eof-object? form)
-              symbols
-              (loop (append symbols (gxtest-export-symbols form))))))))))
-
-(def (gxtest-file-exported-suite file)
-  (let* ((symbols (gxtest-file-exported-symbols file))
-         (suite (or (gxtest-first gxtest-suite-symbol? symbols)
-                    (and (pair? symbols) (car symbols)))))
-    (or suite
-        (error "gxtest file must export a test suite" file))))
-
-(def (gxtest-def-symbol form)
-  (and (pair? form)
-       (eq? (car form) 'def)
-       (pair? (cdr form))
-       (let (head (cadr form))
-         (cond
-          ((symbol? head) head)
-          ((and (pair? head) (symbol? (car head))) (car head))
-          (else #f)))))
-
-(def (gxtest-file-local-def-symbols file)
-  (let (path (path-expand file package-root))
-    (call-with-input-file path
-      (lambda (port)
-        (let loop ((symbols []))
-          (let (form (read port))
-            (if (eof-object? form)
-              symbols
-              (let (symbol (gxtest-def-symbol form))
-                (loop (if symbol (cons symbol symbols) symbols))))))))))
-
-(def (gxtest-file-local-suite? file)
-  (member (gxtest-file-exported-suite file)
-          (gxtest-file-local-def-symbols file)))
-
-(def (gxtest-files-local-suite? files)
-  (cond
-   ((null? files) #t)
-   ((gxtest-file-local-suite? (car files))
-    (gxtest-files-local-suite? (cdr files)))
-   (else #f)))
-
-(def (gxtest-file-module-symbol file)
-  (ensure-build-root!)
-  (unless package-name
-    (error "gerbil.pkg must declare package: for gxtest module import"))
-  (string->symbol
-   (string-append ":"
-                  package-name
-                  "/"
-                  (module-path-stem file))))
+  (string-join values separator))
 
 (def (gxtest-compiled-import-clause file)
   (string-append "(only-in "
@@ -521,31 +405,44 @@
                  ")"))
 
 (def (gxtest-compiled-run-clause file)
-  (string-append "(run-test-suite! "
+  (string-append " (unless (run-test-suite! "
                  (datum-string (gxtest-file-exported-suite file))
-                 ")"))
+                 ") (set! ok #f))"))
 
-(def (gxtest-compiled-batch-expression files)
+(def (gxtest-compiled-batch-expression files (contract #f))
+  (let (files (gxtest-filtered-files files contract))
+    (unless (gxtest-delegate-contract-supported? contract files)
+      (error "unsupported gxtest delegate contract"
+             (testing-receipt-details
+              (gxtest-delegate-contract-receipt contract files))))
   (string-append "(begin"
                  " (import :std/test "
                  (join-strings (map gxtest-compiled-import-clause files) " ")
-                 ") "
+                 ")"
+                 " (let (ok #t)"
                  (join-strings (map gxtest-compiled-run-clause files) " ")
-                 ")"))
+                 " ok)"
+                 ")")))
 
 (def (gxtest-source-load-clause file)
   (string-append "(load " (datum-string file) ")"))
 
-(def (gxtest-source-load-batch-expression files)
+(def (gxtest-source-load-batch-expression files (contract #f))
+  (let (files (gxtest-filtered-files files contract))
+    (unless (gxtest-delegate-contract-supported? contract files)
+      (error "unsupported gxtest delegate contract"
+             (testing-receipt-details
+              (gxtest-delegate-contract-receipt contract files))))
   (string-append "(begin"
                  " (add-load-path! \".\")"
                  " (add-load-path! \"src\")"
                  " (add-load-path! \"t\")"
                  " (import :std/test) "
                  (join-strings (map gxtest-source-load-clause files) " ")
-                 " "
+                 " (let (ok #t)"
                  (join-strings (map gxtest-compiled-run-clause files) " ")
-                 ")"))
+                 " ok)"
+                 ")")))
 
 (def (gxtest-batch-label files)
   (match files
@@ -639,7 +536,8 @@
                (lambda ()
                  (parameterize ((current-output-port port)
                                 (current-error-port port))
-                   (eval-compiled-gxtest-batch! files)))))))
+                   (unless (eval-compiled-gxtest-batch! files)
+                     (set! status 1))))))))
       (list label
             status
             output
@@ -661,7 +559,8 @@
                (lambda ()
                  (parameterize ((current-output-port port)
                                 (current-error-port port))
-                   (eval-source-gxtest-batch! files)))))))
+                   (unless (eval-source-gxtest-batch! files)
+                     (set! status 1))))))))
       (list label
             status
             output
@@ -687,233 +586,25 @@
 (def (gxtest-result-elapsed-micros result)
   (list-ref result 3))
 
-(def +runtime-benchmark-gate-symbols+
-  '(benchmark-run
-    benchmark-contract-run
-    benchmark-contract-run/root))
-
-(def (datum-contains-symbol? datum symbol)
-  (cond
-   ((eq? datum symbol) #t)
-   ((pair? datum)
-    (or (datum-contains-symbol? (car datum) symbol)
-        (datum-contains-symbol? (cdr datum) symbol)))
-   (else #f)))
-
-(def (datum-contains-any-symbol? datum symbols)
-  (cond
-   ((null? symbols) #f)
-   ((datum-contains-symbol? datum (car symbols)) #t)
-   (else (datum-contains-any-symbol? datum (cdr symbols)))))
-
-(def (gxtest-filter-map proc values)
-  (let loop ((rest values) (out []))
-    (cond
-     ((null? rest) (reverse out))
-     (else
-      (let (value (proc (car rest)))
-        (loop (cdr rest)
-              (if value (cons value out) out)))))))
-
-(def (gxtest-any? proc values)
-  (cond
-   ((null? values) #f)
-   ((proc (car values)) #t)
-   (else (gxtest-any? proc (cdr values)))))
-
-(def (gxtest-import-symbols datum)
-  (cond
-   ((symbol? datum) (list datum))
-   ((pair? datum)
-    (append (gxtest-import-symbols (car datum))
-            (gxtest-import-symbols (cdr datum))))
-   (else [])))
-
-(def (gxtest-module-symbol-file symbol)
-  (let (name (symbol->string symbol))
-    (if (string-prefix? ":" name)
-      (let* ((module-path (gxtest-normalize-module-path
-                           (substring name 1 (string-length name))))
-             (relpath (string-append module-path ".ss"))
-             (test-path (if (string-prefix? "t/" relpath)
-                          relpath
-                          (path-expand relpath "t")))
-             (source-path (if (string-prefix? "src/" relpath)
-                            relpath
-                            (path-expand relpath "src"))))
-        (cond
-         ((file-exists? test-path) test-path)
-         ((file-exists? source-path) source-path)
-         (else #f)))
-      #f)))
-
-(def (gxtest-import-files form)
-  (if (and (pair? form)
-           (eq? (car form) 'import))
-    (gxtest-filter-map
-     gxtest-module-symbol-file
-     (gxtest-import-symbols (cdr form)))
-    []))
-
-(def (gxtest-unique-paths paths)
-  (let loop ((rest paths) (seen []) (out []))
-    (cond
-     ((null? rest) (reverse out))
-     ((member (car rest) seen)
-      (loop (cdr rest) seen out))
-     (else
-      (loop (cdr rest)
-            (cons (car rest) seen)
-            (cons (car rest) out))))))
-
-(def (gxtest-source-file-import-list file)
-  (with-catch
-   (lambda (_) [])
-   (lambda ()
-     (let (path (path-expand file package-root))
-       (if (file-exists? path)
-         (call-with-input-file path
-           (lambda (port)
-             (let loop ((imports []))
-               (let (form (read port))
-                 (if (eof-object? form)
-                   imports
-                   (loop (append imports (gxtest-import-files form))))))))
-         [])))))
-
-(def (gxtest-file-source-closure file seen)
-  (if (member file seen)
-    []
-    (cons file
-          (gxtest-files-source-closure
-           (gxtest-source-file-import-list file)
-           (cons file seen)))))
-
-(def (gxtest-files-source-closure files seen)
-  (let loop ((queue files) (seen seen) (out []))
-    (cond
-     ((null? queue) (reverse out))
-     ((member (car queue) seen)
-      (loop (cdr queue) seen out))
-     (else
-      (let (file (car queue))
-        (loop (append (cdr queue)
-                      (gxtest-source-file-import-list file))
-              (cons file seen)
-              (cons file out)))))))
-
-(def (gxtest-selected-source-files files)
-  (gxtest-unique-paths (gxtest-files-source-closure files [])))
-
-(def (gxtest-selected-source-module-files files)
-  (gxtest-filter-map
-   (lambda (file)
-     (and (string-prefix? "src/" file)
-          (gxtest-source-module-path file)))
-   (gxtest-selected-source-files files)))
-
-(def (gxtest-selected-test-files files)
-  (gxtest-filter-map
-   (lambda (file)
-     (and (string-prefix? "t/" file)
-          file))
-   (gxtest-selected-source-files files)))
-
-(def (gxtest-source-file-runtime-benchmark-gate? file seen)
-  (with-catch
-   (lambda (_) #f)
-   (lambda ()
-     (and (not (member file seen))
-          (file-exists? file)
-          (call-with-input-file file
-            (lambda (port)
-              (let loop ()
-                (let (form (read port))
-                  (cond
-                   ((eof-object? form) #f)
-                   ((datum-contains-any-symbol?
-                     form
-                     +runtime-benchmark-gate-symbols+)
-                    #t)
-                   ((gxtest-any?
-                     (lambda (imported-file)
-                       (and (string-prefix? "t/" imported-file)
-                            (gxtest-source-file-runtime-benchmark-gate?
-                             imported-file
-                             (cons file seen))))
-                     (gxtest-import-files form))
-                    #t)
-                   (else (loop)))))))))))
-
-;; : (-> Path Boolean)
-(def +gxtest-runtime-benchmark-gate-cache+ [])
-
-(def (gxtest-file-runtime-benchmark-gate? file)
-  (let (cached (assoc file +gxtest-runtime-benchmark-gate-cache+))
-    (if cached
-      (cdr cached)
-      (let (result (gxtest-source-file-runtime-benchmark-gate? file []))
-        (set! +gxtest-runtime-benchmark-gate-cache+
-          (cons (cons file result)
-                +gxtest-runtime-benchmark-gate-cache+))
-        result))))
-
-;; : (-> Path Boolean)
-(def (timing-sensitive-gxtest-file? file)
-  (let (name (path-strip-directory file))
-    (or (string-prefix? "bench" name)
-        (string-prefix? "benchmark" name)
-        (gxtest-file-runtime-benchmark-gate? file))))
-
-;; : (-> Path Boolean)
-(def (source-isolated-gxtest-file? file)
-  (timing-sensitive-gxtest-file? file))
-
-;; : (-> Path Boolean)
-(def (parallel-gxtest-file? file)
-  (not (source-isolated-gxtest-file? file)))
-
-;; : (-> (List Path) (List Path))
-(def (parallel-gxtest-files files)
-  (filter parallel-gxtest-file? files))
-
-;; : (-> (List Path) (List Path))
-(def (serial-gxtest-files files)
-  (filter source-isolated-gxtest-file? files))
-
-;; : (-> Integer (-> Void) (List Thread))
+;; spawn-test-workers
+;;   : (-> Integer (-> Void) (List Thread))
+;;   | doc m%
+;;       `spawn-test-workers` owns the runner's worker creation boundary; the
+;;       caller controls scheduling and joins every returned thread.
+;;
+;;       # Examples
+;;
+;;       ```scheme
+;;       (length (spawn-test-workers 0 thunk))
+;;       ;; => 0
+;;       ```
+;;     %
 (def (spawn-test-workers count thunk)
   (let loop ((remaining count) (threads []))
     (if (<= remaining 0)
       threads
       (loop (- remaining 1)
             (cons (spawn thunk) threads)))))
-
-(def (take-gxtest-batch files count)
-  (let loop ((remaining count) (rest files) (batch []))
-    (if (or (<= remaining 0) (null? rest))
-      (cons (reverse batch) rest)
-      (loop (- remaining 1)
-            (cdr rest)
-            (cons (car rest) batch)))))
-
-(def (gxtest-batches files worker-count)
-  (let loop ((rest files)
-             (batches [])
-             (remaining-batches (max 1 worker-count)))
-    (if (null? rest)
-      (reverse batches)
-      (let* ((remaining-files (length rest))
-             (batch-size
-              (max 1
-                   (quotient (+ remaining-files remaining-batches -1)
-                             remaining-batches)))
-             (split (take-gxtest-batch rest batch-size))
-             (batch (car split))
-             (next-rest (cdr split)))
-        (loop next-rest
-              (cons batch batches)
-              (- remaining-batches 1))))))
 
 ;; : (-> (List Path) (List GxTestResult))
 (def (serial-gxtest-results files)
@@ -963,12 +654,34 @@
 
 ;; : (-> (List GxTestResult) Integer)
 (def (first-failure-status results)
-  (let loop ((rest results))
-    (cond
-     ((null? rest) 0)
-     ((zero? (gxtest-result-status (car rest)))
-      (loop (cdr rest)))
-     (else (gxtest-result-status (car rest))))))
+  (let (failure (find failed-gxtest-result? results))
+    (if failure (gxtest-result-status failure) 0)))
+
+(def (failed-gxtest-result? result)
+  (not (zero? (gxtest-result-status result))))
+
+(def (gxtest-runner-mode-label source-in-process? compiled-in-process?)
+  (cond
+   (compiled-in-process? "compiled-in-process")
+   (source-in-process? "source-in-process")
+   (else "subprocess")))
+
+(def (run-gxtest-in-process-batch files compiled-in-process?)
+  (if compiled-in-process?
+    (run-gxtest-batch/compiled-in-process files)
+    (run-gxtest-batch/source-in-process files)))
+
+(def (run-gxtest-parallel-phase files parallel-files worker-count
+                                source-in-process? compiled-in-process?)
+  (if source-in-process?
+    (list (record-gxtest-result
+           (run-gxtest-in-process-batch files compiled-in-process?)))
+    (parallel-gxtest-results parallel-files worker-count)))
+
+(def (run-gxtest-serial-phase serial-files source-in-process?)
+  (if source-in-process?
+    []
+    (serial-gxtest-results serial-files)))
 
 ;; : (-> (List Path) Void)
 (def (run-gxtest-files files)
@@ -985,16 +698,13 @@
           (and selected-status
                (selected-gxtest-build-current? selected-status)))
          (parallel-results
-          (if source-in-process?
-            (list (record-gxtest-result
-                   (if compiled-in-process?
-                     (run-gxtest-batch/compiled-in-process files)
-                     (run-gxtest-batch/source-in-process files))))
-            (parallel-gxtest-results parallel-files worker-count)))
+          (run-gxtest-parallel-phase files
+                                     parallel-files
+                                     worker-count
+                                     source-in-process?
+                                     compiled-in-process?))
          (serial-results
-          (if source-in-process?
-            []
-            (serial-gxtest-results serial-files)))
+          (run-gxtest-serial-phase serial-files source-in-process?))
          (results (append parallel-results serial-results))
          (status (first-failure-status results)))
     (display (string-append "[gslph-test-runner] files="
@@ -1004,11 +714,8 @@
                             " serial="
                             (number->string (length serial-files))
                             " mode="
-                            (if compiled-in-process?
-                              "compiled-in-process"
-                              (if source-in-process?
-                                "source-in-process"
-                                "subprocess"))
+                            (gxtest-runner-mode-label source-in-process?
+                                                       compiled-in-process?)
                             "\n"))
     (force-output)
     (for-each display-gxtest-result results)

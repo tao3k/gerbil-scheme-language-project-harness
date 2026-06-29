@@ -1,31 +1,32 @@
 ;;; -*- Gerbil -*-
 ;;; POO-shaped testing model for downstream Gerbil build.ss entrypoints.
 
-(import :gerbil/gambit)
+(import :gerbil/gambit
+        (only-in :clan/poo/object object? object<-alist .ref .slot?))
 
 (export #t)
 
 (def (testing-object kind fields)
-  (cons (cons 'kind kind) fields))
+  (object<-alist (cons (cons 'kind kind) fields)))
 
-(def (testing-native-poo-object kind source ref fields)
+(def (testing-native-poo-object kind source fields)
+  (unless (object? source)
+    (error "testing-native-poo-object expects a POO object" source))
   (testing-object
    kind
    (map (lambda (field)
-          (cons field (ref source field)))
+          (cons field (.ref source field)))
         fields)))
 
 (def (testing-object-kind object)
   (testing-object-ref object 'kind))
 
 (def (testing-object-ref object key (default #f))
-  (let loop ((rest (if (pair? object) object [])))
-    (cond
-     ((null? rest) default)
-     ((and (pair? (car rest))
-           (eq? (caar rest) key))
-      (cdar rest))
-     (else (loop (cdr rest))))))
+  (unless (object? object)
+    (error "testing-object-ref expects a POO object" object))
+  (if (.slot? object key)
+    (.ref object key)
+    default))
 
 (def (testing-project name: (name "gerbil-project")
                       suites: (suites [])
@@ -113,6 +114,19 @@
      (children . ,children)
      (details . ,details))))
 
+(def (testing-selection project: (project #f)
+                        args: (args [])
+                        suites: (suites [])
+                        status: (status 'ok)
+                        details: (details []))
+  (testing-object
+   'testing-selection
+   `((project . ,project)
+     (args . ,args)
+     (suites . ,suites)
+     (status . ,status)
+     (details . ,details))))
+
 (def (testing-project-name project)
   (testing-object-ref project 'name))
 
@@ -173,6 +187,9 @@
 (def (testing-receipt-status receipt)
   (testing-object-ref receipt 'status))
 
+(def (testing-receipt-kind receipt)
+  (testing-object-ref receipt 'receiptKind))
+
 (def (testing-receipt-files receipt)
   (testing-object-ref receipt 'files []))
 
@@ -182,8 +199,30 @@
 (def (testing-receipt-details receipt)
   (testing-object-ref receipt 'details []))
 
+(def (testing-receipt-phases receipt)
+  (let (entry (assq 'phases (testing-receipt-details receipt)))
+    (if entry (cdr entry) [])))
+
 (def (testing-receipt-ok? receipt)
   (eq? (testing-receipt-status receipt) 'ok))
+
+(def (testing-selection-project selection)
+  (testing-object-ref selection 'project))
+
+(def (testing-selection-args selection)
+  (testing-object-ref selection 'args []))
+
+(def (testing-selection-suites selection)
+  (testing-object-ref selection 'suites []))
+
+(def (testing-selection-status selection)
+  (testing-object-ref selection 'status))
+
+(def (testing-selection-details selection)
+  (testing-object-ref selection 'details []))
+
+(def (testing-selection-ok? selection)
+  (eq? (testing-selection-status selection) 'ok))
 
 (def (default-testing-import->file import)
   (cond

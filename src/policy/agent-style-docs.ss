@@ -13,7 +13,7 @@
 
 ;; (List Role)
 (def +typed-combinator-style-doc-required-roles+
-  '("macro-helper" "protocol-method" "poo-protocol-boundary" "driver"))
+  '("macro-helper" "protocol-method" "poo-protocol-boundary"))
 
 ;; (List QualityFacet)
 (def +typed-combinator-style-doc-required-facets+

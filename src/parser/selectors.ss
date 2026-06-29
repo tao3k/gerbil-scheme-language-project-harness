@@ -308,7 +308,7 @@
 (def (source-full-path root path)
   (if (string-prefix? "/" path)
     (path-normalize path)
-    (path-expand path root)))
+    (path-normalize (path-expand path (canonical-root-path root)))))
 
 ;; : (-> String NormalizeOwner )
 (def (normalize-owner owner)

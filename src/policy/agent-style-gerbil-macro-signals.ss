@@ -128,9 +128,24 @@
 ;;; inventing a project-specific DSL.
 ;; : (-> SourceFile (List QualityFacet) )
 (def (typed-combinator-style-controlled-macro-quality-facets file)
-  (typed-combinator-style-facts->quality-facet
-   (source-file-macros file)
-   "controlled-macro-syntax-boundary"))
+  (append
+   (typed-combinator-style-facts->quality-facet
+    (source-file-macros file)
+    "controlled-macro-syntax-boundary")
+   (typed-combinator-style-macro-template-optimizer-quality-facets file)))
+
+(def (typed-combinator-style-macro-template-optimizer-quality-facets file)
+  (if (ormap macro-template-optimizer-visible? (source-file-macros file))
+    ["macro-phase-optimizer-visible-fast-path"
+     "phase-macro-generated-wrapper"
+     "generated-runtime-helper"
+     "optimizer-visible-call-shape"]
+    []))
+
+(def (macro-template-optimizer-visible? fact)
+  (let (facets (macro-fact-quality-facets fact))
+    (and (member "generated-runtime-helper" facets)
+         (member "macro-template-dynamic-apply" facets))))
 
 ;;; Signal boundary:
 ;;; - Controlled macro guidance is driven by parser macro facts, not text matching.

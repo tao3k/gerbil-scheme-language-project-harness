@@ -330,6 +330,9 @@
           (suppressedRules suppressed)
           (requiredWitnesses (finding-group-required-witnesses rules))
           (repairOrder repair-order)
+          (repairPlan
+           (hash (nextCommand guide-command)
+                 (repairPhases phases)))
           (diagnostic
            (finding-group-diagnostic-json
             primary findings rules strategy phases guide-command))

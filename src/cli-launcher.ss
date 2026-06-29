@@ -539,17 +539,17 @@
 (def (launcher-read-line-range path start end)
   (call-with-input-file path
     (lambda (port)
-      (let loop ((line 1)
-                 (out ""))
-        (if (> line end)
-          out
-          (let (text (read-line port))
-            (if (eof-object? text)
-              out
-              (loop (fx1+ line)
-                    (if (and (>= line start) (<= line end))
-                      (string-append out text "\n")
-                      out)))))))))
+      (call-with-output-string
+       []
+       (lambda (out)
+         (let loop ((line 1))
+           (unless (> line end)
+             (let (text (read-line port))
+               (unless (eof-object? text)
+                 (when (and (>= line start) (<= line end))
+                   (display text out)
+                   (newline out))
+                 (loop (fx1+ line)))))))))))
 
 ;; : (-> String (List String) Integer)
 (def (dispatch-native-command command rest)

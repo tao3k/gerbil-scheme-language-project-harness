@@ -11,6 +11,7 @@
         :parser/facade
         :protocol/json
         (only-in :std/iter for in-range)
+        (only-in :std/srfi/1 append-map)
         (only-in :std/sugar filter-map foldl)
         :support/args
         :support/io
@@ -302,7 +303,7 @@
 (def (bench-phase-findings collect-profile max-phase-ms)
   (if (and collect-profile max-phase-ms)
     (let loop-files ((files (hash-get/default collect-profile 'slowestFiles '()))
-                     (findings '()))
+                     (finding-groups '()))
       (match files
         ([file-profile . more-files]
          (let* ((path (hash-get/default file-profile 'path ""))
@@ -320,8 +321,8 @@
                                  (maxPhaseMs max-phase-ms)
                                  (exceededByMs (- duration-ms max-phase-ms))))))
                   (hash-get/default file-profile 'phases '()))))
-           (loop-files more-files (append findings phase-findings))))
-        (else findings)))
+           (loop-files more-files (cons phase-findings finding-groups))))
+        (else (apply append (reverse finding-groups)))))
     '()))
 ;; : (-> CollectProfile MaxCollectMs MaxParseMs MaxFileMs MaxPhaseMs (List TypeFinding))
 (def (bench-collect-profile-findings collect-profile max-collect-ms max-parse-ms max-file-ms max-phase-ms)
@@ -374,23 +375,24 @@
         (else max-ms)))
     0))
 
+(def (bench-profile-duration-ms profile)
+  (hash-get/default profile 'durationMs 0))
+
+(def (bench-max-profile-duration-ms profiles)
+  (foldl (lambda (profile max-ms)
+           (max max-ms (bench-profile-duration-ms profile)))
+         0
+         profiles))
+
+(def (bench-file-profile-phases file-profile)
+  (hash-get/default file-profile 'phases '()))
+
 ;; : (-> (U #f CollectProfile) Number)
 (def (bench-observed-phase-ms collect-profile)
   (if collect-profile
-    (let loop-files ((files (hash-get/default collect-profile 'slowestFiles '()))
-                     (max-ms 0))
-      (match files
-        ([file-profile . more-files]
-         (let loop-phases ((phases (hash-get/default file-profile 'phases '()))
-                           (phase-max-ms max-ms))
-           (match phases
-             ([phase . more-phases]
-              (let (duration-ms (hash-get/default phase 'durationMs 0))
-                (loop-phases
-                 more-phases
-                 (if (> duration-ms phase-max-ms) duration-ms phase-max-ms))))
-             (else (loop-files more-files phase-max-ms)))))
-        (else max-ms)))
+    (bench-max-profile-duration-ms
+     (append-map bench-file-profile-phases
+                 (hash-get/default collect-profile 'slowestFiles '())))
     0))
 
 ;;; Boundary:

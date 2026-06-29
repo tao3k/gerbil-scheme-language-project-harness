@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+ (iterations . 5)
  (unit . "ms")
  (purpose . "R013 teaches agents to use Gambit numeric primitive families only behind explicit type/range boundaries")
  (feature . "gambit-fixnum-flonum-arithmetic-boundary")

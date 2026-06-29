@@ -100,11 +100,11 @@
         "--names-only"
       ]
     },
-    "fzf": {
+    "lexical": {
       "argv": [
         "gslph",
         "search",
-        "fzf",
+        "lexical",
         "{query}",
         "owner",
         "tests",

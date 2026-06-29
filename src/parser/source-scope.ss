@@ -180,7 +180,7 @@
 (def (source-full-path root path)
   (if (absolute-source-path? path)
     path
-    (path-expand path root)))
+    (path-normalize (path-expand path (normalized-root-prefix root)))))
 
 ;; : (-> Path Boolean )
 (def (absolute-source-path? path)
@@ -198,7 +198,8 @@
 
 ;; : (-> Root Path )
 (def (normalized-root-prefix root)
-  (strip-trailing-path-separator (path-normalize root)))
+  (strip-trailing-path-separator
+   (path-normalize (path-expand "" root))))
 
 ;;; Boundary: normalized directory roots may end in `/`; changed-file matching
 ;;; must compare against one stable root prefix so hidden workspace segments such

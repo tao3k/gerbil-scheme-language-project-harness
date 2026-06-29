@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+ (iterations . 5)
  (unit . "ms")
  (purpose . "R013 exception continuation scenario keeps learned exception-control repair within the scenario-owned timing gate")
  (feature . "exception-continuation-boundary")

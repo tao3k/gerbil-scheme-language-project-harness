@@ -3,6 +3,8 @@
 
 (import :gerbil/gambit
         :benchmark/framework
+        (only-in :std/srfi/1 iota split-at)
+        (only-in :std/sugar cut filter filter-map foldl)
         :testing/model)
 
 (export #t)
@@ -37,20 +39,10 @@
                 (else (loop)))))))))
 
 (def (testing-filter-map proc values)
-  (let loop ((rest values) (out []))
-    (cond
-     ((null? rest) (reverse out))
-     (else
-      (let (value (proc (car rest)))
-        (loop (cdr rest)
-              (if value (cons value out) out)))))))
+  (filter-map proc values))
 
 (def (testing-filter proc values)
-  (let loop ((rest values) (out []))
-    (cond
-     ((null? rest) (reverse out))
-     ((proc (car rest)) (loop (cdr rest) (cons (car rest) out)))
-     (else (loop (cdr rest) out)))))
+  (filter proc values))
 
 (def (testing-andmap proc values)
   (cond
@@ -150,14 +142,21 @@
     (testing-expand-manifest-file suite (car args)))
    (else args)))
 
-(def (make-policy-scenario id root)
-  (list id root))
+(def (make-policy-scenario id root (metadata []))
+  (list id root metadata))
 
 (def (policy-scenario-id scenario)
   (list-ref scenario 0))
 
 (def (policy-scenario-root scenario)
   (list-ref scenario 1))
+
+(def (policy-scenario-metadata scenario)
+  (if (and (pair? scenario)
+           (pair? (cdr scenario))
+           (pair? (cddr scenario)))
+    (car (cddr scenario))
+    []))
 
 (def (policy-scenario-suite name: (name "policy-scenarios")
                             root: (root "t/scenarios/policy")
@@ -200,20 +199,48 @@
    ((string? scenario) scenario)
    (else "scenario")))
 
+(def (testing-scenario-metadata scenario)
+  (cond
+   ((and (pair? scenario)
+         (pair? (cdr scenario)))
+    (policy-scenario-metadata scenario))
+   (else [])))
+
+(def (testing-scenario-metadata-ref scenario key (default #f))
+  (let (entry (assq key (testing-scenario-metadata scenario)))
+    (if entry (cdr entry) default)))
+
+(def (testing-scenario-repair-details scenario)
+  (testing-filter-map
+   (lambda (key)
+     (let (value (testing-scenario-metadata-ref scenario key #f))
+       (and value (cons key value))))
+   '(downstreamRepairTarget idiom expectedRepair benchmarkPhases nextRepairAction)))
+
+(def (testing-declared-scenario-by-id suite id)
+  (let loop ((rest (testing-scenario-suite-scenarios suite)))
+    (cond
+     ((null? rest) #f)
+     ((equal? id (testing-scenario-id (car rest))) (car rest))
+     (else (loop (cdr rest))))))
+
 (def (testing-scenario-from-arg suite arg)
   (cond
    ((and (pair? arg)
          (pair? (cdr arg)))
     arg)
    ((string? arg)
-    (let ((roots (testing-suite-roots suite)))
-      (cond
-       ((testing-arg-under-suite-root? suite arg)
-        (make-policy-scenario arg arg))
-       ((null? roots)
-        (make-policy-scenario arg arg))
-       (else
-        (make-policy-scenario arg (path-expand arg (car roots)))))))
+    (let (declared (testing-declared-scenario-by-id suite arg))
+      (if declared
+        declared
+        (let ((roots (testing-suite-roots suite)))
+          (cond
+           ((testing-arg-under-suite-root? suite arg)
+            (make-policy-scenario arg arg))
+           ((null? roots)
+            (make-policy-scenario arg arg))
+           (else
+            (make-policy-scenario arg (path-expand arg (car roots)))))))))
    (else arg)))
 
 (def (testing-expand-scenario-args suite args)
@@ -263,36 +290,54 @@
      (testing-suite-selected? suite args))
    (testing-project-suites project)))
 
-(def (testing-batch-head files batch-size)
+(def (testing-select-project project args)
+  (let (suites (testing-selected-suites project args))
+    (testing-selection
+     project: project
+     args: args
+     suites: suites
+     status: (if (or (null? args)
+                     (not (null? suites)))
+               'ok
+               'failed)
+     details: (if (or (null? args)
+                      (not (null? suites)))
+                []
+                `((reason . no-selected-suites)
+                  (args . ,args))))))
+
+(def (testing-split-batch files batch-size)
   (if (or (null? files)
           (<= batch-size 0))
-    []
-    (let loop ((rest files) (remaining batch-size) (out []))
-      (cond
-       ((or (null? rest) (= remaining 0))
-        (reverse out))
-       (else
-        (loop (cdr rest)
-              (- remaining 1)
-              (cons (car rest) out)))))))
+    (values [] [])
+    (split-at files (min batch-size (length files)))))
+
+(def (testing-batch-head files batch-size)
+  (let-values (((batch _rest)
+                (testing-split-batch files batch-size)))
+    batch))
 
 (def (testing-batch-tail files batch-size)
-  (if (or (null? files)
-          (<= batch-size 0))
-    []
-    (let loop ((rest files) (remaining batch-size))
-      (cond
-       ((null? rest) [])
-       ((= remaining 0) rest)
-       (else (loop (cdr rest) (- remaining 1)))))))
+  (let-values (((_batch rest)
+                (testing-split-batch files batch-size)))
+    rest))
+
+(def (testing-batch-count file-count batch-size)
+  (if (or (<= file-count 0) (<= batch-size 0))
+    0
+    (quotient (+ file-count batch-size -1) batch-size)))
+
+(def (testing-batches-step batch-size _ state)
+  (let-values (((batch rest)
+                (testing-split-batch (car state) batch-size)))
+    (list rest (cons batch (cadr state)))))
 
 (def (testing-batches files batch-size)
-  (let loop ((rest files) (out []))
-    (if (null? rest)
-      (reverse out)
-      (let (batch (testing-batch-head rest batch-size))
-        (loop (testing-batch-tail rest batch-size)
-              (cons batch out))))))
+  (reverse
+   (cadr
+    (foldl (cut testing-batches-step batch-size <> <>)
+           (list files [])
+           (iota (testing-batch-count (length files) batch-size))))))
 
 (def (testing-effective-batch-size project suite files)
   (let ((suite-size (testing-suite-batch-size suite))
@@ -350,6 +395,27 @@
                 (maxSelectedOutputs . ,(testing-suite-max-selected-outputs suite))
                 (diagnostics . ,diagnostics)))))
 
+(def (testing-phase-receipt phase status: (status 'ok)
+                            suite: (suite #f)
+                            files: (files [])
+                            details: (details []))
+  (testing-receipt
+   kind: 'testing-phase
+   status: status
+   suite: suite
+   files: files
+   details: (cons (cons 'phase phase) details)))
+
+(def (testing-gate-phase-receipts suite files)
+  (map (lambda (gate)
+         (testing-phase-receipt
+          'benchmark-assert
+          suite: (testing-suite-name suite)
+          files: files
+          details: `((gate . ,(testing-gate-name gate))
+                     (scope . ,(testing-gate-scope gate)))))
+       (testing-suite-gates suite)))
+
 (def (testing-run-batch suite files run-files)
   (let* ((started-at (time->seconds (current-time)))
          (status (run-files files))
@@ -375,7 +441,23 @@
      status: status
      suite: (testing-suite-name suite)
      files: files
-     children: receipts)))
+     children: receipts
+     details: `((phases
+                 .
+                 ,(append
+                   (list
+                    (testing-phase-receipt
+                     'expand-manifest
+                     suite: (testing-suite-name suite)
+                     files: files
+                     details: `((args . ,args)))
+                    (testing-phase-receipt
+                     'delegate-gxtest
+                     status: status
+                     suite: (testing-suite-name suite)
+                     files: files
+                     details: `((batches . ,(length receipts)))))
+                   (testing-gate-phase-receipts suite files)))))))
 
 (def (testing-run-scenario suite scenario)
   (let* ((started-at (time->seconds (current-time)))
@@ -388,7 +470,9 @@
      suite: (testing-suite-name suite)
      files: (list (testing-scenario-root suite scenario))
      elapsed-seconds: elapsed
-     details: `((id . ,(testing-scenario-id scenario))))))
+     details: (append
+               `((id . ,(testing-scenario-id scenario)))
+               (testing-scenario-repair-details scenario)))))
 
 (def (testing-run-scenario-batch suite scenarios)
   (let* ((started-at (time->seconds (current-time)))
@@ -396,21 +480,26 @@
           (map (lambda (scenario)
                  (testing-run-scenario suite scenario))
                scenarios))
+         (files (testing-filter-map
+                 (lambda (scenario)
+                   (testing-scenario-root suite scenario))
+                 scenarios))
          (elapsed (- (time->seconds (current-time)) started-at))
          (status (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed)))
     (testing-receipt
      kind: 'policy-scenario-batch
      status: status
      suite: (testing-suite-name suite)
-     files: (testing-filter-map
-             (lambda (scenario)
-               (testing-scenario-root suite scenario))
-             scenarios)
+     files: files
      elapsed-seconds: elapsed
      children: receipts)))
 
 (def (testing-run-scenario-suite project suite args)
   (let* ((scenarios (testing-expand-scenario-args suite args))
+         (files (testing-filter-map
+                 (lambda (scenario)
+                   (testing-scenario-root suite scenario))
+                 scenarios))
          (batch-size (testing-effective-batch-size project suite scenarios))
          (receipts
           (map (lambda (batch)
@@ -421,11 +510,32 @@
      kind: 'scenario-suite
      status: status
      suite: (testing-suite-name suite)
-     files: (testing-filter-map
-             (lambda (scenario)
-               (testing-scenario-root suite scenario))
-             scenarios)
-     children: receipts)))
+     files: files
+     children: receipts
+     details: `((phases
+                 .
+                 ,(append
+                   (list
+                    (testing-phase-receipt
+                     'delegate-policy
+                     status: status
+                     suite: (testing-suite-name suite)
+                     files: files
+                     details: `((scenarios . ,(map testing-scenario-id scenarios))
+                                (repairGuidance
+                                 .
+                                 ,(testing-filter-map
+                                   (lambda (scenario)
+                                     (let (details
+                                           (testing-scenario-repair-details scenario))
+                                       (and (not (null? details))
+                                            (cons (cons 'id
+                                                        (testing-scenario-id scenario))
+                                                  details))))
+                                   scenarios)))))
+                   (testing-gate-phase-receipts
+                    suite
+                    files)))))))
 
 (def (testing-run-suite project suite args run-files)
   (case (testing-object-kind suite)
@@ -436,17 +546,23 @@
     (else
      (error "unknown testing suite kind" (testing-object-kind suite)))))
 
-(def (testing-run-project project args run-files)
-  (let ((suites (testing-selected-suites project args)))
+(def (testing-run-selection selection run-files)
+  (let ((project (testing-selection-project selection))
+        (args (testing-selection-args selection))
+        (suites (testing-selection-suites selection)))
     (if (null? suites)
       (testing-receipt
        kind: 'testing-project
-       status: (if (null? args) 'ok 'failed)
+       status: (testing-selection-status selection)
        children: []
-       details: (if (null? args)
-                  []
-                  `((reason . no-selected-suites)
-                    (args . ,args))))
+       details: (cons
+                 (cons 'phases
+                       (list
+                        (testing-phase-receipt
+                         'select-scope
+                         status: (testing-selection-status selection)
+                         details: (testing-selection-details selection))))
+                 (testing-selection-details selection)))
       (let* ((receipts
               (map (lambda (suite)
                      (testing-run-suite project suite args run-files))
@@ -455,7 +571,20 @@
         (testing-receipt
          kind: 'testing-project
          status: status
-         children: receipts)))))
+         children: receipts
+         details: `((phases
+                     .
+                     ,(list
+                       (testing-phase-receipt
+                        'select-scope
+                        status: (testing-selection-status selection)
+                        details: `((args . ,args)
+                                   (suites . ,(map testing-suite-name suites))))))))))))
+
+(def (testing-run-project project args run-files)
+  (testing-run-selection
+   (testing-select-project project args)
+   run-files))
 
 (def (testing-performance-gate-valid? gate)
   (let (root (testing-performance-gate-contract-root gate))

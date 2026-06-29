@@ -223,4 +223,41 @@
              context
              (list 0 1)
              (list 0 2))))
+(test-case "agent policy validates source form reader boundary scenario under performance gate"
+          (let* ((context
+                  (agent-style-policy-r013-scenario-context
+                   "source-form-reader-boundary"))
+                 (benchmark-contract (hash-get context 'benchmarkContract))
+                 (details (hash-get context 'details)))
+            (agent-style-check-r013-scenario!
+             context
+             "source-form-reader-boundary"
+             "source-form-reader-boundary")
+            (agent-style-check-r013-scenario-learning!
+             context
+             ["gerbil://src/testing/gxtest-runner.ss"
+              "harness-self-apply"]
+             ["reader-collection-boundary"
+              "source-form-reader-boundary"
+              "anti-ai-scaffold"])
+            (check (hash-get benchmark-contract 'optimizationFocus)
+                   => "inline source reader and mixed selection loops to read-forms port helper, source-forms file boundary, and filter-map projection")
+            (check (agent-style-member?
+                    "reader-collection-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (agent-style-member?
+                    "source-form-reader-boundary"
+                    (hash-get details 'qualityFacets))
+                   => #t)
+            (check (hash-get details 'loopDriverCombinatorTargets)
+                   => ["source-forms" "local-def-symbols"])
+            (check (agent-style-member?
+                    "split source/form reader loops from selector or projection helpers, then compose the caller with filter-map/map/fold"
+                    (hash-get details 'loopDriverCombinatorSignals))
+                   => #t)
+            (check (agent-style-member?
+                    "when a reader loop also does selection or projection, split a source/form reader helper and compose the public function with filter-map/map/fold"
+                    (hash-get details 'qualityFacetSteering))
+                   => #t)))
   ))

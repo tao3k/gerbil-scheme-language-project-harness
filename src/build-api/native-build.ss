@@ -1,6 +1,5 @@
 ;;; -*- Gerbil -*-
 ;;; Build runtime API for the asp gerbil-scheme package.
-;;; Build support for the gslph package.
 
 (import (only-in :std/make make)
         (only-in :std/misc/path path-directory path-expand path-normalize path-strip-directory)
@@ -8,9 +7,15 @@
         (only-in :std/srfi/13 string-suffix? string-tokenize)
         (only-in :clan/building all-gerbil-modules)
         (only-in :gerbil/tools/env setup-local-pkg-env!)
-        "./source-coverage"
-        "./package-receipt"
-        "./package-spec"
+        (only-in "./source-coverage"
+                 gslph-source-coverage-runtime-roots
+                 gslph-source-coverage-exclude-directories)
+        (only-in "./package-receipt"
+                 gslph-package-build-receipt-status
+                 gslph-package-build-receipt-status-ref
+                 gslph-package-build-receipt-status-line
+                 gslph-package-build-receipt-write)
+        (only-in "./package-spec" gslph-package-api-spec)
         (only-in "./worker-count" build-worker-count sync-build-worker-count!)
         (only-in "./install-static-modules" cli-install-static-modules)
         :gerbil/gambit)
@@ -312,7 +317,7 @@
     ""
     root))
 
-;; : (-> Path (-> a) a)
+;; : (forall (a) (-> Path (-> a) a))
 (def (with-directory directory thunk)
   (let (previous (current-directory))
     (dynamic-wind

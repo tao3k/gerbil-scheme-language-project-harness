@@ -7,7 +7,9 @@
   ((name . collect-before) (durationMs . 3))
   ((name . collect-after) (durationMs . 2))
   ((name . policy-before) (durationMs . 1))
-  ((name . policy-after) (durationMs . 1)))
+  ((name . policy-after) (durationMs . 1))
+  ((name . batch-split) (durationMs . 1))
+  ((name . scenario-root-projection) (durationMs . 1)))
  (targetRationale . "testing framework user-interface checks must stay in hot policy range")
  (maxCollectMs . 50)
  (observedCollectMs . 3)
@@ -33,6 +35,8 @@
   "collect-after"
   "policy-before"
   "policy-after"
+  "batch-split"
+  "scenario-root-projection"
   "assert-time-gate"
   "assert-memory-gate")
  (tags "testing" "framework" "poo" "gxtest"))
