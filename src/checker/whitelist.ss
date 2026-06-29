@@ -2,7 +2,11 @@
 ;;; Native call whitelist checks over parser-owned call facts.
 
 (import :checker/model
-        :parser/facade
+        :parser/model
+        (only-in :parser/selectors
+                 call-fact-selector
+                 project-calls
+                 project-definitions)
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/13 string-empty? string-prefix? string-trim)
         (only-in :std/sugar filter-map)

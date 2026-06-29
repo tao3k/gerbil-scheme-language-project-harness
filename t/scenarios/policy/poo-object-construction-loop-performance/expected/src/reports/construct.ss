@@ -1,25 +1,27 @@
 ;;; -*- Gerbil -*-
 (import :clan/poo/object)
 
-(def (make-report-profile-hash)
-  (let (profile (make-hash-table))
-    (hash-put! profile 'id "orders")
-    (hash-put! profile 'status "hot")
-    (hash-put! profile 'score 0)
-    (hash-put! profile 'rows 8)
-    (hash-put! profile 'columns 5)
-    (hash-put! profile 'sections 3)
-    (hash-put! profile 'charts 2)
-    (hash-put! profile 'filters 4)
-    (hash-put! profile 'exports 2)
-    (hash-put! profile 'alerts 6)
-    (hash-put! profile 'retries 3)
-    (hash-put! profile 'priority "high")
-    profile))
+(def +report-profile+
+  (.o id: "orders"
+      status: "hot"
+      score: 0
+      rows: 8
+      columns: 5
+      sections: 3
+      charts: 2
+      filters: 4
+      exports: 2
+      alerts: 6
+      retries: 3
+      priority: "high"))
 
-(def (score-report profile-hash limit)
-  (let (profile (object<-hash profile-hash))
-    (let loop ((i 0) (total 0))
-      (if (= i limit)
-        total
-        (loop (+ i 1) (+ total (.ref profile 'score)))))))
+(def (build-report-profile)
+  +report-profile+)
+
+(def (score-report profile limit)
+  (let (score (.ref profile 'score))
+    (let (iteration-score (+ score score score))
+      (let loop ((i 0) (total 0))
+        (if (= i limit)
+          total
+          (loop (+ i 1) (+ total iteration-score)))))))

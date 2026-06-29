@@ -51,7 +51,7 @@
 ;;;   routing or wrapper materialization inside the package build owner.
 ;; (List IncludePath)
 (def +package-build-provider-build-includes+
-  '("build-support/provider-build.ss"))
+  '("src/build-api/provider-build.ss"))
 
 ;;; Canonical shape witnesses:
 ;;; - `init-build-environment!` is the public clan/building entrypoint.

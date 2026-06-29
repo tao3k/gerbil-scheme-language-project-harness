@@ -1,18 +1,23 @@
 #!/usr/bin/env gxi
 ;; -*- Gerbil -*-
 
-(import (only-in :std/cli/getopt flag)
+(import (only-in :std/cli/getopt flag rest-arguments)
         (only-in :std/cli/multicall define-entry-point define-multicall-main)
         (only-in :std/misc/path path-directory path-expand)
         "src/build-api/source-coverage"
-        "build-support/gslph-package-spec")
+        "src/build-api/package-spec"
+        (rename-in "src/testing/gxtest-runner"
+                   (configure-build-root! configure-test-build-root!)
+                   (test-target gxtest-test-target)
+                   (test-file-target gxtest-test-file-target)
+                   (test-full-target gxtest-test-full-target)))
 
 (def +package-root+ (path-directory (this-source-file)))
-(def +heavy-build-support+ (path-expand "build-support/gslph-build.ss" +package-root+))
-(def +package-build-support+ (path-expand "build-support/gslph-package-build.ss" +package-root+))
+(def +native-build-api+ (path-expand "src/build-api/native-build.ss" +package-root+))
+(def +package-build-api+ (path-expand "src/build-api/package-build.ss" +package-root+))
 
 (gslph-source-coverage
- roots: '("src" "build-support" "t")
+ roots: '("src" "t")
  runtime-roots: '("src")
  exclude-directories: '("scenarios" "snapshots")
  explanation: "GSLPH source coverage declared by build.ss.")
@@ -33,26 +38,30 @@
    (flag 'full "--full"
          help: "Compile every library module instead of the CLI launcher")])
 
+(def test-file-getopt
+  [(rest-arguments 'files
+                   help: "Selected gxtest files")])
+
 (define-multicall-main)
 
 ;; : (-> Void)
-(def (load-heavy-build-support!)
-  (load +heavy-build-support+)
+(def (load-native-build-api!)
+  (load +native-build-api+)
   (eval `(configure-build-root! ,+package-root+)))
 
 ;; : (-> Void)
-(def (load-package-build-support!)
-  (load +package-build-support+)
+(def (load-package-build-api!)
+  (load +package-build-api+)
   (eval `(gslph-package-configure-build-root! ,+package-root+)))
 
 ;; : (-> Datum Datum)
-(def (heavy-build-call form)
-  (load-heavy-build-support!)
+(def (native-build-call form)
+  (load-native-build-api!)
   (eval form))
 
 ;; : (-> Datum Datum)
 (def (package-build-call form)
-  (load-package-build-support!)
+  (load-package-build-api!)
   (eval form))
 
 (define-entry-point (compile verbose: (verbose #f) debug: (debug #f)
@@ -64,7 +73,7 @@
   (help: "Compile the package"
    getopt: compile-getopt)
   (if (or full release binary)
-    (heavy-build-call
+    (native-build-call
      `(compile-target ,verbose ,debug ,no-optimize ,optimized ,release ,full ,binary))
     (package-build-call
      `(gslph-package-compile-target ,verbose ,debug ,no-optimize ,optimized ,release))))
@@ -79,7 +88,7 @@
    getopt: compile-getopt)
   (pretty-print
    (if (or full release binary)
-     (heavy-build-call `(compile-spec ,full ,release ,binary))
+     (native-build-call `(compile-spec ,full ,release ,binary))
      (gslph-package-api-spec))))
 
 (define-entry-point (install verbose: (verbose #f) debug: (debug #f)
@@ -88,20 +97,28 @@
                              release: (release #f))
   (help: "Install optimized release gslph into $HOME/.local/bin"
    getopt: compile-getopt)
-  (heavy-build-call
+  (native-build-call
    `(install-target ,verbose ,debug ,no-optimize ,optimized ,release)))
 
 (define-entry-point (clean)
   (help: "Clean package-local development build artifacts"
    getopt: [])
-  (heavy-build-call '(clean-target)))
+  (native-build-call '(clean-target)))
 
 (define-entry-point (test)
   (help: "Compile the package API and run the default fast top-level gxtest files"
    getopt: [])
-  (heavy-build-call '(test-target)))
+  (configure-test-build-root! +package-root+)
+  (gxtest-test-target))
+
+(define-entry-point (test-file . files)
+  (help: "Compile the package API and run selected gxtest files"
+   getopt: test-file-getopt)
+  (configure-test-build-root! +package-root+)
+  (gxtest-test-file-target files))
 
 (define-entry-point (test-full)
   (help: "Compile the package API and run every top-level gxtest file"
    getopt: [])
-  (heavy-build-call '(test-full-target)))
+  (configure-test-build-root! +package-root+)
+  (gxtest-test-full-target))

@@ -2,7 +2,9 @@
 ;;; Forbidden form checks over parser-owned top-level forms.
 
 (import :checker/model
-        :parser/facade
+        :parser/model
+        :parser/package
+        (only-in :parser/selectors top-form-selector)
         (only-in :std/srfi/13 string-contains string-prefix? string-trim)
         (only-in :std/sugar filter-map)
         :types/findings)

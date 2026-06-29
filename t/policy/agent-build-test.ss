@@ -48,15 +48,17 @@
               (check (type-finding-selector finding) => "build.ss:3-4")
               (check (hash-get (type-finding-details finding) 'kind)
                      => "package-build-wrapper-definition"))))
-    (test-case "agent policy rejects build-support shell template regression"
-          (let* ((root ".run/policy-build-support-shell-template")
-                 (support (string-append root "/build-support")))
+    (test-case "agent policy rejects build-runtime shell template regression"
+          (let* ((root ".run/policy-build-runtime-shell-template")
+                 (src (string-append root "/src"))
+                 (support (string-append src "/build-api")))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir src)
             (ensure-dir support)
             (write-text (string-append root "/gerbil.pkg")
-                        "(package: sample/build-support-quality)\n")
+                        "(package: sample/build-runtime-quality)\n")
             (write-text
              (string-append support "/provider-cli.ss")
              ";;; -*- Gerbil -*-\n(def (shell-if condition body)\n  (string-append \"if [ \" condition \" ]; then\\n\" body \"\\nfi\\n\"))\n(def (shell-exec command)\n  (string-append \"exec \" command \" \\\"$@\\\"\\n\"))\n(def (write-wrapper out)\n  (display \"#!/bin/sh\\nset -eu\\n\" out)\n  (display \"find src -name '*.ss' -print | xargs gxc\\n\" out))\n")
@@ -69,25 +71,27 @@
                                      'evidenceGroups)))
               (check (length matching) => 1)
               (check (type-finding-path finding)
-                     => "build-support/provider-cli.ss")
+                     => "src/build-api/provider-cli.ss")
               (check (hash-get details 'detectionCombiner)
-                     => "build-support-shell-template-composite")
+                     => "build-runtime-shell-template-composite")
               (check [(hash-get details 'detectionPrototype) (hash-get details 'detectionCombinerKind) (hash-get details 'detectionSourcePattern)]
-                     => ["build-support-shell-template-composite" "threshold" "poo-prototype-composition"])
+                     => ["build-runtime-shell-template-composite" "threshold" "poo-prototype-composition"])
               (check (hash-get details 'detectionThreshold) => 2)
               (check (not (not (member "shell-helper-definitions" groups)))
                      => #t)
               (check (not (not (member "shell-control-literals" groups)))
                      => #t))))
-    (test-case "agent policy requires multiple build-support evidence groups"
-          (let* ((root ".run/policy-build-support-single-evidence")
-                 (support (string-append root "/build-support")))
+    (test-case "agent policy requires multiple build-runtime evidence groups"
+          (let* ((root ".run/policy-build-runtime-single-evidence")
+                 (src (string-append root "/src"))
+                 (support (string-append src "/build-api")))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir src)
             (ensure-dir support)
             (write-text (string-append root "/gerbil.pkg")
-                        "(package: sample/build-support-single-evidence)\n")
+                        "(package: sample/build-runtime-single-evidence)\n")
             (write-text
              (string-append support "/provider-cli.ss")
              ";;; -*- Gerbil -*-\n(def (shell-if condition body)\n  [condition body])\n(def (shell-exec command)\n  [command])\n")
@@ -96,14 +100,16 @@
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
               (check matching => []))))
     (test-case "agent policy rejects direct native provider gxc executable compile"
-          (let* ((root ".run/policy-build-support-direct-native-gxc")
-                 (support (string-append root "/build-support")))
+          (let* ((root ".run/policy-build-runtime-direct-native-gxc")
+                 (src (string-append root "/src"))
+                 (support (string-append src "/build-api")))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir src)
             (ensure-dir support)
             (write-text (string-append root "/gerbil.pkg")
-                        "(package: sample/build-support-direct-native-gxc)\n")
+                        "(package: sample/build-runtime-direct-native-gxc)\n")
             (write-text
              (string-append support "/provider-build.ss")
              ";;; -*- Gerbil -*-\n(def (compile-native-fast-binary! name source)\n  (let ((tmp-binary (string-append name \".native-tmp\")))\n    (invoke \"gxc\" [\"-exe\" \"-o\" tmp-binary source])\n    (invoke \"mv\" [tmp-binary name])))\n")
@@ -115,11 +121,11 @@
                    (groups (hash-get details 'evidenceGroups)))
               (check (length matching) => 1)
               (check (type-finding-path finding)
-                     => "build-support/provider-build.ss")
+                     => "src/build-api/provider-build.ss")
               (check (hash-get details 'kind)
                      => "build-runtime-native-compile-safety")
               (check (hash-get details 'detectionCombiner)
-                     => "build-support-native-compile-safety-all-of")
+                     => "build-runtime-native-compile-safety-all-of")
               (check (hash-get details 'requiredGroups)
                      => ["native-provider-compile-owner"
                          "direct-native-exe-dispatch"
@@ -131,17 +137,19 @@
               (check (not (not (member "missing-native-link-wrapper" groups)))
                      => #t))))
     (test-case "agent policy accepts timeout-safe native provider wrapper delegation"
-          (let* ((root ".run/policy-build-support-native-wrapper-delegation")
-                 (support (string-append root "/build-support")))
+          (let* ((root ".run/policy-build-runtime-native-wrapper-delegation")
+                 (src (string-append root "/src"))
+                 (support (string-append src "/build-api")))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir src)
             (ensure-dir support)
             (write-text (string-append root "/gerbil.pkg")
-                        "(package: sample/build-support-native-wrapper-delegation)\n")
+                        "(package: sample/build-runtime-native-wrapper-delegation)\n")
             (write-text
              (string-append support "/provider-build.ss")
-             ";;; -*- Gerbil -*-\n(def (compile-build-support-executable! name source)\n  [name source])\n(def (compile-native-fast-binary! name source)\n  (invoke (compile-build-support-executable!\n           \"gerbil-native-link\"\n           \"build-support/native-wrapper-runtime.ss\")\n          [(string-append name \".native-tmp\") name source]))\n")
+             ";;; -*- Gerbil -*-\n(def (compile-build-runtime-executable! name source)\n  [name source])\n(def (compile-native-fast-binary! name source)\n  (invoke (compile-build-runtime-executable!\n           \"gerbil-native-link\"\n           \"src/build-api/native-wrapper-runtime.ss\")\n          [(string-append name \".native-tmp\") name source]))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
@@ -480,7 +488,7 @@
                         "(package: sample/build-canonical-clan-building)\n")
             (write-text
              (string-append root "/build.ss")
-             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
+             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-runtime\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching
@@ -498,7 +506,7 @@
                         "(package: sample/build-canonical-only-in-clan-building)\n")
             (write-text
              (string-append root "/build.ss")
-             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        (only-in :clan/building init-build-environment! all-gerbil-modules))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
+             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        (only-in :clan/building init-build-environment! all-gerbil-modules))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-runtime\" <>)))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (canonical-matching
@@ -526,23 +534,25 @@
                         "(package: sample/build-canonical-stage-table)\n")
             (write-text
              (string-append root "/build.ss")
-             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(defstruct provider-build-stage (name action))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(def (provider-build-stages)\n  [(make-provider-build-stage \"compile\" (lambda (args) args))])\n(def (provider-build-stage-ref name)\n  (find (lambda (stage) (equal? (provider-build-stage-name stage) name)) (provider-build-stages)))\n(def (run-provider-build-stage! stage args)\n  ((provider-build-stage-action stage) args))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
+             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(defstruct provider-build-stage (name action))\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-runtime\" <>)))\n(def (provider-build-stages)\n  [(make-provider-build-stage \"compile\" (lambda (args) args))])\n(def (provider-build-stage-ref name)\n  (find (lambda (stage) (equal? (provider-build-stage-name stage) name)) (provider-build-stages)))\n(def (run-provider-build-stage! stage args)\n  ((provider-build-stage-action stage) args))\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings)))
               (check matching => []))))
-    (test-case "agent policy accepts provider build-support stage owner"
+    (test-case "agent policy accepts provider build-runtime stage owner"
           (let* ((root ".run/policy-package-build-canonical-provider-build-include")
-                 (support (string-append root "/build-support")))
+                 (src (string-append root "/src"))
+                 (support (string-append src "/build-api")))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir src)
             (ensure-dir support)
             (write-text (string-append root "/gerbil.pkg")
                         "(package: sample/build-canonical-provider-build-include)\n")
             (write-text
              (string-append root "/build.ss")
-             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-support\" <>)))\n(include \"build-support/provider-build.ss\")\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
+             ";;; -*- Gerbil -*-\n(import :std/make\n        :clan/base\n        :clan/building)\n(def (spec)\n  (!> (all-gerbil-modules)\n      (cut cons \"t/unit/build-runtime\" <>)))\n(include \"src/build-api/provider-build.ss\")\n(init-build-environment!\n name: \"sample-package\"\n deps: '(\"clan\")\n spec: spec)\n")
             (write-text
              (string-append support "/provider-build.ss")
              ";;; -*- Gerbil -*-\n(def (provider-build-spec)\n  '(\"src/main\"))\n(def (run-build! args)\n  (apply make (provider-build-spec) srcdir: (current-directory) []))\n")
@@ -550,25 +560,27 @@
                    (findings (run-agent-policy index))
                    (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-025" findings)))
               (check matching => []))))
-    (test-case "agent policy accepts native dispatcher build-support owner"
-          (let* ((root ".run/policy-build-support-native-dispatcher")
-                 (support (string-append root "/build-support")))
+    (test-case "agent policy accepts native dispatcher build-runtime owner"
+          (let* ((root ".run/policy-build-runtime-native-dispatcher")
+                 (src (string-append root "/src"))
+                 (support (string-append src "/build-api")))
             (reset-fixture-root root)
             (ensure-dir ".run")
             (ensure-dir root)
+            (ensure-dir src)
             (ensure-dir support)
             (write-text (string-append root "/gerbil.pkg")
-                        "(package: sample/build-support-native-dispatcher)\n")
+                        "(package: sample/build-runtime-native-dispatcher)\n")
             (write-text
              (string-append support "/provider-cli.ss")
              ";;; -*- Gerbil -*-\n(def (native-dispatcher-source-text config)\n  \"int owner_items_native_main(int argc, char **argv);\\n\")\n(def (write-provider-native-dispatcher-source! path config)\n  (write-file! path (native-dispatcher-source-text config)))\n")
             (let* ((index (collect-project root))
                    (findings (run-agent-policy index))
-                   (build-support-matches
+                   (build-runtime-matches
                     (filter-rule "GERBIL-SCHEME-AGENT-POLICY-019" findings))
                    (package-build-matches
                     (filter-rule "GERBIL-SCHEME-AGENT-POLICY-020" findings)))
-              (check build-support-matches => [])
+              (check build-runtime-matches => [])
               (check package-build-matches => []))))))
 
 ;; PolicyTest

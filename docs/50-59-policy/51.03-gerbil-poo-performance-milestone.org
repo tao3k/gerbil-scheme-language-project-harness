@@ -54,6 +54,26 @@ Key selector evidence:
 
 The policy model separates POO cost into ten hot-loop surfaces.
 
+** Optimizer Visibility
+
+The POO performance rules are now tied to Gerbil optimizer-visible repair
+shapes. A passing repair should not merely remove one expensive call. It should
+make the hot path lexical and stable enough for the compiler model used by the
+broader language scenarios:
+
+- =with-slots= and =.o= match patterns expose fixed slot access instead of
+  dynamic projection in every iteration.
+- =lambda-match= and small local destructuring helpers keep large declaration
+  data compact without hiding calls behind generic tables.
+- one boundary materialization or construction step leaves the loop with
+  scalar/list/hash state.
+- native =.o= remains the source shape for stable profiles and configs.
+
+The benchmark contract field =optimizerVisibility= records which
+optimizer-friendly shape each POO scenario is asserting. The field is part of
+the scenario contract for high-yield POO scenarios, not documentation-only
+commentary.
+
 ** Construction
 
 POO object construction is appropriate at module, boundary, and meaningful
@@ -62,16 +82,23 @@ input data.
 
 Covered patterns:
 
-- broad data-shaped =.o= construction
+- large native =.o= shape declaration with a small dynamic overlay
 - loop-local =object<-alist=
 - loop-local =object<-hash=
 - loop-local =object<-fun=
 - loop-local =make-object=
 
+Scenario coverage must keep those adapter and low-level constructor variants
+visible. The repair target is still native POO: name the stable =.o= shape,
+carry scalar/list/hash loop state while iterating, and construct or compose a
+POO object once at the boundary. Do not replace native POO declarations with
+=object<-fun= or hand-written =make-object= as a style rewrite.
+
 Harness rules:
 
-- =GERBIL-SCHEME-AGENT-POLICY-027=: broad data-shaped =.o= should move to
-  =object<-alist= or smaller named POO fragments.
+- =GERBIL-SCHEME-AGENT-POLICY-027=: native =.o= profile/config declarations
+  are preserved; optimize by naming stable native shapes, composing only small
+  boundary overlays, and keeping loop state scalar after boundary slot capture.
 - =GERBIL-SCHEME-AGENT-POLICY-033=: stable object construction should be hoisted out
   of loops or represented as scalar/list/hash loop state and built once.
 
@@ -109,6 +136,11 @@ Covered patterns:
 - loop-local =.refs/slots=
 - loop-local =hash<-object=
 - loop-local =force-object=
+
+Scenario coverage should include all full-object traversal and materialization
+variants, not just one list adapter. The optimized shape is a named native
+object plus one boundary snapshot for each required representation; the loop
+then consumes scalar/list/hash state without forcing the POO object again.
 
 Harness rule:
 
@@ -266,7 +298,7 @@ the compared loop body.
 
 | Surface | Probe | Slow shape | Fast shape |
 |---------+-------+------------+------------|
-| Broad =.o= construction | large data-shaped object | 28 slots about 18s; 32 slots exceeded 20s probe budget | =object<-alist= under startup-scale timing |
+| Broad =.o= declaration | native profile/config object | preserve parser-visible POO shape; optimize only repeated hot-path construction | native =.o= declaration under startup-scale timing |
 | =.cc= loop override | repeated score update | scales with slot count | scalar accumulation plus one final =.cc= near constant |
 | =.alist/sort= materialization | 500 slots x 2000 | about 2015ms | materialize once about 4ms |
 | supers composition | 500 slots x 200 | about 604ms | final composition about 0ms |

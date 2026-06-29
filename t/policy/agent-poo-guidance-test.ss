@@ -3,39 +3,23 @@
 
 (import :gerbil/gambit
         :std/test
-        :std/misc/ports
-        :std/misc/process
-        (only-in :std/text/json read-json)
-        :commands/check
-        :parser/facade
-        :policy/facade
-        :policy/gxtest
-        :scenario/policy
         :types/facade
-        :unit/policy/poo-scenarios
-        :policy/fixtures)
-(import :policy/agent-poo-support)
+        :unit/policy/poo-scenarios)
+(import :policy/agent-poo-guidance-support)
 (export agent-poo-guidance-policy-test)
 
 ;; PolicyTest
 (def agent-poo-guidance-policy-test
   (test-suite "gerbil scheme harness agent POO guidance policy"
-(test-case "POO performance scenarios own benchmark contracts"
-      (check (missing-poo-performance-scenario-benchmarks
-              +poo-performance-scenario-ids+)
-             => []))
-(test-case "POO performance scenarios declare hot-path exemption evidence"
-      (check (poo-performance-scenarios-missing-hot-path-exemptions
-              +poo-performance-scenario-ids+)
-             => []))
 (test-case "agent policy rewrites real dashboard POO workflow to boundary APIs"
           (let* ((scenario
-                  (make-policy-scenario
-                   "poo-real-dashboard-workflow-performance"
-                   "t/scenarios/policy/poo-real-dashboard-workflow-performance"))
-                 (timing (policy-scenario-run/timed scenario))
-                 (result (hash-get timing 'result))
-                 (timings (hash-get timing 'timings))
+                 (make-policy-scenario
+                  "poo-real-dashboard-workflow-performance"
+                  "t/scenarios/policy/poo-real-dashboard-workflow-performance"))
+                 (result
+                  (policy-scenario-run/poo-policy/rules
+                   scenario
+                   +poo-real-dashboard-workflow-rule-ids+))
                  (before-findings
                   (policy-scenario-findings/rules
                    result
@@ -46,19 +30,6 @@
                    result
                    'after
                    +poo-real-dashboard-workflow-rule-ids+)))
-            (check (hash-get timing 'schemaId)
-                   => "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
-            (check (hash-get timing 'scenarioId)
-                   => "poo-real-dashboard-workflow-performance")
-            (check (length timings) => 4)
-            (check (policy-scenario-timing-steps-measured? timings)
-                   => #t)
-            (check (policy-scenario-benchmark-constrained? timing)
-                   => #t)
-            (check (policy-scenario-benchmark-targeted? timing)
-                   => #t)
-            (check (hash-get timing 'targetStatus)
-                   => "pass")
             (check (>= (length before-findings) 7) => #t)
             (check (policy-rule-present?
                     "GERBIL-SCHEME-AGENT-POLICY-028" before-findings)
@@ -82,11 +53,38 @@
                     "GERBIL-SCHEME-AGENT-POLICY-037" before-findings)
                    => #t)
             (check after-findings => [])))
+(test-case "agent policy keeps Marlin config-interface large POO objects native"
+          (let* ((scenario
+                 (make-policy-scenario
+                  "poo-marlin-config-interface-large-object-performance"
+                  "t/scenarios/policy/poo-marlin-config-interface-large-object-performance"))
+                 (result
+                  (policy-scenario-run/poo-policy/rules
+                   scenario
+                   '("GERBIL-SCHEME-AGENT-POLICY-027"
+                     "GERBIL-SCHEME-AGENT-POLICY-029"
+                     "GERBIL-SCHEME-AGENT-POLICY-030"
+                     "GERBIL-SCHEME-AGENT-POLICY-033")))
+                 (after-native-matching
+                  (policy-scenario-findings
+                   result
+                   'after
+                   "GERBIL-SCHEME-AGENT-POLICY-027"))
+                 (after-loop-matching
+                  (policy-scenario-findings/rules
+                   result
+                   'after
+                   '("GERBIL-SCHEME-AGENT-POLICY-029"
+                     "GERBIL-SCHEME-AGENT-POLICY-030"
+                     "GERBIL-SCHEME-AGENT-POLICY-033"))))
+            (check after-native-matching => [])
+            (check after-loop-matching => [])))
 (test-case "agent policy rejects direct POO writeenv calls"
           (let* ((root ".run/policy-poo-direct-writeenv")
                  (_ (write-poo-direct-writeenv-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-006")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-006" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
@@ -98,8 +96,9 @@
 (test-case "agent policy requires runtime-source witness for POO IO overrides"
           (let* ((root ".run/policy-poo-io-runtime-witness")
                  (_ (write-poo-io-override-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-007")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-007" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
@@ -111,8 +110,9 @@
 (test-case "agent policy requires POO method generic and class facts"
           (let* ((root ".run/policy-poo-method-shape")
                  (_ (write-poo-method-shape-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-008")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-008" findings))
                  (finding (car matching)))
             (check (length matching) => 1)
@@ -124,8 +124,9 @@
 (test-case "agent policy requires POO usage documentation for defaults and slot mutation"
           (let* ((root ".run/policy-poo-documentation-usage")
                  (_ (write-poo-documentation-usage-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-038")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings))
                  (finding (car matching))
                  (details (type-finding-details finding)))
@@ -144,15 +145,17 @@
 (test-case "agent policy accepts documented POO usage for defaults and slot mutation"
           (let* ((root ".run/policy-poo-documentation-usage-positive")
                  (_ (write-poo-documentation-usage-positive-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-038")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings)))
             (check matching => [])))
 (test-case "agent policy redirects outer POO constructor slot projection to prototype fixed point"
           (let* ((root ".run/policy-poo-prototype-fixed-point")
                  (_ (write-poo-prototype-fixed-point-drift-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-026")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-026" findings))
                  (finding (car matching))
                  (details (type-finding-details finding)))
@@ -170,39 +173,41 @@
 (test-case "agent policy accepts prototype-local POO fixed point syntax"
           (let* ((root ".run/policy-poo-prototype-fixed-point-positive")
                  (_ (write-poo-prototype-fixed-point-positive-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-026")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-026" findings)))
             (check matching => [])))
 (test-case "agent policy allows isolated POO boundary reads without usage docs"
           (let* ((root ".run/policy-poo-documentation-boundary-read")
                  (_ (write-poo-prototype-boundary-read-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-038")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings)))
             (check matching => [])))
 (test-case "agent policy does not treat ordinary Scheme set! as POO usage"
           (let* ((root ".run/policy-poo-documentation-ordinary-set")
                  (_ (write-poo-documentation-ordinary-set-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-038")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-038" findings)))
             (check matching => [])))
 (test-case "agent policy allows isolated POO slot boundary reads"
           (let* ((root ".run/policy-poo-prototype-boundary-read")
                  (_ (write-poo-prototype-boundary-read-project root))
-                 (index (collect-project root))
-                 (findings (run-agent-policy index))
+                 (findings (run-agent-poo-policy/root/rules
+                            root
+                            '("GERBIL-SCHEME-AGENT-POLICY-026")))
                  (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-026" findings)))
             (check matching => [])))
-(test-case "agent policy redirects large data-shaped POO object construction to object<-alist"
+(test-case "agent policy preserves native large POO object literals"
           (let* ((scenario
-                  (make-policy-scenario
-                   "poo-construction-performance"
-                   "t/scenarios/policy/poo-construction-performance"))
-                 (timing (policy-scenario-run/timed scenario))
-                 (result (hash-get timing 'result))
-                 (timings (hash-get timing 'timings))
+                 (make-policy-scenario
+                  "poo-construction-performance"
+                  "t/scenarios/policy/poo-construction-performance"))
+                 (result (policy-scenario-run/poo-policy scenario))
                  (before-matching
                   (policy-scenario-findings
                    result
@@ -213,25 +218,22 @@
                    result
                    'after
                    "GERBIL-SCHEME-AGENT-POLICY-027"))
-                 (finding (car before-matching))
-                   (details (type-finding-details finding)))
-              (check (hash-get timing 'schemaId)
-                     => "agent.semantic-protocols.gerbil-scheme-policy-scenario-timing")
-              (check (hash-get timing 'scenarioId)
-                     => "poo-construction-performance")
-              (check (length timings) => 4)
-              (check (policy-scenario-timing-steps-measured? timings)
-                     => #t)
-              (check (policy-scenario-benchmark-constrained? timing)
-                     => #t)
-              (check (length before-matching) => 1)
+                 (loop-rule-ids
+                  '("GERBIL-SCHEME-AGENT-POLICY-029"
+                    "GERBIL-SCHEME-AGENT-POLICY-030"
+                    "GERBIL-SCHEME-AGENT-POLICY-033"))
+                 (before-loop-matching
+                  (policy-scenario-findings/rules
+                   result
+                   'before
+                   loop-rule-ids))
+                 (after-loop-matching
+                  (policy-scenario-findings/rules
+                   result
+                   'after
+                   loop-rule-ids)))
+              (check before-matching => [])
               (check after-matching => [])
-              (check (type-finding-path finding) => "src/reports/profile.ss")
-              (check (hash-get details 'kind)
-                     => "poo-construction-performance")
-              (check (hash-get details 'callee) => ".o")
-              (check (hash-get details 'slotSpecCount) => 16)
-              (check (hash-get details 'slotSpecThreshold) => 12)
-              (check (hash-get details 'preferredConstruction)
-                     => "object<-alist for broad mostly-data POO values")))
+              (check before-loop-matching => [])
+              (check after-loop-matching => [])))
   ))

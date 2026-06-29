@@ -27,14 +27,35 @@
  (feature . "poo-loop-materialization")
  (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "loop-local materialization")
- (inputShape . "manual loop repeatedly materializing POO object data")
- (expectedRepair . "materialize once at a boundary before iteration")
+ (inputShape . "manual loop repeatedly materializing POO object data through .alist/sort, .all-slots, .all-slots/sort, hash<-object, and force-object")
+ (expectedRepair . "keep the stable profile as native .o, materialize each required boundary snapshot once, and keep loop state scalar")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o remains the profile/config source shape")
  (hotPathExemption . "poo-materialization-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
   "object-materialization"
+  ".alist/sort"
+  ".all-slots"
+  ".all-slots/sort"
+  "hash<-object"
+  "force-object"
   "single-boundary-snapshot"
+  "optimizer-visible-poo-hot-path"
   "benchmark-contract")
+ (optimizerVisibility
+  .
+  "full-object materialization stays as one named boundary snapshot and the loop consumes precomputed list/hash/scalar state")
+ (expectedQualitySignals
+  "single-boundary-snapshot"
+  "scalar-loop-state"
+  "no-loop-local-materialization"
+  "native-.o-source-shape")
+ (learnedStyleSources
+  "gerbil://object.ss#item/def/.all-slots"
+  "gerbil://object.ss#item/def/hash<-object"
+  "gerbil://object.ss#item/def/force-object")
  (styleRewriteBoundary
   .
   "do not introduce repeated materialization inside a measured loop; keep one boundary snapshot")

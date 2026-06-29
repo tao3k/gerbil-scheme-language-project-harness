@@ -6,7 +6,7 @@
 (export source-path-class)
 ;;; Boundary:
 ;;; - Source classes are parser-owned vocabulary for policy scope guards.
-;;; - Build policy consumes package-build and build-support-runtime classes
+;;; - Build policy consumes package-build and build-runtime classes
 ;;;   instead of repeating path predicates in policy code.
 ;;; Invariant:
 ;;; - Specific build/runtime paths are classified before broad source fallbacks.
@@ -17,9 +17,10 @@
     "config")
    ((equal? path "build.ss")
     "package-build")
-   ((and (string-prefix? "build-support/" path)
+   ((and (or (string-prefix? "src/build-api/" path)
+             (string-prefix? "src/testing/" path))
          (string-suffix? ".ss" path))
-    "build-support-runtime")
+    "build-runtime")
    ((or (string-prefix? "t/snapshots/" path)
         (string-contains path "/snapshots/"))
     "snapshot-output")

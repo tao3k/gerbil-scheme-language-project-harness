@@ -1,0 +1,71 @@
+* Purpose
+This note records the current gxtest runner boundary for the Gerbil harness.
+The goal is a thin downstream =build.ss=: configure the package root, call the
+harness framework API, and leave native Gerbil build/test ownership intact.
+
+* Root Cause
+The slow path was not policy evaluation. The expensive path was runner surface
+growth: source imports, macro expansion, duplicated scope selection, and test
+module loading outside the normal =gxtest= flow.
+
+Treating the whole =gxi build.ss test= wall time as policy cost creates the
+wrong fix pressure. The durable fix is to keep policy assertions inside the
+selected =gxtest= scope, then make scope expansion, batching, receipts, and
+benchmark scheduling explicit at the testing framework boundary.
+
+* Framework Boundary
+The build and testing framework improves the user layer around upstream Gerbil;
+it does not replace =std/make=, =clan/building=, or =gxtest=.
+
+Current owners:
+- =src/build-api/source-coverage.ss= declares project coverage.
+- =src/build-api/package-spec.ss= declares the package API compile set.
+- =src/build-api/package-build.ss= owns warm package API compilation receipts.
+- =src/build-api/build-path-contract.ss= owns path-only build/install assertions.
+- =src/build-api/native-build.ss= owns native compile, release, and install.
+- =src/testing/gxtest-runner.ss= owns gxtest scope expansion, batching,
+  benchmark-sensitive scheduling, selected-suite receipts, and phase receipts.
+- =src/testing/gxtest-smoke.ss= owns the default smoke file set.
+
+=build.ss= should only import those APIs, configure =+package-root+=, and
+dispatch =compile=, =install=, =clean=, =test=, =test-file=, and =test-full=.
+It must not carry a second copy of framework logic, compile a side runtime tree,
+or delete stale helper artifacts by hand.
+
+* Scope Rules
+Policy assertions run with the same file scope as the selected =gxtest= run.
+The framework must not create a hidden second pass over the repository.
+
+Rules:
+- file-level tests stay file-scoped
+- scenario tests stay scenario-scoped
+- default smoke stays small and receipt-gated
+- benchmark-sensitive files may serialize, but only because the measured gate
+  requires isolation
+- any full-project pass must be an explicit full/full-project target
+- unknown incremental scopes fail with a receipt instead of widening silently
+
+* Performance Receipt
+Warm default-smoke receipt after the framework boundary cleanup:
+
+#+begin_src text
+[gslph-package-build-receipt] status=current sources=15 outputs=15
+[gslph-test-phase] name=compile-package-api elapsedMs=4
+[gslph-test-runner] files=5 jobs=1 serial=0 mode=source-in-process
+[gslph-test-phase] name=run-gxtest elapsedMs=867
+#+end_src
+
+The default gate is therefore a hot smoke gate. Broader TypeSpec proof coverage,
+package-receipt edge cases, filesystem mutation checks, and policy scenario
+contract sweeps belong in focused or full test selection, not in the default
+=gxi build.ss test= path.
+
+* Non-Goals
+Do not optimize this path by rejecting native POO syntax such as =.o=,
+=:derive=, =.def=, =object<-alist= boundaries, or keyword-field construction.
+Native POO readability is the first-class surface. Performance work should
+preserve that surface and improve the runtime path underneath it.
+
+Do not weaken subsecond benchmark targets because one source-runner test is
+slow. Tight gates are valid when the measured phase is hot policy work; broader
+integration gates must label their integration scope explicitly.

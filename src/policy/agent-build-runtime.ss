@@ -58,7 +58,7 @@
   '("compile-native-" "compile-full-native-" "run-native-"))
 
 ;; String
-(def +native-wrapper-runtime-source+ "build-support/native-wrapper-runtime.ss")
+(def +native-wrapper-runtime-source+ "src/build-api/native-wrapper-runtime.ss")
 
 ;; String
 (def +native-wrapper-binary-prefix+ "gerbil-native-")
@@ -95,7 +95,7 @@
 
 ;;; Finding contract:
 ;;; - The detection combinator owns the multi-evidence decision.
-;;; - This rule owns the agent-facing repair message and build-support scope.
+;;; - This rule owns the agent-facing repair message and build/runtime scope.
 ;; : (-> SourceFile MaybeTypeFinding )
 (def (build-runtime-quality-finding file)
   (let (results (build-runtime-quality-detections file))
@@ -179,7 +179,7 @@
        (not (string-contains name "format-version"))))
 
 ;;; Dispatch boundary:
-;;; - A build-support owner may trip several independent runtime-quality
+;;; - A build/runtime owner may trip several independent runtime-quality
 ;;;   detectors.
 ;;; - Each detector stays prototype/combinator backed, not branch-hardcoded.
 ;; : (-> SourceFile (List DetectionResult) )
@@ -191,9 +191,9 @@
 ;; : (-> SourceFile (List DetectionPrototype) )
 (def (build-runtime-quality-detection-prototypes file)
   (cond
-   ((build-support-source-file? file)
-    [(build-support-shell-template-detection-prototype)
-     (build-support-native-compile-safety-detection-prototype)])
+   ((build-runtime-source-file? file)
+    [(build-runtime-shell-template-detection-prototype)
+     (build-runtime-native-compile-safety-detection-prototype)])
    ((native-fast-runtime-source-file? file)
     [(native-fast-command-adapter-detection-prototype)])
    ((package-build-file? file)
@@ -257,7 +257,7 @@
 (def (runtime-quality-allowed-shape result)
   (cond
    ((runtime-native-compile-safety-result? result)
-    "provider native binaries are compiled through build-support/native-wrapper-runtime.ss via gerbil-native-link or gerbil-native-diagnose")
+    "provider native binaries are compiled through a build/runtime native-wrapper source via gerbil-native-link or gerbil-native-diagnose")
     ((runtime-native-fast-command-adapter-result? result)
      "native-fast sources import only dependency-light modules; full commands run through harness_runtime in the native dispatcher")
     ((package-build-framework-overreach-result? result)
@@ -283,7 +283,7 @@
 (def (runtime-quality-next-action result)
   (cond
    ((runtime-native-compile-safety-result? result)
-    "replace direct gxc -exe provider builds with compile-build-support-executable! for gerbil-native-link/gerbil-native-diagnose and pass tmp/final/source as argv")
+    "replace direct gxc -exe provider builds with compile-build-runtime-executable! for gerbil-native-link/gerbil-native-diagnose and pass tmp/final/source as argv")
     ((runtime-native-fast-command-adapter-result? result)
      "delete the native-fast wrapper or split a real dependency-light fast implementation; route full command behavior through the dispatcher harness_runtime path")
     ((package-build-framework-overreach-result? result)
@@ -291,12 +291,12 @@
     ((package-build-custom-system-result? result)
      "replace the local build system with :clan/building plus all-gerbil-modules for src-root packages, :std/build-script defbuild-script for simple gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; keep CLI commands in src/cli or src/commands")
    (else
-    "move behavior into build-support/*-runtime.ss or normal Gerbil helpers; keep launchers as data/config writers")))
+    "move behavior into build/runtime source modules or normal Gerbil helpers; keep launchers as data/config writers")))
 
 ;; : (-> DetectionResult Boolean )
 (def (runtime-native-compile-safety-result? result)
   (equal? (detection-result-prototype result)
-          "build-support-native-compile-safety-all-of"))
+          "build-runtime-native-compile-safety-all-of"))
 
 ;; : (-> DetectionResult Boolean )
 (def (runtime-native-fast-command-adapter-result? result)
@@ -304,32 +304,32 @@
           "native-fast-command-adapter-all-of"))
 
 ;;; Launcher quality is declared as a prototype: the threshold base owns the
-;;; combiner shape, while this overlay owns build-support evidence slots.
+;;; combiner shape, while this overlay owns build/runtime evidence slots.
 ;; : (-> DetectionPrototype )
-(def (build-support-shell-template-detection-prototype)
+(def (build-runtime-shell-template-detection-prototype)
   (detection-prototype-extend
    +threshold-detection-prototype+
    (poo-source-pattern-detection-overlay 'prototype-composition)
    (detection-prototype
-    "build-support-shell-template-composite"
+    "build-runtime-shell-template-composite"
     'threshold
     [shell-helper-definition-evidence
      shell-control-literal-evidence
      shell-writer-call-evidence]
     +build-runtime-min-evidence-groups+
     '()
-    "build-support shell-template drift requires multiple parser-owned evidence groups")))
+    "build/runtime shell-template drift requires multiple parser-owned evidence groups")))
 
 ;;; Native compile safety is stricter than shell-template drift:
 ;;; all three signals must align before warning, which keeps the bootstrap
 ;;; compile of gerbil-native-link itself outside the provider executable rule.
 ;; : (-> DetectionPrototype )
-(def (build-support-native-compile-safety-detection-prototype)
+(def (build-runtime-native-compile-safety-detection-prototype)
   (detection-prototype-extend
    +all-of-detection-prototype+
    (poo-source-pattern-detection-overlay 'prototype-composition)
    (detection-prototype
-    "build-support-native-compile-safety-all-of"
+    "build-runtime-native-compile-safety-all-of"
     'all-of
     [native-provider-compile-owner-evidence
      direct-native-exe-dispatch-evidence
@@ -406,7 +406,7 @@
           (call-fact-selector (car calls))))))
 
 ;;; Boundary:
-;;; - build-support may write launcher/config files.
+;;; - build/runtime sources may write launcher/config files.
 ;;; - Writer calls become evidence only when their payload is shell control.
 ;;; - Plain display or write-string calls remain below the warning gate.
 ;;; Data flow:
@@ -495,12 +495,12 @@
           (length imports)
           (module-import-selector (car imports))))))
 
-;;; Scope guard: build-support files intentionally emit launcher/runtime
+;;; Scope guard: build/runtime files intentionally emit launcher/runtime
 ;;; wrappers, so they need a dedicated evidence profile.
 ;; : (-> SourceFile Boolean )
-(def (build-support-source-file? file)
+(def (build-runtime-source-file? file)
   (equal? (source-path-class (source-file-path file))
-          "build-support-runtime"))
+          "build-runtime"))
 
 ;; : (-> SourceFile Boolean )
 (def (native-fast-runtime-source-file? file)
@@ -569,7 +569,7 @@
 
 ;; : (-> CallFact Boolean )
 (def (native-wrapper-delegation-call? call)
-  (and (equal? (call-fact-callee call) "compile-build-support-executable!")
+  (and (equal? (call-fact-callee call) "compile-build-runtime-executable!")
        (call-arguments-contain? call +native-wrapper-binary-prefix+)
        (call-arguments-contain? call +native-wrapper-runtime-source+)))
 

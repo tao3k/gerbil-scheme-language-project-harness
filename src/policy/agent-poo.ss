@@ -245,26 +245,20 @@
 ;;; - Large data-shaped `.o` calls can create avoidable macro-expansion work.
 ;;; - Small user-facing `.o` objects stay idiomatic and are not reported.
 ;; : (-> ProjectIndex (List TypeFinding) )
+;;; Retired global constructor boundary:
+;;; - Large native `.o` declarations are idiomatic POO data/prototype values.
+;;; - Performance policy now belongs to loop-local constructor rules, where
+;;;   repeated object<-alist/object<-hash/object<-fun construction has concrete
+;;;   hot-path evidence without rewriting native top-level `.o` objects.
+;; : (-> ProjectIndex (List TypeFinding) )
 (def (poo-construction-performance-findings index)
-  (if (poo-capability-active? index)
-    (apply append
-           (map (lambda (file)
-                  (if (index-source-runtime-file-path? index
-                                                       (source-file-path file))
-                    (filter-map
-                     (lambda (call)
-                       (and (poo-large-data-object-literal-call? call)
-                            (poo-construction-performance-finding file call)))
-                     (source-file-calls file))
-                    '()))
-                (project-index-files index)))
-    '()))
+  '())
 
-;;; Large-constructor finding boundary:
-;;; - This warning is intentionally about data-shaped object construction, not
-;;;   ordinary compact POO values.
-;;; - The details carry performance evidence so repair can keep public APIs
-;;;   POO-native while changing only broad construction shape.
+;;; Retired large-constructor finding boundary:
+;;; - Kept only for callers that still import the symbol directly.
+;;; - Main policy no longer calls this because large native `.o` declarations
+;;;   are valid POO source. Loop-local repeated construction is handled by the
+;;;   dedicated loop-performance policies.
 ;; : (-> SourceFile CallFact TypeFinding )
 (def (poo-construction-performance-finding file call)
   (make-type-finding
@@ -272,9 +266,8 @@
    (policy-rule-severity +agent-poo-construction-performance-rule+)
    (source-file-path file)
    (string-append
-    "large data-shaped POO object construction uses " (call-fact-callee call)
-    " with " (number->string (poo-object-literal-slot-spec-count call))
-    " slot specs; prefer object<-alist for broad mostly-data values to reduce macro-expansion pressure while keeping public APIs POO-native")
+    "retired global POO construction warning for " (call-fact-callee call)
+    "; preserve native .o declarations and rely on loop-local construction policies for hot-path performance")
    (call-fact-selector call)
    (hash (kind "poo-construction-performance")
          (constructor (or (call-fact-caller call) "top-level"))
@@ -282,15 +275,14 @@
          (argumentCount (length (call-fact-arguments call)))
          (slotSpecCount (poo-object-literal-slot-spec-count call))
          (slotSpecThreshold +poo-data-object-literal-min-slot-specs+)
-         (guidanceMode "performance-warning")
-         (trigger "large data-shaped .o construction")
-         (allowedUse "compact .o objects and user-facing prototypes remain idiomatic POO")
-         (preferredConstruction "object<-alist for broad mostly-data POO values")
-         (performanceEvidence "gerbil-poo .o expands every slot spec through object/slot-spec; measured large-object probes degrade sharply from 16-32 slot specs")
-         (publicApiBoundary "keep public extension surfaces POO-native; optimize construction shape inside implementation modules")
-         (sourceEvidence
-          "poo-flow/docs/10-19-design/10.06-poo-module-system/39-gerbil-build-optimization-audit.org:50-60")
-         (next "replace broad data-shaped .o construction with object<-alist or split meaningful fragments into named POO values"))))
+         (guidanceMode "retired-warning")
+         (trigger "retired global large .o construction rule")
+         (allowedUse "large native .o profile/config declarations remain idiomatic POO")
+         (preferredConstruction "preserve native .o declarations; optimize only loop-local repeated object construction")
+         (performanceEvidence "loop-local policies own concrete hot-path evidence for object<-alist/object<-hash/object<-fun and small .o construction")
+         (publicApiBoundary "keep POO declarations native and parser-visible")
+         (sourceEvidence "gerbil-poo object.ss:149-158")
+         (next "use GERBIL-SCHEME-AGENT-POLICY-032 for loop-local object construction performance"))))
 
 ;;; Boundary:
 ;;; - poo-method-shape-findings composes first-class procedures.

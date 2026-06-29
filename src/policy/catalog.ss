@@ -134,7 +134,7 @@
          (topic "build-runtime-quality")
          (guideTopic "build-runtime-quality")
          (guideIntent "repair")
-         (nextCommand "asp gerbil-scheme search owner src/policy/agent-build-support.ss items --query runtime|launcher|process --workspace . --view seeds")
+         (nextCommand "asp gerbil-scheme search owner src/policy/agent-build-runtime.ss items --query runtime|launcher|process --workspace . --view seeds")
          (requires "build/runtime quality warnings require at least two independent parser-owned evidence groups, such as shell helper definitions plus shell control literals or sh -c dispatch plus pipeline literals; keep behavior in Gerbil runtime sources with list command arguments"))
    (hash (id (policy-rule-id +agent-package-build-canonical-shape-rule+))
          (severity (policy-rule-severity +agent-package-build-canonical-shape-rule+))

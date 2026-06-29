@@ -9,7 +9,7 @@
 ;;; and the build load path; spec only adds project-specific helper modules.
 (def (spec)
   (!> (all-gerbil-modules)
-      (cut cons "t/unit/build-support" <>)))
+      (cut cons "t/unit/build-runtime" <>)))
 
 (init-build-environment!
  name: "sample-package"

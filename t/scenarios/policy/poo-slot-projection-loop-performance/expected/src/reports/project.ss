@@ -2,34 +2,30 @@
 (import :clan/poo/object)
 
 (def +report-profile+
-  '((id . "orders")
-    (status . "hot")
-    (score . 1)
-    (rows . 8)
-    (columns . 5)
-    (sections . 3)
-    (charts . 2)
-    (filters . 4)
-    (exports . 2)
-    (alerts . 6)
-    (retries . 3)
-    (priority . "high")))
-
-(def +report-slots+
-  '(score rows columns sections charts filters exports alerts retries))
+  (.o id: "orders"
+      status: "hot"
+      score: 1
+      rows: 8
+      columns: 5
+      sections: 3
+      charts: 2
+      filters: 4
+      exports: 2
+      alerts: 6
+      retries: 3
+      priority: "high"))
 
 (def (build-report-profile)
-  (object<-alist +report-profile+))
+  +report-profile+)
 
-(def (sum-values values)
-  (let loop ((values values) (total 0))
-    (if (null? values)
-      total
-      (loop (cdr values) (+ total (car values))))))
+(def (report-slot-total profile)
+  (with-slots (score rows columns sections charts filters exports alerts retries)
+      profile
+    (+ score rows columns sections charts filters exports alerts retries)))
 
 (def (score-report profile limit)
-  (let (values ((.refs/slots +report-slots+) profile))
+  (let (slot-total (report-slot-total profile))
     (let loop ((i 0) (total 0))
       (if (= i limit)
         total
-        (loop (+ i 1) (+ total (sum-values values)))))))
+        (loop (+ i 1) (+ total slot-total))))))

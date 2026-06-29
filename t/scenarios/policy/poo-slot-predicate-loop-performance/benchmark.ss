@@ -30,10 +30,13 @@
  (inputShape . "manual loop repeatedly checking stable slot predicates")
  (expectedRepair
   .
-  "hoist predicate result or predicate closure outside the loop")
+  "keep the stable profile as native .o and hoist predicate result or predicate closure outside the loop")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o remains the profile/config source shape")
  (hotPathExemption . "poo-slot-predicate-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
   "slot-predicate"
   "hoisted-predicate-boundary"
   "benchmark-contract")

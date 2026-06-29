@@ -5,28 +5,32 @@
         :clan/poo/object)
 
 (def +dashboard-profile+
-  '((id . "orders")
-    (score . 0)
-    (last . 0)
-    (rows . 12)
-    (alerts . 3)
-    (priority . 2)))
+  (.o id: "orders"
+      score: 0
+      last: 0
+      rows: 12
+      alerts: 3
+      priority: 2))
 
 (def +event-slots+ '(quantity risk))
 (def +dashboard-slots+ '(score last rows alerts priority))
 (def +event-type+ (MonomorphicObject Integer))
 
 (def (build-dashboard-profile)
-  (object<-alist +dashboard-profile+))
+  +dashboard-profile+)
 
-(def (dashboard-profile-alist/defaults defaults)
-  (let loop ((defaults defaults) (rows +dashboard-profile+))
+(def (dashboard-default-overrides defaults)
+  (let loop ((defaults defaults) (overrides []))
     (if (null? defaults)
-      rows
-      (loop (cdr defaults) (cons (car defaults) rows)))))
+      (reverse overrides)
+      (let (entry (car defaults))
+        (loop (cdr defaults)
+              (cons (cdr entry) (cons (car entry) overrides)))))))
 
 (def (dashboard-profile/defaults defaults)
-  (object<-alist (dashboard-profile-alist/defaults defaults)))
+  (if (null? defaults)
+    +dashboard-profile+
+    (apply .cc +dashboard-profile+ (dashboard-default-overrides defaults))))
 
 (def (event-delta event)
   (let* ((payload (object<-alist event))
@@ -48,9 +52,7 @@
   (let* ((score (car score-state))
          (last (cadr score-state))
          (updated
-          (.mix
-           (.cc profile 'score score)
-           (object<-alist (list (cons 'last last)))))
+          (.cc profile 'score score 'last last))
          (traced (trace-poo updated 'dashboard))
          (ready? ((o?/slots +dashboard-slots+) traced)))
     (if ready?

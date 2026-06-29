@@ -1,0 +1,195 @@
+;;; -*- Gerbil -*-
+;;; Gxtest runner and default smoke target contract tests.
+
+(import :gerbil/gambit
+        :std/test
+        (only-in :std/misc/path path-expand)
+        "../src/testing/gxtest-runner")
+(export gxtest-runner-contract-test)
+
+(def gxtest-runner-contract-test
+  (test-suite "gslph gxtest runner contract"
+    (test-case "gxtest entry files are discovered from default test root"
+      (configure-build-root! (current-directory))
+      (let (files (gxtest-test-files))
+        (check (member "t/policy-test.ss" files) ? true)
+        (check (member "t/parser-test.ss" files) ? true)
+        (check (member "t/project-policy-test.ss" files) => #f)
+        (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
+      (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
+    (test-case "default gxtest files stay on the smoke gate"
+      (configure-build-root! (current-directory))
+      (let (files (default-gxtest-test-files))
+        (check (length files) => 5)
+        (check (member "t/agent-poo-scenario-contract-test.ss" files) ? true)
+        (check (member "t/build-install-test.ss" files) ? true)
+        (check (member "t/package-build-receipt-test.ss" files) => #f)
+        (check (member "t/extensions-test.ss" files) => #f)
+        (check (member "t/gxtest-runner-contract-test.ss" files) => #f)
+        (check (member "t/source-coverage-test.ss" files) => #f)
+        (check (member "t/support-test.ss" files) ? true)
+        (check (member "t/testing-framework-test.ss" files) ? true)
+        (check (member "t/type-validation-facade-test.ss" files) => #f)
+        (check (member "t/types-test.ss" files) => #f)
+        (check (member "t/parser-test.ss" files) => #f)
+        (check (member "t/policy-test.ss" files) => #f)
+        (check (member "t/bench-test.ss" files) => #f)
+        (check (member "t/benchmark-gate-test.ss" files) => #f)
+        (check (member "t/self-apply-test.ss" files) => #f)
+        (check (member "t/snapshot-test.ss" files) => #f)))
+    (test-case "default gxtest selected closure stays on the hot path"
+      (configure-build-root! (current-directory))
+      (let (files (default-gxtest-test-files))
+        (check (<= (length (selected-gxtest-build-source-files files)) 15)
+               => #t)
+        (check (<= (length (selected-gxtest-build-output-files files)) 15)
+               => #t)))
+    (test-case "gxtest build spec stays scoped to top-level test entries"
+      (configure-build-root! (current-directory))
+      (let (stage (gxtest-test-spec))
+        (check (member "policy-test.ss" stage) ? true)
+        (check (member "project-policy-test.ss" stage) => #f)
+        (check (member "policy/agent-build-test.ss" stage) => #f)
+        (check (member "unit/schema/conformance.ss" stage) => #f)
+        (check (member "snapshot/policy.ss" stage) => #f)))
+    (test-case "timing-sensitive gxtest files run outside parallel workers"
+      (let (files ["t/bench-test.ss"
+                   "t/benchmark-gate-test.ss"
+                   "t/agent-poo-scenario-contract-test.ss"
+                   "t/gxtest-runner-contract-test.ss"
+                   "t/policy-test.ss"])
+        (check (serial-gxtest-files files)
+               => ["t/bench-test.ss"
+                   "t/benchmark-gate-test.ss"])
+        (check (parallel-gxtest-files files)
+               => ["t/agent-poo-scenario-contract-test.ss"
+                   "t/gxtest-runner-contract-test.ss"
+                   "t/policy-test.ss"])))
+    (test-case "test phase receipts are machine parseable"
+      (check (test-phase-receipt-line "run-gxtest" 1234)
+             => "[gslph-test-phase] name=run-gxtest elapsedMicros=1234 elapsedMs=1\n"))
+    (test-case "test-file does not compile selected gxtest entries"
+      (check (test-target-compile-selected-gxtest? ["t/build-install-test.ss"])
+             => #f)
+      (check (test-target-compile-selected-gxtest? ["t/benchmark-gate-test.ss"])
+             => #f)
+      (check (test-target-compile-selected-gxtest? ["t/gxtest-runner-contract-test.ss"])
+             => #f))
+    (test-case "source-load gxtest runner derives suite and expression"
+      (configure-build-root! (current-directory))
+      (check (gxtest-file-exported-suite "t/build-install-test.ss")
+             => 'build-install-test)
+      (check (gxtest-source-load-batch-expression ["t/build-install-test.ss"])
+             => "(begin (add-load-path! \".\") (add-load-path! \"src\") (add-load-path! \"t\") (import :std/test) (load \"t/build-install-test.ss\") (run-test-suite! build-install-test))"))
+    (test-case "top-level smoke wrappers expose local suite bindings"
+      (configure-build-root! (current-directory))
+      (check (gxtest-file-local-suite? "t/agent-poo-scenario-contract-test.ss")
+             ? true)
+      (check (gxtest-file-local-suite? "t/testing-framework-test.ss")
+             ? true))
+    (test-case "selected gxtest receipt includes imported test support files"
+      (configure-build-root! (current-directory))
+      (let (sources (selected-gxtest-build-source-files
+                     ["t/policy/agent-poo-guidance-test.ss"]))
+        (check (member (path-expand "t/policy/agent-poo-guidance-test.ss"
+                                    (current-directory))
+                       sources)
+               ? true)
+        (check (member (path-expand "t/policy/agent-poo-guidance-support.ss"
+                                    (current-directory))
+                       sources)
+               ? true)))
+    (test-case "selected gxtest compile target includes imported test support"
+      (configure-build-root! (current-directory))
+      (let (files (gxtest-selected-test-files
+                   ["t/policy/agent-poo-guidance-test.ss"]))
+        (check (member "t/policy/agent-poo-guidance-test.ss" files)
+               ? true)
+        (check (member "t/policy/agent-poo-guidance-support.ss" files)
+               ? true)
+        (check (member "src/policy/agent-style.ss" files)
+               => #f)))
+    (test-case "selected gxtest receipt includes imported source modules"
+      (configure-build-root! (current-directory))
+      (let (sources (selected-gxtest-build-source-files
+                     ["t/extensions-test.ss"]))
+        (check (member (path-expand "t/extensions-test.ss"
+                                    (current-directory))
+                       sources)
+               ? true)
+        (check (member (path-expand "src/extensions/facade.ss"
+                                    (current-directory))
+                       sources)
+               ? true)
+        (check (member (path-expand "src/parser/facade.ss"
+                                    (current-directory))
+                       sources)
+               ? true)))
+    (test-case "parallel gxtest worker count is bounded by file count"
+      (let (workers (test-runner-worker-count 2))
+        (check (>= workers 1) => #t)
+        (check (<= workers 2) => #t)))
+    (test-case "parallel gxtest worker count is loader-bound by cores"
+      (check (gxtest-worker-count/cores 7 8) => 1)
+      (check (gxtest-worker-count/cores 10 8) => 4)
+      (check (gxtest-worker-count/cores 2 8) => 1))
+    (test-case "machine core topology is discoverable"
+      (check (>= (machine-logical-core-count) 1) => #t)
+      (check (>= (machine-performance-core-count) 1) => #t)
+      (check (>= (machine-efficiency-core-count) 0) => #t))
+    (test-case "parallel gxtest batches only merge files beyond worker count"
+      (check (gxtest-batch-label ["t/a-test.ss"
+                                  "t/b-test.ss"
+                                  "t/c-test.ss"])
+             => "t/a-test.ss,+2")
+      (check (gxtest-batches ["t/a-test.ss" "t/b-test.ss"] 4)
+             => [["t/a-test.ss"] ["t/b-test.ss"]])
+      (check (gxtest-batches ["t/a-test.ss"
+                              "t/b-test.ss"
+                              "t/c-test.ss"
+                              "t/d-test.ss"
+                              "t/e-test.ss"]
+                             2)
+             => [["t/a-test.ss" "t/b-test.ss" "t/c-test.ss"]
+                 ["t/d-test.ss" "t/e-test.ss"]]))
+    (test-case "build worker sync exports the effective worker count"
+      (let (saved (getenv "GERBIL_BUILD_CORES" #f))
+        (setenv "GERBIL_BUILD_CORES" "")
+        (let (workers (sync-build-worker-count!))
+          (check (integer? workers) => #t)
+          (check (> workers 0) => #t)
+          (check (getenv "GERBIL_BUILD_CORES" #f)
+                 => (number->string workers)))
+        (if saved
+          (setenv "GERBIL_BUILD_CORES" saved)
+          #!void)))
+    (test-case "default package spec exposes downstream gxtest support"
+      (configure-build-root! (current-directory))
+      (let (stage (compile-spec #f #f #f))
+        (check (member "build-api/source-coverage.ss" stage) ? true)
+        (check (member "build-api/package-receipt.ss" stage) ? true)
+        (check (member "build-api/worker-count.ss" stage) ? true)
+        (check (member "build-api/build-path-contract.ss" stage) ? true)
+        (check (member "benchmark/framework.ss" stage) ? true)
+        (check (member "benchmark/gate.ss" stage) ? true)
+        (check (member "testing/model.ss" stage) ? true)
+        (check (member "testing/framework.ss" stage) ? true)
+        (check (member "testing/gxtest-smoke.ss" stage) ? true)
+        (check (member "testing/gxtest-runner.ss" stage) ? true)
+        (check (member "extensions/poo-source-ref-validation.ss" stage) ? true)
+        (check (member "policy/gxtest.ss" stage) => #f)))
+    (test-case "binary bootstrap spec includes downstream gxtest support"
+      (configure-build-root! (current-directory))
+      (let (stage (compile-spec #f #f #t))
+        (check (member "build-api/source-coverage.ss" stage) ? true)
+        (check (member "build-api/package-receipt.ss" stage) ? true)
+        (check (member "build-api/worker-count.ss" stage) => #f)
+        (check (member "benchmark/framework.ss" stage) ? true)
+        (check (member "benchmark/gate.ss" stage) ? true)
+        (check (member "testing/model.ss" stage) => #f)
+        (check (member "testing/framework.ss" stage) => #f)
+        (check (member "extensions/poo-source-ref-validation.ss" stage) ? true)
+        (check (member "policy/gxtest.ss" stage) ? true)
+        (check (member "policy/gxtest.ss"
+                       (member "build-api/source-coverage.ss" stage))
+               ? true)))))

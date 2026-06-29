@@ -28,10 +28,13 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "loop-local object iteration")
  (inputShape . "manual loop repeatedly iterating a POO object")
- (expectedRepair . "iterate from a boundary snapshot or direct slot access")
+ (expectedRepair . "keep the stable profile as native .o and iterate from one boundary snapshot or direct slot access")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o remains the profile/config source shape")
  (hotPathExemption . "poo-object-iteration-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
   "object-iteration"
   "single-boundary-snapshot"
   "benchmark-contract")

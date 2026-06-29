@@ -11,7 +11,7 @@
 (import :unit/snapshot/policy-support)
 (export macro-controlled-helper-policy-snapshot
         predicate-family-combinator-policy-snapshot
-        build-support-shell-template-policy-snapshot
+        build-runtime-shell-template-policy-snapshot
         package-build-shell-pipeline-policy-snapshot
         package-build-canonical-shape-policy-snapshot
         package-build-std-build-script-policy-snapshot
@@ -79,10 +79,10 @@
                 (list 'r016Findings
                       (map finding-snapshot after-findings))))))
 
-(def (build-support-shell-template-policy-snapshot)
+(def (build-runtime-shell-template-policy-snapshot)
   (build-runtime-quality-policy-snapshot
-   "build-support-shell-template"
-   "t/scenarios/policy/build-support-shell-template"))
+   "build-runtime-shell-template"
+   "t/scenarios/policy/build-runtime-shell-template"))
 
 (def (package-build-shell-pipeline-policy-snapshot)
   (build-runtime-quality-policy-snapshot

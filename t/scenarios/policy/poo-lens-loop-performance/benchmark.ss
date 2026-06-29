@@ -30,10 +30,26 @@
  (inputShape . "manual loop repeatedly applying lens-style POO updates")
  (expectedRepair
   .
-  "accumulate scalar lens target state and apply one final update")
+  "keep the stable profile as native .o, accumulate scalar lens target state, and apply one final native update")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o/.cc remains the optimized POO shape")
+ (optimizerVisibility
+  .
+  "lens-style object updates are reduced to scalar target accumulation and one final native update boundary, keeping repeated slot mutation out of the loop")
+ (expectedQualitySignals
+  "native-.o-source-shape"
+  "single-lens-update-boundary"
+  "scalar-loop-state"
+  "no-loop-local-lens-update")
+ (learnedStyleSources
+  "gerbil://mop.ss#item/def/slot-lens"
+  "gerbil://mop.ss#item/def/Lens"
+  "gerbil://object.ss#item/def/.cc")
  (hotPathExemption . "poo-lens-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
+  "optimizer-visible-poo-hot-path"
   "lens-update"
   "scalar-state-accumulation"
   "benchmark-contract")

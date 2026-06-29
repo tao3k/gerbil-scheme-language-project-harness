@@ -28,10 +28,26 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-028")
  (optimizationFocus . "loop-local clone override")
  (inputShape . "manual loop repeatedly cloning POO state")
- (expectedRepair . "accumulate scalar loop state and apply one final clone")
+ (expectedRepair . "keep the stable profile as native .o, accumulate scalar loop state, and apply one final native clone override")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o/.cc remains the optimized POO shape")
+ (optimizerVisibility
+  .
+  "loop-local .cc is collapsed into scalar accumulation plus one final native .cc boundary, keeping the loop free of repeated object shape cloning")
+ (expectedQualitySignals
+  "native-.o-source-shape"
+  "single-.cc-boundary"
+  "scalar-loop-state"
+  "no-loop-local-clone")
+ (learnedStyleSources
+  "gerbil://object.ss#item/def/.cc"
+  "gerbil://object.ss#item/def/object/init"
+  "gerbil://gerbil/compiler/optimize-call.ss#apply-optimize-call")
  (hotPathExemption . "poo-loop-state-mutation")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
+  "optimizer-visible-poo-hot-path"
   "clone-override"
   "scalar-state-accumulation"
   "benchmark-contract")

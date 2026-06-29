@@ -28,10 +28,26 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-030")
  (optimizationFocus . "loop-local POO composition")
  (inputShape . "manual loop repeatedly composing POO objects")
- (expectedRepair . "accumulate scalar state and apply one final composition")
+ (expectedRepair . "keep the stable profile as native .o, accumulate scalar state, and apply one final native .o overlay composition")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o/.mix remains the optimized POO shape")
+ (optimizerVisibility
+  .
+  "loop-local composition is collapsed into scalar accumulation plus one final native .o/.mix composition boundary, preserving stable supers and direct loop state")
+ (expectedQualitySignals
+  "native-.o-source-shape"
+  "single-composition-boundary"
+  "scalar-loop-state"
+  "no-loop-local-composition")
+ (learnedStyleSources
+  "gerbil://object.ss#item/def/.mix"
+  "gerbil://object.ss#item/def/.extend"
+  "gerbil://object.ss#item/def/object/init")
  (hotPathExemption . "poo-composition-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
+  "optimizer-visible-poo-hot-path"
   "poo-composition"
   "single-boundary-object"
   "benchmark-contract")

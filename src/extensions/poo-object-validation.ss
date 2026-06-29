@@ -7,6 +7,8 @@
 
 (import :gerbil/gambit
         (only-in :std/sugar hash)
+        (only-in :extensions/poo-source-ref-validation
+                 poo-object-source-ref-structural-validation)
         (only-in :types/model
                  parse-type-sexpr
                  type->string)
@@ -15,6 +17,7 @@
                  type-validation-diagnostics))
 
 (export poo-object-type-spec-validation
+        poo-object-source-ref-structural-validation
         poo-object-field-contract-validation
         poo-object-field-contracts-validation
         poo-object-contract-validation
@@ -25,10 +28,6 @@
 
 (def +poo-object-field-merge-kinds+
   '(override append prepend remove node-extend node-remove))
-
-(def +poo-object-source-ref-slots+
-  '(kind manager dependency repository localSource repositorySource
-         indexHint pathPolicy selectorScheme))
 
 ;; : (-> Dyn String)
 ;;; Boundary: diagnostics must preserve the original datum spelling without
@@ -160,30 +159,6 @@
       (field-contract-ref field 'id)
       (field-contract-ref field 'identity)
       'unknown-field))
-
-;; : (-> SourceRef Slot (List Diagnostic))
-(def (poo-object-source-ref-slot-diagnostic source-ref slot)
-  (if (hash-get source-ref slot)
-    []
-    [(string-append "sourceRef:missing:" (symbol->string slot))]))
-
-;; : (-> SourceRef Json)
-;;; Boundary: object-contract runtime validation needs only source-ref shape
-;;; evidence. Agent-facing POO pattern registries stay out of downstream package
-;;; installs, while the packet shape remains stable for consumers.
-(def (poo-object-source-ref-structural-validation source-ref)
-  (let (diagnostics
-        (append-lists
-         (map (lambda (slot)
-                (poo-object-source-ref-slot-diagnostic source-ref slot))
-              +poo-object-source-ref-slots+)))
-    (hash (kind "poo-pattern-structural-validation")
-          (schema "poo-pattern-evidence/v1")
-          (patternKind "type-validation")
-          (valid (not (pair? diagnostics)))
-          (diagnostics diagnostics)
-          (checkedSignals
-           ["source-ref-shape"]))))
 
 ;; : (-> Dyn Dyn Dyn Json)
 ;;; Boundary: this is the single-field adapter between POO structural evidence

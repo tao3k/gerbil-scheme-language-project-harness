@@ -153,6 +153,10 @@
          (policy-scenario-benchmark-value datum 'inputShape #f))
         (expectedRepair
          (policy-scenario-benchmark-value datum 'expectedRepair #f))
+        (nativePooPrimary
+         (policy-scenario-benchmark-value datum 'nativePooPrimary #f))
+        (adapterBoundary
+         (policy-scenario-benchmark-value datum 'adapterBoundary #f))
         (expectedReferencePattern
          (policy-scenario-benchmark-value datum 'expectedReferencePattern #f))
         (expectedReferenceExamples

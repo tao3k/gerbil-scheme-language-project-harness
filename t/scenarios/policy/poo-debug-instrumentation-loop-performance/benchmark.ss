@@ -28,10 +28,13 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-035")
  (optimizationFocus . "loop-local debug instrumentation")
  (inputShape . "manual loop repeatedly wrapping trace-poo instrumentation")
- (expectedRepair . "hoist trace-poo outside the loop")
+ (expectedRepair . "keep the stable profile as native .o and hoist trace-poo outside the loop")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o remains the profile/config source shape")
  (hotPathExemption . "debug-instrumentation-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
   "debug-wrapper"
   "hoisted-setup-boundary"
   "benchmark-contract")

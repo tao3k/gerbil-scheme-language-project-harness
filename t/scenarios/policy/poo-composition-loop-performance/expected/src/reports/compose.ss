@@ -2,21 +2,21 @@
 (import :clan/poo/object)
 
 (def +report-profile+
-  '((id . "orders")
-    (status . "hot")
-    (score . 0)
-    (rows . 8)
-    (columns . 5)
-    (sections . 3)
-    (charts . 2)
-    (filters . 4)
-    (exports . 2)
-    (alerts . 6)
-    (retries . 3)
-    (priority . "high")))
+  (.o id: "orders"
+      status: "hot"
+      score: 0
+      rows: 8
+      columns: 5
+      sections: 3
+      charts: 2
+      filters: 4
+      exports: 2
+      alerts: 6
+      retries: 3
+      priority: "high"))
 
 (def (build-report-profile)
-  (object<-alist +report-profile+))
+  +report-profile+)
 
 (def (score-report profile limit)
   (let (score
@@ -24,4 +24,4 @@
           (if (= i limit)
             score
             (loop (+ i 1) i))))
-    (.mix profile (object<-alist (list (cons 'score score))))))
+    (.mix profile (.o score: score))))

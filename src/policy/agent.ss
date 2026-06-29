@@ -8,7 +8,7 @@
         :policy/agent-alist-access
         :policy/agent-anonymous-pair
         :policy/agent-build
-        :policy/agent-build-support
+        :policy/agent-build-runtime
         :policy/agent-comment
         :policy/agent-dependency-adapter
         :policy/agent-import

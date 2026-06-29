@@ -2,19 +2,10 @@
 ;;; Gerbil scheme harness agent POO policy support.
 
 (import :gerbil/gambit
-        :std/test
-        :std/misc/ports
-        :std/misc/process
-        (only-in :std/text/json read-json)
-        :commands/check
         :parser/facade
-        :policy/facade
-        :policy/gxtest
         :scenario/policy
         (only-in :support/time duration-literal->nanos)
-        :types/facade
-        :unit/policy/poo-scenarios
-        :policy/fixtures)
+        :types/facade)
 (export #t)
 
 
@@ -65,6 +56,7 @@
     "poo-function-type-construction-loop-performance"
     "poo-integer-range-type-construction-loop-performance"
     "poo-lens-loop-performance"
+    "poo-marlin-config-interface-large-object-performance"
     "poo-materialization-loop-performance"
     "poo-object-construction-loop-performance"
     "poo-object-iteration-loop-performance"
@@ -84,6 +76,119 @@
     "GERBIL-SCHEME-AGENT-POLICY-033"
     "GERBIL-SCHEME-AGENT-POLICY-035"
     "GERBIL-SCHEME-AGENT-POLICY-037"))
+
+(def +poo-native-primary-scenario-ids+
+  '("poo-clone-override-loop-performance"
+    "poo-composition-loop-performance"
+    "poo-construction-performance"
+    "poo-debug-instrumentation-loop-performance"
+    "poo-lens-loop-performance"
+    "poo-marlin-config-interface-large-object-performance"
+    "poo-materialization-loop-performance"
+    "poo-object-construction-loop-performance"
+    "poo-object-iteration-loop-performance"
+    "poo-real-dashboard-workflow-performance"
+    "poo-slot-predicate-loop-performance"
+    "poo-slot-projection-loop-performance"
+    "poo-slot-spec-mutation-loop-performance"
+    "poo-validation-loop-performance"))
+
+(def +poo-native-source-markers+
+  '("(.o" "(.cc" "(.get" "(.ref" "(.mix" "(defpoo" "(defclass" "(defgeneric"))
+
+(def +poo-adapter-construction-markers+
+  '("(object<-alist (list"
+    "(object<-alist\n   (list"
+    "(object<-hash (list"
+    "(object<-hash\n   (list"
+    "(object<-fun (lambda"
+    "(object<-fun\n   (lambda"))
+
+;; : (-> String (List String) Boolean )
+(def (string-list-member? value values)
+  (cond
+   ((null? values) #f)
+   ((equal? value (car values)) #t)
+   (else (string-list-member? value (cdr values)))))
+
+;; : (-> String String Boolean )
+(def (string-contains-fragment? text fragment)
+  (let ((text-length (string-length text))
+        (fragment-length (string-length fragment)))
+    (cond
+     ((zero? fragment-length) #t)
+     ((< text-length fragment-length) #f)
+     (else
+      (let loop ((offset 0))
+        (cond
+         ((> (+ offset fragment-length) text-length) #f)
+         ((string=? (substring text offset (+ offset fragment-length))
+                    fragment)
+          #t)
+         (else (loop (+ offset 1)))))))))
+
+;; : (-> String (List String) Boolean )
+(def (string-contains-any-fragment? text fragments)
+  (cond
+   ((null? fragments) #f)
+   ((string-contains-fragment? text (car fragments)) #t)
+   (else (string-contains-any-fragment? text (cdr fragments)))))
+
+;; : (-> Path Boolean )
+(def (policy-source-directory? path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda () (eq? (file-type path) 'directory))))
+
+;; : (-> String Boolean )
+(def (policy-source-directory-entry? entry)
+  (not (or (equal? entry ".")
+           (equal? entry ".."))))
+
+;; : (-> String String Boolean )
+(def (string-suffix-fragment? text suffix)
+  (let ((text-length (string-length text))
+        (suffix-length (string-length suffix)))
+    (and (>= text-length suffix-length)
+         (string=? (substring text
+                              (- text-length suffix-length)
+                              text-length)
+                   suffix))))
+
+;; : (-> Path (List Path) )
+(def (policy-source-files root)
+  (let (paths [])
+    (def (walk dir)
+      (for-each
+       (lambda (entry)
+         (let (path (path-expand entry dir))
+           (cond
+            ((not (policy-source-directory-entry? entry))
+             #!void)
+            ((policy-source-directory? path)
+             (walk path))
+            ((string-suffix-fragment? entry ".ss")
+             (set! paths (cons path paths)))
+            (else #!void))))
+       (directory-files dir)))
+    (walk root)
+    (reverse paths)))
+
+;; : (-> Path String )
+(def (read-policy-source-file path)
+  (call-with-input-file path
+    (lambda (port)
+      (let loop ((lines []))
+        (let (line (read-line port))
+          (if (eof-object? line)
+            (apply string-append (reverse lines))
+            (loop (cons (string-append line "\n") lines))))))))
+
+;; : (-> Path String )
+(def (policy-source-tree-text root)
+  (apply string-append
+         (map read-policy-source-file
+              (policy-source-files root))))
 
 ;; : (-> PolicyScenarioResult Symbol (List String) (List TypeFinding) )
 (def (policy-scenario-findings/rules result phase rule-ids)
@@ -134,6 +239,55 @@
    (else
     (cons (car scenario-ids)
           (poo-performance-scenarios-missing-hot-path-exemptions
+           (cdr scenario-ids))))))
+
+;; : (-> BenchmarkContract Boolean )
+(def (poo-performance-scenario-native-poo-primary? contract)
+  (and (hash-get contract 'nativePooPrimary)
+       (string-list-member?
+        "native-poo-primary"
+        (hash-get contract 'hotPathEvidence))))
+
+;; : (-> (List String) (List String) )
+(def (poo-performance-scenarios-missing-native-poo-primary scenario-ids)
+  (cond
+   ((null? scenario-ids) [])
+   ((poo-performance-scenario-native-poo-primary?
+     (poo-performance-scenario-benchmark-contract (car scenario-ids)))
+    (poo-performance-scenarios-missing-native-poo-primary
+     (cdr scenario-ids)))
+   (else
+    (cons (car scenario-ids)
+          (poo-performance-scenarios-missing-native-poo-primary
+           (cdr scenario-ids))))))
+
+;; : (-> String Boolean )
+(def (poo-performance-scenario-native-source-complete? scenario-id)
+  (let* ((scenario
+          (make-policy-scenario
+           scenario-id
+           (string-append "t/scenarios/policy/" scenario-id)))
+         (contract (poo-performance-scenario-benchmark-contract scenario-id))
+         (source-text
+          (policy-source-tree-text
+           (policy-scenario-expected-root scenario))))
+    (and (string-contains-any-fragment?
+          source-text
+          +poo-native-source-markers+)
+         (or (hash-get contract 'adapterBoundary)
+             (not (string-contains-any-fragment?
+                   source-text
+                   +poo-adapter-construction-markers+))))))
+
+;; : (-> (List String) (List String) )
+(def (poo-performance-scenarios-missing-native-source scenario-ids)
+  (cond
+   ((null? scenario-ids) [])
+   ((poo-performance-scenario-native-source-complete? (car scenario-ids))
+    (poo-performance-scenarios-missing-native-source (cdr scenario-ids)))
+   (else
+    (cons (car scenario-ids)
+          (poo-performance-scenarios-missing-native-source
            (cdr scenario-ids))))))
 
 ;; PolicyTest

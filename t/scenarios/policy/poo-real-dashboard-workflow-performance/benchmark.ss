@@ -37,10 +37,13 @@
   "agent-style loop mixes object construction, validation, projection, predicates, clone overrides, composition, debug tracing, and materialization")
  (expectedRepair
   .
-  "use POO APIs at ingestion/materialization/update boundaries, project events to scalar deltas first, and keep the hot scoring loop scalar-only")
+  "keep dashboard config as native .o, use adapters only at external ingestion/materialization boundaries, project events to scalar deltas first, and keep the hot scoring loop scalar-only")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "external event alists may be adapted at ingestion; profile/config/update paths stay native .o/.cc")
  (hotPathExemption . "poo-boundary-api-workflow")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
   "poo-api-boundary"
   "scalar-state-accumulation"
   "multi-rule-performance"

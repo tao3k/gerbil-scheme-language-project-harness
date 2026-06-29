@@ -28,10 +28,26 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-031")
  (optimizationFocus . "loop-local validation")
  (inputShape . "manual loop repeatedly validating the same POO shape")
- (expectedRepair . "validate once outside the loop")
+ (expectedRepair . "keep the stable profile as native .o and validate once outside the loop")
+ (nativePooPrimary . #t)
+ (adapterBoundary . "adapters are only for external data boundaries; native .o remains the typed profile shape")
+ (optimizerVisibility
+  .
+  "stable POO validation is performed once at the checked boundary, leaving the loop with a validated native object and scalar state")
+ (expectedQualitySignals
+  "single-validation-boundary"
+  "validated-native-object"
+  "scalar-loop-state"
+  "no-loop-local-validation")
+ (learnedStyleSources
+  "gerbil://mop.ss#item/def/MonomorphicObject"
+  "gerbil://mop.ss#item/def/validate"
+  "gerbil://gerbil/core/contract.ss#using-class-interface-boundary")
  (hotPathExemption . "poo-validation-hot-loop")
  (hotPathEvidence
   "manual-loop"
+  "native-poo-primary"
+  "optimizer-visible-poo-hot-path"
   "validation"
   "single-boundary-check"
   "benchmark-contract")

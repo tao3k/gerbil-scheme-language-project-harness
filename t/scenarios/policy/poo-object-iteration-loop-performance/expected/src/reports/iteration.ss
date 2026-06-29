@@ -2,19 +2,19 @@
 (import :clan/poo/object)
 
 (def +report-profile+
-  '((score . 1)
-    (rows . 8)
-    (columns . 5)
-    (sections . 3)
-    (charts . 2)
-    (filters . 4)
-    (exports . 2)
-    (alerts . 6)
-    (retries . 3)
-    (priority . 7)))
+  (.o score: 1
+      rows: 8
+      columns: 5
+      sections: 3
+      charts: 2
+      filters: 4
+      exports: 2
+      alerts: 6
+      retries: 3
+      priority: 7))
 
 (def (build-report-profile)
-  (object<-alist +report-profile+))
+  +report-profile+)
 
 (def (sum-report-profile entries)
   (let loop ((entries entries) (total 0))

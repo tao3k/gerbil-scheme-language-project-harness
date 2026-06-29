@@ -1,0 +1,135 @@
+* Purpose
+The Gerbil Scheme harness testing framework is a user-layer improvement over raw =std/make=, =std/building=, and =gxtest= entrypoints. It keeps the upstream build/test system as the execution owner, but gives downstream projects a single POO-shaped model for declaring suites, file expansion, batch execution, receipts, and gates.
+
+=benchmark.ss= remains the canonical performance contract format. It is a gate fixture under the testing framework, not the framework itself.
+
+* Why This Improves The Upstream Build System
+The upstream Gerbil build system already owns compilation, dependency tracking, module loading, and =gxtest= execution. The harness must not replace those responsibilities. Its improvement is a user-layer contract around the upstream system:
+- selection: turn no args, explicit files, suite roots, and scenario ids into a precise test scope
+- scheduling: split ordinary tests from timing-sensitive gates and choose safe serial or parallel execution
+- receipts: expose machine-readable phase, batch, suite, and project results
+- gates: attach =benchmark.ss= and policy checks to the same selected test flow
+- portability: let downstream =build.ss= files declare project shape instead of copying shell scripts, directory walkers, or ad hoc timers
+
+This is the same improvement pattern used by =poo-flow=: keep the low-level runner simple, but provide a user-facing layer that validates inputs, expands manifests, batches work, and emits receipts. The harness version must be a library API rather than a CLI-only helper so =poo-flow=, =marlin-agent-core=, and other downstream Gerbil projects can consume it from their normal =build.ss= targets.
+
+* Library Boundary
+The reusable downstream API lives in:
+- =src/testing/model.ss=
+- =src/testing/framework.ss=
+- =src/benchmark/gate.ss=
+- =src/benchmark/framework.ss=
+
+The testing model intentionally follows the user-interface shape learned from =poo-flow=: declare a project once, let the framework expand manifests and selected files, run batches through the native gxtest/build entrypoint, and emit machine-readable receipts.
+
+The testing model must not stay at a thin file-runner helper. Policy scenarios, benchmark gates, and native POO source contracts are suites and gates in the same project model. A downstream build target should declare the project shape once, then let the framework decide whether a suite is a normal gxtest manifest suite or a scenario suite with policy and benchmark contracts.
+
+The design boundary is:
+- model modules declare projects, suites, gates, receipts, and downstream POO projections
+- framework modules expand scopes, select suites, batch work, run adapters, and assemble receipts
+- build support modules bridge this library model into =std/make=, =std/building=, and =gxtest=
+- benchmark modules own =benchmark.ss= parsing, timing, memory fields, and gate receipts
+
+Downstream projects should not need to know which internal file walker, benchmark helper, or subprocess runner is used.
+
+* POO-Shaped User Interface
+Downstream projects should be able to declare testing like this:
+
+#+begin_src scheme
+(def +testing+
+  (testing-project
+   name: "poo-flow"
+   suites:
+   [(gxtest-suite
+     name: "unit"
+     default-root: "t/unit-tests.ss"
+     roots: ["t/unit-tests.ss"
+             "t/contract-tests.ss"
+             "t/integration-tests.ss"]
+     batch-size: 4
+     gates:
+     [(performance-gate
+       name: "unit-performance"
+       contract-root: "t/benchmarks/unit")])]))
+#+end_src
+
+Native POO syntax can project into this model; the contract boundary is the field shape, not a separate shell command. When the harness cannot directly import the downstream POO module, pass the source object and the downstream slot reader into the testing projection instead of flattening the object into an alist-first API.
+
+Policy scenarios use the same model:
+
+#+begin_src scheme
+(def +testing+
+  (testing-project
+   name: "gerbil-harness"
+   suites:
+   [(gxtest-suite
+     name: "unit"
+     default-root: "t/unit-tests.ss"
+     batch-size: 4)
+    (policy-scenario-suite
+     name: "policy-scenarios"
+     root: "t/scenarios/policy"
+     scenario-ids: ["poo-construction-performance"
+                    "poo-marlin-config-interface-large-object-performance"]
+     runner: policy-scenario-run/checks
+     gates:
+     [(performance-gate
+       name: "poo-scenario-contract"
+       contract-root: "t/benchmarks/poo-scenario-contract")])]))
+#+end_src
+
+This is the migration target for existing =t/scenarios/policy/*= fixtures: scenario metadata, benchmark receipts, and policy checks should be managed through the testing project/suite API instead of scattered hand-written test loops.
+Scenario execution is an explicit downstream dependency. The core testing framework does not import the policy scenario engine by default; projects that want policy scenario checks import their scenario runner and pass it through =runner:=. This keeps ordinary =gxtest= suites from paying policy-engine load cost.
+
+* Incremental Selection Contract
+Incremental testing is not a separate command. It is a scope-selection rule on the same project model:
+- empty args select every declared suite
+- a declared gxtest root selects that gxtest suite and expands its manifest
+- an explicit =.ss= file selects only the gxtest suite whose roots or default expansion contain that file
+- a declared scenario root selects that scenario suite
+- a declared scenario id selects the scenario suite and expands only that scenario
+- an unknown scope returns a failed project receipt with a reason instead of silently passing
+
+This keeps the downstream interface small while preserving flexibility. A downstream build target can pass through selected file paths from =gxtest=, changed-file hooks, or CI shard inputs without creating a second policy pass over the whole project.
+
+* Performance Design
+The framework should optimize the hot path that it owns:
+- cache scenario fixture metadata and expected source text inside one test process when several gates inspect the same scenario
+- keep benchmark-sensitive tests process-isolated while ordinary suites remain parallel and batchable
+- emit phase receipts so slowdowns can be assigned to selection, compile/load, fixture collection, policy evaluation, assertion rendering, or subprocess execution
+- keep full-project collection behind explicit full scopes, never as the default behavior for a selected file
+- preserve native POO source shapes and optimize runner mechanics underneath
+
+The performance gate belongs to the measured phase. A subsecond policy gate is valid when it measures fixture/policy work. A broader integration gate is valid only when it labels the integration scope explicitly.
+
+* Performance Gate API
+- =benchmark-contract-read/root= loads a fixture from a benchmark root.
+- =benchmark-contract-valid/root?= checks the shared fixture contract.
+- =benchmark-contract-run/root= runs a thunk and returns a machine-readable receipt.
+- =benchmark-contract-paths/root= discovers nested =benchmark.ss= fixtures.
+- =benchmark-contract-input-expected-pass?= checks scenario fixture shape.
+
+Downstream projects such as =poo-flow= and =marlin-agent-core= should consume these APIs through their normal gxtest/build targets instead of duplicating shell timers, directory walkers, or ad hoc max-time constants.
+
+* Build-System Rule
+Keep Gerbil build targets aligned with upstream =std/make= and =std/building=. Benchmark gates are test-library contracts, not separate shell test passes. The normal gxtest entry should run the semantic assertion and the benchmark receipt gate in the same test flow, so a project does not test the same source tree twice.
+
+* Fixture Rule
+Every performance-sensitive scenario needs a =benchmark.ss= fixture with:
+- time limits and observed timing baselines
+- memory metric fields
+- measurement phases
+- feature, rule, purpose, input shape, and expected repair metadata
+
+Subsecond targets are valid and expected for hot policy checks. Integration gates may use looser limits, but that integration scope must be explicit in the fixture metadata.
+
+* Runner Optimization Rule
+Whole =gxtest= wall time is not a policy performance receipt. The framework should first separate source-runner import/expand cost from fixture collection and policy execution.
+
+The POO guidance test field receipt showed that scenario collect/policy work was subsecond while source-file =gxtest= execution still took tens of seconds. The framework response is:
+- keep guidance support modules light and intent-specific
+- run POO guidance assertions through a scoped policy runner
+- classify benchmark-sensitive tests by scanning imported test modules for benchmark gate APIs
+- keep benchmark gate suites process-isolated; serial execution alone is not enough when =gxtest= prepares multiple suites in one process
+- batch only non-sensitive =gxtest= files when the file count exceeds the worker count
+- leave compiled-module execution as the next explicit optimization lane, not an accidental side effect of compiling selected test files

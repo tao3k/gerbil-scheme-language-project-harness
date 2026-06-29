@@ -1,0 +1,27 @@
+;;; -*- Gerbil -*-
+;;; Default gxtest smoke suite for the Gerbil language harness.
+
+(import "./model")
+
+(export gslph-default-gxtest-smoke-suite
+        gslph-default-gxtest-smoke-files)
+
+(def +gslph-default-gxtest-smoke-files+
+  '("t/agent-poo-scenario-contract-test.ss"
+    "t/build-install-test.ss"
+    "t/poo-object-validation-test.ss"
+    "t/support-test.ss"
+    "t/testing-framework-test.ss"))
+
+(def (gslph-default-gxtest-smoke-files)
+  +gslph-default-gxtest-smoke-files+)
+
+(def (gslph-default-gxtest-smoke-suite)
+  (gxtest-suite
+   name: "default-smoke"
+   roots: ["t"]
+   files: +gslph-default-gxtest-smoke-files+
+   batch-size: 1
+   max-selected-files: 5
+   max-selected-sources: 15
+   max-selected-outputs: 15))

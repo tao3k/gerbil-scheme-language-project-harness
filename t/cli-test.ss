@@ -5,7 +5,7 @@
         :std/test
         (only-in :std/srfi/13 string-contains)
         (only-in :std/sugar ormap)
-        "../build-support/gslph-build"
+        "../src/build-api/native-build"
         (only-in :cli-launcher provider-command-line-args)
         (only-in :commands/agent agent-main))
 (export cli-test)

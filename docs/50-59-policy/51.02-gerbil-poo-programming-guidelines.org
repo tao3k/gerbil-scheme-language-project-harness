@@ -19,7 +19,30 @@ The reference source is =.data/gerbil-poo=.
 - =t/object-test.ss= and =t/mop-test.ss= show the concrete syntax agents should
   learn: ={(:: @ super) slot: ...}=, =>=, =>.+=, =?=, and =.mix=.
 
+- =object.ss:149-151= implements =object<-alist= by converting each pair into a constant slot spec before calling =make-object=. This is an external alist adapter, not the preferred declaration form for stable config/profile objects.
+- =object.ss:128-131= and =object.ss:414-416= show that =.get= expands into recursive =.ref= calls, and =.ref= resolves through the object instance hash. Repeated projection groups should be bound once or batched.
+- =object.ss:390-401= implements =.o= as both expression syntax and match syntax; the match side expands through =o?/slots= and =.refs/slots=.
+- =object.ss:204-218= exposes =(.refs/slots slots)= as the lower-level batch projection helper behind slot predicates and match-style projections.
+- =object.ss:356-368= implements =with-slots= and =def-slots= by binding named slots through =.@=. Fixed local slot sets should use this native binding form instead of materializing a dynamic projection list.
 The harness should teach those shapes before it warns about drift.
+
+** 51.02.1.1 Optimizer-Visible POO Shape
+
+POO optimization should use Gerbil and Gambit language features instead of
+rewriting native POO into ad hoc data structures. The repair target is code the
+compiler can see clearly:
+
+- fixed slot sets become lexical bindings with =with-slots=,
+- compact config specs use =lambda-match= or local destructuring helpers,
+- stable object declarations stay as named native =.o= values,
+- full-object materialization happens once at a boundary,
+- hot loops carry scalar/list/hash state rather than repeated POO construction,
+  projection, or traversal.
+
+This is the same principle as the non-POO optimizer scenarios: make the checked
+public boundary explicit, then keep the internal hot path direct, lexical, and
+small. POO policy should therefore prefer optimizer-visible native POO over both
+basic generated Scheme scaffolding and adapter-heavy rewrites.
 
 ** 51.02.2 Positive Shape
 
@@ -52,6 +75,83 @@ inside one POO shape:
 - =>.+= merges nested object/prototype fragments.
 - =.mix= materializes an instance when the prototype should be instantiated.
 
+Large configuration, profile, and schema objects keep the same rule. The
+performance shape is not to rewrite native POO into =object<-alist= or a hash.
+Name the stable native =.o= shape once, compose a small native overlay at the
+boundary for genuinely dynamic slots, and keep hot loops in scalar state after
+capturing needed slots outside the loop:
+#+begin_src scheme
+(def +profile-shape+
+  (.o kind: "marlin.config-interface.loop-policy.profile-projection-module.v1"
+      profile-id: "default"
+      loop-limit: 100
+      timeout-ms: 5000))
+
+(def (build-profile module-id-value)
+  (.mix +profile-shape+
+        (.o module-id: module-id-value)))
+
+(def (profile-budget profile rows)
+  (let ((loop-limit (.ref profile 'loop-limit))
+        (timeout-ms (.ref profile 'timeout-ms)))
+    (let loop ((rest rows) (count 0) (budget 0))
+      (if (or (null? rest) (>= count loop-limit))
+        budget
+        (loop (cdr rest) (+ count 1) (+ budget timeout-ms))))))
+#+end_src
+This keeps the object shape native and inspectable while avoiding repeated slot
+resolution, repeated composition, or repeated object construction inside the
+loop.
+When the slot set is static in one local computation, bind the slots with
+=with-slots= and reduce scalar state once. Use =.refs/slots= only when the slot
+names are dynamic or the projection itself is the boundary protocol:
+#+begin_src scheme
+(def (profile-slot-total profile)
+  (with-slots (loop-limit timeout-ms retry-budget priority-weight)
+      profile
+    (+ loop-limit timeout-ms retry-budget priority-weight)))
+
+(def (profile-budget profile rows)
+  (let (slot-total (profile-slot-total profile))
+    (let loop ((rest rows) (budget 0))
+      (if (null? rest)
+        budget
+        (loop (cdr rest) (+ budget slot-total))))))
+#+end_src
+For large config-interface objects that need a boundary metadata projection, prefer a native =.o= match pattern over repeated =.get= calls:
+#+begin_src scheme
+(def (loop-pattern config)
+  (let (loops-policy (UserInterfaceMarlinLoopsPolicy config))
+    (match loops-policy
+      ((.o loop-name: loop-name-value
+           summary: summary-value
+           workspace-root: workspace-root-value
+           budget: budget-value
+           isolation: isolation-value
+           maker: maker-value
+           checker: checker-value
+           level: level-value
+           priority: priority-value
+           source: source-value
+           control-plane-owner: control-plane-owner-value
+           owner: owner-value)
+       (make-loop-pattern-descriptor
+        loop-name-value
+        summary-value
+        `((level . ,level-value)
+          (priority . ,priority-value)
+          (watched-scope . (,workspace-root-value))
+          (budget . ,budget-value)
+          (isolation . ,isolation-value)
+          (maker . ,maker-value)
+          (checker . ,checker-value)
+          (metadata .
+                    ((acting_on . ,workspace-root-value)
+                     (source . ,source-value)
+                     (module-system . ,control-plane-owner-value)
+                     (policy-owner . ,owner-value)))))))))
+#+end_src
+This is the native POO projection idiom for a stable object crossing into an alist-style boundary payload: keep the source object as =.o= and let the =.o= match pattern express the projection. Use =.refs/slots= directly only when a lower-level batch projection function is needed.
 ** 51.02.3 Allowed Boundary Reads
 
 =.ref=, =.@=, and =.get= are valid POO APIs. The harness must not teach agents

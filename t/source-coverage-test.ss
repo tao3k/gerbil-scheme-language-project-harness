@@ -1,0 +1,31 @@
+;;; -*- Gerbil -*-
+;;; Source coverage declaration contract tests.
+
+(import :std/test
+        "../src/build-api/source-coverage"
+        "../src/build-api/build-path-contract")
+(export source-coverage-test)
+
+(def source-coverage-test
+  (test-suite "gslph source coverage contract"
+    (test-case "source coverage files follow the build declaration"
+      (configure-build-root! (current-directory))
+      (gslph-source-coverage
+       roots: '("src" "t")
+       runtime-roots: '("src")
+       exclude-directories: '("scenarios" "snapshots"))
+      (let (files (gslph-source-coverage-files (current-directory)))
+        (check (member "t/policy-test.ss" files) ? true)
+        (check (member "t/policy/agent-source-scope-test.ss" files) ? true)
+        (check (member "src/policy/gxtest.ss" files) ? true)
+        (check (member "src/build-api/native-build.ss" files) ? true)))
+    (test-case "source coverage declaration keeps runtime roots and excludes"
+      (configure-build-root! (current-directory))
+      (gslph-source-coverage
+       roots: '("src" "t")
+       runtime-roots: '("src")
+       exclude-directories: '("fixtures"))
+      (check (gslph-source-coverage-roots) => '("src" "t"))
+      (check (gslph-source-coverage-runtime-roots) => '("src"))
+      (check (gslph-source-coverage-exclude-directories)
+             => '("fixtures")))))

@@ -2,7 +2,10 @@
 ;;; Arity checks over parser-owned call facts and native type signatures.
 
 (import :checker/model
-        :parser/facade
+        :parser/model
+        (only-in :parser/selectors
+                 call-fact-selector
+                 project-calls)
         (only-in :std/sugar cut filter-map)
         :types/findings
         :types/model

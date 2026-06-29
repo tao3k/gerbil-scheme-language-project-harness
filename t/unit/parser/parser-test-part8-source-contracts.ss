@@ -18,8 +18,10 @@
 (test-case "source path class owns build policy scope"
           (check (source-path-class "gerbil.pkg") => "config")
           (check (source-path-class "build.ss") => "package-build")
-          (check (source-path-class "build-support/provider-cli.ss")
-                 => "build-support-runtime")
+          (check (source-path-class "src/build-api/native-build.ss")
+                 => "build-runtime")
+          (check (source-path-class "src/testing/gxtest-runner.ss")
+                 => "build-runtime")
           (check (source-path-class "t/scenarios/policy/functional-idiom/input/src/orders/core.ss")
                  => "policy-scenario")
           (check (source-path-class "t/fixtures/parser/raw.ss") => "fixture")

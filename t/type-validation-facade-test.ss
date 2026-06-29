@@ -2,7 +2,35 @@
 ;;; Tests for downstream-facing TypeSpec validation exports.
 
 (import :std/test
-        :gslph/src/types/facade)
+        (only-in :gslph/src/types/model
+                 make-type-unknown
+                 make-type-any
+                 make-type-base
+                 make-type-variable
+                 make-type-pair
+                 make-type-list
+                 make-type-vector
+                 make-type-maybe
+                 make-type-hash
+                 make-type-values
+                 make-type-refine
+                 make-type-application
+                 make-type-literal-symbol
+                 make-type-function
+                 make-type-keyword-parameter
+                 make-type-function-variadic
+                 make-type-union
+                 make-type-record
+                 type-kind
+                 parse-type-contract)
+        (only-in :gslph/src/types/validation
+                 type-validation-diagnostic-code
+                 type-validation-diagnostic-path
+                 type-validation-diagnostic-category
+                 type-validation-diagnostic-message
+                 type-validation-diagnostic-facts
+                 type-validation-diagnostics
+                 type-spec-valid?))
 
 (export type-validation-facade-test)
 

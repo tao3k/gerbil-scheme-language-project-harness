@@ -22,4 +22,15 @@
   (let loop ((i 0) (total 0))
     (if (= i limit)
       total
-      (loop (+ i 1) (+ total (length (.alist/sort profile)))))))
+      (let ((alist-snapshot (.alist/sort profile))
+            (slot-list (.all-slots profile))
+            (sorted-slot-list (.all-slots/sort profile))
+            (hash-snapshot (hash<-object profile))
+            (forced-profile (force-object profile)))
+        (loop (+ i 1)
+              (+ total
+                 (length alist-snapshot)
+                 (length slot-list)
+                 (length sorted-slot-list)
+                 (hash-ref hash-snapshot 'score)
+                 (.ref forced-profile 'score)))))))

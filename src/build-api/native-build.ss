@@ -1,18 +1,18 @@
 ;;; -*- Gerbil -*-
+;;; Build runtime API for the asp gerbil-scheme package.
 ;;; Build support for the gslph package.
 
 (import (only-in :std/make make)
-        (only-in :std/misc/path directory-files path-directory path-expand path-normalize path-strip-directory)
+        (only-in :std/misc/path path-directory path-expand path-normalize path-strip-directory)
         (only-in :std/misc/process run-process)
-        (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-prefix? string-suffix? string-tokenize)
+        (only-in :std/srfi/13 string-suffix? string-tokenize)
         (only-in :clan/building all-gerbil-modules)
         (only-in :gerbil/tools/env setup-local-pkg-env!)
-        "../src/build-api/source-coverage"
-        "./gslph-package-spec"
-        (only-in "./gslph-worker-count" build-worker-count sync-build-worker-count!)
-        (only-in "./gslph-install-static-modules" cli-install-static-modules)
-        (only-in "../src/support/time" monotonic-micros duration-micros)
+        "./source-coverage"
+        "./package-receipt"
+        "./package-spec"
+        (only-in "./worker-count" build-worker-count sync-build-worker-count!)
+        (only-in "./install-static-modules" cli-install-static-modules)
         :gerbil/gambit)
 (export clean-target
         compile-target
@@ -20,24 +20,21 @@
         compile-spec
         cli-binary-build-spec
         configure-build-root!
-        default-gxtest-test-files
         dev-launcher-binpath
-        gxtest-test-spec
-        gxtest-test-files
         install-launcher-binpath
-        parallel-gxtest-files
-        serial-gxtest-files
+        package-api-build-current?
+        package-api-build-output-files
+        package-api-build-receipt-path
+        package-api-build-receipt-status
+        package-api-build-source-files
         build-worker-count
+        compile-package-api-if-stale
         sync-build-worker-count!
-        test-phase-receipt-line
-        test-runner-worker-count
-        test-full-target
-        test-target
+        write-package-api-build-receipt!
         package-build-spec)
 
 (def package-root #f)
 (def source-root #f)
-(def test-root #f)
 (def package-name #f)
 
 ;; : (-> String Void)
@@ -46,7 +43,6 @@
   (current-directory package-root)
   (setup-local-pkg-env! #t)
   (set! source-root (path-expand "src" package-root))
-  (set! test-root (path-expand "t" package-root))
   (set! package-name (read-build-package-name package-root)))
 
 ;; : (-> Void)
@@ -93,58 +89,6 @@
 (def (source-output-prefix)
   (package-output-prefix "src"))
 
-;; : (-> String)
-(def (test-output-prefix)
-  (package-output-prefix "t"))
-
-;; : (-> (List Path))
-(def (gxtest-test-files)
-  (top-level-test-files))
-
-;; : (-> (List Path))
-(def (default-gxtest-test-files)
-  (filter default-gxtest-test-file? (gxtest-test-files)))
-
-(def +default-gxtest-test-files+
-  '("t/build-install-test.ss"
-    "t/extensions-test.ss"
-    "t/package-build-receipt-test.ss"
-    "t/poo-object-validation-test.ss"
-    "t/support-test.ss"
-    "t/type-validation-facade-test.ss"
-    "t/types-test.ss"))
-
-;; : (-> (List ModulePath))
-(def (gxtest-test-spec)
-  (map gxtest-test-module-path (gxtest-test-files)))
-
-;; : (-> Path ModulePath)
-(def (gxtest-test-module-path path)
-  (if (string-prefix? "t/" path)
-    (substring path 2 (string-length path))
-    path))
-
-;; : (-> String Integer String)
-(def (test-phase-receipt-line name elapsed-micros)
-  (string-append "[gslph-test-phase] name=" name
-                 " elapsedMicros=" (number->string elapsed-micros)
-                 " elapsedMs=" (number->string (quotient elapsed-micros 1000))
-                 "\n"))
-
-;; : (-> String Integer Void)
-(def (display-test-phase-receipt name elapsed-micros)
-  (display (test-phase-receipt-line name elapsed-micros))
-  (force-output))
-
-;; : (-> String (-> Value) Value)
-(def (run-test-phase name thunk)
-  (let (start-micros (monotonic-micros))
-    (let (result (thunk))
-      (display-test-phase-receipt
-       name
-       (duration-micros start-micros (monotonic-micros)))
-      result)))
-
 (def excluded-library-files
   '("cli.ss"
     "cli-dev-linker.ss"
@@ -154,7 +98,7 @@
 
 (def (cli-exe-spec type root)
   [(append [type root bin: "gslph"]
-           +cli-gsc-options+)])
+           (cli-gsc-options))])
 
 (def (cli-dev-spec)
   (cli-exe-spec optimized-exe: "cli-dev-linker"))
@@ -263,15 +207,17 @@
     []
     [flag (join-gsc-options options)]))
 
-(def +cli-cc-options+
-  (openssl-cc-options))
+(def +cli-gsc-options-cache+ #f)
 
-(def +cli-linker-options+
-  (openssl-ld-options))
-
-(def +cli-gsc-options+
-  (append (gsc-option "-cc-options" +cli-cc-options+)
-          (gsc-option "-ld-options" +cli-linker-options+)))
+;; Keep pkg-config out of module load/import. Most tests only inspect build
+;; contracts; OpenSSL flags are needed only when a CLI binary spec is built.
+(def (cli-gsc-options)
+  (or +cli-gsc-options-cache+
+      (let (options
+            (append (gsc-option "-cc-options" (openssl-cc-options))
+                    (gsc-option "-ld-options" (openssl-ld-options))))
+        (set! +cli-gsc-options-cache+ options)
+        options)))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-module-spec release?)
@@ -312,10 +258,14 @@
   (filter runtime-library-module? (all-package-gerbil-modules)))
 
 ;; : (-> (List BuildSpec))
-(def (build-support-spec)
-  '("build-support/gslph-install-static-modules.ss"
-    "build-support/gslph-worker-count.ss"
-    "build-support/gslph-build.ss"))
+(def (native-runtime-spec)
+  '("src/build-api/install-static-modules.ss"
+    "src/build-api/worker-count.ss"
+    "src/build-api/package-build.ss"
+    "src/build-api/build-path-contract.ss"
+    "src/testing/gxtest-smoke.ss"
+    "src/testing/gxtest-runner.ss"
+    "src/build-api/native-build.ss"))
 
 ;; : (-> (List ModulePath))
 (def (all-package-gerbil-modules)
@@ -374,6 +324,79 @@
 (def (package-build-spec)
   (ensure-build-root!)
   (gslph-package-api-spec))
+
+;; : (-> Path String)
+(def (module-path-stem module)
+  (if (string-suffix? ".ss" module)
+    (substring module 0 (- (string-length module) 3))
+    module))
+
+;; : (-> Path)
+(def (package-api-output-root)
+  (path-expand (source-output-prefix)
+               (path-expand ".gerbil/lib" package-root)))
+
+;; : (-> Path)
+(def (package-api-build-receipt-path)
+  (path-expand ".gerbil/build/package-api.receipt" package-root))
+
+;; : (-> (List Path))
+(def (package-api-build-source-files)
+  (map (lambda (module)
+         (path-expand module source-root))
+       (package-build-spec)))
+
+;; : (-> (List Path))
+(def (package-api-build-output-files)
+  (map (lambda (module)
+         (path-expand
+          (string-append (module-path-stem module) ".ssi")
+          (package-api-output-root)))
+       (package-build-spec)))
+
+;; : (-> BuildReceiptStatus)
+(def (package-api-build-receipt-status)
+  (gslph-package-build-receipt-status
+   (package-api-build-receipt-path)
+   expected-sources: (package-api-build-source-files)
+   expected-outputs: (package-api-build-output-files)))
+
+;; : (-> BuildReceiptStatus Boolean)
+(def (package-api-build-current? status)
+  (eq? (gslph-package-build-receipt-status-ref status 'status 'unknown)
+       'current))
+
+;; : (-> BuildReceiptStatus Void)
+(def (display-package-api-build-receipt-status status)
+  (display (gslph-package-build-receipt-status-line status))
+  (newline)
+  (force-output))
+
+;; : (-> Void)
+(def (write-package-api-build-receipt!)
+  (let (stamp (package-api-build-receipt-path))
+    (ensure-directory! (path-directory stamp))
+    (gslph-package-build-receipt-write
+     stamp
+     (package-api-build-source-files)
+     (package-api-build-output-files))))
+
+;; : (-> Integer [Maybe (-> Void)] BuildReceiptStatus)
+(def (compile-package-api-if-stale worker-count (compile-thunk #f))
+  (let (status (package-api-build-receipt-status))
+    (display-package-api-build-receipt-status status)
+    (if (package-api-build-current? status)
+      status
+      (begin
+        (if compile-thunk
+          (compile-thunk)
+          (make (package-build-spec)
+            optimize: #f
+            parallelize: worker-count
+            prefix: (source-output-prefix)
+            srcdir: source-root))
+        (write-package-api-build-receipt!)
+        (package-api-build-receipt-status)))))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (build-spec release?)
@@ -538,240 +561,3 @@
     bindir: bindir
     prefix: (source-output-prefix)
     srcdir: source-root))
-
-;; : (-> Integer Integer)
-(def (test-runner-worker-count file-count)
-  (min (max 1 file-count) (build-worker-count)))
-
-;; : (-> Datum String)
-(def (datum-string value)
-  (call-with-output-string
-    (lambda (out)
-      (write value out))))
-
-;; : (-> Path String)
-(def (gxtest-file-expression file)
-  (string-append "(begin"
-                 " (add-load-path! \".\")"
-                 " (add-load-path! \"src\")"
-                 " (add-load-path! \"t\")"
-                 " (import :gerbil/tools/gxtest)"
-                 " (main "
-                 (datum-string file)
-                 "))"))
-
-;; : (-> Integer Integer)
-(def (normalized-exit-status status)
-  (cond
-   ((and (integer? status) (> status 255))
-    (quotient status 256))
-   ((integer? status) status)
-   (else 1)))
-
-;; : (-> Path GxTestResult)
-(def (run-gxtest-file/subprocess file)
-  (let ((status 0)
-        (start-micros (monotonic-micros)))
-    (let (output
-          (run-process ["gxi" "-e" (gxtest-file-expression file)]
-                       directory: package-root
-                       stderr-redirection: #t
-                       check-status:
-                       (lambda (exit-status _settings)
-                         (set! status
-                           (normalized-exit-status exit-status)))))
-      (list file
-            status
-            output
-            (duration-micros start-micros (monotonic-micros))))))
-
-;; : (-> GxTestResult Path)
-(def (gxtest-result-file result)
-  (list-ref result 0))
-
-;; : (-> GxTestResult Integer)
-(def (gxtest-result-status result)
-  (list-ref result 1))
-
-;; : (-> GxTestResult String)
-(def (gxtest-result-output result)
-  (list-ref result 2))
-
-;; : (-> GxTestResult Integer)
-(def (gxtest-result-elapsed-micros result)
-  (list-ref result 3))
-
-;; : (-> Path Boolean)
-(def (timing-sensitive-gxtest-file? file)
-  (let (name (path-strip-directory file))
-    (or (string-prefix? "bench" name)
-        (string-prefix? "benchmark" name))))
-
-;; : (-> Path Boolean)
-(def (default-gxtest-test-file? file)
-  (member file +default-gxtest-test-files+))
-
-;; : (-> Path Boolean)
-(def (parallel-gxtest-file? file)
-  (not (timing-sensitive-gxtest-file? file)))
-
-;; : (-> (List Path) (List Path))
-(def (parallel-gxtest-files files)
-  (filter parallel-gxtest-file? files))
-
-;; : (-> (List Path) (List Path))
-(def (serial-gxtest-files files)
-  (filter timing-sensitive-gxtest-file? files))
-
-;; : (-> Integer (-> Void) (List Thread))
-(def (spawn-test-workers count thunk)
-  (let loop ((remaining count) (threads []))
-    (if (<= remaining 0)
-      threads
-      (loop (- remaining 1)
-            (cons (spawn thunk) threads)))))
-
-;; : (-> (List Path) (List GxTestResult))
-(def (serial-gxtest-results files)
-  (map (lambda (file)
-         (record-gxtest-result (run-gxtest-file/subprocess file)))
-       files))
-
-;; : (-> (List Path) Integer (List GxTestResult))
-(def (parallel-gxtest-results files worker-count)
-  (let* ((items (list->vector files))
-         (count (vector-length items))
-         (results (make-vector count #f))
-         (next-index 0)
-         (index-mx (make-mutex 'gxtest-runner-index)))
-    (def (take-index)
-      (with-lock index-mx
-        (lambda ()
-          (if (< next-index count)
-            (let (index next-index)
-              (set! next-index (+ next-index 1))
-              index)
-            #f))))
-    (def (worker)
-      (let loop ()
-        (let (index (take-index))
-          (when index
-            (vector-set! results
-                         index
-                         (record-gxtest-result
-                          (run-gxtest-file/subprocess
-                           (vector-ref items index))))
-            (loop)))))
-    (let (threads (spawn-test-workers worker-count worker))
-      (for-each thread-join! threads)
-      (vector->list results))))
-
-;; : (-> GxTestResult GxTestResult)
-(def (record-gxtest-result result)
-  (display-test-phase-receipt
-   (string-append "run:" (gxtest-result-file result))
-   (gxtest-result-elapsed-micros result))
-  result)
-
-;; : (-> GxTestResult Void)
-(def (display-gxtest-result result)
-  (display (gxtest-result-output result)))
-
-;; : (-> (List GxTestResult) Integer)
-(def (first-failure-status results)
-  (let loop ((rest results))
-    (cond
-     ((null? rest) 0)
-     ((zero? (gxtest-result-status (car rest)))
-      (loop (cdr rest)))
-     (else (gxtest-result-status (car rest))))))
-
-;; : (-> (List Path) Void)
-(def (run-gxtest-files files)
-  (let* ((parallel-files (parallel-gxtest-files files))
-         (serial-files (serial-gxtest-files files))
-         (worker-count (test-runner-worker-count (length parallel-files)))
-         (parallel-results (parallel-gxtest-results parallel-files worker-count))
-         (serial-results (serial-gxtest-results serial-files))
-         (results (append parallel-results serial-results))
-         (status (first-failure-status results)))
-    (display (string-append "[gslph-test-runner] files="
-                            (number->string (length files))
-                            " jobs="
-                            (number->string worker-count)
-                            " serial="
-                            (number->string (length serial-files))
-                            "\n"))
-    (force-output)
-    (for-each display-gxtest-result results)
-    (if (zero? status)
-      (begin
-        (display "OK\n")
-        (force-output))
-      (exit status))))
-
-;; : (-> Boolean Boolean)
-(def (darwin-release? release?)
-  (and release?
-       (darwin-host?)))
-
-;; : (-> Boolean)
-(def (darwin-host?)
-  (cond-expand
-    (darwin #t)
-    (else #f)))
-
-;; : (-> Path Boolean)
-(def (explicit-project-policy-test-file? entry)
-  (string=? entry "project-policy-test.ss"))
-
-;; : (-> Path Boolean)
-(def (top-level-test-file? entry)
-  (and (string-suffix? "-test.ss" entry)
-       (not (member entry '("." "..")))
-       (not (explicit-project-policy-test-file? entry))))
-
-;; : (-> (List Path))
-(def (top-level-test-files)
-  (ensure-build-root!)
-  (map (lambda (path)
-         (string-append "t/" path))
-       (filter top-level-test-file?
-               (sort (directory-files test-root) string<?))))
-
-;; : (-> (List Path) Boolean Void)
-(def (run-test-target tests compile-build-support?)
-  (ensure-build-root!)
-  (current-directory package-root)
-  (let (worker-count (sync-build-worker-count!))
-    (run-test-phase
-     "compile-package-api"
-     (lambda ()
-       (make (package-build-spec)
-         optimize: #f
-         parallelize: worker-count
-         prefix: (source-output-prefix)
-         srcdir: source-root)))
-    (when compile-build-support?
-      (run-test-phase
-       "compile-build-support"
-       (lambda ()
-         (make (build-support-spec)
-           optimize: #f
-           parallelize: worker-count
-           prefix: (package-root-output-prefix)
-           srcdir: package-root)))))
-  (if (null? tests)
-    (error "no top-level Gerbil test files found")
-    (run-test-phase
-     "run-gxtest"
-     (lambda ()
-       (run-gxtest-files tests)))))
-
-;; : (-> Void)
-(def (test-target)
-  (run-test-target (default-gxtest-test-files) #f))
-
-;; : (-> Void)
-(def (test-full-target)
-  (run-test-target (gxtest-test-files) #t))

@@ -5,7 +5,10 @@
         (only-in :std/srfi/13 string-contains)
         (only-in :std/sugar cut filter-map find iota)
         :checker/model
-        :parser/facade
+        :parser/model
+        (only-in :parser/selectors
+                 call-fact-selector
+                 project-calls)
         :types/env
         :types/findings
         :types/model

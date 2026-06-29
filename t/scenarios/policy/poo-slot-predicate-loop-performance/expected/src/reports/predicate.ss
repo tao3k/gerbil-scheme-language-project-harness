@@ -2,22 +2,22 @@
 (import :clan/poo/object)
 
 (def +report-profile+
-  '((score . 0)
-    (rows . 8)
-    (columns . 5)
-    (sections . 3)
-    (charts . 2)
-    (filters . 4)
-    (exports . 2)
-    (alerts . 6)
-    (retries . 3)
-    (priority . 1)))
+  (.o score: 0
+      rows: 8
+      columns: 5
+      sections: 3
+      charts: 2
+      filters: 4
+      exports: 2
+      alerts: 6
+      retries: 3
+      priority: 1))
 
 (def +required-report-slots+
   '(score rows columns sections charts filters exports alerts retries priority))
 
 (def (build-report-profile)
-  (object<-alist +report-profile+))
+  +report-profile+)
 
 (def (score-report profile limit)
   (let (ready? ((o?/slots +required-report-slots+) profile))

@@ -1,7 +1,11 @@
 ;;; -*- Gerbil -*-
 ;;; Type environment facts derived from parser-owned definitions.
 
-(import :parser/facade
+(import :parser/model
+        (only-in :parser/selectors
+                 definition-selector
+                 project-definitions
+                 project-typed-contract-facts)
         (only-in :std/srfi/1 append-map)
         (only-in :std/sugar cut filter-map foldl foldr)
         :types/model

@@ -26,7 +26,7 @@
         (rename-in :unit/snapshot/policy-build
           (macro-controlled-helper-policy-snapshot policy-build-macro-controlled-helper-policy-snapshot)
           (predicate-family-combinator-policy-snapshot policy-build-predicate-family-combinator-policy-snapshot)
-          (build-support-shell-template-policy-snapshot policy-build-build-support-shell-template-policy-snapshot)
+          (build-runtime-shell-template-policy-snapshot policy-build-build-runtime-shell-template-policy-snapshot)
           (package-build-shell-pipeline-policy-snapshot policy-build-package-build-shell-pipeline-policy-snapshot)
           (package-build-canonical-shape-policy-snapshot policy-build-package-build-canonical-shape-policy-snapshot)
           (package-build-std-build-script-policy-snapshot policy-build-package-build-std-build-script-policy-snapshot)
@@ -52,7 +52,7 @@
         harness-dependency-policy-disable-requires-explanation-policy-snapshot
         macro-controlled-helper-policy-snapshot
         predicate-family-combinator-policy-snapshot
-        build-support-shell-template-policy-snapshot
+        build-runtime-shell-template-policy-snapshot
         package-build-shell-pipeline-policy-snapshot
         package-build-canonical-shape-policy-snapshot
         package-build-std-build-script-policy-snapshot
@@ -134,8 +134,8 @@
   (policy-build-predicate-family-combinator-policy-snapshot))
 
 ;; Snapshot
-(def (build-support-shell-template-policy-snapshot)
-  (policy-build-build-support-shell-template-policy-snapshot))
+(def (build-runtime-shell-template-policy-snapshot)
+  (policy-build-build-runtime-shell-template-policy-snapshot))
 
 ;; Snapshot
 (def (package-build-shell-pipeline-policy-snapshot)
@@ -205,9 +205,9 @@
   (check (predicate-family-combinator-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-predicate-family-combinator.ss"))
-  (check (build-support-shell-template-policy-snapshot)
+  (check (build-runtime-shell-template-policy-snapshot)
          => (snapshot-load
-             "t/snapshots/policy-build-support-shell-template.ss"))
+             "t/snapshots/policy-build-runtime-shell-template.ss"))
   (check (package-build-shell-pipeline-policy-snapshot)
          => (snapshot-load
              "t/snapshots/policy-package-build-shell-pipeline.ss"))

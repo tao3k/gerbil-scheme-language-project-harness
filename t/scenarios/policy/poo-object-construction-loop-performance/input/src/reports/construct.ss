@@ -17,9 +17,52 @@
     (hash-put! profile 'priority "high")
     profile))
 
+(def +report-profile-keys+
+  '(id status score rows columns sections charts filters exports alerts retries priority))
+
+(def (report-profile-value key)
+  (cond
+   ((eq? key 'id) "orders")
+   ((eq? key 'status) "hot")
+   ((eq? key 'score) 0)
+   ((eq? key 'rows) 8)
+   ((eq? key 'columns) 5)
+   ((eq? key 'sections) 3)
+   ((eq? key 'charts) 2)
+   ((eq? key 'filters) 4)
+   ((eq? key 'exports) 2)
+   ((eq? key 'alerts) 6)
+   ((eq? key 'retries) 3)
+   ((eq? key 'priority) "high")
+   (else #f)))
+
+(def (make-report-profile-fun)
+  (lambda (key) (report-profile-value key)))
+
+(def +report-profile-slots+
+  (list (cons 'id ($constant-slot-spec "orders"))
+        (cons 'status ($constant-slot-spec "hot"))
+        (cons 'score ($constant-slot-spec 0))
+        (cons 'rows ($constant-slot-spec 8))
+        (cons 'columns ($constant-slot-spec 5))
+        (cons 'sections ($constant-slot-spec 3))
+        (cons 'charts ($constant-slot-spec 2))
+        (cons 'filters ($constant-slot-spec 4))
+        (cons 'exports ($constant-slot-spec 2))
+        (cons 'alerts ($constant-slot-spec 6))
+        (cons 'retries ($constant-slot-spec 3))
+        (cons 'priority ($constant-slot-spec "high"))))
+
 (def (score-report profile-hash limit)
   (let loop ((i 0) (total 0))
     (if (= i limit)
       total
-      (let (profile (object<-hash profile-hash))
-        (loop (+ i 1) (+ total (.ref profile 'score)))))))
+      (let ((hash-profile (object<-hash profile-hash))
+            (fun-profile (object<-fun (make-report-profile-fun)
+                                      keys: +report-profile-keys+))
+            (raw-profile (make-object slots: +report-profile-slots+)))
+        (loop (+ i 1)
+              (+ total
+                 (.ref hash-profile 'score)
+                 (.ref fun-profile 'score)
+                 (.ref raw-profile 'score)))))))
