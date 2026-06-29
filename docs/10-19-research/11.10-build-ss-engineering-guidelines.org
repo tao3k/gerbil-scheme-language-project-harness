@@ -13,6 +13,39 @@ describe build specs, but it should not hand-write broad file walks, duplicate
 test execution, or shell/native compiler orchestration.
 
 * Build Target Rules
+** Default Test Gate Contract
+
+The default =gxi build.ss test= target is a fast smoke gate. It must compile
+only the package API required by the selected tests and run one bounded
+top-level =gxtest= set. It must not compile the full library and then compile
+every test entry again before running =gxtest=.
+
+Full repository validation belongs behind an explicit full gate, currently
+=gxi build.ss test-full=. The full gate may compile build support and run every
+top-level test file, but the default gate must stay small enough for local and
+CI feedback loops.
+
+** Worker Count Contract
+
+Build support must derive its default worker count from the current machine and
+respect a positive =GERBIL_BUILD_CORES= override. After computing the effective
+count, the build layer must update both Gerbil's runtime core count and the
+process environment so spawned =gxi=, =gxc=, or package-build subprocesses see
+the same value.
+
+Do not hard-code a fixed core count in package build files. A package may choose
+a smaller explicit override for a constrained CI lane, but shared build helpers
+must remain machine-relative.
+
+** Phase Receipt Contract
+
+Every build or test phase that can dominate runtime must emit a machine-readable
+=[gslph-test-phase]= receipt with its phase name, status, and elapsed
+microseconds. Per-file =gxtest= receipts should be recorded as each subprocess
+finishes so slow files are visible even when a later file stalls or fails.
+
+When optimizing the build system, the evidence is the before/after receipt set,
+not just a successful exit code.
 
 - Keep =build.ss= small. Use it to configure package roots and call reusable
   build helpers.

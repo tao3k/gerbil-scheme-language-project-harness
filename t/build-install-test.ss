@@ -45,6 +45,18 @@
         (check (member "t/project-policy-test.ss" files) => #f)
         (check (member "t/policy/agent-source-scope-test.ss" files) => #f))
       (check (member "policy-test.ss" (gxtest-test-spec)) ? true))
+    (test-case "default gxtest files stay on the smoke gate"
+      (configure-build-root! (current-directory))
+      (let (files (default-gxtest-test-files))
+        (check (member "t/build-install-test.ss" files) ? true)
+        (check (member "t/extensions-test.ss" files) ? true)
+        (check (member "t/support-test.ss" files) ? true)
+        (check (member "t/parser-test.ss" files) => #f)
+        (check (member "t/policy-test.ss" files) => #f)
+        (check (member "t/bench-test.ss" files) => #f)
+        (check (member "t/benchmark-gate-test.ss" files) => #f)
+        (check (member "t/self-apply-test.ss" files) => #f)
+        (check (member "t/snapshot-test.ss" files) => #f)))
     (test-case "gxtest build spec stays scoped to top-level test entries"
       (configure-build-root! (current-directory))
       (let (stage (gxtest-test-spec))
@@ -68,6 +80,17 @@
       (let (workers (test-runner-worker-count 2))
         (check (>= workers 1) => #t)
         (check (<= workers 2) => #t)))
+    (test-case "build worker sync exports the effective worker count"
+      (let (saved (getenv "GERBIL_BUILD_CORES" #f))
+        (setenv "GERBIL_BUILD_CORES" "")
+        (let (workers (sync-build-worker-count!))
+          (check (integer? workers) => #t)
+          (check (> workers 0) => #t)
+          (check (getenv "GERBIL_BUILD_CORES" #f)
+                 => (number->string workers)))
+        (if saved
+          (setenv "GERBIL_BUILD_CORES" saved)
+          #!void)))
     (test-case "default package spec exposes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #f))

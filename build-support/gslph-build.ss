@@ -10,24 +10,28 @@
         (only-in :gerbil/tools/env setup-local-pkg-env!)
         "../src/build-api/source-coverage"
         "./gslph-package-spec"
+        (only-in "./gslph-worker-count" build-worker-count sync-build-worker-count!)
         (only-in "./gslph-install-static-modules" cli-install-static-modules)
         (only-in "../src/support/time" monotonic-micros duration-micros)
-        :gerbil/gambit
-        (only-in :gerbil/compiler/base __available-cores))
+        :gerbil/gambit)
 (export clean-target
         compile-target
         install-target
         compile-spec
         cli-binary-build-spec
         configure-build-root!
+        default-gxtest-test-files
         dev-launcher-binpath
         gxtest-test-spec
         gxtest-test-files
         install-launcher-binpath
         parallel-gxtest-files
         serial-gxtest-files
+        build-worker-count
+        sync-build-worker-count!
         test-phase-receipt-line
         test-runner-worker-count
+        test-full-target
         test-target
         package-build-spec)
 
@@ -96,6 +100,19 @@
 ;; : (-> (List Path))
 (def (gxtest-test-files)
   (top-level-test-files))
+
+;; : (-> (List Path))
+(def (default-gxtest-test-files)
+  (filter default-gxtest-test-file? (gxtest-test-files)))
+
+(def +default-gxtest-test-files+
+  '("t/build-install-test.ss"
+    "t/extensions-test.ss"
+    "t/package-build-receipt-test.ss"
+    "t/poo-object-validation-test.ss"
+    "t/support-test.ss"
+    "t/type-validation-facade-test.ss"
+    "t/types-test.ss"))
 
 ;; : (-> (List ModulePath))
 (def (gxtest-test-spec)
@@ -297,6 +314,7 @@
 ;; : (-> (List BuildSpec))
 (def (build-support-spec)
   '("build-support/gslph-install-static-modules.ss"
+    "build-support/gslph-worker-count.ss"
     "build-support/gslph-build.ss"))
 
 ;; : (-> (List ModulePath))
@@ -521,22 +539,6 @@
     prefix: (source-output-prefix)
     srcdir: source-root))
 
-;; : (-> Integer)
-(def (build-worker-count)
-  (let* ((raw (getenv "GERBIL_BUILD_CORES" #f))
-         (configured (and raw (string->number raw))))
-    (if (and configured
-             (integer? configured)
-             (> configured 0))
-      configured
-      (max 1 (##cpu-count)))))
-
-;; : (-> Integer)
-(def (sync-build-worker-count!)
-  (let (worker-count (build-worker-count))
-    (set! __available-cores worker-count)
-    worker-count))
-
 ;; : (-> Integer Integer)
 (def (test-runner-worker-count file-count)
   (min (max 1 file-count) (build-worker-count)))
@@ -606,6 +608,10 @@
         (string-prefix? "benchmark" name))))
 
 ;; : (-> Path Boolean)
+(def (default-gxtest-test-file? file)
+  (member file +default-gxtest-test-files+))
+
+;; : (-> Path Boolean)
 (def (parallel-gxtest-file? file)
   (not (timing-sensitive-gxtest-file? file)))
 
@@ -627,7 +633,9 @@
 
 ;; : (-> (List Path) (List GxTestResult))
 (def (serial-gxtest-results files)
-  (map run-gxtest-file/subprocess files))
+  (map (lambda (file)
+         (record-gxtest-result (run-gxtest-file/subprocess file)))
+       files))
 
 ;; : (-> (List Path) Integer (List GxTestResult))
 (def (parallel-gxtest-results files worker-count)
@@ -650,19 +658,24 @@
           (when index
             (vector-set! results
                          index
-                         (run-gxtest-file/subprocess
-                          (vector-ref items index)))
+                         (record-gxtest-result
+                          (run-gxtest-file/subprocess
+                           (vector-ref items index))))
             (loop)))))
     (let (threads (spawn-test-workers worker-count worker))
       (for-each thread-join! threads)
       (vector->list results))))
 
-;; : (-> GxTestResult Void)
-(def (display-gxtest-result result)
-  (display (gxtest-result-output result))
+;; : (-> GxTestResult GxTestResult)
+(def (record-gxtest-result result)
   (display-test-phase-receipt
    (string-append "run:" (gxtest-result-file result))
-   (gxtest-result-elapsed-micros result)))
+   (gxtest-result-elapsed-micros result))
+  result)
+
+;; : (-> GxTestResult Void)
+(def (display-gxtest-result result)
+  (display (gxtest-result-output result)))
 
 ;; : (-> (List GxTestResult) Integer)
 (def (first-failure-status results)
@@ -726,39 +739,39 @@
        (filter top-level-test-file?
                (sort (directory-files test-root) string<?))))
 
-;; : (-> Void)
-(def (test-target)
+;; : (-> (List Path) Boolean Void)
+(def (run-test-target tests compile-build-support?)
   (ensure-build-root!)
   (current-directory package-root)
   (let (worker-count (sync-build-worker-count!))
     (run-test-phase
-     "compile-library"
+     "compile-package-api"
      (lambda ()
-       (make (library-spec)
+       (make (package-build-spec)
          optimize: #f
          parallelize: worker-count
          prefix: (source-output-prefix)
          srcdir: source-root)))
-    (run-test-phase
-     "compile-build-support"
-     (lambda ()
-       (make (build-support-spec)
-         optimize: #f
-         parallelize: worker-count
-         prefix: (package-root-output-prefix)
-         srcdir: package-root)))
-    (run-test-phase
-     "compile-test-entry"
-     (lambda ()
-       (make (gxtest-test-spec)
-         optimize: #f
-         parallelize: worker-count
-         prefix: (test-output-prefix)
-         srcdir: test-root))))
-  (let (tests (gxtest-test-files))
-    (if (null? tests)
-      (error "no top-level Gerbil test files found")
+    (when compile-build-support?
       (run-test-phase
-       "run-gxtest"
+       "compile-build-support"
        (lambda ()
-         (run-gxtest-files tests))))))
+         (make (build-support-spec)
+           optimize: #f
+           parallelize: worker-count
+           prefix: (package-root-output-prefix)
+           srcdir: package-root)))))
+  (if (null? tests)
+    (error "no top-level Gerbil test files found")
+    (run-test-phase
+     "run-gxtest"
+     (lambda ()
+       (run-gxtest-files tests)))))
+
+;; : (-> Void)
+(def (test-target)
+  (run-test-target (default-gxtest-test-files) #f))
+
+;; : (-> Void)
+(def (test-full-target)
+  (run-test-target (gxtest-test-files) #t))

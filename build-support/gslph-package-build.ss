@@ -5,8 +5,8 @@
         (only-in :std/misc/path path-expand path-normalize)
         (only-in :std/sugar with-catch)
         (only-in :gerbil/tools/env setup-local-pkg-env!)
-        (only-in :gerbil/compiler/base __available-cores)
         "./gslph-package-spec"
+        (only-in "./gslph-worker-count" sync-build-worker-count!)
         :gerbil/gambit)
 (export gslph-package-configure-build-root!
         gslph-package-compile-target)
@@ -55,22 +55,6 @@
   (unless package-name
     (error "gerbil.pkg must declare package: for build output prefix"))
   (string-append package-name "/src"))
-
-;; : (-> Integer)
-(def (build-worker-count)
-  (let* ((raw (getenv "GERBIL_BUILD_CORES" #f))
-         (configured (and raw (string->number raw))))
-    (if (and configured
-             (integer? configured)
-             (> configured 0))
-      configured
-      (max 1 (##cpu-count)))))
-
-;; : (-> Integer)
-(def (sync-build-worker-count!)
-  (let (worker-count (build-worker-count))
-    (set! __available-cores worker-count)
-    worker-count))
 
 ;; : (-> Boolean Boolean Boolean Boolean Boolean Void)
 (def (gslph-package-compile-target verbose debug no-optimize optimized release)

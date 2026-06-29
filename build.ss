@@ -97,6 +97,11 @@
   (heavy-build-call '(clean-target)))
 
 (define-entry-point (test)
-  (help: "Compile the package and run top-level gxtest files"
+  (help: "Compile the package API and run the default fast top-level gxtest files"
    getopt: [])
   (heavy-build-call '(test-target)))
+
+(define-entry-point (test-full)
+  (help: "Compile the package API and run every top-level gxtest file"
+   getopt: [])
+  (heavy-build-call '(test-full-target)))
