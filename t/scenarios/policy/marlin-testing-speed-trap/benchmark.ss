@@ -26,7 +26,7 @@
  (unit . "ms")
  (purpose . "Capture the Marlin downstream build speed trap as a testing framework optimization metric")
  (feature . "marlin-testing-speed-trap")
- (rule . "GERBIL-SCHEME-TESTING-MARLIN-SPEED-TRAP")
+ (rule . "GERBIL-SCHEME-AGENT-TESTING-MARLIN-SPEED-TRAP-001")
  (optimizationFocus
   .
   "replace agent-written all-test plus appended policy-scope dispatch with thin testing-framework scope selection")

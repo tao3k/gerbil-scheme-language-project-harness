@@ -47,7 +47,7 @@ Gerbil package-manager state belongs under the global `~/.gerbil` store. Do not 
 This first native version aligns the common provider surface:
 - compact text by default
 - `agent doctor --json` provider metadata for protocol consumers
-- `search workspace`, `prime`, `owner`, `owner items`, `symbol`, `import`, `fzf`, and `ingest`
+- `search workspace`, `prime`, `owner`, `owner items`, `symbol`, `import`, `lexical`, and `ingest`
 - parser-owned `query --term`, `query --names-only`, and `query --code`
 - source-preserved `query --from-hook direct-source-read --selector ... --code`
 - `check --changed` and `check --full`

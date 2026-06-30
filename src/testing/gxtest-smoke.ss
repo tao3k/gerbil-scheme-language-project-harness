@@ -10,7 +10,6 @@
   '("t/agent-poo-scenario-contract-test.ss"
     "t/build-install-test.ss"
     "t/poo-object-validation-test.ss"
-    "t/self-apply-full-gate.ss"
     "t/support-test.ss"
     "t/testing-framework-test.ss"))
 

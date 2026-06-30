@@ -11,10 +11,12 @@
 (def +representative-poo-scenario+
   "poo-marlin-config-interface-large-object-performance")
 
+;; : (-> String Path)
 (def (scenario-benchmark-path scenario-id)
   (path-expand "benchmark.ss"
                (path-expand scenario-id "t/scenarios/policy")))
 
+;; : (-> (List String) (List Path))
 (def (missing-scenario-benchmarks scenario-ids)
   (cond
    ((null? scenario-ids) [])

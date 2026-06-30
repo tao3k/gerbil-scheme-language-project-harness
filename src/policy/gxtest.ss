@@ -2,15 +2,15 @@
 ;;; Tiny gxtest adapter for downstream packages that depend on this harness.
 
 (import :gerbil/gambit
-        :build-api/source-coverage
-        :constants
+        "../build-api/source-coverage"
+        "../constants"
         (for-syntax :gerbil/gambit
                     :gerbil/expander
                     :std/stxutil)
-        :parser/facade
-        :policy/facade
+        "../parser/facade"
+        "./facade"
         (only-in :std/test check test-case test-suite)
-        :types/facade)
+        "../types/facade")
 
 (export make-policy-test
         make-file-policy-test
@@ -35,8 +35,8 @@
 ;;; Macro boundary:
 ;;; - Downstream gxtest aggregators call this inside their normal test suite.
 ;;; - The caller passes the same entry files used by the upstream gxtest runner.
-;;; - The expansion produces one ordinary files-scoped gxtest suite, so policy
-;;;   follows tested import owners without a separate full-project pass.
+;;; - The expansion produces one ordinary files-scoped gxtest suite; dependency
+;;;   and full-project policy remain explicit project gates.
 ;; make-gxtest-policy-test
 ;;   : (-> Syntax Syntax)
 ;;   | doc m%
@@ -127,7 +127,7 @@
 
 ;; : (-> Root (List Path) (List TypeFinding) )
 (def (policy-findings root files)
-  (run-policy-checks (collect-test-source-scope root files)))
+  (run-policy-checks (collect-source-scope root files)))
 
 ;; : (-> Root (List Path) String )
 (def (policy-status root files)
@@ -135,11 +135,12 @@
 
 ;;; Boundary:
 ;;; - policy-report is the stable files-scoped downstream gxtest data surface.
-;;; - Package metadata is read for policy configuration, but execution only
-;;;   parses files supplied by the test runner.
+;;; - Package metadata is read for policy configuration, but execution parses
+;;;   only files supplied by the test runner. Import closure and full-project
+;;;   coverage are owned by explicit project gates.
 ;; : (-> Root (List Path) Json )
 (def (policy-report root files)
-  (let* ((index (collect-test-source-scope root files))
+  (let* ((index (collect-source-scope root files))
          (findings (run-policy-checks index)))
     (project-policy-report-json index findings "files" files)))
 

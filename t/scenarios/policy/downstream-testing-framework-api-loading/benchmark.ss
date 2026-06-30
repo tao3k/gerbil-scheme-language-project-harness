@@ -26,7 +26,7 @@
  (unit . "ms")
  (purpose . "downstream build.ss loads the harness testing framework API through package-qualified imports")
  (feature . "downstream-testing-framework-api-loading")
- (rule . "GERBIL-SCHEME-TESTING-DOWNSTREAM-API-LOADING")
+ (rule . "GERBIL-SCHEME-AGENT-TESTING-DOWNSTREAM-API-LOADING-001")
  (optimizationFocus
   .
   "keep downstream build.ss as a thin user-facing layer over std/make/gxtest while preserving incremental framework scope selection")

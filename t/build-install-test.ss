@@ -7,6 +7,7 @@
         "../src/build-api/build-path-contract")
 (export build-install-test)
 
+;; : TestSuite
 (def build-install-test
   (test-suite "asp gerbil-scheme build install path contract"
     (test-case "build root configures package-local Gerbil path"

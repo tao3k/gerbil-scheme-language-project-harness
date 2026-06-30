@@ -1,12 +1,12 @@
 ((max_total . 1000ms)
- (observed_total . 806ms)
+ (observed_total . 91ms)
  (target_total . 850ms)
  (regression_budget . 150ms)
  (observedTimings
-  ((name . run-gxtest-compiled-warm-1) (durationMs . 611))
-  ((name . run-gxtest-compiled-warm-2) (durationMs . 566))
-  ((name . run-gxtest-compiled-warm-final) (durationMs . 806)))
- (targetRationale . "default gxi build.ss test must stay below one second on the compiled warm path")
+  ((name . run-scoped-policy-current) (durationMs . 2))
+  ((name . run-gxtest-source-warm) (durationMs . 88))
+  ((name . default-warm-final) (durationMs . 91)))
+ (targetRationale . "default gxi build.ss test must stay below one second on the scoped-policy warm path")
  (maxSelectedFiles . 5)
  (observedSelectedFiles . 5)
  (maxSelectedSources . 15)
@@ -21,10 +21,9 @@
  (purpose . "default gxtest smoke warm-path gate")
  (feature . "gxtest-default-smoke")
  (rule . "GERBIL-SCHEME-GXTEST-DEFAULT-SMOKE")
- (optimizationFocus . "compiled in-process runner with small smoke-only selected closure")
- (inputShape . "five default smoke test entries with selected gxtest receipt current")
+ (optimizationFocus . "receipt-current scoped policy plus small smoke-only selected closure")
+ (inputShape . "five default smoke test entries with scoped policy receipt current")
  (expectedRepair . "move full/focused suites out of default smoke and keep selected closure within the gate")
- (measurementPhases "compile-package-api-current"
-                    "compile-test-support-current"
-                    "run-gxtest-compiled-in-process")
+ (measurementPhases "run-scoped-policy-current"
+                    "run-gxtest-source-in-process")
  (tags "gxtest" "smoke" "performance" "compiled-in-process"))

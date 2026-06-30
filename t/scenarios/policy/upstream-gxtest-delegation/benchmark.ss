@@ -30,7 +30,7 @@
  (unit . "ms")
  (purpose . "prove the testing framework selects files and delegates gxtest semantics to the gxtest runner")
  (feature . "upstream-gxtest-delegation")
- (rule . "GERBIL-SCHEME-TESTING-UPSTREAM-GXTEST-DELEGATION")
+ (rule . "GERBIL-SCHEME-AGENT-TESTING-UPSTREAM-GXTEST-DELEGATION-001")
  (optimizationFocus
   .
   "keep selection and receipt construction in the framework while leaving suite export and setup/cleanup semantics to gxtest-compatible delegates")

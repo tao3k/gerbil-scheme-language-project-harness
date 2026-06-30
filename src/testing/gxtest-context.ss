@@ -3,6 +3,7 @@
 
 (import (only-in :std/misc/path path-expand path-normalize)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
+        (only-in :gerbil/tools/env setup-local-pkg-env!)
         :gerbil/gambit)
 
 (export package-root
@@ -30,6 +31,7 @@
   (set! package-root (path-normalize root))
   (current-directory package-root)
   (setenv "GERBIL_PATH" (path-expand ".gerbil" package-root))
+  (setup-local-pkg-env! #t)
   (set! source-root (path-expand "src" package-root))
   (set! test-root (path-expand "t" package-root))
   (set! package-name (read-build-package-name package-root)))

@@ -4,10 +4,10 @@
  (regression_budget . 20ms)
  (expected_over_input_budget . 0ns)
  (observedTimings
-  ((name . collect-before) (durationMs . 2) (durationNs . 2000000))
+  ((name . collect-before) (durationMs . 4) (durationNs . 4000000))
   ((name . collect-after) (durationMs . 3) (durationNs . 3000000))
   ((name . policy-before) (durationMs . 1) (durationNs . 1000000))
-  ((name . policy-after) (durationMs . 1) (durationNs . 1000000)))
+  ((name . policy-after) (durationMs . 0) (durationNs . 0)))
  (targetRationale
   .
   "source-form-reader-boundary keeps reader collection detection parser-owned while preserving the low-level reader helper; multi-sample timing avoids single GC/allocator spikes while preserving the hard 28ms gate")

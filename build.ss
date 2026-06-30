@@ -106,19 +106,19 @@
   (native-build-call '(clean-target)))
 
 (define-entry-point (test)
-  (help: "Compile the package API and run the default testing gate"
+  (help: "Run the default fast gxtest smoke gate"
    getopt: [])
   (configure-test-build-root! +package-root+)
   (gxtest-test-target))
 
 (define-entry-point (test-file . files)
-  (help: "Compile the package API and run selected gxtest files"
+  (help: "Run selected gxtest files"
    getopt: test-file-getopt)
   (configure-test-build-root! +package-root+)
   (gxtest-test-file-target files))
 
 (define-entry-point (test-full)
-  (help: "Compile the package API and run every top-level gxtest file"
+  (help: "Run every top-level gxtest file"
    getopt: [])
   (configure-test-build-root! +package-root+)
   (gxtest-test-full-target))

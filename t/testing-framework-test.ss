@@ -11,12 +11,15 @@
 
 (export testing-framework-test)
 
+;; : (-> (List Path) Integer)
 (def (fake-run-files files)
   0)
 
+;; : (-> Path Path)
 (def (downstream-testing-path relative)
   (testing-build-path downstream-testing-project relative))
 
+;; : (-> Path Path)
 (def (marlin-speed-path relative)
   (testing-build-path marlin-speed-project relative))
 

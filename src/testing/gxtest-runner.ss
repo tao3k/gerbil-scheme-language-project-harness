@@ -94,12 +94,13 @@
         machine-logical-core-count
         machine-performance-core-count
         compile-package-api-if-stale
+        scoped-policy-receipt-path
+        scoped-policy-source-files
         sync-build-worker-count!
         test-file-target
         test-full-target
         test-phase-receipt-line
         test-target
-        test-target-compile-selected-gxtest?
         selected-gxtest-build-current?
         selected-gxtest-build-output-files
         selected-gxtest-build-receipt-path
@@ -208,6 +209,27 @@
 (def (selected-gxtest-build-receipt-path)
   (path-expand ".gerbil/build/selected-gxtest.receipt" package-root))
 
+;; : (-> (List Path) String)
+(def (scoped-policy-cache-key files)
+  (let* ((scope (string-join (sort files string<?) "\n"))
+         (limit 4294967296))
+    (let loop ((chars (string->list scope))
+               (hash 2166136261))
+      (if (null? chars)
+        (number->string hash 16)
+        (loop (cdr chars)
+              (modulo (* (bitwise-xor hash (char->integer (car chars)))
+                         16777619)
+                      limit))))))
+
+;; : (-> [(List Path)] Path)
+(def (scoped-policy-receipt-path (files []))
+  (path-expand
+   (string-append ".gerbil/build/scoped-policy/"
+                  (scoped-policy-cache-key files)
+                  ".receipt")
+   package-root))
+
 ;; : (-> (List Path))
 (def (package-api-build-source-files)
   (map (lambda (module)
@@ -249,6 +271,43 @@
           (else
            (error "selected gxtest source file must be under src/ or t/" file))))
        (gxtest-selected-source-files files)))
+
+;; : (-> Path Boolean)
+(def (gslph-source-directory? path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (eq? (file-info-type (file-info path)) 'directory))))
+
+;; : (-> Path Boolean)
+(def (gslph-gerbil-source-file? path)
+  (string-suffix? ".ss" path))
+
+;; : (-> Path Path (List Path))
+(def (scoped-policy-directory-source-files directory prefix)
+  (apply append
+         (map (lambda (entry)
+                (let* ((path (path-expand entry directory))
+                       (relative
+                        (if (string=? prefix "")
+                          entry
+                          (string-append prefix "/" entry))))
+                  (cond
+                   ((member entry '("." "..")) [])
+                   ((gslph-source-directory? path)
+                    (scoped-policy-directory-source-files path relative))
+                   ((gslph-gerbil-source-file? entry) [path])
+                   (else []))))
+              (sort (directory-files directory) string<?))))
+
+;; : (-> (List Path) (List Path))
+(def (scoped-policy-source-files files)
+  (sort (append
+         (scoped-policy-directory-source-files source-root "")
+         (map (lambda (file)
+                (path-expand file package-root))
+              files))
+        string<?))
 
 ;; : (-> BuildReceiptStatus)
 (def (package-api-build-receipt-status)
@@ -307,6 +366,50 @@
      stamp
      (selected-gxtest-build-source-files files)
      (selected-gxtest-build-output-files files))))
+
+;; : (-> (List Path) Void)
+(def (write-scoped-policy-receipt! files)
+  (let (stamp (scoped-policy-receipt-path files))
+    (ensure-directory! (path-directory stamp))
+    (gslph-package-build-receipt-write
+     stamp
+     (scoped-policy-source-files files)
+     [stamp]
+     version: 'gslph-scoped-policy-receipt.v1)))
+
+;; : (-> (List Path) BuildReceiptStatus)
+(def (scoped-policy-receipt-status files)
+  (let (stamp (scoped-policy-receipt-path files))
+    (gslph-package-build-receipt-status
+     stamp
+     version: 'gslph-scoped-policy-receipt.v1
+     expected-sources: (scoped-policy-source-files files)
+     expected-outputs: [stamp])))
+
+;; : (-> BuildReceiptStatus Boolean)
+(def (scoped-policy-current? status)
+  (eq? (gslph-package-build-receipt-status-ref status 'status 'unknown)
+       'current))
+
+;; : (-> (List Path) Void)
+(def (run-scoped-policy! files)
+  (add-load-path! ".")
+  (add-load-path! "src")
+  (add-load-path! "t")
+  (load "src/policy/gxtest.ss")
+  (let* ((policy-report (eval 'policy-report))
+         (display-report (eval 'display-project-policy-report))
+         (report (policy-report "." files)))
+    (when (not (equal? (hash-get report 'status) "pass"))
+      (display-report report)
+      (exit 1))))
+
+;; : (-> (List Path) Void)
+(def (run-scoped-policy-if-stale files)
+  (let (status (scoped-policy-receipt-status files))
+    (unless (scoped-policy-current? status)
+      (run-scoped-policy! files)
+      (write-scoped-policy-receipt! files))))
 
 ;; : (-> Integer [Maybe (-> Void)] BuildReceiptStatus)
 (def (compile-package-api-if-stale worker-count (compile-thunk #f))
@@ -725,10 +828,6 @@
         (force-output))
       (exit status))))
 
-;; : (-> (List Path) Boolean)
-(def (test-target-compile-selected-gxtest? tests)
-  #f)
-
 ;; : (-> Path Boolean)
 (def (explicit-project-policy-test-file? entry)
   (string=? entry "project-policy-test.ss"))
@@ -753,11 +852,11 @@
   (current-directory package-root)
   (when (null? tests)
     (error "no top-level Gerbil test files found"))
-  (let (worker-count (sync-build-worker-count!))
-    (run-test-phase
-     "compile-package-api"
-     (lambda ()
-       (compile-package-api-if-stale worker-count))))
+  (sync-build-worker-count!)
+  (run-test-phase
+   "run-scoped-policy"
+   (lambda ()
+     (run-scoped-policy-if-stale tests)))
   (run-test-phase
    "run-gxtest"
    (lambda ()

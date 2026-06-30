@@ -8,29 +8,35 @@
 
 (export #t)
 
+;; : (-> TestingBuild Path Path)
 (def (testing-build-path build relative)
   (path-expand relative (testing-object-ref build 'root ".")))
 
+;; : (-> TestingBuild Path)
 (def (testing-build-contract-root build)
   (testing-object-ref build 'contractRoot
                       (testing-object-ref build 'root ".")))
 
+;; : (-> TestingBuild Datum MaybePath)
 (def (testing-build-import->file build import)
   (and (string? import)
        (testing-build-path build (string-append "t/" import))))
 
+;; : (-> Datum String)
 (def (testing-build-gxtest-name spec)
   (cond
    ((string? spec) spec)
    ((and (pair? spec) (string? (car spec))) (car spec))
    (else "gxtest")))
 
+;; : (-> Datum Path)
 (def (testing-build-gxtest-root spec)
   (cond
    ((string? spec) spec)
    ((and (pair? spec) (pair? (cdr spec))) (cadr spec))
    (else spec)))
 
+;; : (-> TestingBuild Procedure)
 (def (testing-build-policy-runner build)
   (lambda (scenario)
     (let (runs (testing-object-ref build 'scenarioRuns []))
@@ -39,16 +45,19 @@
                          (vector-ref runs 0))))
     scenario))
 
+;; : (-> TestingBuild Procedure)
 (def (testing-build-gxtest-runner build)
   (lambda (files)
     (let (runs (testing-object-ref build 'gxtestRuns []))
       (vector-set! runs 0 (cons files (vector-ref runs 0))))
     0))
 
+;; : (-> TestingBuild String Alist)
 (def (testing-build-scenario-metadata build id)
   (let (entry (assoc id (testing-object-ref build 'scenarioMetadata [])))
     (if entry (cdr entry) [])))
 
+;; : (-> TestingBuild String PolicyScenario)
 (def (testing-build-policy-scenario build id)
   (make-policy-scenario
    id
@@ -57,6 +66,7 @@
     (path-expand id (testing-object-ref build 'scenarioRoot "policy-scenarios")))
    (testing-build-scenario-metadata build id)))
 
+;; : (-> TestingBuild Datum GxTestSuite)
 (def (testing-build-gxtest-suite build spec)
   (let ((root (testing-build-path build (testing-build-gxtest-root spec)))
         (contract-root (testing-build-contract-root build)))
@@ -72,9 +82,10 @@
      max-selected-outputs: (testing-object-ref build 'maxSelectedOutputs 4)
      gates: (list
              (performance-gate
-              name: (testing-object-ref build 'name "testing-build")
+             name: (testing-object-ref build 'name "testing-build")
               contract-root: contract-root)))))
 
+;; : (-> TestingBuild MaybeScenarioSuite)
 (def (testing-build-policy-suite build)
   (let ((scenario-ids (testing-object-ref build 'scenarios [])))
     (and (not (null? scenario-ids))
@@ -93,9 +104,11 @@
                    name: (testing-object-ref build 'name "testing-build")
                    contract-root: (testing-build-contract-root build)))))))
 
+;; : (-> List List)
 (def (testing-build-filter values)
   (filter identity values))
 
+;; : (-> TestingBuild TestingProject)
 (def (testing-build-project build)
   (let* ((gxtest-suites
           (map (lambda (spec)
@@ -115,6 +128,7 @@
      receipt-prefix: (testing-object-ref build 'receiptPrefix
                                          (testing-object-ref build 'name "testing-build")))))
 
+;; : (-> String Path MaybePath List List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString TestingBuild)
 (def (testing-build name: (name "testing-build")
                     root: (root ".")
                     contract-root: (contract-root #f)
@@ -149,19 +163,24 @@
      (gxtestRuns . ,(vector []))
      (scenarioRuns . ,(vector [])))))
 
+;; : (-> TestingBuild Unit)
 (def (testing-build-reset! build)
   (vector-set! (testing-object-ref build 'gxtestRuns) 0 [])
   (vector-set! (testing-object-ref build 'scenarioRuns) 0 []))
 
+;; : (-> TestingBuild List)
 (def (testing-build-gxtest-runs build)
   (reverse (vector-ref (testing-object-ref build 'gxtestRuns) 0)))
 
+;; : (-> TestingBuild List)
 (def (testing-build-scenario-runs build)
   (reverse (vector-ref (testing-object-ref build 'scenarioRuns) 0)))
 
+;; : (-> TestingBuild List TestingSelection)
 (def (testing-build-select build args)
   (testing-select-project (testing-build-project build) args))
 
+;; : (-> TestingBuild List TestingReceipt)
 (def (testing-build-main build args)
   (testing-run-selection
    (testing-build-select build args)

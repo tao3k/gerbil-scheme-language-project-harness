@@ -21,10 +21,10 @@
     (test-case "default gxtest files stay on the smoke gate"
       (configure-build-root! (current-directory))
       (let (files (default-gxtest-test-files))
-        (check (length files) => 6)
+        (check (length files) => 5)
         (check (member "t/agent-poo-scenario-contract-test.ss" files) ? true)
         (check (member "t/build-install-test.ss" files) ? true)
-        (check (member "t/self-apply-full-gate.ss" files) ? true)
+        (check (member "t/self-apply-full-gate.ss" files) => #f)
         (check (member "t/package-build-receipt-test.ss" files) => #f)
         (check (member "t/extensions-test.ss" files) => #f)
         (check (member "t/gxtest-runner-contract-test.ss" files) => #f)
@@ -39,11 +39,9 @@
         (check (member "t/benchmark-gate-test.ss" files) => #f)
         (check (member "t/self-apply-test.ss" files) => #f)
         (check (member "t/snapshot-test.ss" files) => #f)))
-    (test-case "default gxtest selected closure is explicit but not precompiled"
+    (test-case "default gxtest selected closure stays bounded"
       (configure-build-root! (current-directory))
       (let (files (default-gxtest-test-files))
-        (check (member "t/self-apply-full-gate.ss" files) ? true)
-        (check (test-target-compile-selected-gxtest? files) => #f)
         (check (<= (length (selected-gxtest-build-source-files files)) 160)
                => #t)
         (check (<= (length (selected-gxtest-build-output-files files)) 160)
@@ -52,6 +50,7 @@
       (configure-build-root! (current-directory))
       (let (stage (gxtest-test-spec))
         (check (member "policy-test.ss" stage) ? true)
+        (check (member "self-apply-full-gate.ss" stage) ? true)
         (check (member "project-policy-test.ss" stage) => #f)
         (check (member "policy/agent-build-test.ss" stage) => #f)
         (check (member "unit/schema/conformance.ss" stage) => #f)
@@ -72,13 +71,26 @@
     (test-case "test phase receipts are machine parseable"
       (check (test-phase-receipt-line "run-gxtest" 1234)
              => "[gslph-test-phase] name=run-gxtest elapsedMicros=1234 elapsedMs=1\n"))
-    (test-case "test-file does not compile selected gxtest entries"
-      (check (test-target-compile-selected-gxtest? ["t/build-install-test.ss"])
-             => #f)
-      (check (test-target-compile-selected-gxtest? ["t/benchmark-gate-test.ss"])
-             => #f)
-      (check (test-target-compile-selected-gxtest? ["t/gxtest-runner-contract-test.ss"])
-             => #f))
+    (test-case "gxtest batch expression leaves policy to runner phase"
+      (configure-build-root! (current-directory))
+      (check (gxtest-source-load-batch-expression ["t/build-install-test.ss"])
+             => "(begin (add-load-path! \".\") (add-load-path! \"src\") (add-load-path! \"t\") (import :std/test) (load \"t/build-install-test.ss\") (let (ok #t) (unless (run-test-suite! build-install-test) (set! ok #f)) ok))"))
+    (test-case "scoped policy receipt tracks source and selected test files"
+      (configure-build-root! (current-directory))
+      (let ((sources (scoped-policy-source-files ["t/build-install-test.ss"]))
+            (build-receipt
+             (scoped-policy-receipt-path ["t/build-install-test.ss"]))
+            (bench-receipt
+             (scoped-policy-receipt-path ["t/benchmark-gate-test.ss"])))
+        (check (not (equal? build-receipt bench-receipt)) => #t)
+        (check (member (path-expand "src/testing/gxtest-runner.ss"
+                                    (current-directory))
+                       sources)
+               ? true)
+        (check (member (path-expand "t/build-install-test.ss"
+                                    (current-directory))
+                       sources)
+               ? true)))
     (test-case "source-load gxtest runner derives suite and expression"
       (configure-build-root! (current-directory))
       (check (gxtest-file-exported-suite "t/build-install-test.ss")
