@@ -102,27 +102,35 @@
           [(testing-build-loadpath-env build)
            (testing-build-scope-env build files)]))
 
-;; : (-> TestingBuild [String] [String])
-(def (testing-build-gxtest-command build files)
+;; : (-> TestingBuild [String] Boolean [String])
+(def (testing-build-gxtest-command build files (include-policy-file? #t))
   (let (policy-file (testing-object-ref build 'policyFile #f))
     (append ["env"]
             (testing-build-process-env build files)
             ["gxtest"]
             files
-            (if policy-file [policy-file] []))))
+            (if (and include-policy-file? policy-file)
+              [policy-file]
+              []))))
 
 ;; : (-> TestingBuild Procedure)
 (def (testing-build-gxtest-runner build)
-  (lambda (files)
-    (let (status 0)
-      (run-process (testing-build-gxtest-command build files)
-                   stdin-redirection: #f
-                   stdout-redirection: #f
-                   stderr-redirection: #f
-                   check-status:
-                   (lambda (exit-status _settings)
-                     (set! status exit-status)))
-      (testing-build-exit-code status))))
+  (let (include-policy-file? #t)
+    (lambda (files)
+      (let ((status 0)
+            (include-policy-file include-policy-file?))
+        (set! include-policy-file? #f)
+        (run-process (testing-build-gxtest-command
+                      build
+                      files
+                      include-policy-file)
+                     stdin-redirection: #f
+                     stdout-redirection: #f
+                     stderr-redirection: #f
+                     check-status:
+                     (lambda (exit-status _settings)
+                       (set! status exit-status)))
+        (testing-build-exit-code status)))))
 
 ;; : (-> TestingBuild String Alist)
 (def (testing-build-scenario-metadata build id)

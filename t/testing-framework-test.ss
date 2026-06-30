@@ -112,6 +112,21 @@
                    "t/unit-a-test.ss"
                    "t/poo-flow-policy-test.ss"])))
 
+    (test-case "testing build can omit policy file after first delegate batch"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   policy-file: "t/poo-flow-policy-test.ss"
+                   scope-env: "POO_FLOW_TEST_FILES"))
+        (check (testing-build-gxtest-command
+                build
+                ["t/unit-b-test.ss"]
+                #f)
+               => ["env"
+                   "POO_FLOW_TEST_FILES=(\"t/unit-b-test.ss\")"
+                   "gxtest"
+                   "t/unit-b-test.ss"])))
+
     (test-case "testing build injects loadpath only when explicitly configured"
       (let (build (testing-build
                    name: "poo-flow"
