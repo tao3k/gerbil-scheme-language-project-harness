@@ -19,5 +19,5 @@
                "policy-pack-routing"]
    roots: ["src" "t" "policy-scenarios"]))
 
-(def (marlin-speed-main args)
-  (testing-build-main marlin-speed-project args))
+(def (marlin-speed-main args (run-files #f))
+  (testing-build-main marlin-speed-project args run-files))

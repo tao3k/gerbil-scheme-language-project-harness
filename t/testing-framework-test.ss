@@ -87,10 +87,74 @@
         (check (length suites) => 1)
         (check (testing-suite-name (car suites)) => "unit")))
 
+    (test-case "testing build maps package-prefixed symbol imports"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   import-prefix: ":poo-flow/t/"))
+        (check (testing-build-import->file
+                build
+                ':poo-flow/t/cli-test)
+               => "./t/cli-test.ss")))
+
+    (test-case "testing build default delegate owns env and policy command shape"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   policy-file: "t/poo-flow-policy-test.ss"
+                   scope-env: "POO_FLOW_TEST_FILES"))
+        (check (testing-build-gxtest-command
+                build
+                ["t/unit-a-test.ss"])
+               => ["env"
+                   "POO_FLOW_TEST_FILES=(\"t/unit-a-test.ss\")"
+                   "gxtest"
+                   "t/unit-a-test.ss"
+                   "t/poo-flow-policy-test.ss"])))
+
+    (test-case "testing build injects loadpath only when explicitly configured"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   loadpath: ".:.gerbil/lib"))
+        (check (testing-build-gxtest-command
+                build
+                ["t/unit-a-test.ss"])
+               => ["env"
+                   "GERBIL_LOADPATH=.:.gerbil/lib"
+                   "gxtest"
+                   "t/unit-a-test.ss"])))
+
+    (test-case "testing build rejects explicit files outside declared suites"
+      (let* ((receipt
+              (testing-build-main
+               downstream-testing-project
+               ["t/does-not-exist-test.ss"]
+               (testing-build-dry-gxtest-runner
+                downstream-testing-project))))
+        (check (testing-receipt-ok? receipt) => #f)
+        (check (testing-object-ref receipt 'status) => 'failed)))
+
+    (test-case "testing build accepts relative files without dot-prefix drift"
+      (testing-build-reset! downstream-testing-project)
+      (let* ((receipt
+              (downstream-testing-main
+               ["t/scenarios/policy/downstream-testing-framework-api-loading/input/t/unit-a-test.ss"]
+               (testing-build-dry-gxtest-runner
+                downstream-testing-project)))
+             (children (testing-receipt-children receipt)))
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (length children) => 1)
+        (check (testing-object-ref (car children) 'suite)
+               => "unit")))
+
     (test-case "downstream build.ss loads public testing API"
       (testing-build-reset! downstream-testing-project)
       (let* ((file (downstream-testing-path "t/unit-a-test.ss"))
-             (receipt (downstream-testing-main (list file)))
+             (receipt (downstream-testing-main
+                       (list file)
+                       (testing-build-dry-gxtest-runner
+                        downstream-testing-project)))
              (children (testing-receipt-children receipt)))
         (check (testing-receipt-ok? receipt) => #t)
         (check (length children) => 1)
@@ -99,10 +163,32 @@
         (check (testing-build-gxtest-runs downstream-testing-project)
                => (list (list file)))))
 
+    (test-case "downstream build.ss can delegate to a real gxtest runner"
+      (testing-build-reset! downstream-testing-project)
+      (let ((runs (vector []))
+            (file (downstream-testing-path "t/unit-a-test.ss")))
+        (let* ((runner
+                (lambda (files)
+                  (vector-set! runs 0 (cons files (vector-ref runs 0)))
+                  0))
+               (receipt (downstream-testing-main (list file) runner))
+               (children (testing-receipt-children receipt)))
+          (check (testing-receipt-ok? receipt) => #t)
+          (check (length children) => 1)
+          (check (testing-object-ref (car children) 'suite)
+                 => "unit")
+          (check (reverse (vector-ref runs 0))
+                 => (list (list file)))
+          (check (testing-build-gxtest-runs downstream-testing-project)
+                 => []))))
+
     (test-case "marlin-like build speed trap stays incremental"
       (testing-build-reset! marlin-speed-project)
       (let* ((file (marlin-speed-path "t/config-interface-test.ss"))
-             (receipt (marlin-speed-main (list file)))
+             (receipt (marlin-speed-main
+                       (list file)
+                       (testing-build-dry-gxtest-runner
+                        marlin-speed-project)))
              (children (testing-receipt-children receipt)))
         (check (testing-receipt-ok? receipt) => #t)
         (check (length children) => 1)

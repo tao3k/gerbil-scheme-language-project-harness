@@ -2,6 +2,7 @@
 ;;; Thin downstream build.ss API over the POO testing framework.
 
 (import :gerbil/gambit
+        (only-in :std/misc/process run-process)
         (only-in :std/sugar filter)
         :testing/model
         :testing/framework)
@@ -17,10 +18,29 @@
   (testing-object-ref build 'contractRoot
                       (testing-object-ref build 'root ".")))
 
+;; : (-> TestingBuild String MaybePath)
+(def (testing-build-prefixed-import->file build module-name)
+  (let (prefix (testing-object-ref build 'importPrefix #f))
+    (and prefix
+         (testing-string-prefix? prefix module-name)
+         (string-append
+          "t/"
+          (substring module-name
+                     (string-length prefix)
+                     (string-length module-name))
+          ".ss"))))
+
 ;; : (-> TestingBuild Datum MaybePath)
 (def (testing-build-import->file build import)
-  (and (string? import)
-       (testing-build-path build (string-append "t/" import))))
+  (cond
+   ((string? import)
+    (testing-build-path build (string-append "t/" import)))
+   ((symbol? import)
+    (let (file (testing-build-prefixed-import->file
+                build
+                (symbol->string import)))
+      (and file (testing-build-path build file))))
+   (else #f)))
 
 ;; : (-> Datum String)
 (def (testing-build-gxtest-name spec)
@@ -46,11 +66,63 @@
     scenario))
 
 ;; : (-> TestingBuild Procedure)
-(def (testing-build-gxtest-runner build)
+(def (testing-build-dry-gxtest-runner build)
   (lambda (files)
     (let (runs (testing-object-ref build 'gxtestRuns []))
       (vector-set! runs 0 (cons files (vector-ref runs 0))))
     0))
+
+;; : (-> Datum String)
+(def (testing-build-write-datum value)
+  (call-with-output-string ""
+    (lambda (port) (write value port))))
+
+;; : (-> Integer Integer)
+(def (testing-build-exit-code status)
+  (cond
+   ((< status 0) 1)
+   ((> status 255) (quotient status 256))
+   (else status)))
+
+;; : (-> TestingBuild [String] MaybeString)
+(def (testing-build-scope-env build files)
+  (let (name (testing-object-ref build 'scopeEnv #f))
+    (and name
+         (string-append name "=" (testing-build-write-datum files)))))
+
+;; : (-> TestingBuild MaybeString)
+(def (testing-build-loadpath-env build)
+  (let (loadpath (testing-object-ref build 'loadpath #f))
+    (and loadpath
+         (string-append "GERBIL_LOADPATH=" loadpath))))
+
+;; : (-> TestingBuild [String] [String])
+(def (testing-build-process-env build files)
+  (filter values
+          [(testing-build-loadpath-env build)
+           (testing-build-scope-env build files)]))
+
+;; : (-> TestingBuild [String] [String])
+(def (testing-build-gxtest-command build files)
+  (let (policy-file (testing-object-ref build 'policyFile #f))
+    (append ["env"]
+            (testing-build-process-env build files)
+            ["gxtest"]
+            files
+            (if policy-file [policy-file] []))))
+
+;; : (-> TestingBuild Procedure)
+(def (testing-build-gxtest-runner build)
+  (lambda (files)
+    (let (status 0)
+      (run-process (testing-build-gxtest-command build files)
+                   stdin-redirection: #f
+                   stdout-redirection: #f
+                   stderr-redirection: #f
+                   check-status:
+                   (lambda (exit-status _settings)
+                     (set! status exit-status)))
+      (testing-build-exit-code status))))
 
 ;; : (-> TestingBuild String Alist)
 (def (testing-build-scenario-metadata build id)
@@ -128,7 +200,7 @@
      receipt-prefix: (testing-object-ref build 'receiptPrefix
                                          (testing-object-ref build 'name "testing-build")))))
 
-;; : (-> String Path MaybePath List List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString TestingBuild)
+;; : (-> String Path MaybePath List List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
 (def (testing-build name: (name "testing-build")
                     root: (root ".")
                     contract-root: (contract-root #f)
@@ -139,10 +211,14 @@
                     scenario-root: (scenario-root "policy-scenarios")
                     scenario-suite-name: (scenario-suite-name "policy-scenarios")
                     roots: (roots ["src" "t" "policy-scenarios"])
+                    import-prefix: (import-prefix #f)
                     batch-size: (batch-size 2)
                     max-selected-files: (max-selected-files 2)
                     max-selected-sources: (max-selected-sources 4)
                     max-selected-outputs: (max-selected-outputs 4)
+                    policy-file: (policy-file #f)
+                    scope-env: (scope-env #f)
+                    loadpath: (loadpath #f)
                     receipt-prefix: (receipt-prefix #f))
   (testing-object
    'testing-build
@@ -155,10 +231,14 @@
      (scenarioRoot . ,scenario-root)
      (scenarioSuiteName . ,scenario-suite-name)
      (roots . ,roots)
+     (importPrefix . ,import-prefix)
      (batchSize . ,batch-size)
      (maxSelectedFiles . ,max-selected-files)
      (maxSelectedSources . ,max-selected-sources)
      (maxSelectedOutputs . ,max-selected-outputs)
+     (policyFile . ,policy-file)
+     (scopeEnv . ,scope-env)
+     (loadpath . ,loadpath)
      (receiptPrefix . ,(or receipt-prefix name))
      (gxtestRuns . ,(vector []))
      (scenarioRuns . ,(vector [])))))
@@ -180,8 +260,9 @@
 (def (testing-build-select build args)
   (testing-select-project (testing-build-project build) args))
 
-;; : (-> TestingBuild List TestingReceipt)
-(def (testing-build-main build args)
+;; : (-> TestingBuild List (OrFalse Procedure) TestingReceipt)
+(def (testing-build-main build args (run-files #f))
   (testing-run-selection
    (testing-build-select build args)
-   (testing-build-gxtest-runner build)))
+   (or run-files
+       (testing-build-gxtest-runner build))))

@@ -111,7 +111,7 @@
                       status: (status 'ok)
                       suite: (suite #f)
                       files: (files [])
-                      elapsed-seconds: (elapsed-seconds 0)
+                      elapsed-micros: (elapsed-micros 0)
                       children: (children [])
                       details: (details []))
   (testing-object
@@ -120,7 +120,7 @@
      (status . ,status)
      (suite . ,suite)
      (files . ,files)
-     (elapsedSeconds . ,elapsed-seconds)
+     (elapsedMicros . ,elapsed-micros)
      (children . ,children)
      (details . ,details))))
 

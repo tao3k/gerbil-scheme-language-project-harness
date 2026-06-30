@@ -3,6 +3,9 @@
 
 (import :gerbil/gambit
         :benchmark/framework
+        (only-in :support/time
+                 monotonic-micros
+                 duration-micros)
         (only-in :std/srfi/1 iota split-at)
         (only-in :std/sugar cut filter filter-map foldl)
         :testing/model)
@@ -15,6 +18,26 @@
    ((null? values) #f)
    ((equal? value (car values)) #t)
    (else (testing-member? value (cdr values)))))
+
+;; : (-> Path Path)
+(def (testing-normalize-path path)
+  (if (and (string? path)
+           (testing-string-prefix? "./" path))
+    (testing-normalize-path
+     (substring path 2 (string-length path)))
+    path))
+
+;; : (-> Path Path Boolean)
+(def (testing-path=? left right)
+  (equal? (testing-normalize-path left)
+          (testing-normalize-path right)))
+
+;; : (-> Path (List Path) Boolean)
+(def (testing-member-path? path values)
+  (cond
+   ((null? values) #f)
+   ((testing-path=? path (car values)) #t)
+   (else (testing-member-path? path (cdr values)))))
 
 ;; : (-> Datum Symbol Boolean)
 (def (testing-form-contains-symbol? form symbol)
@@ -126,16 +149,18 @@
 
 ;; : (-> TestingSuite Path Boolean)
 (def (testing-suite-root? suite file)
-  (testing-member? file (testing-suite-roots suite)))
+  (testing-member-path? file (testing-suite-roots suite)))
 
 ;; : (-> Path Path Boolean)
 (def (testing-arg-under-root? root arg)
-  (and (string? root)
-       (string? arg)
-       (or (equal? root arg)
+  (let ((root (testing-normalize-path root))
+        (arg (testing-normalize-path arg)))
+    (and (string? root)
+         (string? arg)
+         (or (equal? root arg)
            (testing-string-prefix?
             (string-append root "/")
-            arg))))
+            arg)))))
 
 ;; : (-> TestingSuite Path Boolean)
 (def (testing-arg-under-suite-root? suite arg)
@@ -148,7 +173,7 @@
 (def (testing-gxtest-file-in-suite? suite arg)
   (and (testing-string-suffix? ".ss" arg)
        (or (testing-arg-under-suite-root? suite arg)
-           (testing-member? arg (testing-suite-default-files suite)))))
+           (testing-member-path? arg (testing-suite-default-files suite)))))
 
 ;; : (-> GxTestSuite (List Path))
 (def (testing-suite-default-files suite)
@@ -491,16 +516,16 @@
 
 ;; : (-> TestingSuite List Procedure TestingReceipt)
 (def (testing-run-batch suite files run-files)
-  (let* ((started-at (time->seconds (current-time)))
+  (let* ((started-at (monotonic-micros))
          (status (run-files files))
-         (elapsed (- (time->seconds (current-time)) started-at))
+         (elapsed-micros (duration-micros started-at (monotonic-micros)))
          (receipt-status (if (= status 0) 'ok 'failed)))
     (testing-receipt
      kind: 'gxtest-batch
      status: receipt-status
      suite: (testing-suite-name suite)
      files: files
-     elapsed-seconds: elapsed)))
+     elapsed-micros: elapsed-micros)))
 
 ;; : (-> TestingProject GxTestSuite List Procedure TestingReceipt)
 (def (testing-run-gxtest-suite project suite args run-files)
@@ -536,23 +561,23 @@
 
 ;; : (-> ScenarioSuite Datum TestingReceipt)
 (def (testing-run-scenario suite scenario)
-  (let* ((started-at (time->seconds (current-time)))
+  (let* ((started-at (monotonic-micros))
          (runner (testing-scenario-suite-runner suite))
          (_ (if runner (runner scenario) scenario))
-         (elapsed (- (time->seconds (current-time)) started-at)))
+         (elapsed-micros (duration-micros started-at (monotonic-micros))))
     (testing-receipt
      kind: 'policy-scenario
      status: 'ok
      suite: (testing-suite-name suite)
      files: (list (testing-scenario-root suite scenario))
-     elapsed-seconds: elapsed
+     elapsed-micros: elapsed-micros
      details: (append
                `((id . ,(testing-scenario-id scenario)))
                (testing-scenario-repair-details scenario)))))
 
 ;; : (-> ScenarioSuite List TestingReceipt)
 (def (testing-run-scenario-batch suite scenarios)
-  (let* ((started-at (time->seconds (current-time)))
+  (let* ((started-at (monotonic-micros))
          (receipts
           (map (lambda (scenario)
                  (testing-run-scenario suite scenario))
@@ -561,14 +586,14 @@
                  (lambda (scenario)
                    (testing-scenario-root suite scenario))
                  scenarios))
-         (elapsed (- (time->seconds (current-time)) started-at))
+         (elapsed-micros (duration-micros started-at (monotonic-micros)))
          (status (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed)))
     (testing-receipt
      kind: 'policy-scenario-batch
      status: status
      suite: (testing-suite-name suite)
      files: files
-     elapsed-seconds: elapsed
+     elapsed-micros: elapsed-micros
      children: receipts)))
 
 ;; : (-> TestingProject ScenarioSuite List TestingReceipt)

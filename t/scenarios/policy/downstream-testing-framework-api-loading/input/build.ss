@@ -18,5 +18,5 @@
    scenario-suite-name: "policy"
    roots: ["src" "t" "policy-scenarios"]))
 
-(def (downstream-testing-main args)
-  (testing-build-main downstream-testing-project args))
+(def (downstream-testing-main args (run-files #f))
+  (testing-build-main downstream-testing-project args run-files))

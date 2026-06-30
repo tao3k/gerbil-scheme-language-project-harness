@@ -136,20 +136,29 @@ jobs:
         id: gerbil-pkg-cache
         uses: actions/cache/restore@v4
         with:
-          path: ~/.gerbil/pkg
+          path: |
+            .gerbil/pkg
+            .gerbil/lib
+            .gerbil/bin
           key: gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-${{ hashFiles('gerbil.pkg') }}
           restore-keys: |
             gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-
 
       - name: Install Gerbil package dependencies from gerbil.pkg
-        env:
-          GERBIL_PKG_CACHE_HIT: ${{ steps.gerbil-pkg-cache.outputs.cache-hit }}
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.gerbil/pkg"
           gxpkg dir --add git.cons.io/mighty-gerbils/gerbil-directory
-          if [ "$GERBIL_PKG_CACHE_HIT" = "true" ]; then
-            echo "Using cached Gerbil package dependencies"
+          package_cache_ready=false
+          if [ -d .gerbil/lib ]; then
+            if gxi -e '(begin (import :clan/base :clan/poo/object) (displayln "gerbil-package-cache-ready"))'; then
+              package_cache_ready=true
+            else
+              echo "Cached Gerbil packages are missing compiled dependency libraries; rebuilding"
+            fi
+          fi
+          if [ "$package_cache_ready" = "true" ]; then
+            echo "Using cached Gerbil package dependency build products"
           else
             gxpkg deps --install
           fi
@@ -163,7 +172,10 @@ jobs:
         if: steps.gerbil-pkg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~/.gerbil/pkg
+          path: |
+            .gerbil/pkg
+            .gerbil/lib
+            .gerbil/bin
           key: gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-${{ hashFiles('gerbil.pkg') }}
 
       - name: Run Gerbil test suites

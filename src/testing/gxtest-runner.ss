@@ -339,15 +339,24 @@
   (newline)
   (force-output))
 
+;; : (-> Path Path)
+(def (normalize-directory-path path)
+  (let trim ((end (string-length path)))
+    (if (and (> end 1)
+             (char=? (string-ref path (- end 1)) #\/))
+      (trim (- end 1))
+      (substring path 0 end))))
+
 ;; : (-> Void)
 (def (ensure-directory! path)
-  (unless (file-exists? path)
-    (let (parent (path-directory path))
+  (let (directory (normalize-directory-path path))
+    (unless (file-exists? directory)
+    (let (parent (path-directory directory))
       (when (and parent
                  (not (string=? parent ""))
-                 (not (string=? parent path)))
+                 (not (string=? parent directory)))
         (ensure-directory! parent))
-      (create-directory path))))
+      (create-directory directory)))))
 
 ;; : (-> Void)
 (def (write-package-api-build-receipt!)
