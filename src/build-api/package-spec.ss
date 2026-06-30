@@ -28,11 +28,7 @@
     "testing/gxtest-runner.ss"))
 
 (def +gslph-package-api-directories+
-  '("parser" "policy" "types"))
-
-(def +gslph-package-api-extensions+
-  '("extensions/poo-source-ref-validation.ss"
-    "extensions/poo-object-validation.ss"))
+  '("parser" "policy" "types" "extensions"))
 
 (def (gslph-ss-file? file)
   (and (string? file)
@@ -50,5 +46,4 @@
   (append +gslph-package-api-core+
           (apply append
                  (map gslph-package-api-directory-spec
-                      +gslph-package-api-directories+))
-          +gslph-package-api-extensions+))
+                      +gslph-package-api-directories+))))
