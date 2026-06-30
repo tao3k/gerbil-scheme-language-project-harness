@@ -28,7 +28,7 @@
     "testing/gxtest-runner.ss"))
 
 (def +gslph-package-api-directories+
-  '("parser" "policy" "types" "extensions"))
+  '("checker" "parser" "policy" "types" "extensions"))
 
 (def (gslph-ss-file? file)
   (and (string? file)
