@@ -2,6 +2,7 @@
 ;;; Thin downstream build.ss API over the POO testing framework.
 
 (import :gerbil/gambit
+        (only-in :std/misc/path path-directory)
         (only-in :std/misc/process run-process)
         (only-in :std/sugar filter)
         :testing/model
@@ -136,9 +137,27 @@
 (def (testing-build-support-command build file)
   ["gxc" (testing-build-path build file)])
 
+;; : (-> TestingBuild Path MaybePath)
+(def (testing-build-support-output-directory build file)
+  (let (root (testing-object-ref build 'supportOutputRoot #f))
+    (and root
+         (path-directory
+          (testing-build-path build
+                              (path-expand file root))))))
+
+;; : (-> TestingBuild Path Unit)
+(def (testing-build-ensure-support-output-directory! build file)
+  (let (directory (testing-build-support-output-directory build file))
+    (when directory
+      (run-process ["mkdir" "-p" directory]
+                   stdin-redirection: #f
+                   stdout-redirection: #f
+                   stderr-redirection: #f))))
+
 ;; : (-> TestingBuild Path Integer)
 (def (testing-build-compile-support-file build file)
   (let (status 0)
+    (testing-build-ensure-support-output-directory! build file)
     (run-process (testing-build-support-command build file)
                  stdin-redirection: #f
                  stdout-redirection: #f
@@ -233,12 +252,13 @@
      receipt-prefix: (testing-object-ref build 'receiptPrefix
                                          (testing-object-ref build 'name "testing-build")))))
 
-;; : (-> String Path MaybePath List List List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
+;; : (-> String Path MaybePath List List MaybePath List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
 (def (testing-build name: (name "testing-build")
                     root: (root ".")
                     contract-root: (contract-root #f)
                     gxtest: (gxtest [])
                     support-files: (support-files [])
+                    support-output-root: (support-output-root #f)
                     scenarios: (scenarios [])
                     improvement-scenarios: (improvement-scenarios #f)
                     scenario-metadata: (scenario-metadata [])
@@ -261,6 +281,7 @@
      (contractRoot . ,(or contract-root root))
      (gxtest . ,gxtest)
      (supportFiles . ,support-files)
+     (supportOutputRoot . ,support-output-root)
      (scenarios . ,(or improvement-scenarios scenarios))
      (scenarioMetadata . ,scenario-metadata)
      (scenarioRoot . ,scenario-root)

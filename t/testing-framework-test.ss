@@ -144,11 +144,16 @@
       (let (build (testing-build
                    name: "poo-flow"
                    root: "."
-                   support-files: ["t/support/performance.ss"]))
+                   support-files: ["t/support/performance.ss"]
+                   support-output-root: ".gerbil/lib/poo-flow"))
         (check (testing-build-support-command
                 build
                 "t/support/performance.ss")
-               => ["gxc" "./t/support/performance.ss"])))
+               => ["gxc" "./t/support/performance.ss"])
+        (check (testing-build-support-output-directory
+                build
+                "t/support/performance.ss")
+               => "./.gerbil/lib/poo-flow/t/support/")))
 
     (test-case "testing build rejects explicit files outside declared suites"
       (let* ((receipt
