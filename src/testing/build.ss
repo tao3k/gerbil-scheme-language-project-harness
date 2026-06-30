@@ -132,6 +132,31 @@
                        (set! status exit-status)))
         (testing-build-exit-code status)))))
 
+;; : (-> TestingBuild Path [String])
+(def (testing-build-support-command build file)
+  ["gxc" (testing-build-path build file)])
+
+;; : (-> TestingBuild Path Integer)
+(def (testing-build-compile-support-file build file)
+  (let (status 0)
+    (run-process (testing-build-support-command build file)
+                 stdin-redirection: #f
+                 stdout-redirection: #f
+                 stderr-redirection: #f
+                 check-status:
+                 (lambda (exit-status _settings)
+                   (set! status exit-status)))
+    (testing-build-exit-code status)))
+
+;; : (-> TestingBuild Unit)
+(def (testing-build-compile-support! build)
+  (for-each
+   (lambda (file)
+     (let (status (testing-build-compile-support-file build file))
+       (unless (= status 0)
+         (error "testing support compile failed" file status))))
+   (testing-object-ref build 'supportFiles [])))
+
 ;; : (-> TestingBuild String Alist)
 (def (testing-build-scenario-metadata build id)
   (let (entry (assoc id (testing-object-ref build 'scenarioMetadata [])))
@@ -208,11 +233,12 @@
      receipt-prefix: (testing-object-ref build 'receiptPrefix
                                          (testing-object-ref build 'name "testing-build")))))
 
-;; : (-> String Path MaybePath List List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
+;; : (-> String Path MaybePath List List List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
 (def (testing-build name: (name "testing-build")
                     root: (root ".")
                     contract-root: (contract-root #f)
                     gxtest: (gxtest [])
+                    support-files: (support-files [])
                     scenarios: (scenarios [])
                     improvement-scenarios: (improvement-scenarios #f)
                     scenario-metadata: (scenario-metadata [])
@@ -234,6 +260,7 @@
      (root . ,root)
      (contractRoot . ,(or contract-root root))
      (gxtest . ,gxtest)
+     (supportFiles . ,support-files)
      (scenarios . ,(or improvement-scenarios scenarios))
      (scenarioMetadata . ,scenario-metadata)
      (scenarioRoot . ,scenario-root)
@@ -270,6 +297,7 @@
 
 ;; : (-> TestingBuild List (OrFalse Procedure) TestingReceipt)
 (def (testing-build-main build args (run-files #f))
+  (testing-build-compile-support! build)
   (testing-run-selection
    (testing-build-select build args)
    (or run-files

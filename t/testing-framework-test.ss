@@ -140,6 +140,16 @@
                    "gxtest"
                    "t/unit-a-test.ss"])))
 
+    (test-case "testing build declares support modules without build.ss expansion"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   support-files: ["t/support/performance.ss"]))
+        (check (testing-build-support-command
+                build
+                "t/support/performance.ss")
+               => ["gxc" "./t/support/performance.ss"])))
+
     (test-case "testing build rejects explicit files outside declared suites"
       (let* ((receipt
               (testing-build-main
