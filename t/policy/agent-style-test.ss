@@ -11,7 +11,10 @@
         :policy/agent-style-comment-doc-test
         :policy/agent-style-functional-core-test
         :policy/agent-style-functional-branch-test
-        :policy/agent-style-predicate-test)
+        :policy/agent-style-macro-metaprogramming-decision-test
+        :policy/agent-style-predicate-test
+        :policy/agent-style-syntax-local-registry-test
+        :policy/agent-style-syntax-parameter-context-test)
 (export agent-style-policy-test)
 
 ;; PolicyTest
@@ -26,4 +29,7 @@
     agent-style-comment-doc-policy-test
     agent-style-functional-core-policy-test
     agent-style-functional-branch-policy-test
-    agent-style-predicate-policy-test))
+    agent-style-macro-metaprogramming-decision-policy-test
+    agent-style-predicate-policy-test
+    agent-style-syntax-local-registry-policy-test
+    agent-style-syntax-parameter-context-policy-test))

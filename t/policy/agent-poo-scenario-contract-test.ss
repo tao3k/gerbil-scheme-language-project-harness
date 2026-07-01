@@ -4,6 +4,7 @@
 (import :gerbil/gambit
         :std/test
         :benchmark/framework
+        :policy/agent-poo-scenario-registry
         :policy/agent-poo-scenario-contract-support)
 
 (export agent-poo-scenario-contract-test)
@@ -28,7 +29,10 @@
           +poo-native-primary-scenario-ids+))
         (missing-optimizer-visibility
          (poo-performance-scenarios-missing-optimizer-visibility
-          +poo-optimizer-visible-scenario-ids+)))
+          +poo-optimizer-visible-scenario-ids+))
+        (missing-generated-boundary
+         (poo-performance-scenarios-missing-generated-boundary
+          +poo-generated-boundary-scenario-ids+)))
     (unless (null? missing-benchmarks)
       (error "missing POO benchmark contracts" missing-benchmarks))
     (unless (null? missing-exemptions)
@@ -38,7 +42,10 @@
     (unless (null? missing-native-source)
       (error "missing POO native expected source" missing-native-source))
     (unless (null? missing-optimizer-visibility)
-      (error "missing POO optimizer visibility" missing-optimizer-visibility))))
+      (error "missing POO optimizer visibility" missing-optimizer-visibility))
+    (unless (null? missing-generated-boundary)
+      (error "missing POO generated boundary repair contract"
+             missing-generated-boundary))))
 
 ;; PolicyTest
 (def agent-poo-scenario-contract-test
@@ -66,6 +73,11 @@
     (test-case "POO optimizer-aware scenarios declare optimizer-visible repair shape"
       (check (poo-performance-scenarios-missing-optimizer-visibility
               +poo-optimizer-visible-scenario-ids+)
+             => []))
+
+    (test-case "POO generated runtime boundary scenarios prefer defstruct plus projection"
+      (check (poo-performance-scenarios-missing-generated-boundary
+              +poo-generated-boundary-scenario-ids+)
              => []))
 
     (test-case "POO scenario contract checks use benchmark.ss gate"

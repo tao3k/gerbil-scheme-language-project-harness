@@ -5,23 +5,19 @@
         (only-in :clan/poo/object object? .ref .slot?)
         :testing/model
         :testing/framework
+        :testing/performance
         :testing/build
-        "./scenarios/policy/downstream-testing-framework-api-loading/input/build.ss"
-        "./scenarios/policy/marlin-testing-speed-trap/expected/build.ss")
+        :testing/build-runner
+        :testing/build-process
+        :testing/build-support
+        :testing/build-runtime)
 
-(export testing-framework-test)
+(export testing-framework-test
+        performance-smoke-work)
 
 ;; : (-> (List Path) Integer)
 (def (fake-run-files files)
   0)
-
-;; : (-> Path Path)
-(def (downstream-testing-path relative)
-  (testing-build-path downstream-testing-project relative))
-
-;; : (-> Path Path)
-(def (marlin-speed-path relative)
-  (testing-build-path marlin-speed-project relative))
 
 (def +testing-suite+
   (gxtest-suite
@@ -36,6 +32,41 @@
    name: "poo-flow-like"
    suites: [+testing-suite+]
    roots: ["t/fixtures/testing-framework"]))
+
+(def +performance-fixture+
+  (call-with-input-file
+   "t/scenarios/policy/poo-object-construction-loop-performance/benchmark.ss"
+   read))
+
+(def (performance-smoke-work)
+  (let loop ((index 0) (sum 0))
+    (if (= index 10)
+      sum
+      (loop (+ index 1) (+ sum index)))))
+
+(def (benchmark-receipt-ref receipt key default)
+  (let (entry (assq key receipt))
+    (if entry (cdr entry) default)))
+
+(def (performance-case-benchmark-status receipt)
+  (benchmark-receipt-ref
+   (testing-receipt-detail receipt 'benchmark default: [])
+   'status
+   #f))
+
+(def +performance-suite+
+  (performance-suite
+   name: "performance"
+   cases: [(performance-case
+            name: "poo-smoke"
+            fixture: +performance-fixture+
+            runner: performance-smoke-work)]))
+
+(def +performance-project+
+  (testing-project
+   name: "poo-flow-like-performance"
+   suites: [+performance-suite+]
+   roots: ["t/scenarios/policy"]))
 
 (def testing-framework-test
   (test-suite "gerbil scheme POO-shaped testing framework smoke"
@@ -69,63 +100,363 @@
                +testing-project+
                ["t/fixtures/testing-framework/alpha-test.ss"]
                fake-run-files))
+             (named-receipt
+              (testing-run-project
+               +testing-project+
+               ["unit"]
+               fake-run-files))
              (children (testing-receipt-children receipt)))
         (check (testing-receipt-ok? receipt) => #t)
         (check (length children) => 1)
         (check (testing-object-ref (car children) 'receiptKind)
-               => 'gxtest-suite)))
+               => 'gxtest-suite)
+        (check (testing-receipt-files
+                (car (testing-receipt-children named-receipt)))
+               => ["t/fixtures/testing-framework/alpha-test.ss"
+                   "t/fixtures/testing-framework/beta-test.ss"])))
+
+    (test-case "gxtest suite receipt exposes framework-owned timing phases"
+      (let* ((receipt
+              (testing-run-project
+               +testing-project+
+               ["unit"]
+               fake-run-files))
+             (suite-receipt (car (testing-receipt-children receipt)))
+             (phases (testing-receipt-phases suite-receipt)))
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (testing-receipt-elapsed-micros suite-receipt)
+               ? number?)
+        (check (map (lambda (phase)
+                      (testing-object-ref phase 'elapsedMicros))
+                    phases)
+               ? (lambda (values)
+                   (and (not (null? values))
+                        (andmap number? values))))
+        (check (map (lambda (phase)
+                      (let (details (testing-receipt-details phase))
+                        (cdr (assq 'phase details))))
+                    phases)
+               => '(expand-manifest delegate-gxtest))))
 
     (test-case "project selection is POO-native"
       (let* ((selection
               (testing-select-project
                +testing-project+
                ["t/fixtures/testing-framework/alpha-test.ss"]))
+             (named-selection
+              (testing-select-project
+               +testing-project+
+               ["unit"]))
              (suites (testing-selection-suites selection)))
         (check (object? selection) => #t)
         (check (testing-object-kind selection) => 'testing-selection)
         (check (testing-selection-ok? selection) => #t)
         (check (length suites) => 1)
-        (check (testing-suite-name (car suites)) => "unit")))
+        (check (testing-suite-name (car suites)) => "unit")
+        (check (testing-selection-ok? named-selection) => #t)
+        (check (map testing-suite-name
+                    (testing-selection-suites named-selection))
+               => ["unit"])))
+
+    (test-case "project selection assigns explicit files to one owner suite"
+      (let* ((project
+              (testing-project
+               name: "dedupe-project"
+               suites: [(gxtest-suite
+                         name: "unit"
+                         roots: ["t/fixtures/testing-framework/unit-tests.ss"]
+                         files: ["t/fixtures/testing-framework/alpha-test.ss"
+                                 "t/fixtures/testing-framework/exported-mismatch-test.ss"])
+                        (gxtest-suite
+                         name: "scenario-exported"
+                         roots: ["t/fixtures/testing-framework/exported-mismatch-test.ss"]
+                         files: 'auto)]
+               roots: ["t/fixtures/testing-framework"]))
+             (receipt
+              (testing-run-project
+               project
+               ["t/fixtures/testing-framework/alpha-test.ss"
+                "t/fixtures/testing-framework/exported-mismatch-test.ss"]
+               fake-run-files))
+             (children (testing-receipt-children receipt)))
+        (check (map (lambda (child)
+                      (testing-object-ref child 'suite))
+                    children)
+               => ["unit" "scenario-exported"])
+        (check (map testing-receipt-files children)
+               => [["t/fixtures/testing-framework/alpha-test.ss"]
+                   ["t/fixtures/testing-framework/exported-mismatch-test.ss"]])))
+
+    (test-case "project selection keeps unselected POO suites lazy"
+      (let* ((forced (vector []))
+             (lazy-unit
+              (testing-lazy-object
+               'gxtest-suite
+               `((name . "unit")
+                 (roots . ,(list "t/fixtures/testing-framework")))
+               (lambda ()
+                 (vector-set! forced 0 (cons 'unit (vector-ref forced 0)))
+                 (gxtest-suite
+                  name: "unit"
+                  roots: ["t/fixtures/testing-framework"]
+                  files: ["t/fixtures/testing-framework/alpha-test.ss"]))))
+             (lazy-slow
+              (testing-lazy-object
+               'gxtest-suite
+               `((name . "slow")
+                 (roots . ,(list "t/fixtures/testing-framework/slow")))
+               (lambda ()
+                 (vector-set! forced 0 (cons 'slow (vector-ref forced 0)))
+                 (gxtest-suite
+                  name: "slow"
+                  roots: ["t/fixtures/testing-framework/slow"]
+                  files: ["t/fixtures/testing-framework/slow-test.ss"]))))
+             (project
+              (testing-project
+               name: "lazy-suite-project"
+               suites: [lazy-unit lazy-slow]
+               roots: ["t/fixtures/testing-framework"]))
+             (selection (testing-select-project project ["unit"]))
+             (forced-after-select (vector-ref forced 0))
+             (receipt (testing-run-selection selection fake-run-files)))
+        (check (map testing-suite-name
+                    (testing-selection-suites selection))
+               => ["unit"])
+        (check forced-after-select => [])
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (reverse (vector-ref forced 0)) => '(unit))))
+
+    (test-case "POO lazy values are memoized across accessor reads"
+      (let* ((forced (vector 0))
+             (lazy-suite
+              (testing-lazy
+               (lambda ()
+                 (vector-set! forced 0 (+ 1 (vector-ref forced 0)))
+                 (gxtest-suite
+                  name: "memoized"
+                  roots: ["t/fixtures/testing-framework"]
+                  files: ["t/fixtures/testing-framework/alpha-test.ss"])))))
+        (check (testing-suite-name lazy-suite) => "memoized")
+        (check (testing-suite-files lazy-suite)
+               => ["t/fixtures/testing-framework/alpha-test.ss"])
+        (check (vector-ref forced 0) => 1)))
+
+    (test-case "performance suite runs benchmark receipts without gxtest files"
+      (let* ((receipt
+              (testing-run-project
+               +performance-project+
+               ["performance"]
+               fake-run-files))
+             (suite-receipt (car (testing-receipt-children receipt)))
+             (case-receipt (car (testing-receipt-children suite-receipt)))
+             (body-phase (car (testing-receipt-phases case-receipt))))
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (testing-object-ref suite-receipt 'receiptKind)
+               => 'performance-suite)
+        (check (testing-object-ref case-receipt 'receiptKind)
+               => 'performance-case)
+        (check (testing-receipt-kind body-phase) => 'testing-phase)
+        (check (testing-receipt-detail body-phase 'phase) => 'benchmark-body)
+        (check (testing-receipt-elapsed-micros body-phase) ? number?)
+        (check (performance-case-benchmark-status case-receipt) => 'pass)))
+
+    (test-case "testing benchmark helper exposes body timing to gxtest-style tests"
+      (let-values (((receipt result body-phase)
+                    (testing-benchmark-run/result
+                     "poo-smoke"
+                     +performance-fixture+
+                     performance-smoke-work
+                     '((case . poo-smoke)))))
+        (check (benchmark-receipt-ref receipt 'status #f) => 'pass)
+        (check result => 45)
+        (check (testing-receipt-kind body-phase) => 'testing-phase)
+        (check (testing-receipt-detail body-phase 'phase) => 'benchmark-body)
+        (check (testing-receipt-detail body-phase 'case) => 'poo-smoke)
+        (check (testing-receipt-elapsed-micros body-phase) ? number?)))
+
+    (test-case "testing build declares performance suites as first-class API"
+      (let* ((build (testing-build
+                     name: "poo-flow"
+                     root: "."
+                     performance: [+performance-suite+]))
+             (receipt
+              (testing-run-selection
+               (testing-build-select build ["poo-smoke"])
+               fake-run-files))
+             (suite-receipt (car (testing-receipt-children receipt)))
+             (case-receipt (car (testing-receipt-children suite-receipt))))
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (testing-object-ref suite-receipt 'receiptKind)
+               => 'performance-suite)
+        (check (performance-case-benchmark-status case-receipt) => 'pass)))
+
+    (test-case "performance suite supports lazy module runners"
+      (let* ((suite
+              (performance-suite
+               name: "lazy-performance"
+               cases: [(performance-case
+                        name: "lazy-poo-smoke"
+                        fixture-path:
+                        "t/scenarios/policy/poo-object-construction-loop-performance/benchmark.ss"
+                        runner-module: ':gslph/t/testing-framework-test
+                        runner-symbol: 'performance-smoke-work)]))
+             (project
+              (testing-project
+               name: "lazy-performance-project"
+               suites: [suite]
+               roots: ["t/scenarios/policy"]))
+             (receipt
+              (testing-run-project
+               project
+               ["lazy-poo-smoke"]
+               fake-run-files))
+             (suite-receipt (car (testing-receipt-children receipt)))
+             (case-receipt (car (testing-receipt-children suite-receipt))))
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (testing-object-ref case-receipt 'receiptKind)
+               => 'performance-case)
+        (check (performance-case-benchmark-status case-receipt) => 'pass)))
 
     (test-case "testing build maps package-prefixed symbol imports"
       (let (build (testing-build
                    name: "poo-flow"
-                   root: "."
-                   import-prefix: ":poo-flow/t/"))
+                   root: "."))
         (check (testing-build-import->file
                 build
                 ':poo-flow/t/cli-test)
                => "./t/cli-test.ss")))
 
-    (test-case "testing build default delegate owns env and policy command shape"
+    (test-case "testing build prefers compiled gxtest module shape"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."))
+        (check (testing-build-gxtest-module-symbol
+                build
+                "./t/foo-test.ss")
+               => ':poo-flow/t/foo-test)
+        (check (testing-build-gxtest-compiled-expression
+                build
+                "t/foo-test.ss"
+                'foo-test)
+               => "(begin (import :std/test (only-in :poo-flow/t/foo-test foo-test)) (run-test-suite! foo-test))")))
+
+    (test-case "testing build default delegate owns scoped policy command shape"
       (let (build (testing-build
                    name: "poo-flow"
                    root: "."
-                   policy-file: "t/poo-flow-policy-test.ss"
-                   scope-env: "POO_FLOW_TEST_FILES"))
+                   policy: #t))
         (check (testing-build-gxtest-command
                 build
                 ["t/unit-a-test.ss"])
                => ["env"
-                   "POO_FLOW_TEST_FILES=(\"t/unit-a-test.ss\")"
                    "gxtest"
                    "t/unit-a-test.ss"
-                   "t/poo-flow-policy-test.ss"])))
+                   "./.gerbil/gslph/testing/poo-flow-policy-test.ss"])))
 
     (test-case "testing build can omit policy file after first delegate batch"
       (let (build (testing-build
                    name: "poo-flow"
                    root: "."
-                   policy-file: "t/poo-flow-policy-test.ss"
-                   scope-env: "POO_FLOW_TEST_FILES"))
+                   policy: #t))
         (check (testing-build-gxtest-command
                 build
-                ["t/unit-b-test.ss"]
-                #f)
+               ["t/unit-b-test.ss"]
+               #f)
                => ["env"
-                   "POO_FLOW_TEST_FILES=(\"t/unit-b-test.ss\")"
                    "gxtest"
                    "t/unit-b-test.ss"])))
+
+    (test-case "testing build treats equal source and output time as stale"
+      (check (testing-build-file-current?
+              "t/fixtures/testing-framework/alpha-test.ss"
+              "t/fixtures/testing-framework/alpha-test.ss")
+             => #f))
+
+    (test-case "testing build cache tracks dependency stamps"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   compile-dependency-stamps:
+                   ["t/fixtures/testing-framework/alpha-test.ss"]))
+        (check (testing-build-compile-dependencies-current?
+                build
+                "t/fixtures/testing-framework/alpha-test.ss")
+               => #f)))
+
+    (test-case "testing build cache tracks split framework dependency stamps"
+      (let* ((build (testing-build name: "poo-flow" root: "."))
+             (stamps (testing-build-compile-dependency-stamp-paths build)))
+        (check (testing-any?
+                (lambda (stamp)
+                  (testing-string-suffix?
+                   "gslph/src/testing/scope.ssi"
+                   stamp))
+                stamps)
+               => #t)
+        (check (testing-any?
+                (lambda (stamp)
+                  (testing-string-suffix?
+                   "gslph/src/testing/selection.ssi"
+                   stamp))
+                stamps)
+               => #t)
+        (check (testing-any?
+                (lambda (stamp)
+                  (testing-string-suffix?
+                   "gslph/src/testing/batch.ssi"
+                   stamp))
+                stamps)
+               => #t)))
+
+    (test-case "testing build guards gxtest textual failures"
+      (check (testing-build-gxtest-failure-line?
+              "*** FAILED: (check equal? x y)")
+             => #t)
+      (check (testing-build-gxtest-failure-line?
+              "... All tests OK")
+             => #f))
+
+    (test-case "testing build quotes delegate shell commands"
+      (check (testing-build-shell-command
+              ["env"
+               "POO_FLOW_TEST_FILES=(\"t/a test.ss\")"
+               "gxtest"
+               "t/a test.ss"])
+             => "env 'POO_FLOW_TEST_FILES=(\"t/a test.ss\")' gxtest 't/a test.ss'"))
+
+    (test-case "testing build inline runner uses native gxtest suite symbols"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."))
+        (check (testing-build-gxtest-suite-symbol
+                "t/fixtures/testing-framework/alpha-test.ss")
+               => 'alpha-test)
+        (check (testing-build-run-gxtest-inline
+                build
+                ["t/fixtures/testing-framework/alpha-test.ss"]
+                #f)
+               => 0)))
+
+    (test-case "testing build inline runner accepts self-running gxtest files"
+      (let ((build (testing-build
+                    name: "poo-flow"
+                    root: "."))
+            (file "t/fixtures/testing-framework/self-running-test.ss"))
+        (check (testing-build-gxtest-file-exported-suite? build file) => #f)
+        (check (testing-build-gxtest-file-self-running? build file) => #t)
+        (check (testing-build-gxtest-file-compiled-runnable? build file) => #f)
+        (check (testing-build-run-gxtest-inline build [file] #f) => 0)))
+
+    (test-case "testing build inline runner uses exported suite symbols"
+      (let ((build (testing-build
+                    name: "poo-flow"
+                    root: "."))
+            (file "t/fixtures/testing-framework/exported-mismatch-test.ss"))
+        (check (testing-build-gxtest-suite-symbol file)
+               => 'exported-mismatch-test)
+        (check (testing-build-gxtest-file-exported-suite build file)
+               => 'poo-role-test)
+        (check (testing-build-run-gxtest-inline build [file] #f) => 0)))
 
     (test-case "testing build injects loadpath only when explicitly configured"
       (let (build (testing-build
@@ -155,74 +486,53 @@
                 "t/support/performance.ss")
                => "./.gerbil/lib/poo-flow/t/support/")))
 
-    (test-case "testing build rejects explicit files outside declared suites"
-      (let* ((receipt
-              (testing-build-main
-               downstream-testing-project
-               ["t/does-not-exist-test.ss"]
-               (testing-build-dry-gxtest-runner
-                downstream-testing-project))))
-        (check (testing-receipt-ok? receipt) => #f)
-        (check (testing-object-ref receipt 'status) => 'failed)))
+    (test-case "testing build compiles only selected suite support"
+      (let* ((build (testing-build
+                     name: "poo-flow"
+                     root: "."
+                     gxtest: [["fast" "t/fixtures/testing-framework/alpha-test.ss"]
+                              ["slow" "t/fixtures/testing-framework/beta-test.ss"]]
+                     suite-support-files: [["fast" "t/support/fast.ss"]
+                                           ["slow" "t/support/slow.ss"]]
+                     suite-support-directories:
+                     [["fast" "t/fixtures/testing-framework"]]))
+             (selection (testing-build-select build ["fast"])))
+        (check (testing-build-support-files-for-suites
+                build
+                (map testing-suite-name (testing-selection-suites selection)))
+               => ["t/support/fast.ss"
+                   "t/fixtures/testing-framework/alpha-test.ss"
+                   "t/fixtures/testing-framework/beta-test.ss"
+                   "t/fixtures/testing-framework/delta-test.ss"
+                   "t/fixtures/testing-framework/exported-mismatch-test.ss"
+                   "t/fixtures/testing-framework/failing-local-suite.ss"
+                   "t/fixtures/testing-framework/gamma-test.ss"
+                   "t/fixtures/testing-framework/integration-tests.ss"
+                   "t/fixtures/testing-framework/self-running-test.ss"
+                   "t/fixtures/testing-framework/unit-tests.ss"])))
 
-    (test-case "testing build accepts relative files without dot-prefix drift"
-      (testing-build-reset! downstream-testing-project)
-      (let* ((receipt
-              (downstream-testing-main
-               ["t/scenarios/policy/downstream-testing-framework-api-loading/input/t/unit-a-test.ss"]
-               (testing-build-dry-gxtest-runner
-                downstream-testing-project)))
-             (children (testing-receipt-children receipt)))
-        (check (testing-receipt-ok? receipt) => #t)
-        (check (length children) => 1)
-        (check (testing-object-ref (car children) 'suite)
-               => "unit")))
+    (test-case "testing build precompiles selected gxtest files"
+      (let* ((build (testing-build
+                     name: "poo-flow"
+                     root: "."
+                     gxtest: [["unit" "t/fixtures/testing-framework/unit-tests.ss"]]))
+             (selection (testing-build-select build ["unit"])))
+        (check (testing-build-selected-gxtest-files selection)
+               => ["./t/alpha-test.ss"
+                   "./t/beta-test.ss"])))
 
-    (test-case "downstream build.ss loads public testing API"
-      (testing-build-reset! downstream-testing-project)
-      (let* ((file (downstream-testing-path "t/unit-a-test.ss"))
-             (receipt (downstream-testing-main
-                       (list file)
-                       (testing-build-dry-gxtest-runner
-                        downstream-testing-project)))
-             (children (testing-receipt-children receipt)))
-        (check (testing-receipt-ok? receipt) => #t)
-        (check (length children) => 1)
-        (check (testing-object-ref (car children) 'suite)
-               => "unit")
-        (check (testing-build-gxtest-runs downstream-testing-project)
-               => (list (list file)))))
-
-    (test-case "downstream build.ss can delegate to a real gxtest runner"
-      (testing-build-reset! downstream-testing-project)
-      (let ((runs (vector []))
-            (file (downstream-testing-path "t/unit-a-test.ss")))
-        (let* ((runner
-                (lambda (files)
-                  (vector-set! runs 0 (cons files (vector-ref runs 0)))
-                  0))
-               (receipt (downstream-testing-main (list file) runner))
-               (children (testing-receipt-children receipt)))
-          (check (testing-receipt-ok? receipt) => #t)
-          (check (length children) => 1)
-          (check (testing-object-ref (car children) 'suite)
-                 => "unit")
-          (check (reverse (vector-ref runs 0))
-                 => (list (list file)))
-          (check (testing-build-gxtest-runs downstream-testing-project)
-                 => []))))
-
-    (test-case "marlin-like build speed trap stays incremental"
-      (testing-build-reset! marlin-speed-project)
-      (let* ((file (marlin-speed-path "t/config-interface-test.ss"))
-             (receipt (marlin-speed-main
-                       (list file)
-                       (testing-build-dry-gxtest-runner
-                        marlin-speed-project)))
-             (children (testing-receipt-children receipt)))
-        (check (testing-receipt-ok? receipt) => #t)
-        (check (length children) => 1)
-        (check (testing-object-ref (car children) 'suite)
-               => "config-interface")
-        (check (testing-build-gxtest-runs marlin-speed-project)
-               => (list (list file)))))))
+    (test-case "testing build derives support modules from directories"
+      (let (build (testing-build
+                   name: "poo-flow"
+                   root: "."
+                   support-directories: ["t/fixtures/testing-framework"]))
+        (check (testing-build-support-files build)
+               => ["t/fixtures/testing-framework/alpha-test.ss"
+                   "t/fixtures/testing-framework/beta-test.ss"
+                   "t/fixtures/testing-framework/delta-test.ss"
+                   "t/fixtures/testing-framework/exported-mismatch-test.ss"
+                   "t/fixtures/testing-framework/failing-local-suite.ss"
+                   "t/fixtures/testing-framework/gamma-test.ss"
+                   "t/fixtures/testing-framework/integration-tests.ss"
+                   "t/fixtures/testing-framework/self-running-test.ss"
+                   "t/fixtures/testing-framework/unit-tests.ss"])))))

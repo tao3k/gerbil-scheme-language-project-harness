@@ -52,6 +52,7 @@
         +agent-poo-slot-spec-mutation-loop-performance-rule+
         +agent-poo-slot-predicate-loop-performance-rule+
         +agent-poo-documentation-usage-rule+
+        +agent-poo-generated-receipt-boundary-rule+
         +agent-list-growth-loop-performance-rule+
         +agent-macro-expansion-io-boundary-rule+
         +agent-list-random-access-loop-performance-rule+
@@ -193,6 +194,9 @@
 ;; ConfigConstant
 (def +agent-poo-documentation-usage-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-038" "warning"))
+;; ConfigConstant
+(def +agent-poo-generated-receipt-boundary-rule+
+  (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-043" "warning"))
 ;; ConfigConstant
 (def +agent-list-growth-loop-performance-rule+
   (make-policy-rule "GERBIL-SCHEME-AGENT-POLICY-039" "warning"))

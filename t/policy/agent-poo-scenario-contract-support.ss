@@ -18,6 +18,9 @@
     "(object<-fun (lambda"
     "(object<-fun\n   (lambda"))
 
+(def +poo-generated-boundary-source-markers+
+  '("(defstruct" "->alist"))
+
 (def +poo-scenario-benchmark-datum-cache+ (make-hash-table))
 (def +poo-scenario-expected-source-cache+ (make-hash-table))
 
@@ -159,4 +162,34 @@
    (else
     (cons (car scenario-ids)
           (poo-performance-scenarios-missing-optimizer-visibility
+           (cdr scenario-ids))))))
+
+;; : (-> String Boolean)
+(def (poo-performance-scenario-generated-boundary? scenario-id)
+  (let* ((datum (poo-performance-scenario-benchmark-datum scenario-id))
+         (source-text
+          (poo-performance-scenario-expected-source-text scenario-id)))
+    (and (benchmark-contract-value datum 'generatedRuntimeBoundary)
+         (benchmark-string-list-member?
+          "defstruct-internal-state"
+          (benchmark-contract-value datum 'hotPathEvidence))
+         (benchmark-string-list-member?
+          "bounded-alist-boundary"
+          (benchmark-contract-value datum 'hotPathEvidence))
+         (benchmark-string-contains-any-fragment?
+          source-text
+          +poo-generated-boundary-source-markers+)
+         (not (benchmark-string-contains-any-fragment?
+               source-text
+               +poo-adapter-construction-markers+)))))
+
+;; : (-> (List String) (List String))
+(def (poo-performance-scenarios-missing-generated-boundary scenario-ids)
+  (cond
+   ((null? scenario-ids) [])
+   ((poo-performance-scenario-generated-boundary? (car scenario-ids))
+    (poo-performance-scenarios-missing-generated-boundary (cdr scenario-ids)))
+   (else
+    (cons (car scenario-ids)
+          (poo-performance-scenarios-missing-generated-boundary
            (cdr scenario-ids))))))

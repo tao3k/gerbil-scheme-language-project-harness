@@ -1,180 +1,38 @@
 ;;; -*- Gerbil -*-
-;;; Thin downstream build.ss API over the POO testing framework.
+;;; Thin downstream build.ss declaration facade over the POO testing framework.
 
 (import :gerbil/gambit
-        (only-in :std/misc/path path-directory)
-        (only-in :std/misc/process run-process)
         (only-in :std/sugar filter)
         :testing/model
-        :testing/framework)
+        :testing/build-paths)
 
-(export #t)
-
-;; : (-> TestingBuild Path Path)
-(def (testing-build-path build relative)
-  (path-expand relative (testing-object-ref build 'root ".")))
-
-;; : (-> TestingBuild Path)
-(def (testing-build-contract-root build)
-  (testing-object-ref build 'contractRoot
-                      (testing-object-ref build 'root ".")))
-
-;; : (-> TestingBuild String MaybePath)
-(def (testing-build-prefixed-import->file build module-name)
-  (let (prefix (testing-object-ref build 'importPrefix #f))
-    (and prefix
-         (testing-string-prefix? prefix module-name)
-         (string-append
-          "t/"
-          (substring module-name
-                     (string-length prefix)
-                     (string-length module-name))
-          ".ss"))))
-
-;; : (-> TestingBuild Datum MaybePath)
-(def (testing-build-import->file build import)
-  (cond
-   ((string? import)
-    (testing-build-path build (string-append "t/" import)))
-   ((symbol? import)
-    (let (file (testing-build-prefixed-import->file
-                build
-                (symbol->string import)))
-      (and file (testing-build-path build file))))
-   (else #f)))
-
-;; : (-> Datum String)
-(def (testing-build-gxtest-name spec)
-  (cond
-   ((string? spec) spec)
-   ((and (pair? spec) (string? (car spec))) (car spec))
-   (else "gxtest")))
-
-;; : (-> Datum Path)
-(def (testing-build-gxtest-root spec)
-  (cond
-   ((string? spec) spec)
-   ((and (pair? spec) (pair? (cdr spec))) (cadr spec))
-   (else spec)))
-
-;; : (-> TestingBuild Procedure)
-(def (testing-build-policy-runner build)
-  (lambda (scenario)
-    (let (runs (testing-object-ref build 'scenarioRuns []))
-      (vector-set! runs 0
-                   (cons (testing-scenario-id scenario)
-                         (vector-ref runs 0))))
-    scenario))
-
-;; : (-> TestingBuild Procedure)
-(def (testing-build-dry-gxtest-runner build)
-  (lambda (files)
-    (let (runs (testing-object-ref build 'gxtestRuns []))
-      (vector-set! runs 0 (cons files (vector-ref runs 0))))
-    0))
-
-;; : (-> Datum String)
-(def (testing-build-write-datum value)
-  (call-with-output-string ""
-    (lambda (port) (write value port))))
-
-;; : (-> Integer Integer)
-(def (testing-build-exit-code status)
-  (cond
-   ((< status 0) 1)
-   ((> status 255) (quotient status 256))
-   (else status)))
-
-;; : (-> TestingBuild [String] MaybeString)
-(def (testing-build-scope-env build files)
-  (let (name (testing-object-ref build 'scopeEnv #f))
-    (and name
-         (string-append name "=" (testing-build-write-datum files)))))
-
-;; : (-> TestingBuild MaybeString)
-(def (testing-build-loadpath-env build)
-  (let (loadpath (testing-object-ref build 'loadpath #f))
-    (and loadpath
-         (string-append "GERBIL_LOADPATH=" loadpath))))
-
-;; : (-> TestingBuild [String] [String])
-(def (testing-build-process-env build files)
-  (filter values
-          [(testing-build-loadpath-env build)
-           (testing-build-scope-env build files)]))
-
-;; : (-> TestingBuild [String] Boolean [String])
-(def (testing-build-gxtest-command build files (include-policy-file? #t))
-  (let (policy-file (testing-object-ref build 'policyFile #f))
-    (append ["env"]
-            (testing-build-process-env build files)
-            ["gxtest"]
-            files
-            (if (and include-policy-file? policy-file)
-              [policy-file]
-              []))))
-
-;; : (-> TestingBuild Procedure)
-(def (testing-build-gxtest-runner build)
-  (let (include-policy-file? #t)
-    (lambda (files)
-      (let ((status 0)
-            (include-policy-file include-policy-file?))
-        (set! include-policy-file? #f)
-        (run-process (testing-build-gxtest-command
-                      build
-                      files
-                      include-policy-file)
-                     stdin-redirection: #f
-                     stdout-redirection: #f
-                     stderr-redirection: #f
-                     check-status:
-                     (lambda (exit-status _settings)
-                       (set! status exit-status)))
-        (testing-build-exit-code status)))))
-
-;; : (-> TestingBuild Path [String])
-(def (testing-build-support-command build file)
-  ["gxc" (testing-build-path build file)])
-
-;; : (-> TestingBuild Path MaybePath)
-(def (testing-build-support-output-directory build file)
-  (let (root (testing-object-ref build 'supportOutputRoot #f))
-    (and root
-         (path-directory
-          (testing-build-path build
-                              (path-expand file root))))))
-
-;; : (-> TestingBuild Path Unit)
-(def (testing-build-ensure-support-output-directory! build file)
-  (let (directory (testing-build-support-output-directory build file))
-    (when directory
-      (run-process ["mkdir" "-p" directory]
-                   stdin-redirection: #f
-                   stdout-redirection: #f
-                   stderr-redirection: #f))))
-
-;; : (-> TestingBuild Path Integer)
-(def (testing-build-compile-support-file build file)
-  (let (status 0)
-    (testing-build-ensure-support-output-directory! build file)
-    (run-process (testing-build-support-command build file)
-                 stdin-redirection: #f
-                 stdout-redirection: #f
-                 stderr-redirection: #f
-                 check-status:
-                 (lambda (exit-status _settings)
-                   (set! status exit-status)))
-    (testing-build-exit-code status)))
-
-;; : (-> TestingBuild Unit)
-(def (testing-build-compile-support! build)
-  (for-each
-   (lambda (file)
-     (let (status (testing-build-compile-support-file build file))
-       (unless (= status 0)
-         (error "testing support compile failed" file status))))
-   (testing-object-ref build 'supportFiles [])))
+(export testing-build-path
+        testing-build-contract-root
+        testing-build-prefixed-import->file
+        testing-build-default-import-prefix
+        testing-build-import-prefix
+        testing-build-import->file
+        testing-build-gxtest-name
+        testing-build-gxtest-root
+        testing-build-basename
+        testing-build-file-stem
+        testing-build-gxtest-suite-symbol
+        testing-build-trim-leading-dot-slash
+        testing-build-datum-string
+        testing-build-gxtest-module-symbol
+        testing-build-gxtest-compiled-expression
+        testing-build-replace-suffix
+        testing-build-scenario-metadata
+        testing-build-policy-scenario
+        testing-build-policy-runner
+        testing-build-gxtest-suite
+        testing-build-policy-suite
+        testing-build-filter
+        testing-build-project
+        testing-build
+        testing-build-reset!
+        testing-build-gxtest-runs
+        testing-build-scenario-runs)
 
 ;; : (-> TestingBuild String Alist)
 (def (testing-build-scenario-metadata build id)
@@ -183,41 +41,62 @@
 
 ;; : (-> TestingBuild String PolicyScenario)
 (def (testing-build-policy-scenario build id)
-  (make-policy-scenario
+  (list
    id
    (testing-build-path
     build
     (path-expand id (testing-object-ref build 'scenarioRoot "policy-scenarios")))
    (testing-build-scenario-metadata build id)))
 
+;; : (-> TestingBuild Procedure)
+(def (testing-build-policy-runner build)
+  (lambda (scenario)
+    (let (runs (testing-object-ref build 'scenarioRuns []))
+      (vector-set! runs 0
+                   (cons (car scenario)
+                         (vector-ref runs 0))))
+    scenario))
+
 ;; : (-> TestingBuild Datum GxTestSuite)
 (def (testing-build-gxtest-suite build spec)
-  (let ((root (testing-build-path build (testing-build-gxtest-root spec)))
-        (contract-root (testing-build-contract-root build)))
-    (gxtest-suite
-     name: (testing-build-gxtest-name spec)
-     default-root: root
-     roots: (list root)
-     batch-size: (testing-object-ref build 'batchSize 2)
-     import->file: (lambda (import)
-                     (testing-build-import->file build import))
-     max-selected-files: (testing-object-ref build 'maxSelectedFiles 2)
-     max-selected-sources: (testing-object-ref build 'maxSelectedSources 4)
-     max-selected-outputs: (testing-object-ref build 'maxSelectedOutputs 4)
-     gates: (list
-             (performance-gate
-             name: (testing-object-ref build 'name "testing-build")
-              contract-root: contract-root)))))
+  (let* ((name (testing-build-gxtest-name spec))
+         (root (testing-build-path build (testing-build-gxtest-root spec))))
+    (testing-lazy-object
+     'gxtest-suite
+     `((name . ,name)
+       (defaultRoot . ,root)
+       (roots . ,(list root))
+       (batchSize . ,(testing-object-ref build 'batchSize 2))
+       (maxSelectedFiles . ,(testing-object-ref build 'maxSelectedFiles 2))
+       (maxSelectedSources . ,(testing-object-ref build 'maxSelectedSources 4))
+       (maxSelectedOutputs . ,(testing-object-ref build 'maxSelectedOutputs 4)))
+     (lambda ()
+       (let (contract-root (testing-build-contract-root build))
+         (gxtest-suite
+          name: name
+          default-root: root
+          roots: (list root)
+          batch-size: (testing-object-ref build 'batchSize 2)
+          import->file: (lambda (import)
+                          (testing-build-import->file build import))
+          max-selected-files: (testing-object-ref build 'maxSelectedFiles 2)
+          max-selected-sources: (testing-object-ref build 'maxSelectedSources 4)
+          max-selected-outputs: (testing-object-ref build 'maxSelectedOutputs 4)
+          gates: (list
+                  (performance-gate
+                   name: (testing-object-ref build 'name "testing-build")
+                   contract-root: contract-root))))))))
 
 ;; : (-> TestingBuild MaybeScenarioSuite)
 (def (testing-build-policy-suite build)
   (let ((scenario-ids (testing-object-ref build 'scenarios [])))
     (and (not (null? scenario-ids))
-         (policy-scenario-suite
+         (scenario-suite
           name: (testing-object-ref build 'scenarioSuiteName "policy-scenarios")
-          root: (testing-build-path
-                 build
-                 (testing-object-ref build 'scenarioRoot "policy-scenarios"))
+          roots: (list
+                  (testing-build-path
+                   build
+                   (testing-object-ref build 'scenarioRoot "policy-scenarios")))
           scenarios: (map (lambda (id)
                             (testing-build-policy-scenario build id))
                           scenario-ids)
@@ -238,6 +117,8 @@
           (map (lambda (spec)
                  (testing-build-gxtest-suite build spec))
                (testing-object-ref build 'gxtest [])))
+         (performance-suites
+          (testing-object-ref build 'performance []))
          (policy-suite (testing-build-policy-suite build))
          (project-roots
           (map (lambda (root)
@@ -246,7 +127,9 @@
                                    ["src" "t" "policy-scenarios"]))))
     (testing-project
      name: (testing-object-ref build 'name "testing-build")
-     suites: (append gxtest-suites (testing-build-filter (list policy-suite)))
+     suites: (append gxtest-suites
+                     performance-suites
+                     (testing-build-filter (list policy-suite)))
      roots: project-roots
      batch-size: (testing-object-ref build 'batchSize 2)
      receipt-prefix: (testing-object-ref build 'receiptPrefix
@@ -254,10 +137,15 @@
 
 ;; : (-> String Path MaybePath List List MaybePath List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
 (def (testing-build name: (name "testing-build")
+                    package-name: (package-name #f)
                     root: (root ".")
                     contract-root: (contract-root #f)
                     gxtest: (gxtest [])
+                    performance: (performance [])
                     support-files: (support-files [])
+                    suite-support-files: (suite-support-files [])
+                    support-directories: (support-directories [])
+                    suite-support-directories: (suite-support-directories [])
                     support-output-root: (support-output-root #f)
                     scenarios: (scenarios [])
                     improvement-scenarios: (improvement-scenarios #f)
@@ -270,17 +158,24 @@
                     max-selected-files: (max-selected-files 2)
                     max-selected-sources: (max-selected-sources 4)
                     max-selected-outputs: (max-selected-outputs 4)
-                    policy-file: (policy-file #f)
-                    scope-env: (scope-env #f)
+                    policy: (policy #f)
                     loadpath: (loadpath #f)
+                    output: (output 'summary)
+                    compile-selected-tests: (compile-selected-tests #f)
+                    compile-dependency-stamps: (compile-dependency-stamps [])
                     receipt-prefix: (receipt-prefix #f))
   (testing-object
    'testing-build
    `((name . ,name)
+     (packageName . ,(or package-name name))
      (root . ,root)
      (contractRoot . ,(or contract-root root))
      (gxtest . ,gxtest)
+     (performance . ,performance)
      (supportFiles . ,support-files)
+     (suiteSupportFiles . ,suite-support-files)
+     (supportDirectories . ,support-directories)
+     (suiteSupportDirectories . ,suite-support-directories)
      (supportOutputRoot . ,support-output-root)
      (scenarios . ,(or improvement-scenarios scenarios))
      (scenarioMetadata . ,scenario-metadata)
@@ -292,9 +187,11 @@
      (maxSelectedFiles . ,max-selected-files)
      (maxSelectedSources . ,max-selected-sources)
      (maxSelectedOutputs . ,max-selected-outputs)
-     (policyFile . ,policy-file)
-     (scopeEnv . ,scope-env)
+     (policy . ,policy)
      (loadpath . ,loadpath)
+     (output . ,output)
+     (compileSelectedTests . ,compile-selected-tests)
+     (compileDependencyStamps . ,compile-dependency-stamps)
      (receiptPrefix . ,(or receipt-prefix name))
      (gxtestRuns . ,(vector []))
      (scenarioRuns . ,(vector [])))))
@@ -311,15 +208,3 @@
 ;; : (-> TestingBuild List)
 (def (testing-build-scenario-runs build)
   (reverse (vector-ref (testing-object-ref build 'scenarioRuns) 0)))
-
-;; : (-> TestingBuild List TestingSelection)
-(def (testing-build-select build args)
-  (testing-select-project (testing-build-project build) args))
-
-;; : (-> TestingBuild List (OrFalse Procedure) TestingReceipt)
-(def (testing-build-main build args (run-files #f))
-  (testing-build-compile-support! build)
-  (testing-run-selection
-   (testing-build-select build args)
-   (or run-files
-       (testing-build-gxtest-runner build))))

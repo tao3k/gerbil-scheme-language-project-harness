@@ -69,6 +69,7 @@
 (def +definition-heads+
   '(def def* define define-values define-syntax
     defstruct defclass .defclass defsyntax defsyntax-for-match defrules defrule
+    defsyntax-parameter defsyntax-parameter*
     defsyntax-for-import defsyntax-for-export defsyntax-for-import-export
     defn def-stx defsyntax-stx defsyntax-stx/form
     defalias define-type defmethod .defmethod defgeneric .defgeneric defprotocol .defprotocol
@@ -76,6 +77,7 @@
 ;; ConfigConstant
 (def +macro-definition-heads+
   '(define-syntax defsyntax defsyntax-for-match defrules defrule
+    defsyntax-parameter defsyntax-parameter*
     defsyntax-for-import defsyntax-for-export defsyntax-for-import-export
     defsyntax-stx defsyntax-stx/form))
 ;; ConfigConstant
@@ -383,12 +385,62 @@
    (filter identity
            [(and (macro-hygienic? datum) "hygienic-macro")
             (and (member head '(defrule defrules)) "macro-sugar")
+            (and (or (member head '(defrule defrules))
+                     (tree-contains-symbol? datum 'syntax-rules)
+                     (tree-contains-symbol? datum 'identifier-rules))
+                 "declarative-macro-pattern")
             (and (tree-contains-symbol? datum 'syntax-rules)
                  "syntax-rules-pattern")
             (and (tree-contains-symbol? datum 'identifier-rules)
                  "identifier-rules-pattern")
             (and (tree-contains-symbol? datum 'syntax-case)
                  "syntax-case-transformer")
+            (and (or (tree-contains-symbol? datum 'syntax-case)
+                     (tree-contains-symbol? datum 'with-syntax)
+                     (tree-contains-symbol? datum 'datum->syntax))
+                 "procedural-macro-transformer")
+            (and (member head '(defsyntax-parameter defsyntax-parameter*))
+                 "syntax-parameter-definition")
+            (and (tree-contains-symbol? datum 'syntax-parameterize)
+                 "syntax-parameterized-context")
+            (and (or (tree-contains-symbol? datum 'syntax-local-value)
+                     (tree-contains-symbol? datum 'syntax-local-rewrap))
+                 "syntax-local-context-lookup")
+            (and (tree-contains-symbol? datum 'syntax-local-value)
+                 "syntax-local-registry-lookup")
+            (and (or (tree-contains-symbol? datum 'make-hash-table)
+                     (tree-contains-symbol? datum 'hash-put!)
+                     (tree-contains-symbol? datum 'hash-get))
+                 "manual-syntax-registry-table")
+            (and (tree-contains-symbol? datum 'syntax->datum)
+                 "syntax-datum-registry-key")
+            (and (tree-contains-symbol? datum 'let-syntax)
+                 "phase-local-syntax-binding")
+            (and (tree-contains-symbol? datum 'set!)
+                 "global-macro-state-mutation")
+            (and (or (tree-contains-symbol? datum 'identifier?)
+                     (tree-contains-symbol? datum 'identifier-list?)
+                     (tree-contains-symbol? datum 'stx-identifier?)
+                     (tree-contains-symbol? datum 'stx-andmap))
+                 "syntax-object-validation")
+            (and (or (tree-contains-symbol? datum 'with-syntax)
+                     (tree-contains-symbol? datum 'datum->syntax)
+                     (tree-contains-symbol? datum 'stx-identifier))
+                 "identifier-reconstruction")
+            (and (tree-contains-symbol? datum 'with-syntax)
+                 "with-syntax-reconstruction")
+            (and (tree-contains-symbol? datum 'raise-syntax-error)
+                 "source-aware-syntax-error")
+            (and (member head '(defsyntax-for-match
+                                defsyntax-for-import
+                                defsyntax-for-export
+                                defsyntax-for-import-export))
+                 "phase-specific-macro")
+            (and (member head '(defsyntax-for-match
+                                defsyntax-for-import
+                                defsyntax-for-export
+                                defsyntax-for-import-export))
+                 "phase-extension-hook")
             (and (tree-contains-symbol? datum 'datum->syntax)
                  "datum->syntax-witness")
             (and (or (tree-contains-symbol? datum 'syntax)
@@ -479,6 +531,8 @@
    (filter identity
            ["macro-family-boundary"
             (and thin-wrapper? "repeated-thin-macro-wrapper")
+            (and (equal? transformer "syntax-rules")
+                 "declarative-macro-family")
             (and (macro-family-all? macro-fact-hygienic macros)
                  "hygienic-macro-family")
             (and (equal? transformer "syntax-rules")

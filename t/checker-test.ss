@@ -102,9 +102,12 @@
         (check (not (not (member "GERBIL-SCHEME-CHECKER-W002" rule-ids)))
                => #t)))
     (test-case "type check pipeline includes checker findings with signatures"
-      (let* ((root (path-normalize "."))
+      (let* ((root ".run/checker-arity-pipeline")
+             (_ (write-arity-project root))
              (index (collect-project root))
-             (signatures (load-type-signatures "t/fixtures/type-signatures.scm"))
+             (signatures
+              (load-type-signatures
+               ".run/checker-arity-pipeline/type-signatures.scm"))
              (findings (run-type-checks/signatures index signatures))
              (rule-ids (map type-finding-rule-id findings)))
         (check (not (not (member "GERBIL-SCHEME-CHECKER-A001" rule-ids)))

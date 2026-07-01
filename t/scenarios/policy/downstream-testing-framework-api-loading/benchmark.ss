@@ -29,13 +29,13 @@
  (rule . "GERBIL-SCHEME-AGENT-TESTING-DOWNSTREAM-API-LOADING-001")
  (optimizationFocus
   .
-  "keep downstream build.ss as a thin user-facing layer over std/make/gxtest while preserving incremental framework scope selection")
+  "keep downstream build.ss as a thin user-facing layer over std/make/gxtest while preserving incremental framework scope selection and framework-owned benchmark body receipts")
  (inputShape
   .
-  "downstream build.ss declares one gxtest suite and one policy scenario suite through the thin :gslph/src/testing/build API")
+  "downstream build.ss declares gxtest, performance, and policy scenario suites through the thin :gslph/src/testing/build API; the input performance test builds benchmark timing directly")
  (expectedRepair
   .
-  "use the package-qualified testing API in build.ss, pass the upstream-selected scope through unchanged, and rely on receipt output for failures")
+  "use the package-qualified testing API in build.ss, pass the upstream-selected scope through unchanged, and route direct performance tests through testing-benchmark-run/result so benchmark-body timing is a framework receipt")
  (measurementPhases
   "collect-before"
   "policy-before"
@@ -44,6 +44,7 @@
   "load-api"
   "select-file"
   "expand-manifest"
+  "benchmark-body-helper"
   "select-scenario"
   "assert-time-gate"
   "assert-memory-gate")

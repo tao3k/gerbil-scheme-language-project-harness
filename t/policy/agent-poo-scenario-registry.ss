@@ -10,6 +10,7 @@
     "poo-debug-instrumentation-loop-performance"
     "poo-fq-type-construction-loop-performance"
     "poo-function-type-construction-loop-performance"
+    "poo-generated-receipt-boundary-performance"
     "poo-integer-range-type-construction-loop-performance"
     "poo-lens-loop-performance"
     "poo-marlin-config-interface-large-object-performance"
@@ -49,3 +50,6 @@
     "poo-object-construction-loop-performance"
     "poo-slot-projection-loop-performance"
     "poo-validation-loop-performance"))
+
+(def +poo-generated-boundary-scenario-ids+
+  '("poo-generated-receipt-boundary-performance"))

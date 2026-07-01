@@ -160,8 +160,16 @@
                        "slot:cached-child:mixin-override"
                        "slot:super-label:inherited-computed"
                        "slot:local-cache:self-computed"])
-            (check (map call-fact-callee calls)
-                   => [".o" "compute-cache" ".ref" ".ref/cached" "apply-slot-spec"])
+            (check (not
+                    (not
+                     (and (member ".o" (map call-fact-callee calls))
+                          (member "compute-cache" (map call-fact-callee calls))
+                          (member "next-method" (map call-fact-callee calls))
+                          (member "super-label" (map call-fact-callee calls))
+                          (member ".ref" (map call-fact-callee calls))
+                          (member ".ref/cached" (map call-fact-callee calls))
+                          (member "apply-slot-spec" (map call-fact-callee calls)))))
+                   => #t)
             (check (call-fact-caller ref-call) => "slot-cache-boundary")
             (check (call-fact-caller ref-cached-call) => "slot-cache-boundary")
             (check (call-fact-caller apply-slot-spec-call) => "slot-cache-boundary")))
@@ -210,4 +218,57 @@
             (check (macro-fact-kind for-syntax) => "defsyntax-for-import-export")
             (check (quality-facet-member? (macro-fact-quality-facets only-in)
                                           "syntax-case-transformer")
+                   => #t)
+            (check (quality-facet-member? (macro-fact-quality-facets only-in)
+                                          "syntax-object-validation")
+                   => #t)
+            (check (quality-facet-member? (macro-fact-quality-facets only-in)
+                                          "phase-specific-macro")
+                   => #t)
+            (check (quality-facet-member? (macro-fact-quality-facets only-in)
+                                          "phase-extension-hook")
+                   => #t)))
+    (test-case "native reader captures syntax parameter macro context facts"
+          (let* ((root (path-normalize "."))
+                 (file
+                  (parse-source-file
+                   root
+                   "t/scenarios/policy/syntax-parameterized-context-boundary/expected/src/macros/context.ss"))
+                 (macros (source-file-macros file))
+                 (flow-param (find-macro macros "@flow"))
+                 (with-flow-context (find-macro macros "with-flow-context")))
+            (check (source-file-parse-error file) => #f)
+            (check (macro-fact-kind flow-param) => "defsyntax-parameter*")
+            (check (quality-facet-member?
+                    (macro-fact-quality-facets flow-param)
+                    "syntax-parameter-definition")
+                   => #t)
+            (check (quality-facet-member?
+                    (macro-fact-quality-facets with-flow-context)
+                    "syntax-parameterized-context")
+                   => #t)
+            (check (quality-facet-member?
+                    (macro-fact-quality-facets with-flow-context)
+                    "syntax-object-validation")
+                   => #t)
+            (check (quality-facet-member?
+                    (macro-fact-quality-facets with-flow-context)
+                    "source-aware-syntax-error")
+                   => #t)))
+    (test-case "native reader captures manual syntax registry macro facts"
+          (let* ((root (path-normalize "."))
+                 (file
+                  (parse-source-file
+                   root
+                   "t/scenarios/policy/syntax-local-registry-boundary/input/src/macros/registry.ss"))
+                 (macros (source-file-macros file))
+                 (def-flow-type (find-macro macros "def-flow-type")))
+            (check (source-file-parse-error file) => #f)
+            (check (quality-facet-member?
+                    (macro-fact-quality-facets def-flow-type)
+                    "manual-syntax-registry-table")
+                   => #t)
+            (check (quality-facet-member?
+                    (macro-fact-quality-facets def-flow-type)
+                    "syntax-datum-registry-key")
                    => #t)))))

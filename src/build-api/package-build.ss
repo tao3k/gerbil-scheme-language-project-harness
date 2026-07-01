@@ -2,14 +2,20 @@
 ;;; Lightweight package API compiler for downstream dependency installs.
 
 (import (only-in :std/make make)
-        (only-in :std/misc/path path-expand path-normalize)
+        (only-in :std/misc/path path-directory path-expand path-normalize)
         (only-in :std/srfi/13 string-prefix?)
         (only-in :std/sugar with-catch)
         (only-in :gerbil/tools/env setup-local-pkg-env!)
-        (only-in "./package-spec" gslph-package-api-spec)
+        (only-in "./package-spec"
+                 gslph-package-api-spec
+                 gslph-package-api-stage-specs)
         (only-in "./worker-count" sync-build-worker-count!)
         :gerbil/gambit)
 (export gslph-package-configure-build-root!
+        gslph-package-build-active-gerbil-path
+        gslph-package-build-active-gerbil-lib-path
+        gslph-package-build-lock-path
+        gslph-package-build-with-lock
         gslph-package-compile-root-modules-target
         gslph-package-compile-gxtest-target
         gslph-package-compile-target)
@@ -19,11 +25,102 @@
 (def test-root #f)
 (def package-name #f)
 
+;; : Integer
+(def +gslph-package-build-lock-timeout-seconds+ 600)
+
+;; : Real
+(def +gslph-package-build-lock-sleep-seconds+ 0.05)
+
+;; : (-> Path Path)
+(def (package-local-gerbil-path root)
+  (path-expand ".gerbil" root))
+
+;; : (-> MaybeString Boolean)
+(def (package-build-non-empty-string? value)
+  (and (string? value)
+       (> (string-length value) 0)))
+
+;; : (-> Path Path)
+(def (gslph-package-build-active-gerbil-path root)
+  (path-expand
+   (let (path (getenv "GERBIL_PATH" #f))
+     (if (package-build-non-empty-string? path)
+       path
+       (package-local-gerbil-path root)))))
+
+;; : (-> Path Path)
+(def (gslph-package-build-active-gerbil-lib-path root)
+  (path-expand "lib" (gslph-package-build-active-gerbil-path root)))
+
+;; : (-> Path Path)
+(def (gslph-package-build-lock-path root)
+  (path-expand "build/gslph-package.lock"
+               (gslph-package-build-active-gerbil-path root)))
+
+;; : (-> Path Void)
+(def (gslph-package-build-ensure-directory! path)
+  (when (and path
+             (not (string=? path ""))
+             (not (string=? path "."))
+             (not (file-exists? path)))
+    (let (parent (path-directory path))
+      (when (and parent
+                 (not (string=? parent path)))
+        (gslph-package-build-ensure-directory! parent)))
+    (unless (file-exists? path)
+      (create-directory path))))
+
+;; : (-> Path Boolean)
+(def (gslph-package-build-try-acquire-lock! lock-path)
+  (with-catch
+   (lambda (_) #f)
+   (lambda ()
+     (create-directory lock-path)
+     #t)))
+
+;; : (-> Path Void)
+(def (gslph-package-build-release-lock! lock-path)
+  (with-catch
+   (lambda (_) #!void)
+   (lambda ()
+     (when (file-exists? lock-path)
+       (delete-directory lock-path)))))
+
+;; : (-> Integer Integer Boolean)
+(def (gslph-package-build-lock-timeout? start-jiffy now-jiffy)
+  (> (- now-jiffy start-jiffy)
+     (* +gslph-package-build-lock-timeout-seconds+
+        (jiffies-per-second))))
+
+;; : (-> Path Integer Void)
+(def (gslph-package-build-acquire-lock! lock-path start-jiffy)
+  (unless (gslph-package-build-try-acquire-lock! lock-path)
+    (if (gslph-package-build-lock-timeout? start-jiffy (current-jiffy))
+      (error "timed out waiting for gslph package build lock" lock-path)
+      (begin
+        (thread-sleep! +gslph-package-build-lock-sleep-seconds+)
+        (gslph-package-build-acquire-lock! lock-path start-jiffy)))))
+
+;; : (-> Procedure Datum)
+(def (gslph-package-build-with-lock thunk)
+  (ensure-package-build-root!)
+  (let (lock-path (gslph-package-build-lock-path package-root))
+    (gslph-package-build-ensure-directory! (path-directory lock-path))
+    (gslph-package-build-acquire-lock! lock-path (current-jiffy))
+    (dynamic-wind
+      void
+      thunk
+      (lambda ()
+        (gslph-package-build-release-lock! lock-path)))))
+
 ;; : (-> Path Void)
 (def (gslph-package-configure-build-root! root)
-  (set! package-root (path-normalize root))
-  (current-directory package-root)
-  (setup-local-pkg-env! #t)
+  (let (active-gerbil-path (gslph-package-build-active-gerbil-path root))
+    (set! package-root (path-normalize root))
+    (current-directory package-root)
+    (setup-local-pkg-env! #t)
+    (setenv "GERBIL_PATH" active-gerbil-path)
+    (add-load-path! (path-expand "lib" active-gerbil-path)))
   (set! source-root (path-expand "src" package-root))
   (set! test-root (path-expand "t" package-root))
   (set! package-name (read-build-package-name package-root)))
@@ -75,6 +172,17 @@
     (error "gerbil.pkg must declare package: for build output prefix"))
   (string-append package-name "/t"))
 
+;; : (-> Void)
+(def (gslph-package-compile-stage modules worker-count optimized release)
+  (unless (null? modules)
+    (make modules
+      optimize: optimized
+      build-release: release
+      build-optimized: optimized
+      parallelize: worker-count
+      prefix: (source-output-prefix)
+      srcdir: source-root)))
+
 ;; : (-> Path ModulePath)
 (def (gxtest-test-module-path path)
   (if (string-prefix? "t/" path)
@@ -91,41 +199,44 @@
 (def (gslph-package-compile-target verbose debug no-optimize optimized release)
   (ensure-package-build-root!)
   (current-directory package-root)
-  (make (gslph-package-api-spec)
-    verbose: (and verbose 9)
-    debug: (and debug 'env)
-    optimize: (and optimized (not no-optimize))
-    build-release: release
-    build-optimized: optimized
-    parallelize: (sync-build-worker-count!)
-    prefix: (source-output-prefix)
-    srcdir: source-root)
+  (gslph-package-build-with-lock
+   (lambda ()
+     (let ((worker-count (sync-build-worker-count!))
+           (optimize? (and optimized (not no-optimize))))
+       (for-each
+        (lambda (stage)
+          (gslph-package-compile-stage stage worker-count optimize? release))
+        (gslph-package-api-stage-specs)))))
   #!void)
 
 ;; : (-> (List BuildSpec) Void)
 (def (gslph-package-compile-root-modules-target modules)
   (ensure-package-build-root!)
   (current-directory package-root)
-  (make modules
-    optimize: #f
-    parallelize: 1
-    prefix: (package-root-output-prefix)
-    srcdir: package-root)
+  (gslph-package-build-with-lock
+   (lambda ()
+     (make modules
+       optimize: #f
+       parallelize: 1
+       prefix: (package-root-output-prefix)
+       srcdir: package-root)))
   #!void)
 
 ;; : (-> (List ModulePath) (List Path) Integer Void)
 (def (gslph-package-compile-gxtest-target source-modules files worker-count)
   (ensure-package-build-root!)
   (current-directory package-root)
-  (unless (null? source-modules)
-    (make (map gxtest-source-module-path source-modules)
-      optimize: #f
-      parallelize: worker-count
-      prefix: (source-output-prefix)
-      srcdir: source-root))
-  (make (map gxtest-test-module-path files)
-    optimize: #f
-    parallelize: worker-count
-    prefix: (test-output-prefix)
-    srcdir: test-root)
+  (gslph-package-build-with-lock
+   (lambda ()
+     (unless (null? source-modules)
+       (make (map gxtest-source-module-path source-modules)
+         optimize: #f
+         parallelize: worker-count
+         prefix: (source-output-prefix)
+         srcdir: source-root))
+     (make (map gxtest-test-module-path files)
+       optimize: #f
+       parallelize: worker-count
+       prefix: (test-output-prefix)
+       srcdir: test-root)))
   #!void)

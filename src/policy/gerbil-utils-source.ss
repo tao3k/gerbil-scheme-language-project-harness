@@ -472,6 +472,61 @@
      "expansion-contract-doc"]
    "gerbil:// source corpus and gerbil-utils study: macros are allowed when they are thin hygienic syntax wrappers, use ast-case/syntax-case or syntax-rules for local parsing, reconstruct with with-syntax, parameterize expander phase/context state instead of mutating globals, and keep reusable runtime behavior outside the transformer")
    (make-gerbil-utils-source-profile
+    'macro-metaprogramming-decision-boundary
+    "gerbil-macro-metaprogramming-decision-boundary"
+    ["gerbil://gerbil/core/sugar.ss#defrules"
+     "gerbil://gerbil/core/sugar.ss#defrule"
+     "gerbil://std/sugar.ss#chain"
+     "gerbil://std/sugar.ss#let-hash"
+     "gerbil://gerbil/core/match.ss#defsyntax-for-match"
+     "gerbil://gerbil/core/mop.ss#defclass"]
+    ["macro-metaprogramming-decision-boundary"
+     "declarative-macro-pattern"
+     "syntax-rules-macro-family"
+     "procedural-macro-transformer"
+     "syntax-object-validation"
+     "identifier-reconstruction"
+     "with-syntax-reconstruction"
+     "with-syntax-reconstruction-boundary"
+     "source-aware-syntax-error"
+     "phase-extension-hook"
+     "runtime-helper-boundary"
+     "expansion-contract-doc"]
+    "gerbil:// core and std/sugar study: use declarative defrules/syntax-rules when the syntax is a fixed rewrite family, and reserve procedural syntax-case/with-syntax for syntax-object validation, identifier reconstruction, source-aware errors, or phase-specific extension points")
+   (make-gerbil-utils-source-profile
+    'syntax-parameterized-context-boundary
+    "gerbil-syntax-parameterized-context-boundary"
+    ["gerbil://std/stxparam.ss#defsyntax-parameter"
+     "gerbil://std/stxparam.ss#defsyntax-parameter*"
+     "gerbil://std/stxparam.ss#syntax-parameterize"
+     "gerbil://std/text/csv.ss#ambient-csv-options"
+     "gerbil://std/actor-v18/message.ss#@envelope"]
+    ["syntax-parameterized-context-boundary"
+     "syntax-parameter-definition"
+     "syntax-parameterized-context"
+     "syntax-local-context-lookup"
+     "phase-local-syntax-binding"
+     "global-macro-state-mutation"
+     "manual-phase-context-threading"
+     "source-aware-syntax-error"]
+    "gerbil:// std/stxparam study: use defsyntax-parameter* and syntax-parameterize for scoped compile-time context instead of mutable global macro state or hidden phase context threading")
+   (make-gerbil-utils-source-profile
+    'syntax-local-registry-boundary
+    "gerbil-syntax-local-registry-boundary"
+    ["gerbil://std/generic/macros.ss#generic-info"
+     "gerbil://std/generic/macros.ss#defgeneric"
+     "gerbil://std/protobuf/macros.ss#syntax-local-type"
+     "gerbil://std/protobuf/proto.ss#syntax-local-value"
+     "gerbil://std/actor-v13/proto.ss#defproto"]
+    ["syntax-local-registry-boundary"
+     "manual-syntax-registry-table"
+     "syntax-datum-registry-key"
+     "syntax-local-registry-lookup"
+     "compile-time-metadata-binding"
+     "source-aware-syntax-error"
+     "runtime-helper-boundary"]
+    "gerbil:// generic/protobuf/actor proto study: attach compile-time metadata to identifiers with defsyntax metadata objects and read it with syntax-local-value instead of maintaining syntax->datum keyed macro hash tables")
+   (make-gerbil-utils-source-profile
     'match-extension-boundary
     "gerbil-core-match-extension-boundary"
     ["gerbil://gerbil/core/match.ss#match-macro"
@@ -599,6 +654,21 @@
      ["mop-class-macro-boundary"
       "class-descriptor-macro-boundary"])
     'mop-class-macro-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["macro-metaprogramming-decision-boundary"
+      "declarative-procedural-macro-selection"])
+    'macro-metaprogramming-decision-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["syntax-parameterized-context-boundary"
+      "manual-phase-context-threading"])
+    'syntax-parameterized-context-boundary)
+   ((gerbil-utils-source-quality-facet-any?
+     quality-facets
+     ["syntax-local-registry-boundary"
+      "manual-syntax-registry-table"])
+    'syntax-local-registry-boundary)
    ((gerbil-utils-source-quality-facet-any?
      quality-facets
      ["match-extension-boundary"

@@ -142,7 +142,14 @@
          (guideTopic "package-build-canonical-shape")
          (guideIntent "repair")
          (nextCommand "asp gerbil-scheme search pattern clan/building std/build-script std/make defbuild-script ssi: build.ss --workspace . --view seeds")
-         (requires "package-level build.ss should use a native Gerbil package build surface: :clan/building with all-gerbil-modules for src-root packages, :std/build-script defbuild-script for standard gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; provider commands should run through the compiled package CLI module, not build.ss stages"))])
+         (requires "package-level build.ss should use a native Gerbil package build surface: :clan/building with all-gerbil-modules for src-root packages, :std/build-script defbuild-script for standard gxpkg packages, or :std/make build-spec for ssi:/gsc:/FFI builds; provider commands should run through the compiled package CLI module, not build.ss stages"))
+   (hash (id (policy-rule-id +agent-poo-generated-receipt-boundary-rule+))
+         (severity (policy-rule-severity +agent-poo-generated-receipt-boundary-rule+))
+         (topic "poo-generated-receipt-boundary")
+         (guideTopic "poo-policy")
+         (guideIntent "repair")
+         (nextCommand "asp gerbil-scheme search pattern defstruct receipt ->alist boundary --workspace . --view seeds")
+         (requires "generated receipt/manifest/snapshot/handoff state should use defstruct internally and one explicit ->alist projection at the ABI boundary; native user POO declarations remain valid"))])
 ;;; Boundary:
 ;;; - agent-steering-rule-ids composes first-class procedures.
 ;;; - Keep data-flow evidence visible.
@@ -255,6 +262,10 @@
       (string-append
        "|policy predicate-family-combinator=" id
        " turns repeated field/role predicate families into policy-triggered helper or combinator repair using parser-owned predicateFamilyFacts"))
+     ((equal? topic "poo-generated-receipt-boundary")
+      (string-append
+       "|policy poo-generated-receipt-boundary=" id
+       " steers generated receipt/manifest/snapshot/handoff state to defstruct plus one explicit ->alist ABI projection"))
     ((equal? topic "dependency-protocol-adapter")
       (string-append
        "|policy dependency-protocol-adapter=" id

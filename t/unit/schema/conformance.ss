@@ -58,7 +58,7 @@
    (else (has-rule-id? (cdr rules) id))))
 ;; Json
 (def (check-info-json-schema-conformance)
-  (let* ((packet (info-json ["--json" "."]))
+  (let* ((packet (info-json ["--json" "t/fixtures"]))
          (steering (json-get packet "agentSteering"))
          (commands (json-get packet "closureCommands")))
     (check-packet-conforms-to-schema!
@@ -229,7 +229,7 @@
     (check (not (null? (json-get comparison "qualitySignals"))) => #t)))
 ;; Integer
 (def (check-structural-index-json-schema-conformance)
-  (let* ((packet (search-json ["structural" "--json" "."]))
+  (let* ((packet (search-json ["structural" "--json" "t/fixtures"]))
          (owner-packet
          (search-json
            ["structural" "--owner" "parser/complex-syntax.ss"

@@ -123,12 +123,17 @@ The framework should optimize the hot path that it owns:
 
 The performance gate belongs to the measured phase. A subsecond policy gate is valid when it measures fixture/policy work. A broader integration gate is valid only when it labels the integration scope explicitly.
 
+Benchmark body timing is a framework receipt, not downstream glue. Tests that need a direct benchmark around one hot path should call =testing-benchmark-run/result= so they receive the raw =benchmark.ss= receipt, the business result, and a =benchmark-body= phase receipt with elapsed micros. Downstream projects must not duplicate ad hoc timers or hand-built phase alists just to expose the same information.
+
+Selected =gxtest= compilation is also a framework-owned optimization. The cache decision must consider both the selected test source and framework dependency stamps such as =benchmark/gate= and =testing/performance=. If the source and output have the same filesystem timestamp, the framework treats the output as stale. This protects fast edit/test loops and linked harness upgrades from accidentally running an old compiled test module.
+
 * Performance Gate API
 - =benchmark-contract-read/root= loads a fixture from a benchmark root.
 - =benchmark-contract-valid/root?= checks the shared fixture contract.
 - =benchmark-contract-run/root= runs a thunk and returns a machine-readable receipt.
 - =benchmark-contract-paths/root= discovers nested =benchmark.ss= fixtures.
 - =benchmark-contract-input-expected-pass?= checks scenario fixture shape.
+- =testing-benchmark-run/result= adapts a =benchmark.ss= fixture into the Testing Framework receipt model and emits a =benchmark-body= phase for ordinary =gxtest= tests.
 
 Downstream projects such as =poo-flow= and =marlin-agent-core= should consume these APIs through their normal gxtest/build targets instead of duplicating shell timers, directory walkers, or ad hoc max-time constants.
 

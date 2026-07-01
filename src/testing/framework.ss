@@ -6,501 +6,78 @@
         (only-in :support/time
                  monotonic-micros
                  duration-micros)
-        (only-in :std/srfi/1 iota split-at)
-        (only-in :std/sugar cut filter filter-map foldl)
-        :testing/model)
+        :testing/model
+        :testing/scope
+        :testing/scenario
+        :testing/selection
+        :testing/batch
+        :testing/performance)
 
-(export #t)
-
-;; : (-> Datum List Boolean)
-(def (testing-member? value values)
-  (cond
-   ((null? values) #f)
-   ((equal? value (car values)) #t)
-   (else (testing-member? value (cdr values)))))
-
-;; : (-> Path Path)
-(def (testing-normalize-path path)
-  (if (and (string? path)
-           (testing-string-prefix? "./" path))
-    (testing-normalize-path
-     (substring path 2 (string-length path)))
-    path))
-
-;; : (-> Path Path Boolean)
-(def (testing-path=? left right)
-  (equal? (testing-normalize-path left)
-          (testing-normalize-path right)))
-
-;; : (-> Path (List Path) Boolean)
-(def (testing-member-path? path values)
-  (cond
-   ((null? values) #f)
-   ((testing-path=? path (car values)) #t)
-   (else (testing-member-path? path (cdr values)))))
-
-;; : (-> Datum Symbol Boolean)
-(def (testing-form-contains-symbol? form symbol)
-  (cond
-   ((eq? form symbol) #t)
-   ((pair? form)
-    (or (testing-form-contains-symbol? (car form) symbol)
-        (testing-form-contains-symbol? (cdr form) symbol)))
-   (else #f)))
-
-;; : (-> Datum Boolean)
-(def (testing-native-gxtest-form? form)
-  (or (testing-form-contains-symbol? form 'test-suite)
-      (testing-form-contains-symbol? form 'run-tests!)))
-
-;; testing-native-gxtest-file?
-;;   : (-> Path Boolean)
-;;   | doc m%
-;;       `testing-native-gxtest-file?` detects whether a manifest entry already
-;;       owns an executable gxtest suite, so expansion stops at that file.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (testing-native-gxtest-file? "t/testing-framework-test.ss")
-;;       ;; => #t
-;;       ```
-;;     %
-(def (testing-native-gxtest-file? file)
-  (and (file-exists? file)
-       (call-with-input-file file
-         (lambda (port)
-           (let loop ()
-             (let (form (read port))
-               (cond
-                ((eof-object? form) #f)
-                ((testing-native-gxtest-form? form) #t)
-                (else (loop)))))))))
-
-;; : (-> Procedure List List)
-(def (testing-filter-map proc values)
-  (filter-map proc values))
-
-;; : (-> Procedure List List)
-(def (testing-filter proc values)
-  (filter proc values))
-
-;; : (-> Procedure List Boolean)
-(def (testing-andmap proc values)
-  (cond
-   ((null? values) #t)
-   ((proc (car values)) (testing-andmap proc (cdr values)))
-   (else #f)))
-
-;; : (-> Procedure List Boolean)
-(def (testing-any? proc values)
-  (cond
-   ((null? values) #f)
-   ((proc (car values)) #t)
-   (else (testing-any? proc (cdr values)))))
-
-;; : (-> String String Boolean)
-(def (testing-string-prefix? prefix value)
-  (let ((prefix-length (string-length prefix))
-        (value-length (string-length value)))
-    (and (>= value-length prefix-length)
-         (string=? (substring value 0 prefix-length) prefix))))
-
-;; : (-> String String Boolean)
-(def (testing-string-suffix? suffix value)
-  (let ((suffix-length (string-length suffix))
-        (value-length (string-length value)))
-    (and (>= value-length suffix-length)
-         (string=? (substring value
-                              (- value-length suffix-length)
-                              value-length)
-                   suffix))))
-
-;; : (-> GxTestSuite Path (List Path))
-(def (testing-read-test-file-imports suite file)
-  (if (file-exists? file)
-    (call-with-input-file file
-      (lambda (port)
-        (let (form (read port))
-          (if (and (pair? form)
-                   (eq? (car form) 'import))
-            (testing-filter-map
-             (testing-suite-import->file suite)
-             (cdr form))
-            []))))
-    []))
-
-;; : (-> GxTestSuite Path (List Path))
-(def (testing-expand-manifest-file suite file (seen []))
-  (if (testing-member? file seen)
-    (list file)
-    (if (testing-native-gxtest-file? file)
-      (list file)
-      (let (imported (testing-read-test-file-imports suite file))
-        (if (not (null? imported))
-          (apply append
-                 (map (lambda (imported-file)
-                        (testing-expand-manifest-file
-                         suite
-                         imported-file
-                         (cons file seen)))
-                      imported))
-          (list file))))))
-
-;; : (-> TestingSuite Path Boolean)
-(def (testing-suite-root? suite file)
-  (testing-member-path? file (testing-suite-roots suite)))
-
-;; : (-> Path Path Boolean)
-(def (testing-arg-under-root? root arg)
-  (let ((root (testing-normalize-path root))
-        (arg (testing-normalize-path arg)))
-    (and (string? root)
-         (string? arg)
-         (or (equal? root arg)
-           (testing-string-prefix?
-            (string-append root "/")
-            arg)))))
-
-;; : (-> TestingSuite Path Boolean)
-(def (testing-arg-under-suite-root? suite arg)
-  (testing-any?
-   (lambda (root)
-     (testing-arg-under-root? root arg))
-   (testing-suite-roots suite)))
-
-;; : (-> GxTestSuite Path Boolean)
-(def (testing-gxtest-file-in-suite? suite arg)
-  (and (testing-string-suffix? ".ss" arg)
-       (or (testing-arg-under-suite-root? suite arg)
-           (testing-member-path? arg (testing-suite-default-files suite)))))
-
-;; : (-> GxTestSuite (List Path))
-(def (testing-suite-default-files suite)
-  (let (files (testing-suite-files suite))
-    (cond
-     ((eq? files 'auto)
-      (let (root (testing-suite-default-root suite))
-        (if root
-          (testing-expand-manifest-file suite root)
-          [])))
-     ((list? files) files)
-     (else []))))
-
-;; : (-> GxTestSuite (List Path) (List Path))
-(def (testing-expand-suite-args suite args)
-  (cond
-   ((null? args)
-    (testing-suite-default-files suite))
-   ((and (null? (cdr args))
-         (testing-suite-root? suite (car args)))
-    (testing-expand-manifest-file suite (car args)))
-   (else args)))
-
-;; : (-> String Path PolicyScenario)
-(def (make-policy-scenario id root (metadata []))
-  (list id root metadata))
-
-;; : (-> PolicyScenario String)
-(def (policy-scenario-id scenario)
-  (list-ref scenario 0))
-
-;; : (-> PolicyScenario Path)
-(def (policy-scenario-root scenario)
-  (list-ref scenario 1))
-
-;; : (-> PolicyScenario Alist)
-(def (policy-scenario-metadata scenario)
-  (if (and (pair? scenario)
-           (pair? (cdr scenario))
-           (pair? (cddr scenario)))
-    (car (cddr scenario))
-    []))
-
-;; : (-> String Path List MaybeList MaybeInteger List MaybeProcedure ScenarioSuite)
-(def (policy-scenario-suite name: (name "policy-scenarios")
-                            root: (root "t/scenarios/policy")
-                            scenario-ids: (scenario-ids [])
-                            scenarios: (scenarios #f)
-                            batch-size: (batch-size #f)
-                            gates: (gates [])
-                            runner: (runner #f))
-  (let (scenario-list
-        (if scenarios
-          scenarios
-          (map (lambda (id)
-                 (make-policy-scenario id (path-expand id root)))
-               scenario-ids)))
-    (scenario-suite
-     name: name
-     roots: (list root)
-     scenarios: scenario-list
-     batch-size: batch-size
-     gates: gates
-     runner: runner)))
-
-;; : (-> ScenarioSuite Datum MaybePath)
-(def (testing-scenario-root suite scenario)
-  (cond
-   ((and (pair? scenario)
-         (pair? (cdr scenario)))
-    (policy-scenario-root scenario))
-   ((string? scenario)
-    (let (roots (testing-suite-roots suite))
-      (if (null? roots)
-        scenario
-        (path-expand scenario (car roots)))))
-   (else #f)))
-
-;; : (-> Datum String)
-(def (testing-scenario-id scenario)
-  (cond
-   ((and (pair? scenario)
-         (pair? (cdr scenario)))
-    (policy-scenario-id scenario))
-   ((string? scenario) scenario)
-   (else "scenario")))
-
-;; : (-> Datum Alist)
-(def (testing-scenario-metadata scenario)
-  (cond
-   ((and (pair? scenario)
-         (pair? (cdr scenario)))
-    (policy-scenario-metadata scenario))
-   (else [])))
-
-;; : (-> Datum Symbol Datum)
-(def (testing-scenario-metadata-ref scenario key (default #f))
-  (let (entry (assq key (testing-scenario-metadata scenario)))
-    (if entry (cdr entry) default)))
-
-;; : (-> Datum Alist)
-(def (testing-scenario-repair-details scenario)
-  (testing-filter-map
-   (lambda (key)
-     (let (value (testing-scenario-metadata-ref scenario key #f))
-       (and value (cons key value))))
-   '(downstreamRepairTarget idiom expectedRepair benchmarkPhases nextRepairAction)))
-
-;; testing-declared-scenario-by-id
-;;   : (-> ScenarioSuite String MaybePolicyScenario)
-;;   | doc m%
-;;       `testing-declared-scenario-by-id` resolves a scenario identifier from
-;;       the suite declaration before falling back to path-shaped arguments.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (testing-declared-scenario-by-id suite "marlin-speed-trap")
-;;       ;; => declared-scenario-or-#f
-;;       ```
-;;     %
-(def (testing-declared-scenario-by-id suite id)
-  (let loop ((rest (testing-scenario-suite-scenarios suite)))
-    (cond
-     ((null? rest) #f)
-     ((equal? id (testing-scenario-id (car rest))) (car rest))
-     (else (loop (cdr rest))))))
-
-;; : (-> ScenarioSuite Datum Datum)
-(def (testing-scenario-from-arg suite arg)
-  (cond
-   ((and (pair? arg)
-         (pair? (cdr arg)))
-    arg)
-   ((string? arg)
-    (let (declared (testing-declared-scenario-by-id suite arg))
-      (if declared
-        declared
-        (let ((roots (testing-suite-roots suite)))
-          (cond
-           ((testing-arg-under-suite-root? suite arg)
-            (make-policy-scenario arg arg))
-           ((null? roots)
-            (make-policy-scenario arg arg))
-           (else
-            (make-policy-scenario arg (path-expand arg (car roots)))))))))
-   (else arg)))
-
-;; : (-> ScenarioSuite (List Datum) (List Datum))
-(def (testing-expand-scenario-args suite args)
-  (cond
-   ((null? args)
-    (testing-scenario-suite-scenarios suite))
-   ((and (null? (cdr args))
-         (testing-suite-root? suite (car args)))
-    (testing-scenario-suite-scenarios suite))
-   (else
-    (map (lambda (arg)
-           (testing-scenario-from-arg suite arg))
-         args))))
-
-;; : (-> GxTestSuite Path Boolean)
-(def (testing-gxtest-suite-arg? suite arg)
-  (and (string? arg)
-       (or (testing-suite-root? suite arg)
-           (testing-arg-under-suite-root? suite arg)
-           (testing-gxtest-file-in-suite? suite arg))))
-
-;; : (-> ScenarioSuite Path Boolean)
-(def (testing-scenario-suite-arg? suite arg)
-  (or (testing-suite-root? suite arg)
-      (testing-arg-under-suite-root? suite arg)
-      (testing-any?
-       (lambda (scenario)
-         (equal? arg (testing-scenario-id scenario)))
-       (testing-scenario-suite-scenarios suite))))
-
-;; : (-> TestingSuite (List Path) Boolean)
-(def (testing-suite-selected? suite args)
-  (or (null? args)
-      (case (testing-object-kind suite)
-        ((gxtest-suite)
-         (testing-any?
-          (lambda (arg)
-            (testing-gxtest-suite-arg? suite arg))
-          args))
-        ((scenario-suite)
-         (testing-any?
-          (lambda (arg)
-            (testing-scenario-suite-arg? suite arg))
-          args))
-        (else #f))))
-
-;; : (-> TestingProject (List Path) List)
-(def (testing-selected-suites project args)
-  (testing-filter
-   (lambda (suite)
-     (testing-suite-selected? suite args))
-   (testing-project-suites project)))
-
-;; : (-> TestingProject (List Path) TestingSelection)
-(def (testing-select-project project args)
-  (let (suites (testing-selected-suites project args))
-    (testing-selection
-     project: project
-     args: args
-     suites: suites
-     status: (if (or (null? args)
-                     (not (null? suites)))
-               'ok
-               'failed)
-     details: (if (or (null? args)
-                      (not (null? suites)))
-                []
-                `((reason . no-selected-suites)
-                  (args . ,args))))))
-
-;; : (-> List Integer (Values List List))
-(def (testing-split-batch files batch-size)
-  (if (or (null? files)
-          (<= batch-size 0))
-    (values [] [])
-    (split-at files (min batch-size (length files)))))
-
-;; : (-> List Integer List)
-(def (testing-batch-head files batch-size)
-  (let-values (((batch _rest)
-                (testing-split-batch files batch-size)))
-    batch))
-
-;; : (-> List Integer List)
-(def (testing-batch-tail files batch-size)
-  (let-values (((_batch rest)
-                (testing-split-batch files batch-size)))
-    rest))
-
-;; : (-> Integer Integer Integer)
-(def (testing-batch-count file-count batch-size)
-  (if (or (<= file-count 0) (<= batch-size 0))
-    0
-    (quotient (+ file-count batch-size -1) batch-size)))
-
-;; : (-> Integer Integer List List)
-(def (testing-batches-step batch-size _ state)
-  (let-values (((batch rest)
-                (testing-split-batch (car state) batch-size)))
-    (list rest (cons batch (cadr state)))))
-
-;; : (-> List Integer (List List))
-(def (testing-batches files batch-size)
-  (reverse
-   (cadr
-    (foldl (cut testing-batches-step batch-size <> <>)
-           (list files [])
-           (iota (testing-batch-count (length files) batch-size))))))
-
-;; : (-> TestingProject TestingSuite List Integer)
-(def (testing-effective-batch-size project suite files)
-  (let ((suite-size (testing-suite-batch-size suite))
-        (project-size (testing-project-batch-size project)))
-    (cond
-     (suite-size suite-size)
-     (project-size project-size)
-     ((null? files) 1)
-     (else (length files)))))
-
-;; : (-> Integer MaybeInteger Boolean)
-(def (testing-under-limit? count limit)
-  (or (not limit)
-      (<= count limit)))
-
-;; : (-> GxTestSuite List Integer Integer (List Symbol))
-(def (testing-gxtest-suite-hot-path-diagnostics suite files selected-sources selected-outputs)
-  (append
-   (if (testing-under-limit? (length files)
-                             (testing-suite-max-selected-files suite))
-     []
-     '(too-many-selected-files))
-   (if (testing-under-limit? selected-sources
-                             (testing-suite-max-selected-sources suite))
-     []
-     '(too-many-selected-sources))
-   (if (testing-under-limit? selected-outputs
-                             (testing-suite-max-selected-outputs suite))
-     []
-     '(too-many-selected-outputs))))
-
-;; : (-> GxTestSuite List Integer Integer Boolean)
-(def (testing-gxtest-suite-hot-path? suite files selected-sources selected-outputs)
-  (null? (testing-gxtest-suite-hot-path-diagnostics
-          suite
-          files
-          selected-sources
-          selected-outputs)))
-
-;; : (-> GxTestSuite List Integer Integer TestingReceipt)
-(def (testing-gxtest-suite-hot-path-receipt suite files selected-sources selected-outputs)
-  (let* ((diagnostics
-          (testing-gxtest-suite-hot-path-diagnostics
-           suite
-           files
-           selected-sources
-           selected-outputs))
-         (status (if (null? diagnostics) 'ok 'failed)))
-    (testing-receipt
-     kind: 'gxtest-hot-path-gate
-     status: status
-     suite: (testing-suite-name suite)
-     files: files
-     details: `((selectedFiles . ,(length files))
-                (maxSelectedFiles . ,(testing-suite-max-selected-files suite))
-                (selectedSources . ,selected-sources)
-                (maxSelectedSources . ,(testing-suite-max-selected-sources suite))
-                (selectedOutputs . ,selected-outputs)
-                (maxSelectedOutputs . ,(testing-suite-max-selected-outputs suite))
-                (diagnostics . ,diagnostics)))))
+(export #t
+        testing-member?
+        testing-normalize-path
+        testing-path=?
+        testing-member-path?
+        testing-form-contains-symbol?
+        testing-native-gxtest-form?
+        testing-native-gxtest-file?
+        testing-filter-map
+        testing-filter
+        testing-andmap
+        testing-any?
+        testing-string-prefix?
+        testing-string-suffix?
+        testing-read-test-file-imports
+        testing-expand-manifest-file
+        testing-suite-root?
+        testing-arg-under-root?
+        testing-arg-under-suite-root?
+        testing-gxtest-file-in-suite?
+        testing-suite-default-files
+        testing-expand-suite-args
+        make-policy-scenario
+        policy-scenario-id
+        policy-scenario-root
+        policy-scenario-metadata
+        policy-scenario-suite
+        testing-scenario-root
+        testing-scenario-id
+        testing-scenario-metadata
+        testing-scenario-metadata-ref
+        testing-scenario-repair-details
+        testing-declared-scenario-by-id
+        testing-scenario-from-arg
+        testing-expand-scenario-args
+        testing-scenario-suite-arg?
+        testing-gxtest-suite-arg?
+        testing-performance-suite-arg?
+        testing-suite-selected?
+        testing-selected-suites
+        testing-select-project
+        testing-split-batch
+        testing-batch-head
+        testing-batch-tail
+        testing-batch-count
+        testing-batches-step
+        testing-batches
+        testing-effective-batch-size
+        testing-under-limit?
+        testing-gxtest-suite-hot-path-diagnostics
+        testing-gxtest-suite-hot-path?
+        testing-gxtest-suite-hot-path-receipt)
 
 ;; : (-> Symbol Symbol MaybeString List List TestingReceipt)
 (def (testing-phase-receipt phase status: (status 'ok)
                             suite: (suite #f)
                             files: (files [])
+                            elapsed-micros: (elapsed-micros 0)
                             details: (details []))
   (testing-receipt
    kind: 'testing-phase
    status: status
    suite: suite
    files: files
+   elapsed-micros: elapsed-micros
    details: (cons (cons 'phase phase) details)))
 
 ;; : (-> TestingSuite List (List TestingReceipt))
@@ -513,6 +90,73 @@
           details: `((gate . ,(testing-gate-name gate))
                      (scope . ,(testing-gate-scope gate)))))
        (testing-suite-gates suite)))
+
+;; : (-> TestingSuite List (List TestingReceipt) (List TestingReceipt))
+(def (testing-suite-phase-receipts suite files phases)
+  (append phases (testing-gate-phase-receipts suite files)))
+
+;; : (-> TestingSuite List List Integer TestingReceipt)
+(def (testing-expand-manifest-phase-receipt suite files args elapsed-micros)
+  (testing-phase-receipt
+   'expand-manifest
+   suite: (testing-suite-name suite)
+   files: files
+   elapsed-micros: elapsed-micros
+   details: `((args . ,args))))
+
+;; : (-> TestingSuite List Symbol List Integer TestingReceipt)
+(def (testing-delegate-gxtest-phase-receipt
+      suite files status receipts elapsed-micros)
+  (testing-phase-receipt
+   'delegate-gxtest
+   status: status
+   suite: (testing-suite-name suite)
+   files: files
+   elapsed-micros: elapsed-micros
+   details: `((batches . ,(length receipts)))))
+
+;; : (-> TestingSuite List List Symbol List Integer Integer (List TestingReceipt))
+(def (testing-gxtest-suite-phase-receipts
+      suite files args status receipts expand-elapsed-micros delegate-elapsed-micros)
+  (testing-suite-phase-receipts
+   suite
+   files
+   (list
+    (testing-expand-manifest-phase-receipt
+     suite
+     files
+     args
+     expand-elapsed-micros)
+    (testing-delegate-gxtest-phase-receipt
+     suite
+     files
+     status
+     receipts
+     delegate-elapsed-micros))))
+
+;; : (-> ScenarioSuite List List Symbol TestingReceipt)
+(def (testing-delegate-policy-phase-receipt suite files scenarios status)
+  (testing-phase-receipt
+   'delegate-policy
+   status: status
+   suite: (testing-suite-name suite)
+   files: files
+   details: `((scenarios . ,(map testing-scenario-id scenarios))
+              (repairGuidance
+               .
+               ,(testing-scenario-repair-guidance scenarios)))))
+
+;; : (-> ScenarioSuite List List Symbol (List TestingReceipt))
+(def (testing-scenario-suite-phase-receipts suite files scenarios status)
+  (testing-suite-phase-receipts
+   suite
+   files
+   (list
+    (testing-delegate-policy-phase-receipt
+     suite
+     files
+     scenarios
+     status))))
 
 ;; : (-> TestingSuite List Procedure TestingReceipt)
 (def (testing-run-batch suite files run-files)
@@ -527,37 +171,53 @@
      files: files
      elapsed-micros: elapsed-micros)))
 
+;; : (-> (List TestingReceipt) Symbol)
+(def (testing-receipts-status receipts)
+  (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed))
+
+;; : (-> TestingSuite List Procedure (List TestingReceipt))
+(def (testing-run-batches suite batches run-batch)
+  (map (lambda (batch)
+         (run-batch suite batch))
+       batches))
+
 ;; : (-> TestingProject GxTestSuite List Procedure TestingReceipt)
 (def (testing-run-gxtest-suite project suite args run-files)
-  (let* ((files (testing-expand-suite-args suite args))
+  (let* ((suite-started-at (monotonic-micros))
+         (expand-started-at (monotonic-micros))
+         (files (testing-expand-suite-args suite args))
+         (expand-elapsed-micros
+          (duration-micros expand-started-at (monotonic-micros)))
          (batch-size (testing-effective-batch-size project suite files))
+         (delegate-started-at (monotonic-micros))
          (receipts
-          (map (lambda (batch)
-                 (testing-run-batch suite batch run-files))
-               (testing-batches files batch-size)))
-         (status (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed)))
+          (testing-run-batches
+           suite
+           (testing-batches files batch-size)
+           (lambda (suite batch)
+             (testing-run-batch suite batch run-files))))
+         (delegate-elapsed-micros
+          (duration-micros delegate-started-at (monotonic-micros)))
+         (elapsed-micros
+          (duration-micros suite-started-at (monotonic-micros)))
+         (status (testing-receipts-status receipts)))
     (testing-receipt
      kind: 'gxtest-suite
      status: status
      suite: (testing-suite-name suite)
      files: files
+     elapsed-micros: elapsed-micros
      children: receipts
      details: `((phases
                  .
-                 ,(append
-                   (list
-                    (testing-phase-receipt
-                     'expand-manifest
-                     suite: (testing-suite-name suite)
-                     files: files
-                     details: `((args . ,args)))
-                    (testing-phase-receipt
-                     'delegate-gxtest
-                     status: status
-                     suite: (testing-suite-name suite)
-                     files: files
-                     details: `((batches . ,(length receipts)))))
-                   (testing-gate-phase-receipts suite files)))))))
+                 ,(testing-gxtest-suite-phase-receipts
+                   suite
+                   files
+                   args
+                   status
+                   receipts
+                   expand-elapsed-micros
+                   delegate-elapsed-micros))))))
 
 ;; : (-> ScenarioSuite Datum TestingReceipt)
 (def (testing-run-scenario suite scenario)
@@ -575,6 +235,24 @@
                `((id . ,(testing-scenario-id scenario)))
                (testing-scenario-repair-details scenario)))))
 
+;; : (-> PolicyScenario MaybeAlist)
+(def (testing-scenario-repair-guidance-row scenario)
+  (let (details (testing-scenario-repair-details scenario))
+    (and (not (null? details))
+         (cons (cons 'id (testing-scenario-id scenario))
+               details))))
+
+;; : (-> ScenarioSuite List (List Path))
+(def (testing-scenario-files suite scenarios)
+  (testing-filter-map
+   (lambda (scenario)
+     (testing-scenario-root suite scenario))
+   scenarios))
+
+;; : (-> List List)
+(def (testing-scenario-repair-guidance scenarios)
+  (testing-filter-map testing-scenario-repair-guidance-row scenarios))
+
 ;; : (-> ScenarioSuite List TestingReceipt)
 (def (testing-run-scenario-batch suite scenarios)
   (let* ((started-at (monotonic-micros))
@@ -582,12 +260,9 @@
           (map (lambda (scenario)
                  (testing-run-scenario suite scenario))
                scenarios))
-         (files (testing-filter-map
-                 (lambda (scenario)
-                   (testing-scenario-root suite scenario))
-                 scenarios))
+         (files (testing-scenario-files suite scenarios))
          (elapsed-micros (duration-micros started-at (monotonic-micros)))
-         (status (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed)))
+         (status (testing-receipts-status receipts)))
     (testing-receipt
      kind: 'policy-scenario-batch
      status: status
@@ -599,16 +274,14 @@
 ;; : (-> TestingProject ScenarioSuite List TestingReceipt)
 (def (testing-run-scenario-suite project suite args)
   (let* ((scenarios (testing-expand-scenario-args suite args))
-         (files (testing-filter-map
-                 (lambda (scenario)
-                   (testing-scenario-root suite scenario))
-                 scenarios))
+         (files (testing-scenario-files suite scenarios))
          (batch-size (testing-effective-batch-size project suite scenarios))
          (receipts
-          (map (lambda (batch)
-                 (testing-run-scenario-batch suite batch))
-               (testing-batches scenarios batch-size)))
-         (status (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed)))
+          (testing-run-batches
+           suite
+           (testing-batches scenarios batch-size)
+           testing-run-scenario-batch))
+         (status (testing-receipts-status receipts)))
     (testing-receipt
      kind: 'scenario-suite
      status: status
@@ -617,28 +290,11 @@
      children: receipts
      details: `((phases
                  .
-                 ,(append
-                   (list
-                    (testing-phase-receipt
-                     'delegate-policy
-                     status: status
-                     suite: (testing-suite-name suite)
-                     files: files
-                     details: `((scenarios . ,(map testing-scenario-id scenarios))
-                                (repairGuidance
-                                 .
-                                 ,(testing-filter-map
-                                   (lambda (scenario)
-                                     (let (details
-                                           (testing-scenario-repair-details scenario))
-                                       (and (not (null? details))
-                                            (cons (cons 'id
-                                                        (testing-scenario-id scenario))
-                                                  details))))
-                                   scenarios)))))
-                   (testing-gate-phase-receipts
-                    suite
-                    files)))))))
+                 ,(testing-scenario-suite-phase-receipts
+                   suite
+                   files
+                   scenarios
+                   status))))))
 
 ;; : (-> TestingProject TestingSuite List Procedure TestingReceipt)
 (def (testing-run-suite project suite args run-files)
@@ -647,8 +303,51 @@
      (testing-run-gxtest-suite project suite args run-files))
     ((scenario-suite)
      (testing-run-scenario-suite project suite args))
+    ((performance-suite)
+     (testing-run-performance-suite project suite args))
     (else
      (error "unknown testing suite kind" (testing-object-kind suite)))))
+
+;; : (-> TestingSelection List)
+(def (testing-selection-phase-details selection)
+  (let ((args (testing-selection-args selection))
+        (suites (testing-selection-suites selection)))
+    (if (null? suites)
+      (testing-selection-details selection)
+      `((args . ,args)
+        (suites . ,(map testing-suite-name suites))))))
+
+;; : (-> TestingSelection TestingReceipt)
+(def (testing-selection-phase-receipt selection)
+  (testing-phase-receipt
+   'select-scope
+   status: (testing-selection-status selection)
+   details: (testing-selection-phase-details selection)))
+
+;; : (-> TestingSelection TestingReceipt)
+(def (testing-empty-selection-receipt selection)
+  (testing-receipt
+   kind: 'testing-project
+   status: (testing-selection-status selection)
+   children: []
+   details: (cons (cons 'phases
+                        (list (testing-selection-phase-receipt selection)))
+                  (testing-selection-details selection))))
+
+;; : (-> TestingSelection TestingProject List List Procedure TestingReceipt)
+(def (testing-run-selected-suites selection project args suites run-files)
+  (let* ((receipts
+          (map (lambda (suite)
+                 (testing-run-suite project suite args run-files))
+               suites))
+         (status (testing-receipts-status receipts)))
+    (testing-receipt
+     kind: 'testing-project
+     status: status
+     children: receipts
+     details: `((phases
+                 .
+                 ,(list (testing-selection-phase-receipt selection)))))))
 
 ;; : (-> TestingSelection Procedure TestingReceipt)
 (def (testing-run-selection selection run-files)
@@ -656,35 +355,8 @@
         (args (testing-selection-args selection))
         (suites (testing-selection-suites selection)))
     (if (null? suites)
-      (testing-receipt
-       kind: 'testing-project
-       status: (testing-selection-status selection)
-       children: []
-       details: (cons
-                 (cons 'phases
-                       (list
-                        (testing-phase-receipt
-                         'select-scope
-                         status: (testing-selection-status selection)
-                         details: (testing-selection-details selection))))
-                 (testing-selection-details selection)))
-      (let* ((receipts
-              (map (lambda (suite)
-                     (testing-run-suite project suite args run-files))
-                   suites))
-             (status (if (testing-andmap testing-receipt-ok? receipts) 'ok 'failed)))
-        (testing-receipt
-         kind: 'testing-project
-         status: status
-         children: receipts
-         details: `((phases
-                     .
-                     ,(list
-                       (testing-phase-receipt
-                        'select-scope
-                        status: (testing-selection-status selection)
-                        details: `((args . ,args)
-                                   (suites . ,(map testing-suite-name suites))))))))))))
+      (testing-empty-selection-receipt selection)
+      (testing-run-selected-suites selection project args suites run-files))))
 
 ;; : (-> TestingProject List Procedure TestingReceipt)
 (def (testing-run-project project args run-files)

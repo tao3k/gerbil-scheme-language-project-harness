@@ -56,6 +56,7 @@
         +agent-poo-slot-spec-mutation-loop-performance-rule+
         +agent-poo-slot-predicate-loop-performance-rule+
         +agent-poo-documentation-usage-rule+
+        +agent-poo-generated-receipt-boundary-rule+
         +agent-list-growth-loop-performance-rule+
         +agent-macro-expansion-io-boundary-rule+
         +agent-list-random-access-loop-performance-rule+

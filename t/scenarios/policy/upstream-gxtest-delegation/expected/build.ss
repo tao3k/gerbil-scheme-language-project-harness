@@ -1,6 +1,7 @@
 ;;; -*- Gerbil -*-
 (import :gerbil/gambit
-        :gslph/src/testing/build)
+        :gslph/src/testing/build
+        :gslph/src/testing/build-runner)
 
 (export upstream-gxtest-project
         upstream-gxtest-main)
@@ -16,5 +17,5 @@
    gxtest: [["upstream" "t/upstream-tests.ss"]]
    roots: ["t"]))
 
-(def (upstream-gxtest-main args)
-  (testing-build-main upstream-gxtest-project args))
+(def (upstream-gxtest-main args (run-files #f))
+  (testing-build-main upstream-gxtest-project args run-files))

@@ -1,6 +1,7 @@
 ;;; -*- Gerbil -*-
 (import :gerbil/gambit
-        :gslph/src/testing/build)
+        :gslph/src/testing/build
+        :gslph/src/testing/build-runner)
 
 (export marlin-speed-project
         marlin-speed-main)

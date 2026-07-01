@@ -23,7 +23,16 @@
              (quality-reference-details
               'exception-continuation-boundary))
             (stateful (gerbil-utils-source-details 'stateful-structure))
-            (macro (gerbil-utils-source-details 'macro-helper)))
+            (macro (gerbil-utils-source-details 'macro-helper))
+            (macro-decision
+             (gerbil-utils-source-details
+              'macro-metaprogramming-decision-boundary))
+            (syntax-parameter
+             (gerbil-utils-source-details
+              'syntax-parameterized-context-boundary))
+            (syntax-local
+             (gerbil-utils-source-details
+              'syntax-local-registry-boundary)))
         (check (hash-get predicate 'referencePattern)
                => "gerbil-utils-predicate-combinator")
         (check (not (not (member "gerbil-utils/base.ss#compose/rcompose"
@@ -124,9 +133,60 @@
         (check (not (not (member "syntax-rules-thin-dsl"
                                  (hash-get macro 'qualitySignals))))
                => #t)
-        (check (hash-get predicate 'profilePrecedence)
-               => ["gerbil-utils-predicate-combinator"
-                   "gerbil-utils-source-base"])))
+        (check (hash-get macro-decision 'referencePattern)
+               => "gerbil-macro-metaprogramming-decision-boundary")
+        (check (not (not (member "gerbil://gerbil/core/sugar.ss#defrules"
+                                 (hash-get macro-decision 'referenceExamples))))
+               => #t)
+        (check (not (not (member "gerbil://std/sugar.ss#let-hash"
+                                 (hash-get macro-decision 'referenceExamples))))
+               => #t)
+        (check (not (not (member "declarative-macro-pattern"
+                                 (hash-get macro-decision 'qualitySignals))))
+               => #t)
+    (check (not (not (member "procedural-macro-transformer"
+                             (hash-get macro-decision 'qualitySignals))))
+           => #t)
+    (check (not (not (member "syntax-object-validation"
+                             (hash-get macro-decision 'qualitySignals))))
+           => #t)
+    (check (not (not (member "identifier-reconstruction"
+                             (hash-get macro-decision 'qualitySignals))))
+           => #t)
+    (check (not (not (member "with-syntax-reconstruction"
+                             (hash-get macro-decision 'qualitySignals))))
+           => #t)
+    (check (hash-get syntax-parameter 'referencePattern)
+           => "gerbil-syntax-parameterized-context-boundary")
+    (check (not (not (member "gerbil://std/stxparam.ss#defsyntax-parameter"
+                             (hash-get syntax-parameter 'referenceExamples))))
+           => #t)
+    (check (not (not (member "gerbil://std/stxparam.ss#syntax-parameterize"
+                             (hash-get syntax-parameter 'referenceExamples))))
+           => #t)
+    (check (not (not (member "syntax-parameter-definition"
+                             (hash-get syntax-parameter 'qualitySignals))))
+           => #t)
+    (check (not (not (member "syntax-parameterized-context"
+                             (hash-get syntax-parameter 'qualitySignals))))
+           => #t)
+    (check (hash-get syntax-local 'referencePattern)
+           => "gerbil-syntax-local-registry-boundary")
+    (check (not (not (member "gerbil://std/generic/macros.ss#generic-info"
+                             (hash-get syntax-local 'referenceExamples))))
+           => #t)
+    (check (not (not (member "gerbil://std/protobuf/macros.ss#syntax-local-type"
+                             (hash-get syntax-local 'referenceExamples))))
+           => #t)
+    (check (not (not (member "syntax-local-registry-lookup"
+                             (hash-get syntax-local 'qualitySignals))))
+           => #t)
+    (check (not (not (member "manual-syntax-registry-table"
+                             (hash-get syntax-local 'qualitySignals))))
+           => #t)
+    (check (hash-get predicate 'profilePrecedence)
+           => ["gerbil-utils-predicate-combinator"
+               "gerbil-utils-source-base"])))
     (test-case "unknown quality references fall back to default exemplar metadata"
       (let ((details (gerbil-utils-source-details 'unknown-quality-pattern)))
         (check (hash-get details 'referencePattern)

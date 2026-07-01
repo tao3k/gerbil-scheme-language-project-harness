@@ -19,6 +19,7 @@
         module-path-stem
         gxtest-test-module-path
         gxtest-source-module-path
+        gxtest-file-module-symbol
         gxtest-normalize-module-path)
 
 (def package-root #f)
@@ -100,6 +101,22 @@
   (if (string-prefix? "src/" path)
     (substring path 4 (string-length path))
     path))
+
+;; : (-> Path Path)
+(def (gxtest-trim-leading-dot-slash path)
+  (if (string-prefix? "./" path)
+    (substring path 2 (string-length path))
+    path))
+
+;; : (-> Path Symbol)
+(def (gxtest-file-module-symbol file)
+  (ensure-build-root!)
+  (string->symbol
+   (string-append ":"
+                  package-name
+                  "/"
+                  (module-path-stem
+                   (gxtest-trim-leading-dot-slash file)))))
 
 ;; : (-> ModulePath ModulePath)
 (def (gxtest-normalize-module-path module-path)

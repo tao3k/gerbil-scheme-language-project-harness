@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+(iterations . 3)
  (unit . "ms")
  (purpose . "R031 validation repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-validation")

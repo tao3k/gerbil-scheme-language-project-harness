@@ -1,19 +1,28 @@
 ;;; -*- Gerbil -*-
-;;; Gerbil scheme harness agent POO policy.
+;;; Gerbil scheme harness agent POO policy smoke.
+;;;
+;;; Heavy POO scenario suites live in sibling t/policy/agent-poo-*.ss files.
+;;; The gxtest full target discovers those files directly so the runner can
+;;; batch them instead of serializing every scenario through this aggregator.
 
 (import :std/test
-        :policy/agent-poo-guidance-test
-        :policy/agent-poo-hot-loop-core-test
-        :policy/agent-poo-hot-loop-type-test
-        :policy/agent-poo-hot-loop-runtime-test
-        :policy/agent-poo-runtime-protocol-test)
+        :policy/catalog
+        :policy/model)
+
 (export agent-poo-policy-test)
 
 ;; PolicyTest
 (def agent-poo-policy-test
-  (test-suite "gerbil scheme harness agent POO policy"
-    agent-poo-guidance-policy-test
-    agent-poo-hot-loop-core-policy-test
-    agent-poo-hot-loop-type-policy-test
-    agent-poo-hot-loop-runtime-policy-test
-    agent-poo-runtime-protocol-policy-test))
+  (test-suite "gerbil scheme harness agent POO policy smoke"
+    (test-case "POO policy catalog exposes generated receipt boundary guidance"
+      (check (policy-rule-id +agent-poo-generated-receipt-boundary-rule+)
+             => "GERBIL-SCHEME-AGENT-POLICY-043")
+      (check (agent-rule-topic
+              (policy-rule-id +agent-poo-generated-receipt-boundary-rule+))
+             => "poo-generated-receipt-boundary")
+      (check (agent-rule-guide-next-command
+              (policy-rule-id +agent-poo-generated-receipt-boundary-rule+))
+             => "asp gerbil-scheme search pattern defstruct receipt ->alist boundary --workspace . --view seeds"))
+    (test-case "POO policy catalog keeps loop object construction rule available"
+      (check (policy-rule-id +agent-poo-object-construction-loop-performance-rule+)
+             => "GERBIL-SCHEME-AGENT-POLICY-033"))))

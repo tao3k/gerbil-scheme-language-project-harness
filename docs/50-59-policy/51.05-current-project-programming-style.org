@@ -1,0 +1,106 @@
+* 51.05 Current Project Programming Style
+This document is the current programming contract for the Gerbil Scheme language project harness. It narrows the broader policy philosophy into rules agents must apply while changing this harness.
+** 51.05.10 Core Rule
+The harness exists to help agents write better Gerbil Scheme. New code must not drift into private rewrite tables, downstream-specific heuristics, or hand-maintained source-name exceptions.
+
+Use Gerbil language features and parser-owned evidence to teach judgment:
+1. Policy triggers start from facts emitted by the parser, such as macro facts, control-flow facts, higher-order facts, typed contracts, POO facts, benchmark receipts, and source-scope facts.
+2. Diagnostics should explain why a Gerbil idiom applies, not force one fixed template.
+3. Scenarios are the contract for policy behavior: every new style rule needs a low-quality input, an idiomatic expected repair, benchmark metadata, and tests that verify both finding and repair closure.
+4. Reference examples use stable source identifiers such as =gerbil://=, =gerbil-utils=, or =gerbil-poo= study sources. They are learning sources, not required downstream dependencies.
+** 51.05.20 Macro And Metaprogramming Policy
+Prefer Gerbil metaprogramming when all of these are true:
+- the repeated code is structural rather than business logic;
+- the expansion target is ordinary Gerbil, POO-native, or functional code;
+- parser facts can explain why the macro boundary applies;
+- the scenario proves the repair does not hide the public model.
+
+Use the smallest macro tier that carries the structure:
+1. Declarative macros, such as =defrules= and =syntax-rules=, are the default for repeated constructor families, declaration families, direct syntax-to-object lowering, and fixed projection forms.
+2. Procedural macros, such as =defsyntax= with =syntax-case=, =with-syntax=, =datum->syntax=, and =syntax->datum=, are appropriate when the macro validates shape, normalizes clauses, builds identifiers, or emits alternate expansions from one public form.
+3. Syntax parameters, =syntax-local-value= metadata, and other compile-time context mechanisms are appropriate when several declarations share phase-owned facts. They should replace mutable global phase state and =syntax->datum= keyed registries.
+4. Runtime user choices, filtering, folding, and data-dependent behavior usually stay as functions or functional combinators.
+
+The preferred shape is a thin syntax surface plus ordinary generated code:
+#+begin_src scheme
+(defrules defpolicy-family ()
+  ((_ binding kind slot-spec ...)
+   (def binding
+     (make-policy-object 'kind slot-spec ...))))
+#+end_src
+
+The procedural shape must keep helpers named after the generated artifact:
+#+begin_src scheme
+(defsyntax (defpolicy-projection stx)
+  (def (emit-policy-projection binding source slots)
+    ...)
+  (syntax-case stx ()
+    ((_ binding source slot ...)
+     (with-syntax (...)
+       (emit-policy-projection #'binding #'source #'(slot ...))))))
+#+end_src
+
+Do not create a new DSL whose expansion must be memorized before the Gerbil or POO object model can be understood.
+** 51.05.25 Advanced Gerbil Feature Map
+The harness must teach agents to use Gerbil's language mechanisms as engineering tools, not as surface complexity. Gerbil is not only hygienic macros; it has declarative macros, procedural macros, macro objects, syntax parameters, typed metadata, generic dispatch, MOP/interface support, parser generators, source-aware macros, and optimizer-facing declarations.
+
+Use this feature map when designing or repairing policy scenarios:
+- =match= extension and =match-macro=: use when agent-authored code repeatedly destructures lists, objects, syntax, or POO rows with nested =cond=, =and=, =pair?=, =object?=, and slot reads. The repair should make the domain pattern explicit and keep the body smaller.
+- Syntax parameters: use for lexical context facts that are only valid inside one form, such as envelope fields, module-expansion context, or policy-repair context. They should replace mutable phase globals and runtime parameters used only to communicate macro context.
+- Compile-time metadata objects: use =begin-syntax= classes or records plus =syntax-local-value= when several declarations share static facts, such as policy kind metadata, syntax family metadata, contract slots, generated accessor ownership, or scenario reference metadata.
+- Generated identifiers and source locations: use =format-id=, =stx-identifier=, =genident=, =gentemps=, =syntax/loc=, and =stx-wrap-source= when generated APIs follow a stable naming convention. Diagnostics should point at the user declaration, not at the generated helper.
+- Parser and lexer generators: use expansion-time parsing when the accepted language is static, such as fixed contract syntax, policy declaration syntax, selector syntax, or test scenario manifests. Do not repeatedly parse fixed declaration syntax at runtime.
+- Generic methods and interfaces: use =defgeneric=, =defmethod=, =using=, class/interface facts, or interface casts when extension is type-driven or object-behavior-driven. This is preferable to growing symbolic =case= towers that downstream projects cannot extend cleanly.
+- Specialized tables and caches: use generated table APIs, explicit cache objects, or prototype caches when hot paths repeatedly look up symbolic keys, object classes, syntax metadata, or registry entries. Keep hash/equality choices visible in the scenario and benchmark.
+- Source-aware macros: use =defsyntax-call= or source-location helpers when generated code needs declaration file, position, or colocated fixture content. Avoid runtime current-directory guesses for static source facts.
+- FFI and runtime adapter macros: use boundary macros only when the repetitive structure is an ABI or external-runtime adapter. The project-facing side must remain named, typed, POO-native, or functional.
+
+The repair rule is: if the code is a repeated structural frame, move it to the smallest Gerbil mechanism that owns that frame. If the code is business behavior or data-dependent policy logic, keep it as a function and use =match=, =using=, folds, and named helpers to make it direct.
+*** Agent Repair Signals
+Use these signals when adding parser facts, policy rules, and scenarios:
+- Nested =cond= blocks that repeatedly check object kind, slot presence, and list shape usually want =match=, a named predicate, or a domain match macro.
+- Runtime parsing of fixed declaration syntax usually wants =defsyntax= parsing and expansion-time errors.
+- Repeated constructor, accessor, validator, projection, or scenario manifest rows usually want a declaration macro backed by compile-time metadata.
+- Mutable module globals used only to communicate macro context usually want syntax parameters or syntax-local metadata.
+- Long =case= branches over object behavior usually want generic methods, interfaces, or a generated dispatch table.
+- Hot symbolic lookup paths usually want a specialized table, explicit cache object, or cached prototype rather than ad hoc hash helpers.
+- Boundary marshalling code may generate repetitive adapters, but public extension surfaces must remain POO-native, typed, or functional.
+** 51.05.30 POO-Native Style
+POO policy and scenario code should preserve native POO shape. New POO-related repairs must not teach agents to replace stable objects with ad hoc alists, hashes, or projection DSLs.
+
+Preferred shapes:
+- public extension surfaces remain native: =.def=, =.o=, =.ref=, =.mix=, slot operators, prototype composition, and named functional helpers;
+- repeated object families may be generated by declarative or procedural macros when the expansion is ordinary POO-native code;
+- final ABI, JSON-like receipts, Marlin handoff payloads, and report packets may use alists only at explicit projection boundaries;
+- hot loops should bind needed slots once and carry scalar/list/hash state instead of repeatedly constructing or projecting POO objects.
+
+For a stable object crossing into an alist-style boundary payload, keep the source object native and make the projection boundary explicit:
+#+begin_src scheme
+(def (policy-row policy)
+  (match policy
+    ((.o kind: kind-value
+         scope: scope-value
+         validator: validator-value)
+     `((kind . ,kind-value)
+       (scope . ,scope-value)
+       (validator . ,validator-value)))))
+#+end_src
+** 51.05.40 Scenario And Benchmark Discipline
+Every new policy style rule must carry a scenario under =t/scenarios/policy= unless the rule is only refactoring an existing policy surface.
+
+A style scenario must include:
+- input code that looks like plausible agent-authored Gerbil;
+- expected code that demonstrates one idiomatic repair without pretending it is the only valid repair;
+- =benchmark.ss= with =feature=, =rule=, =optimizationFocus=, =inputShape=, =expectedRepair=, =learnedStyleSources=, =scenarioQualityAxes=, timing gates, and memory gates;
+- a focused test that checks parser facts, policy details, reference examples, finding count before repair, and zero findings after repair;
+- aggregate suite wiring so the scenario is not an orphan file.
+
+Do not loosen a benchmark to hide a regression. If a gate is wrong, update the scenario evidence and explain the new boundary.
+** 51.05.50 Agent Repair Discipline
+When repairing harness code:
+1. Query source owners through ASP before reading broad source.
+2. Prefer parser-owned facts over source string scans.
+3. Keep policy code generic and evidence-driven; never hardcode =poo-flow=, =marlin=, or another downstream project as the trigger.
+4. Use upstream Gerbil, =gerbil-utils=, and =gerbil-poo= as learning sources with reference metadata.
+5. If a warning fires in this harness or a downstream test repo, fix the source shape or strengthen parser facts first. Avoid allow-listing or suppressing the warning as the primary repair.
+6. Keep AGENTS.md short and enforceable. This document is the maintained style source.

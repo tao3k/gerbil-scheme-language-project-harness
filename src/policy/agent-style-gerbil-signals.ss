@@ -92,6 +92,15 @@
         typed-combinator-style-macro-family-quality-facets
         typed-combinator-style-macro-family-signals
         typed-combinator-style-macro-family-targets
+        typed-combinator-style-macro-metaprogramming-decision-quality-facets
+        typed-combinator-style-macro-metaprogramming-decision-signals
+        typed-combinator-style-macro-metaprogramming-decision-targets
+        typed-combinator-style-syntax-parameter-context-quality-facets
+        typed-combinator-style-syntax-parameter-context-signals
+        typed-combinator-style-syntax-parameter-context-targets
+        typed-combinator-style-syntax-local-registry-quality-facets
+        typed-combinator-style-syntax-local-registry-signals
+        typed-combinator-style-syntax-local-registry-targets
         typed-combinator-style-phase-aware-macro-boundary-quality-facets
         typed-combinator-style-phase-aware-macro-boundary-signals
         typed-combinator-style-phase-aware-macro-boundary-targets

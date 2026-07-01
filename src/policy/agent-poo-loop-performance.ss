@@ -402,8 +402,9 @@
 ;; : (-> CallFact Boolean )
 (def (poo-loop-local-object-constructor-small-enough? call)
   (or (not (equal? (call-fact-callee call) ".o"))
-      (< (poo-object-literal-slot-spec-count call)
-         +poo-data-object-literal-min-slot-specs+)))
+      (not (poo-object-literal-slot-spec-count>=?
+            call
+            +poo-data-object-literal-min-slot-specs+))))
 
 ;;; Composition guard:
 ;;; - Object-construction warnings defer to the composition-loop warning when

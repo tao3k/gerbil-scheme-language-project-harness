@@ -2,15 +2,33 @@
 ;;; Tiny gxtest adapter for downstream packages that depend on this harness.
 
 (import :gerbil/gambit
-        "../build-api/source-coverage"
-        "../constants"
+        (only-in "../build-api/source-coverage"
+                 gslph-load-source-coverage
+                 gslph-source-coverage-files)
+        (only-in "../constants" +language-id+ +provider-id+)
         (for-syntax :gerbil/gambit
                     :gerbil/expander
                     :std/stxutil)
-        "../parser/facade"
-        "./facade"
+        (only-in "../parser/facade"
+                 collect-source-scope
+                 collect-test-source-scope
+                 project-definitions
+                 project-index-files)
+        (only-in "./facade"
+                 agent-repair-summary-parts
+                 agent-repair-report-json
+                 finding-agent-repair-parts
+                 finding-guide-detail-parts
+                 run-policy-checks)
         (only-in :std/test check test-case test-suite)
-        "../types/facade")
+        (only-in "../types/facade"
+                 type-finding-details
+                 type-finding-message
+                 type-finding-path
+                 type-finding-rule-id
+                 type-finding-selector
+                 type-finding-severity
+                 type-status))
 
 (export make-policy-test
         make-file-policy-test
@@ -127,7 +145,7 @@
 
 ;; : (-> Root (List Path) (List TypeFinding) )
 (def (policy-findings root files)
-  (run-policy-checks (collect-source-scope root files)))
+  (run-policy-checks (collect-test-source-scope root files)))
 
 ;; : (-> Root (List Path) String )
 (def (policy-status root files)
@@ -136,11 +154,11 @@
 ;;; Boundary:
 ;;; - policy-report is the stable files-scoped downstream gxtest data surface.
 ;;; - Package metadata is read for policy configuration, but execution parses
-;;;   only files supplied by the test runner. Import closure and full-project
-;;;   coverage are owned by explicit project gates.
+;;;   only files supplied by the test runner and package-local imports those
+;;;   files actually reach. Full-project coverage stays an explicit project gate.
 ;; : (-> Root (List Path) Json )
 (def (policy-report root files)
-  (let* ((index (collect-source-scope root files))
+  (let* ((index (collect-test-source-scope root files))
          (findings (run-policy-checks index)))
     (project-policy-report-json index findings "files" files)))
 
@@ -250,14 +268,27 @@
                " definitions=" (gxtest-report-definitions report)
                " findings=" (gxtest-report-finding-count report))
     (display-project-policy-agent-repair-summary findings)
+    (display-project-policy-agent-repair-rules findings)
     (for-each display-project-policy-finding findings)))
 ;; : (-> (List TypeFinding) Unit )
 (def (display-project-policy-agent-repair-summary findings)
   (display-project-policy-line "|agent-repair-info"
                                (agent-repair-summary-parts findings)))
+;; : (-> (List TypeFinding) Unit )
+(def (display-project-policy-agent-repair-rules findings)
+  (let (seen [])
+    (for-each
+     (lambda (finding)
+       (let* ((rule-id (type-finding-rule-id finding))
+              (already-seen? (member rule-id seen)))
+         (unless already-seen?
+           (display-project-policy-line "|agent-repair-rule"
+                                        (finding-agent-repair-parts finding))
+           (set! seen (cons rule-id seen)))))
+     findings)))
 ;;; Boundary:
 ;;; - Finding lines expose the same selector/message/detail fields as check.
-;;; - Agent repair stays adjacent to the finding that triggered it.
+;;; - Per-rule repair hints stay compact by default; full detail is opt-in.
 ;; : (-> TypeFinding Unit )
 (def (display-project-policy-finding finding)
   (displayln "|finding rule=" (type-finding-rule-id finding)
@@ -265,12 +296,20 @@
              " path=" (type-finding-path finding)
              " selector=" (or (type-finding-selector finding) "")
              " message=" (type-finding-message finding))
-  (display-project-policy-line "|agent-repair"
-                               (finding-agent-repair-parts finding))
-  (display-project-policy-line
-   "|finding-detail"
-   (append (project-policy-finding-detail-parts finding)
-           (finding-guide-detail-parts finding))))
+  (when (project-policy-detail-output?)
+    (display-project-policy-line "|agent-repair"
+                                 (finding-agent-repair-parts finding))
+    (display-project-policy-line
+     "|finding-detail"
+     (append (project-policy-finding-detail-parts finding)
+             (finding-guide-detail-parts finding)))))
+;; : (-> Boolean)
+(def (project-policy-detail-output?)
+  (let (value (with-catch (lambda (_) #f)
+               (lambda () (getenv "GSLPH_POLICY_DETAIL"))))
+    (or (equal? value "1")
+        (equal? value "true")
+        (equal? value "full"))))
 ;;; Render each part with a shared prefix so gxtest failure logs stay line-oriented.
 ;;; The one-argument lambda is safe because repair/detail parts are already display-ready strings.
 ;; : (-> Prefix (List String) Unit )
@@ -288,6 +327,8 @@
     expectedCommentShape signatureShape
     expectedDocShape typedDocRequiredWhen typedDocMissing
     typedDocMissingCount typedDocMissingTargets
+    invalidTypedContractCount invalidTypedContractReasons
+    invalidTypedContractExamples
     repairAction guideCodeFlag searchExampleCommand repairCodeCommand
     codeShapeExemplar adapterRepairShape agentRepairStandard
     qualityFacets qualityFacetSteering requiredWitness rewriteScope

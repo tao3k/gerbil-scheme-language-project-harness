@@ -21,7 +21,7 @@
  (maxRssMb . 512)
  (memoryMetric . resident-set-size)
  (memoryUnit . "MB")
- (iterations . 1)
+(iterations . 3)
  (unit . "ms")
  (purpose . "R034 Function type construction repair scenario keeps policy analysis within the scenario-owned timing gate")
  (feature . "poo-loop-function-type-construction")

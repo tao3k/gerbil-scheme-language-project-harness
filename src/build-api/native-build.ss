@@ -464,27 +464,37 @@
 (def (compile-install-binary binpath verbose debug build-optimize?
                              effective-release? effective-optimized?
                              worker-count)
-  (make-target (cli-install-module-spec)
-               verbose debug build-optimize?
-               effective-release? effective-optimized?
-               worker-count)
-  (make-target/bindir (cli-install-spec)
-                      verbose debug build-optimize?
-                      effective-release? effective-optimized?
-                      1
-                      (path-directory binpath))
-  (cleanup-compile-exe-artifacts! binpath)
-  binpath)
+  (compile-binary-artifact
+   binpath
+   (cli-install-module-spec)
+   (cli-install-spec)
+   verbose debug build-optimize?
+   effective-release? effective-optimized?
+   worker-count))
 
 ;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Integer Path)
 (def (compile-cli-binary binpath verbose debug build-optimize?
                          release? effective-release? effective-optimized?
                          worker-count)
-  (make-target (cli-binary-module-spec release?)
+  (compile-binary-artifact
+   binpath
+   (cli-binary-module-spec release?)
+   (cli-binary-exe-spec release?)
+   verbose debug build-optimize?
+   effective-release? effective-optimized?
+   worker-count))
+
+;; : (-> Path (List BuildSpec) (List BuildSpec)
+;;        Boolean Boolean Boolean Boolean Boolean Integer Path)
+(def (compile-binary-artifact binpath module-spec exe-spec
+                              verbose debug build-optimize?
+                              effective-release? effective-optimized?
+                              worker-count)
+  (make-target module-spec
                verbose debug build-optimize?
                effective-release? effective-optimized?
                worker-count)
-  (make-target/bindir (cli-binary-exe-spec release?)
+  (make-target/bindir exe-spec
                       verbose debug build-optimize?
                       effective-release? effective-optimized?
                       1

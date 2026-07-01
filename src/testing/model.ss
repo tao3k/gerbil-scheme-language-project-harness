@@ -10,6 +10,41 @@
 (def (testing-object kind fields)
   (object<-alist (cons (cons 'kind kind) fields)))
 
+;; : (-> Procedure TestingLazy)
+(def (testing-lazy thunk)
+  (unless (procedure? thunk)
+    (error "testing-lazy expects a thunk" thunk))
+  (testing-object 'testing-lazy
+                  `((state . ,(vector #f thunk)))))
+
+;; : (-> Symbol Alist Procedure TestingLazy)
+(def (testing-lazy-object kind fields thunk)
+  (unless (procedure? thunk)
+    (error "testing-lazy-object expects a thunk" thunk))
+  (testing-object
+   'testing-lazy
+   (append `((lazyKind . ,kind)
+             (state . ,(vector #f thunk)))
+           fields)))
+
+;; : (-> Datum Boolean)
+(def (testing-lazy? value)
+  (and (object? value)
+       (.slot? value 'kind)
+       (eq? (.ref value 'kind) 'testing-lazy)))
+
+;; : (-> Datum Datum)
+(def (testing-force value)
+  (if (testing-lazy? value)
+    (let (state (.ref value 'state))
+      (if (vector-ref state 0)
+        (vector-ref state 1)
+        (let (forced ((vector-ref state 1)))
+          (vector-set! state 0 #t)
+          (vector-set! state 1 forced)
+          forced)))
+    value))
+
 ;; : (-> Symbol POOObject (List Symbol) TestingObject)
 (def (testing-native-poo-object kind source fields)
   (unless (object? source)
@@ -22,15 +57,35 @@
 
 ;; : (-> TestingObject Symbol)
 (def (testing-object-kind object)
-  (testing-object-ref object 'kind))
+  (if (testing-lazy? object)
+    (testing-object-ref object 'lazyKind 'testing-lazy)
+    (testing-object-ref object 'kind)))
+
+;; : (-> Datum POOObject)
+(def (testing-force-object object)
+  (let (forced (testing-force object))
+    (unless (object? forced)
+      (error "testing-object-ref expects a POO object" forced))
+    forced))
+
+;; : (-> POOObject Symbol Datum Datum)
+(def (testing-poo-slot-ref object key default)
+  (testing-force
+   (if (.slot? object key)
+     (.ref object key)
+     default)))
+
+;; : (-> TestingLazy Symbol Datum Datum)
+(def (testing-lazy-object-ref object key default)
+  (if (.slot? object key)
+    (testing-force (.ref object key))
+    (testing-object-ref (testing-force object) key default)))
 
 ;; : (-> TestingObject Symbol Datum)
 (def (testing-object-ref object key (default #f))
-  (unless (object? object)
-    (error "testing-object-ref expects a POO object" object))
-  (if (.slot? object key)
-    (.ref object key)
-    default))
+  (if (testing-lazy? object)
+    (testing-lazy-object-ref object key default)
+    (testing-poo-slot-ref (testing-force-object object) key default)))
 
 ;; : (-> String List List MaybeInteger String TestingProject)
 (def (testing-project name: (name "gerbil-project")
@@ -85,6 +140,44 @@
      (batchSize . ,batch-size)
      (gates . ,gates)
      (runner . ,runner))))
+
+;; : (-> String Alist Procedure MaybeProcedure List PerformanceCase)
+(def (performance-case name: (name "performance-case")
+                       fixture: (fixture [])
+                       fixture-path: (fixture-path #f)
+                       runner: (runner #f)
+                       runner-module: (runner-module #f)
+                       runner-symbol: (runner-symbol #f)
+                       validator: (validator #f)
+                       validator-module: (validator-module #f)
+                       validator-symbol: (validator-symbol #f)
+                       details: (details []))
+  (testing-object
+   'performance-case
+   `((name . ,name)
+     (fixture . ,fixture)
+     (fixturePath . ,fixture-path)
+     (runner . ,runner)
+     (runnerModule . ,runner-module)
+     (runnerSymbol . ,runner-symbol)
+     (validator . ,validator)
+     (validatorModule . ,validator-module)
+     (validatorSymbol . ,validator-symbol)
+     (details . ,details))))
+
+;; : (-> String List List MaybeInteger List PerformanceSuite)
+(def (performance-suite name: (name "performance")
+                        roots: (roots [])
+                        cases: (cases [])
+                        batch-size: (batch-size #f)
+                        gates: (gates []))
+  (testing-object
+   'performance-suite
+   `((name . ,name)
+     (roots . ,roots)
+     (cases . ,cases)
+     (batchSize . ,batch-size)
+     (gates . ,gates))))
 
 ;; : (-> String MaybePath MaybeContract Symbol PerformanceGate)
 (def (performance-gate name: (name "performance")
@@ -202,6 +295,50 @@
 (def (testing-scenario-suite-runner suite)
   (testing-object-ref suite 'runner #f))
 
+;; : (-> PerformanceSuite List)
+(def (testing-performance-suite-cases suite)
+  (testing-object-ref suite 'cases []))
+
+;; : (-> PerformanceCase String)
+(def (testing-performance-case-name case)
+  (testing-object-ref case 'name))
+
+;; : (-> PerformanceCase Alist)
+(def (testing-performance-case-fixture case)
+  (testing-object-ref case 'fixture []))
+
+;; : (-> PerformanceCase MaybePath)
+(def (testing-performance-case-fixture-path case)
+  (testing-object-ref case 'fixturePath #f))
+
+;; : (-> PerformanceCase Procedure)
+(def (testing-performance-case-runner case)
+  (testing-object-ref case 'runner #f))
+
+;; : (-> PerformanceCase MaybeSymbol)
+(def (testing-performance-case-runner-module case)
+  (testing-object-ref case 'runnerModule #f))
+
+;; : (-> PerformanceCase MaybeSymbol)
+(def (testing-performance-case-runner-symbol case)
+  (testing-object-ref case 'runnerSymbol #f))
+
+;; : (-> PerformanceCase MaybeProcedure)
+(def (testing-performance-case-validator case)
+  (testing-object-ref case 'validator #f))
+
+;; : (-> PerformanceCase MaybeSymbol)
+(def (testing-performance-case-validator-module case)
+  (testing-object-ref case 'validatorModule #f))
+
+;; : (-> PerformanceCase MaybeSymbol)
+(def (testing-performance-case-validator-symbol case)
+  (testing-object-ref case 'validatorSymbol #f))
+
+;; : (-> PerformanceCase List)
+(def (testing-performance-case-details case)
+  (testing-object-ref case 'details []))
+
 ;; : (-> TestingGate String)
 (def (testing-gate-name gate)
   (testing-object-ref gate 'name))
@@ -230,9 +367,18 @@
 (def (testing-receipt-children receipt)
   (testing-object-ref receipt 'children []))
 
+;; : (-> TestingReceipt Number)
+(def (testing-receipt-elapsed-micros receipt)
+  (testing-object-ref receipt 'elapsedMicros 0))
+
 ;; : (-> TestingReceipt List)
 (def (testing-receipt-details receipt)
   (testing-object-ref receipt 'details []))
+
+;; : (-> TestingReceipt Symbol Datum Datum)
+(def (testing-receipt-detail receipt key default: (default #f))
+  (let (entry (assq key (testing-receipt-details receipt)))
+    (if entry (cdr entry) default)))
 
 ;; : (-> TestingReceipt List)
 (def (testing-receipt-phases receipt)

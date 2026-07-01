@@ -2,7 +2,6 @@
 ;;; Agent repair metadata derived from policy findings.
 
 (import :policy/catalog
-        (only-in :clan/poo/object .@ object<-alist)
         (only-in :std/misc/list unique)
         (only-in :std/srfi/1 take)
         (only-in :std/srfi/13 string-join)
@@ -32,13 +31,28 @@
 ;;; Schema names are wire-level compatibility boundaries for repair clients.
 (def +policy-diagnostic-schema+ "gerbil-policy-diagnostic-v1")
 
+(defstruct policy-diagnostic-location-state (path selector definition-name))
+(defstruct policy-diagnostic-evidence-state (rule-id severity message details))
+(defstruct policy-repair-intent-state (strategy fix-intent constraints repair-phases guide-command guide-role comment-repair-order))
+(defstruct policy-diagnostic-state (schema kind unit rule-id severity location problem evidence fix-intent constraints guide-command guide-role repair-phases))
+
 ;;; POO projection boundary:
 ;;; - Diagnostic helpers build object slots first, then project through .json<-.
 ;;; - This keeps rule evidence, location, and repair intent composable before
 ;;;   agent-facing JSON is materialized.
 ;; : (-> PolicyDiagnosticObject Json )
 (def (policy-diagnostic-json<- diagnostic)
-  ((.@ diagnostic .json<-) diagnostic))
+  (cond
+   ((policy-diagnostic-location-state? diagnostic)
+    (policy-diagnostic-location-json<- diagnostic))
+   ((policy-diagnostic-evidence-state? diagnostic)
+    (policy-diagnostic-evidence-json<- diagnostic))
+   ((policy-repair-intent-state? diagnostic)
+    (policy-repair-intent-json<- diagnostic))
+   ((policy-diagnostic-state? diagnostic)
+    (policy-diagnostic-json-projection diagnostic))
+   (else
+    (error "unknown policy diagnostic object" diagnostic))))
 
 ;;; Diagnostic object protocol:
 ;;; - location/evidence/intent are POO objects before they are JSON.
@@ -46,38 +60,30 @@
 ;;;   the full packet shape at each policy site.
 ;; : (-> Path Selector DefinitionName PolicyDiagnosticLocation )
 (def (make-policy-diagnostic-location path selector definition-name)
-  (object<-alist
-   [(cons 'path path)
-    (cons 'selector selector)
-    (cons 'definitionName definition-name)
-    (cons '.json<- policy-diagnostic-location-json<-)]))
+  (make-policy-diagnostic-location-state path selector definition-name))
 
 ;;; Location JSON keeps parser selectors stable across text and JSON output.
 ;; : (-> PolicyDiagnosticLocation Json )
 (def (policy-diagnostic-location-json<- location)
-  (hash (path (.@ location path))
-        (selector (.@ location selector))
-        (definitionName (.@ location definitionName))))
+  (hash (path (policy-diagnostic-location-state-path location))
+        (selector (policy-diagnostic-location-state-selector location))
+        (definitionName
+         (policy-diagnostic-location-state-definition-name location))))
 
 ;;; Evidence objects preserve the original policy signal without forcing agents
 ;;; to reverse-engineer rule details from prose.
 ;; : (-> Rule Severity Message Details PolicyDiagnosticEvidence )
 (def (make-policy-diagnostic-evidence rule-id severity message details)
-  (object<-alist
-   [(cons 'ruleId rule-id)
-    (cons 'severity severity)
-    (cons 'message message)
-    (cons 'details details)
-    (cons '.json<- policy-diagnostic-evidence-json<-)]))
+  (make-policy-diagnostic-evidence-state rule-id severity message details))
 
 ;;; Evidence JSON is intentionally shallow; nested repair context belongs in
 ;;; details, not in ad hoc top-level fields.
 ;; : (-> PolicyDiagnosticEvidence Json )
 (def (policy-diagnostic-evidence-json<- evidence)
-  (hash (ruleId (.@ evidence ruleId))
-        (severity (.@ evidence severity))
-        (message (.@ evidence message))
-        (details (.@ evidence details))))
+  (hash (ruleId (policy-diagnostic-evidence-state-rule-id evidence))
+        (severity (policy-diagnostic-evidence-state-severity evidence))
+        (message (policy-diagnostic-evidence-state-message evidence))
+        (details (policy-diagnostic-evidence-state-details evidence))))
 
 ;;; Repair intent is separate from evidence so guide commands stay supporting
 ;;; context instead of becoming the diagnostic itself.
@@ -89,27 +95,26 @@
                                 guideCommand: guide-command
                                 guideRole: guide-role
                                 commentRepairOrder: comment-repair-order)
-  (object<-alist
-   [(cons 'strategy strategy)
-    (cons 'fixIntent fix-intent)
-    (cons 'constraints constraints)
-    (cons 'repairPhases repair-phases)
-    (cons 'guideCommand guide-command)
-    (cons 'guideRole guide-role)
-    (cons 'commentRepairOrder comment-repair-order)
-    (cons '.json<- policy-repair-intent-json<-)]))
+  (make-policy-repair-intent-state strategy
+                                   fix-intent
+                                   constraints
+                                   repair-phases
+                                   guide-command
+                                   guide-role
+                                   comment-repair-order))
 
 ;;; Repair-intent JSON mirrors the object slots so agents can replay the same
 ;;; strategy without parsing human prose.
 ;; : (-> PolicyRepairIntent Json )
 (def (policy-repair-intent-json<- intent)
-  (hash (strategy (.@ intent strategy))
-        (fixIntent (.@ intent fixIntent))
-        (constraints (.@ intent constraints))
-        (repairPhases (.@ intent repairPhases))
-        (guideCommand (.@ intent guideCommand))
-        (guideRole (.@ intent guideRole))
-        (commentRepairOrder (.@ intent commentRepairOrder))))
+  (hash (strategy (policy-repair-intent-state-strategy intent))
+        (fixIntent (policy-repair-intent-state-fix-intent intent))
+        (constraints (policy-repair-intent-state-constraints intent))
+        (repairPhases (policy-repair-intent-state-repair-phases intent))
+        (guideCommand (policy-repair-intent-state-guide-command intent))
+        (guideRole (policy-repair-intent-state-guide-role intent))
+        (commentRepairOrder
+         (policy-repair-intent-state-comment-repair-order intent))))
 
 ;;; Packet boundary:
 ;;; - The diagnostic object owns the schema-level fields for both group and
@@ -129,39 +134,41 @@
                              guideCommand: guide-command
                              guideRole: guide-role
                              repairPhases: repair-phases)
-  (object<-alist
-   [(cons 'schema +policy-diagnostic-schema+)
-    (cons 'kind kind)
-    (cons 'unit unit)
-    (cons 'ruleId rule-id)
-    (cons 'severity severity)
-    (cons 'location location)
-    (cons 'problem problem)
-    (cons 'evidence evidence)
-    (cons 'fixIntent fix-intent)
-    (cons 'constraints constraints)
-    (cons 'guideCommand guide-command)
-    (cons 'guideRole guide-role)
-    (cons 'repairPhases repair-phases)
-    (cons '.json<- policy-diagnostic-json-projection)]))
+  (make-policy-diagnostic-state +policy-diagnostic-schema+
+                                kind
+                                unit
+                                rule-id
+                                severity
+                                location
+                                problem
+                                evidence
+                                fix-intent
+                                constraints
+                                guide-command
+                                guide-role
+                                repair-phases))
 
 ;;; The projection is the durable agent-facing packet; keep every public slot
 ;;; explicit so schema drift is visible in review.
 ;; : (-> PolicyDiagnostic Json )
 (def (policy-diagnostic-json-projection diagnostic)
-  (hash (schema (.@ diagnostic schema))
-        (kind (.@ diagnostic kind))
-        (unit (.@ diagnostic unit))
-        (ruleId (.@ diagnostic ruleId))
-        (severity (.@ diagnostic severity))
-        (location (policy-diagnostic-json<- (.@ diagnostic location)))
-        (problem (.@ diagnostic problem))
-        (evidence (policy-diagnostic-evidence-json (.@ diagnostic evidence)))
-        (fixIntent (.@ diagnostic fixIntent))
-        (constraints (.@ diagnostic constraints))
-        (guideCommand (.@ diagnostic guideCommand))
-        (guideRole (.@ diagnostic guideRole))
-        (repairPhases (.@ diagnostic repairPhases))))
+  (hash (schema (policy-diagnostic-state-schema diagnostic))
+        (kind (policy-diagnostic-state-kind diagnostic))
+        (unit (policy-diagnostic-state-unit diagnostic))
+        (ruleId (policy-diagnostic-state-rule-id diagnostic))
+        (severity (policy-diagnostic-state-severity diagnostic))
+        (location
+         (policy-diagnostic-json<-
+          (policy-diagnostic-state-location diagnostic)))
+        (problem (policy-diagnostic-state-problem diagnostic))
+        (evidence
+         (policy-diagnostic-evidence-json
+          (policy-diagnostic-state-evidence diagnostic)))
+        (fixIntent (policy-diagnostic-state-fix-intent diagnostic))
+        (constraints (policy-diagnostic-state-constraints diagnostic))
+        (guideCommand (policy-diagnostic-state-guide-command diagnostic))
+        (guideRole (policy-diagnostic-state-guide-role diagnostic))
+        (repairPhases (policy-diagnostic-state-repair-phases diagnostic))))
 
 ;;; Evidence projection:
 ;;; - Group diagnostics pass a list of evidence objects; finding diagnostics
