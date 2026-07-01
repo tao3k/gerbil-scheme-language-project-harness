@@ -5,7 +5,7 @@
         :parser/facade
         :policy/facade
         (only-in :std/srfi/1 find iota)
-        (only-in :std/sugar foldl hash)
+        (only-in :std/sugar foldl hash hash-put!)
         :support/time
         :types/facade)
 
@@ -44,6 +44,57 @@
     regression_budget
     observedTimings
     targetRationale))
+
+;; : (List BenchmarkContractKey)
+(def +policy-scenario-benchmark-required-duration-fields+
+  '(max_total
+    observed_total
+    target_total
+    regression_budget))
+
+;; : (List BenchmarkContractKey)
+(def +policy-scenario-benchmark-required-value-fields+
+  '(maxCollectMs
+    observedCollectMs
+    maxParseMs
+    observedParseMs
+    maxFileMs
+    observedFileMs
+    maxPhaseMs
+    observedPhaseMs
+    observedTimings
+    targetRationale))
+
+;; : (List (Cons BenchmarkContractKey BenchmarkContractValue))
+(def +policy-scenario-benchmark-default-fields+
+  '((expected_over_input_note . #f)
+    (iterations . 1)
+    (unit . "ms")
+    (purpose . "scenario timing")
+    (feature . "policy-scenario")
+    (rule . #f)
+    (optimizationFocus . #f)
+    (inputShape . #f)
+    (expectedRepair . #f)
+    (nativePooPrimary . #f)
+    (adapterBoundary . #f)
+    (expectedReferencePattern . #f)
+    (expectedReferenceExamples . ())
+    (expectedQualitySignals . ())
+    (learnedStyleSources . ())
+    (antiAiScaffoldIntent . #f)
+    (scenarioQualityAxes . ())
+    (hotPathExemption . #f)
+    (hotPathEvidence . ())
+    (styleRewriteBoundary . #f)
+    (maxRssMb . 512)
+    (memoryMetric . resident-set-size)
+    (memoryUnit . "MB")
+    (measurementPhases . ("collect-before"
+                          "collect-after"
+                          "policy-before"
+                          "policy-after"))
+    (tags . ())))
 
 ;; : (-> Id ScenarioRoot PolicyScenario )
 (def (make-policy-scenario id root)
@@ -98,90 +149,53 @@
 ;;;   guidance exposes optimization headroom instead of only a loose timeout.
 ;; : (-> BenchmarkContractDatum BenchmarkContract )
 (def (policy-scenario-benchmark-datum->contract datum)
-  (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
-        (schemaVersion "2")
-        (max_total
-         (policy-scenario-benchmark-required-duration datum 'max_total))
-        (observed_total
-         (policy-scenario-benchmark-required-duration datum 'observed_total))
-        (target_total
-         (policy-scenario-benchmark-required-duration datum 'target_total))
-        (regression_budget
-         (policy-scenario-benchmark-required-duration datum 'regression_budget))
-        (maxCollectMs
-         (policy-scenario-benchmark-required-value datum 'maxCollectMs))
-        (observedCollectMs
-         (policy-scenario-benchmark-required-value datum 'observedCollectMs))
-        (maxParseMs
-         (policy-scenario-benchmark-required-value datum 'maxParseMs))
-        (observedParseMs
-         (policy-scenario-benchmark-required-value datum 'observedParseMs))
-        (maxFileMs
-         (policy-scenario-benchmark-required-value datum 'maxFileMs))
-        (observedFileMs
-         (policy-scenario-benchmark-required-value datum 'observedFileMs))
-        (maxPhaseMs
-         (policy-scenario-benchmark-required-value datum 'maxPhaseMs))
-        (observedPhaseMs
-         (policy-scenario-benchmark-required-value datum 'observedPhaseMs))
-        (expected_over_input_budget
-         (policy-scenario-benchmark-value
-          datum
-          'expected_over_input_budget
-          (policy-scenario-benchmark-required-duration
-           datum
-           'regression_budget)))
-        (expected_over_input_note
-         (policy-scenario-benchmark-value datum 'expected_over_input_note #f))
-        (observedTimings
-         (policy-scenario-benchmark-required-value datum 'observedTimings))
-        (targetRationale
-         (policy-scenario-benchmark-required-value datum 'targetRationale))
-        (iterations
-         (policy-scenario-benchmark-value datum 'iterations 1))
-        (unit
-         (policy-scenario-benchmark-value datum 'unit "ms"))
-        (purpose
-         (policy-scenario-benchmark-value datum 'purpose "scenario timing"))
-        (feature
-         (policy-scenario-benchmark-value datum 'feature "policy-scenario"))
-        (rule
-         (policy-scenario-benchmark-value datum 'rule #f))
-        (optimizationFocus
-         (policy-scenario-benchmark-value datum 'optimizationFocus #f))
-        (inputShape
-         (policy-scenario-benchmark-value datum 'inputShape #f))
-        (expectedRepair
-         (policy-scenario-benchmark-value datum 'expectedRepair #f))
-        (nativePooPrimary
-         (policy-scenario-benchmark-value datum 'nativePooPrimary #f))
-        (adapterBoundary
-         (policy-scenario-benchmark-value datum 'adapterBoundary #f))
-        (expectedReferencePattern
-         (policy-scenario-benchmark-value datum 'expectedReferencePattern #f))
-        (expectedReferenceExamples
-         (policy-scenario-benchmark-value datum 'expectedReferenceExamples '()))
-        (expectedQualitySignals
-         (policy-scenario-benchmark-value datum 'expectedQualitySignals '()))
-        (learnedStyleSources
-         (policy-scenario-benchmark-value datum 'learnedStyleSources '()))
-        (antiAiScaffoldIntent
-         (policy-scenario-benchmark-value datum 'antiAiScaffoldIntent #f))
-        (scenarioQualityAxes
-         (policy-scenario-benchmark-value datum 'scenarioQualityAxes '()))
-        (hotPathExemption
-         (policy-scenario-benchmark-value datum 'hotPathExemption #f))
-        (hotPathEvidence
-         (policy-scenario-benchmark-value datum 'hotPathEvidence '()))
-        (styleRewriteBoundary
-         (policy-scenario-benchmark-value datum 'styleRewriteBoundary #f))
-        (measurementPhases
-         (policy-scenario-benchmark-value
-          datum
-          'measurementPhases
-          '("collect-before" "collect-after" "policy-before" "policy-after")))
-        (tags
-         (policy-scenario-benchmark-value datum 'tags '()))))
+  (let (contract
+        (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
+              (schemaVersion "2")))
+    (policy-scenario-benchmark-put-fields!
+     contract
+     datum
+     +policy-scenario-benchmark-required-duration-fields+
+     policy-scenario-benchmark-required-duration)
+    (policy-scenario-benchmark-put-fields!
+     contract
+     datum
+     +policy-scenario-benchmark-required-value-fields+
+     policy-scenario-benchmark-required-value)
+    (hash-put!
+     contract
+     'expected_over_input_budget
+     (policy-scenario-benchmark-value
+      datum
+      'expected_over_input_budget
+      (hash-get contract 'regression_budget)))
+    (policy-scenario-benchmark-put-defaults!
+     contract
+     datum
+     +policy-scenario-benchmark-default-fields+)
+    contract))
+
+;; : (-> BenchmarkContract BenchmarkContractDatum (List BenchmarkContractKey)
+;;        (-> BenchmarkContractDatum BenchmarkContractKey BenchmarkContractValue)
+;;        BenchmarkContract)
+(def (policy-scenario-benchmark-put-fields! contract datum keys value-ref)
+  (for-each (lambda (key)
+              (hash-put! contract key (value-ref datum key)))
+            keys)
+  contract)
+
+;; : (-> BenchmarkContract BenchmarkContractDatum
+;;        (List (Cons BenchmarkContractKey BenchmarkContractValue))
+;;        BenchmarkContract)
+(def (policy-scenario-benchmark-put-defaults! contract datum defaults)
+  (for-each (lambda (entry)
+              (let (key (car entry))
+                (hash-put!
+                 contract
+                 key
+                 (policy-scenario-benchmark-value datum key (cdr entry)))))
+            defaults)
+  contract)
 
 ;;; Required benchmark field lookup:
 ;;; - Missing baseline/target fields are contract errors, not optional legacy
