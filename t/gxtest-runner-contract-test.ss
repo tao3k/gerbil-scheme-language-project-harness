@@ -5,6 +5,8 @@
         :std/test
         (only-in :std/misc/path path-expand)
         (only-in :std/srfi/13 string-contains)
+        (only-in "../src/policy/gxtest"
+                 make-gxtest-policy-test)
         "../src/testing/model"
         "../src/testing/gxtest-runner")
 (export gxtest-runner-contract-test)
@@ -108,6 +110,9 @@
       (configure-build-root! (current-directory))
       (check (gxtest-source-load-batch-expression ["t/build-install-test.ss"])
              => "(begin (add-load-path! \".\") (add-load-path! \"src\") (add-load-path! \"t\") (import :std/test) (load \"t/build-install-test.ss\") (let (ok #t) (let (start (current-jiffy)) (unless (run-test-suite! build-install-test) (set! ok #f)) (display \"[gslph-test-file] name=t/build-install-test.ss elapsedMs=\") (display (quotient (* (- (current-jiffy) start) 1000) (jiffies-per-second))) (newline) (force-output)) ok))"))
+    (test-case "gxtest policy macro expands literal file scope"
+      (let (suite (make-gxtest-policy-test "." ["t/build-install-test.ss"]))
+        (check (not (not suite)) => #t)))
     (test-case "scoped policy receipt tracks policy engine and selected files"
       (configure-build-root! (current-directory))
       (let ((sources (scoped-policy-source-files ["t/build-install-test.ss"]))
