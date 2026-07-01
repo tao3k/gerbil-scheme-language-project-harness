@@ -4,8 +4,10 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/misc/path path-expand)
+        (only-in :std/srfi/1 append-map)
         (only-in :std/srfi/13 string-contains)
         (only-in "../src/build-api/package-spec"
+                 gslph-package-api-spec
                  gslph-package-api-stage-specs)
         (only-in "../src/policy/gxtest"
                  make-gxtest-policy-test)
@@ -20,6 +22,10 @@
      ((null? rest) #f)
      ((member file (car rest)) index)
      (else (loop (cdr rest) (+ index 1))))))
+
+;; : (-> (List (List Path)) (List Path))
+(def (stage-files stages)
+  (append-map (lambda (stage) stage) stages))
 
 (def gxtest-runner-contract-test
   (test-suite "gslph gxtest runner contract"
@@ -335,6 +341,9 @@
         (check (< scope scenario) => #t)
         (check (< scenario selection) => #t)
         (check (< selection framework) => #t)))
+    (test-case "package api flat spec is derived from ordered stages"
+      (check (gslph-package-api-spec)
+             => (stage-files (gslph-package-api-stage-specs))))
     (test-case "binary bootstrap spec includes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #t))

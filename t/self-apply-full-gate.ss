@@ -39,6 +39,9 @@
     (ensure-dir types)
     (ensure-dir policy)
     (write-text
+     (string-append root "/gerbil.pkg")
+     "(package: self-apply-agent-repair-probe)\n")
+    (write-text
      (string-append types "/validation.ss")
      ";;; -*- Gerbil -*-\n(package: self-apply/probe/types)\n(export type-spec-valid?)\n;; type-spec-valid?\n;;   : (-> TypeSpec ValidationResult)\n;;   | type ValidationResult = Boolean\n;;   | doc m%\n;;       `type-spec-valid? type` returns whether a parsed TypeSpec is valid.\n;;     %\n(def (type-spec-valid? type)\n  (if type #t #f))\n")
     (write-text
@@ -129,7 +132,7 @@
 ;; : (-> Json)
 (def (self-apply-agent-repair-source-receipt)
   (let* ((current-index (self-apply-index))
-         (current-findings (run-policy-checks current-index))
+         (current-findings (self-apply-findings))
          (_ (write-self-apply-agent-repair-probe!
              +self-apply-agent-repair-probe-root+))
          (before-report

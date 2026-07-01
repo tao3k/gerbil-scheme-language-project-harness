@@ -11,135 +11,47 @@
 (export gslph-package-api-spec
         gslph-package-api-stage-specs)
 
-;; : (List Path)
-(def +gslph-package-api-bootstrap+
-  '("build-api/source-coverage.ss"
-    "constants.ss"))
+;; : (List (List Path))
+(def +gslph-package-api-prologue-stages+
+  '(("build-api/source-coverage.ss"
+     "constants.ss")
+    ("build-api/package-receipt.ss"
+     "build-api/worker-count.ss"
+     "build-api/build-path-contract.ss"
+     "support/time.ss")
+    ("benchmark/gate.ss")
+    ("benchmark/framework.ss")
+    ("testing/model.ss")
+    ("testing/scope.ss")
+    ("testing/scenario.ss"
+     "testing/performance.ss"
+     "testing/batch.ss")
+    ("testing/selection.ss")
+    ("testing/framework.ss")))
 
-;; : (List Path)
-(def +gslph-package-api-core+
-  '("build-api/package-receipt.ss"
-    "build-api/worker-count.ss"
-    "build-api/build-path-contract.ss"
-    "support/time.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-benchmark-core+
-  '("benchmark/gate.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-benchmark-framework+
-  '("benchmark/framework.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-model+
-  '("testing/model.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-scope+
-  '("testing/scope.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-core+
-  '("testing/scenario.ss"
-    "testing/performance.ss"
-    "testing/batch.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-selection+
-  '("testing/selection.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-framework+
-  '("testing/framework.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-build-core+
-  '("testing/build-paths.ss"
-    "testing/gxtest-smoke.ss"
-    "testing/gxtest-context.ss"
-    "testing/gxtest-report.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-build-process+
-  '("testing/build-process.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-syntax+
-  '("testing/gxtest-syntax.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-imports+
-  '("testing/gxtest-imports.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-sources+
-  '("testing/gxtest-sources.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-discovery+
-  '("testing/gxtest-discovery.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-build-support+
-  '("testing/build-support.ss"
-    "testing/build.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-delegate+
-  '("testing/gxtest-delegate.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-expression+
-  '("testing/gxtest-expression.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-receipts+
-  '("testing/gxtest-receipts.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-policy-build+
-  '("testing/gxtest-policy.ss"
-    "testing/gxtest-build.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-execution+
-  '("testing/gxtest-execution.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-run+
-  '("testing/gxtest-run.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-build-runtime+
-  '("testing/build-runtime.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing-build-runner+
-  '("testing/build-runner.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-gxtest-runner+
-  '("testing/gxtest-runner.ss"))
-
-;; : (List Path)
-(def +gslph-package-api-testing+
-  (append +gslph-package-api-testing-build-core+
-          +gslph-package-api-testing-build-process+
-          +gslph-package-api-gxtest-syntax+
-          +gslph-package-api-gxtest-imports+
-          +gslph-package-api-gxtest-sources+
-          +gslph-package-api-gxtest-discovery+
-          +gslph-package-api-testing-build-support+
-          +gslph-package-api-gxtest-delegate+
-          +gslph-package-api-gxtest-expression+
-          +gslph-package-api-gxtest-receipts+
-          +gslph-package-api-gxtest-policy-build+
-          +gslph-package-api-gxtest-execution+
-          +gslph-package-api-gxtest-run+
-          +gslph-package-api-testing-build-runtime+
-          +gslph-package-api-testing-build-runner+
-          +gslph-package-api-gxtest-runner+))
+;; : (List (List Path))
+(def +gslph-package-api-epilogue-stages+
+  '(("testing/build-paths.ss"
+     "testing/gxtest-smoke.ss"
+     "testing/gxtest-context.ss"
+     "testing/gxtest-report.ss")
+    ("testing/build-process.ss")
+    ("testing/gxtest-syntax.ss")
+    ("testing/gxtest-imports.ss")
+    ("testing/gxtest-sources.ss")
+    ("testing/gxtest-discovery.ss")
+    ("testing/build-support.ss"
+     "testing/build.ss")
+    ("testing/gxtest-delegate.ss")
+    ("testing/gxtest-expression.ss")
+    ("testing/gxtest-receipts.ss")
+    ("testing/gxtest-policy.ss"
+     "testing/gxtest-build.ss")
+    ("testing/gxtest-execution.ss")
+    ("testing/gxtest-run.ss")
+    ("testing/build-runtime.ss")
+    ("testing/build-runner.ss")
+    ("testing/gxtest-runner.ss")))
 
 ;; : (List String)
 (def +gslph-package-api-directories+
@@ -159,47 +71,22 @@
                  string<?))
       [])))
 
+;; : (-> (List (List Path)) (List Path))
+(def (gslph-package-api-flatten-stages stages)
+  (append-map (lambda (stage) stage) stages))
+
 ;; : (-> (List Path))
 (def (gslph-package-api-spec)
-  (append +gslph-package-api-bootstrap+
-          +gslph-package-api-core+
-          +gslph-package-api-benchmark-core+
-          +gslph-package-api-benchmark-framework+
-          +gslph-package-api-testing-model+
-          +gslph-package-api-testing-scope+
-          +gslph-package-api-testing-core+
-          +gslph-package-api-testing-selection+
-          +gslph-package-api-testing-framework+
+  (append (gslph-package-api-flatten-stages
+           +gslph-package-api-prologue-stages+)
           (append-map gslph-package-api-directory-spec
                       +gslph-package-api-directories+)
-          +gslph-package-api-testing+))
+          (gslph-package-api-flatten-stages
+           +gslph-package-api-epilogue-stages+)))
 
 ;; : (-> (List (List Path)))
 (def (gslph-package-api-stage-specs)
-  (append (list +gslph-package-api-bootstrap+
-                +gslph-package-api-core+
-                +gslph-package-api-benchmark-core+
-                +gslph-package-api-benchmark-framework+
-                +gslph-package-api-testing-model+
-                +gslph-package-api-testing-scope+
-                +gslph-package-api-testing-core+
-                +gslph-package-api-testing-selection+
-                +gslph-package-api-testing-framework+)
+  (append +gslph-package-api-prologue-stages+
           (map gslph-package-api-directory-spec
                +gslph-package-api-directories+)
-          (list +gslph-package-api-testing-build-core+
-                +gslph-package-api-testing-build-process+
-                +gslph-package-api-gxtest-syntax+
-                +gslph-package-api-gxtest-imports+
-                +gslph-package-api-gxtest-sources+
-                +gslph-package-api-gxtest-discovery+
-                +gslph-package-api-testing-build-support+
-                +gslph-package-api-gxtest-delegate+
-                +gslph-package-api-gxtest-expression+
-                +gslph-package-api-gxtest-receipts+
-                +gslph-package-api-gxtest-policy-build+
-                +gslph-package-api-gxtest-execution+
-                +gslph-package-api-gxtest-run+
-                +gslph-package-api-testing-build-runtime+
-                +gslph-package-api-testing-build-runner+
-                +gslph-package-api-gxtest-runner+)))
+          +gslph-package-api-epilogue-stages+))
