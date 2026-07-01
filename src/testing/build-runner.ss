@@ -1,14 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; Execution layer for downstream testing-build declarations.
 
-(import :testing/build
-        :testing/framework
-        :testing/build-support
-        (only-in :testing/build-runtime
+(import :gslph/src/testing/build
+        :gslph/src/testing/framework
+        :gslph/src/testing/build-support
+        (only-in :gslph/src/testing/build-runtime
                  testing-build-dry-gxtest-runner
                  testing-build-gxtest-runner))
 
-(export (import: :testing/build)
+(export (import: :gslph/src/testing/build)
         testing-build-select
         testing-build-main
         testing-build-dry-gxtest-runner

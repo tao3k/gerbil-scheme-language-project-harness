@@ -1,7 +1,8 @@
 #!/usr/bin/env gxi
 ;; -*- Gerbil -*-
 
-(import (only-in :std/cli/getopt flag rest-arguments)
+(import (only-in :gerbil/gambit exit)
+        (only-in :std/cli/getopt flag rest-arguments)
         (only-in :std/cli/multicall define-entry-point define-multicall-main)
         (only-in :std/misc/path path-directory path-expand)
         "src/build-api/source-coverage"
@@ -76,7 +77,8 @@
     (native-build-call
      `(compile-target ,verbose ,debug ,no-optimize ,optimized ,release ,full ,binary))
     (package-build-call
-     `(gslph-package-compile-target ,verbose ,debug ,no-optimize ,optimized ,release))))
+     `(gslph-package-compile-target ,verbose ,debug ,no-optimize ,optimized ,release)))
+  (exit 0))
 
 (define-entry-point (spec verbose: (verbose #f) debug: (debug #f)
                           no-optimize: (no-optimize #f)
@@ -98,12 +100,14 @@
   (help: "Install optimized release gslph into $HOME/.local/bin"
    getopt: compile-getopt)
   (native-build-call
-   `(install-target ,verbose ,debug ,no-optimize ,optimized ,release)))
+   `(install-target ,verbose ,debug ,no-optimize ,optimized ,release))
+  (exit 0))
 
 (define-entry-point (clean)
   (help: "Clean package-local development build artifacts"
    getopt: [])
-  (native-build-call '(clean-target)))
+  (native-build-call '(clean-target))
+  (exit 0))
 
 (define-entry-point (test)
   (help: "Run the default fast gxtest smoke gate"

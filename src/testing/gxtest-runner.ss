@@ -66,6 +66,7 @@
                  write-selected-gxtest-build-receipt!)
         (only-in "./gxtest-policy"
                  run-scoped-policy-if-stale
+                 scoped-policy-phase-line
                  scoped-policy-receipt-path
                  scoped-policy-source-files
                  scoped-policy-status-line
@@ -113,6 +114,7 @@
         machine-logical-core-count
         machine-performance-core-count
         compile-package-api-if-stale
+        scoped-policy-phase-line
         scoped-policy-receipt-path
         scoped-policy-status-line
         scoped-policy-source-files
@@ -200,7 +202,10 @@
     (run-test-phase
      "run-scoped-policy"
      (lambda ()
-       (run-scoped-policy-if-stale policy-files)))
+       (run-scoped-policy-if-stale
+        policy-files
+        (lambda ()
+          (compile-package-api-if-stale (build-worker-count))))))
     (run-test-phase
      "run-gxtest"
      (lambda ()

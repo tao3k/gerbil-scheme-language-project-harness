@@ -8,10 +8,10 @@
         (only-in :std/sort sort)
         (only-in :std/srfi/1 append-map)
         (only-in :std/sugar filter)
-        :testing/model
-        :testing/framework
-        :testing/build-paths
-        :testing/build-process)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/build-paths
+        :gslph/src/testing/build-process)
 
 (export #t)
 

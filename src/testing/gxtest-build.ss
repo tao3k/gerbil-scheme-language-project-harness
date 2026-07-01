@@ -59,6 +59,7 @@
     "search-light-launcher.ss"
     "build-api/source-coverage.ss"
     "build-api/package-receipt.ss"
+    "policy/gxtest-report.ss"
     "policy/gxtest.ss"
     "support/time.ss"
     "benchmark/gate.ss"

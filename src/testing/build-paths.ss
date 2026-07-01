@@ -3,8 +3,8 @@
 
 (import :gerbil/gambit
         (only-in :std/misc/path path-strip-directory)
-        :testing/model
-        :testing/framework)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework)
 
 (export #t)
 

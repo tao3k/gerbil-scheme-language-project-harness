@@ -1,10 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Scoped policy gate support for gxtest targets.
 
-(import (only-in :std/misc/path directory-files path-directory path-expand)
+(import (only-in :gerbil/expander import-module)
+        (only-in :std/misc/path directory-files path-directory path-expand)
         (only-in :std/sort sort)
         (only-in :std/srfi/13 string-suffix?)
         (only-in :std/sugar foldl hash-get hash-put!)
+        (only-in "../support/time" monotonic-micros duration-micros)
         (only-in "../build-api/package-receipt"
                  gslph-package-build-receipt-status
                  gslph-package-build-receipt-status-ref
@@ -20,6 +22,7 @@
         :gerbil/gambit)
 
 (export scoped-policy-receipt-path
+        scoped-policy-phase-line
         scoped-policy-status-line
         scoped-policy-source-files
         scoped-policy-target-files
@@ -182,23 +185,62 @@
   (display (scoped-policy-status-line status))
   (force-output))
 
-;; : (-> (List Path) Void)
-(def (run-scoped-policy! files)
+;; : (-> String Integer String)
+(def (scoped-policy-phase-line name elapsed-micros)
+  (string-append "[gslph-scoped-policy-phase] name=" name
+                 " elapsedMicros=" (number->string elapsed-micros)
+                 " elapsedMs=" (number->string (quotient elapsed-micros 1000))
+                 "\n"))
+
+;; : (-> String Integer Void)
+(def (display-scoped-policy-phase name elapsed-micros)
+  (display (scoped-policy-phase-line name elapsed-micros))
+  (force-output))
+
+;; : (forall (a) (-> String (-> a) a))
+(def (run-scoped-policy-phase name thunk)
+  (let (start-micros (monotonic-micros))
+    (let (result (thunk))
+      (display-scoped-policy-phase
+       name
+       (duration-micros start-micros (monotonic-micros)))
+      result)))
+
+;; : (-> Void)
+(def (load-compiled-gxtest-policy!)
   (add-load-path! ".")
   (add-load-path! "src")
   (add-load-path! "t")
-  (load "src/policy/gxtest.ss")
-  (let* ((policy-report (eval 'policy-report))
-         (display-report (eval 'display-project-policy-report))
-         (report (policy-report "." files)))
+  (add-load-path! (path-expand ".gerbil/lib" package-root))
+  (import-module ':gslph/src/policy/gxtest-report #f #t))
+
+;; : (-> (List Path) Void)
+(def (run-scoped-policy! files)
+  (run-scoped-policy-phase "load-policy"
+                           load-compiled-gxtest-policy!)
+  (let* ((policy-source-report
+          (eval 'gslph/src/policy/gxtest-report#policy-source-report))
+         (display-report
+          (eval 'gslph/src/policy/gxtest-report#display-project-policy-report))
+         (report
+          (run-scoped-policy-phase "policy-report"
+                                   (lambda ()
+                                     (policy-source-report
+                                      "."
+                                      files
+                                      display-scoped-policy-phase)))))
     (when (not (equal? (hash-get report 'status) "pass"))
       (display-report report)
       (exit 1))))
 
 ;; : (-> (List Path) Void)
-(def (run-scoped-policy-if-stale files)
+(def (run-scoped-policy-if-stale files (prepare-stale! #f))
   (let (status (scoped-policy-receipt-status files))
     (display-scoped-policy-status status)
     (unless (scoped-policy-current? status)
+      (when prepare-stale!
+        (run-scoped-policy-phase "prepare-stale" prepare-stale!))
       (run-scoped-policy! files)
-      (write-scoped-policy-receipt! files))))
+      (run-scoped-policy-phase "write-receipt"
+                               (lambda ()
+                                 (write-scoped-policy-receipt! files))))))

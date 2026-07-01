@@ -3,7 +3,8 @@
 
 (import :gerbil/gambit
         :parser/model
-        (only-in :std/srfi/13 string-prefix? string-suffix?))
+        (only-in :std/srfi/13 string-prefix? string-suffix?)
+        (only-in :std/sugar hash-get hash-key? hash-put!))
 
 (export project-definitions
         project-calls
@@ -42,99 +43,114 @@
         source-full-path
         normalize-owner)
 
+;;; Projection cache boundary:
+;;; - ProjectIndex is immutable for a policy/check pass, but policy rules ask
+;;;   for the same flattened fact families many times.
+;;; - Cache projections by ProjectIndex object identity without changing the
+;;;   public ProjectIndex struct shape used by downstream code.
+;; : HashTable
+(def +project-projection-cache+ (make-hash-table))
+
+;; : (-> ProjectIndex HashTable)
+(def (project-projection-cache index)
+  (if (hash-key? +project-projection-cache+ index)
+    (hash-get +project-projection-cache+ index)
+    (let (cache (make-hash-table))
+      (hash-put! +project-projection-cache+ index cache)
+      cache)))
+
+;; : (-> ProjectIndex Symbol (-> SourceFile List) List)
+(def (project-fact-projection index key accessor)
+  (let (cache (project-projection-cache index))
+    (if (hash-key? cache key)
+      (hash-get cache key)
+      (let (facts (apply append (map accessor (project-index-files index))))
+        (hash-put! cache key facts)
+        facts))))
+
 ;;; Aggregation boundary:
 ;;; - Keep project-level fact projections outside the source reader.
 ;;; - Preserve source-file-owned ordering for policy and search packets.
 ;; : (-> ProjectIndex (List Definition) )
 (def (project-definitions index)
-  (apply append (map source-file-definitions (project-index-files index))))
+  (project-fact-projection index 'definitions source-file-definitions))
 
 ;;; Call aggregation preserves source-file order so selector and search packet
 ;;; output stay deterministic across project collection runs.
 ;; : (-> ProjectIndex (List CallFact) )
 (def (project-calls index)
-  (apply append (map source-file-calls (project-index-files index))))
+  (project-fact-projection index 'calls source-file-calls))
 
 ;;; Macro-family facts are source-owned cross-macro evidence.
 ;;; The project projection only flattens files for policy and search consumers.
 ;; : (-> ProjectIndex (List MacroFamilyFact) )
 (def (project-macro-family-facts index)
-  (apply append
-         (map source-file-macro-family-facts
-              (project-index-files index))))
+  (project-fact-projection index 'macro-family-facts
+                           source-file-macro-family-facts))
 
 ;;; Predicate-family facts are already source-owned by the native parser.
 ;;; The project projection only flattens file buckets for policy and search.
 ;; : (-> ProjectIndex (List PredicateFamilyFact) )
 (def (project-predicate-family-facts index)
-  (apply append
-         (map source-file-predicate-family-facts
-              (project-index-files index))))
+  (project-fact-projection index 'predicate-family-facts
+                           source-file-predicate-family-facts))
 
 ;;; Field-access facts must remain separate from predicate-family thresholds so
 ;;; agent repair can explain selector-helper evidence independently.
 ;; : (-> ProjectIndex (List FieldAccessPatternFact) )
 (def (project-field-access-pattern-facts index)
-  (apply append
-         (map source-file-field-access-pattern-facts
-              (project-index-files index))))
+  (project-fact-projection index 'field-access-pattern-facts
+                           source-file-field-access-pattern-facts))
 
 ;;; Projection-burst facts are caller-scoped native evidence for output/projection walls.
 ;;; Policy consumers decide thresholds through detection profiles.
 ;; : (-> ProjectIndex (List ProjectionBurstFact) )
 (def (project-projection-burst-facts index)
-  (apply append
-         (map source-file-projection-burst-facts
-              (project-index-files index))))
+  (project-fact-projection index 'projection-burst-facts
+                           source-file-projection-burst-facts))
 
 ;;; Boolean-condition facts keep individual predicate helpers queryable even
 ;;; when a family-level policy finding owns the repair decision.
 ;; : (-> ProjectIndex (List BooleanConditionFact) )
 (def (project-boolean-condition-facts index)
-  (apply append
-         (map source-file-boolean-condition-facts
-              (project-index-files index))))
+  (project-fact-projection index 'boolean-condition-facts
+                           source-file-boolean-condition-facts))
 
 ;;; Loop-driver facts distinguish pure transform drift from IO/runtime driver
 ;;; boundaries before policy decides whether a named let should remain.
 ;; : (-> ProjectIndex (List LoopDriverFact) )
 (def (project-loop-driver-facts index)
-  (apply append
-         (map source-file-loop-driver-facts
-              (project-index-files index))))
+  (project-fact-projection index 'loop-driver-facts
+                           source-file-loop-driver-facts))
 
 ;;; Dependency adapter facts expose define-type/protocol wrappers over imported
 ;;; dependency primitives before policy decides whether the boundary is strong.
 ;; : (-> ProjectIndex (List DependencyAdapterQualityFact) )
 (def (project-dependency-adapter-quality-facts index)
-  (apply append
-         (map source-file-dependency-adapter-quality-facts
-              (project-index-files index))))
+  (project-fact-projection index 'dependency-adapter-quality-facts
+                           source-file-dependency-adapter-quality-facts))
 
 ;;; Function-quality profiles are the function-level join across parser fact families.
 ;;; Keep this projection first-class so repair planning can group by function.
 ;; : (-> ProjectIndex (List FunctionQualityProfile) )
 (def (project-function-quality-profiles index)
-  (apply append
-         (map source-file-function-quality-profiles
-              (project-index-files index))))
+  (project-fact-projection index 'function-quality-profiles
+                           source-file-function-quality-profiles))
 
 ;;; Typed-contract facts are flattened after parsing so R013 can stay a policy
 ;;; consumer of native evidence rather than re-reading comment text.
 ;; : (-> ProjectIndex (List TypedContractFact) )
 (def (project-typed-contract-facts index)
-  (apply append
-         (map source-file-typed-contract-facts
-              (project-index-files index))))
+  (project-fact-projection index 'typed-contract-facts
+                           source-file-typed-contract-facts))
 
 ;;; Comment-quality facts carry parser evidence for R015 repair prompts.
 ;;; Keeping this as a projection helper lets check, info, and search share the
 ;;; same native evidence list.
 ;; : (-> ProjectIndex (List CommentQualityFact) )
 (def (project-comment-quality-facts index)
-  (apply append
-         (map source-file-comment-quality-facts
-              (project-index-files index))))
+  (project-fact-projection index 'comment-quality-facts
+                           source-file-comment-quality-facts))
 
 ;;; Owner lookup boundary:
 ;;; - Normalize user-facing owner paths before comparing parser-owned paths.

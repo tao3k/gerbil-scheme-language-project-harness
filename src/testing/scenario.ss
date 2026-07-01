@@ -3,8 +3,8 @@
 
 (import :gerbil/gambit
         (only-in :std/srfi/1 find)
-        :testing/model
-        :testing/scope)
+        :gslph/src/testing/model
+        :gslph/src/testing/scope)
 
 (export #t)
 

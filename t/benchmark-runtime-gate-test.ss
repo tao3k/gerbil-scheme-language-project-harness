@@ -3,10 +3,16 @@
 
 (import :gerbil/gambit
         :std/test
+        (only-in :build-api/worker-count build-worker-count)
         (only-in :commands/check check-main)
         (rename-in :cli-release-linker (main launcher-main))
         (only-in :std/misc/process run-process)
         (only-in :support/time monotonic-ms duration-ms)
+        (only-in :testing/gxtest-build compile-package-api-if-stale)
+        (only-in :testing/gxtest-context configure-build-root!)
+        (only-in :testing/gxtest-policy
+                 scoped-policy-target-files
+                 run-scoped-policy-if-stale)
         :benchmark/gate)
 
 (export benchmark-runtime-gate-test)
@@ -37,6 +43,17 @@
 ;;;   runtime path; keep the gate subsecond while avoiding scheduler noise.
 ;; : Integer
 (def +check-cache-gate-max-launcher-changed-ms+ 250)
+
+;;; Boundary:
+;;; - Scoped policy warm receipt checks should stay in the same millisecond
+;;;   class as build receipts.  Cold policy can parse source; warm policy must
+;;;   only verify the receipt and return.
+;; : Integer
+(def +scoped-policy-gate-max-warm-ms+ 50)
+
+;; : (List Path)
+(def +scoped-policy-gate-entry-files+
+  ["t/build-install-test.ss"])
 
 ;;; Boundary:
 ;;; - The POO scenario contract fast gate measured 4.7-7.1s after removing
@@ -166,6 +183,29 @@
    (lambda ()
      (apply launcher-main ["check" "changed" "--view" "seeds" root]))))
 
+;; : (-> (List Path))
+(def (scoped-policy-gate-target-files)
+  (configure-build-root! (current-directory))
+  (scoped-policy-target-files +scoped-policy-gate-entry-files+))
+
+;; : (-> (List Path) Alist)
+(def (run-scoped-policy/silent files)
+  (run-check-command/silent
+   (lambda ()
+     (run-scoped-policy-if-stale
+      files
+      (lambda ()
+        (compile-package-api-if-stale (build-worker-count))))
+     0)))
+
+;; : (-> (List Path) Alist)
+(def (run-scoped-policy-warm/silent/best files)
+  (run-check-command/silent/best
+   5
+   (lambda ()
+     (run-scoped-policy-if-stale files)
+     0)))
+
 ;; : (-> Alist)
 ;; : TestSuite
 (def benchmark-runtime-gate-test
@@ -192,4 +232,14 @@
         (check (benchmark-fixture-ref changed 'status) => 0)
         (check (< (benchmark-fixture-ref changed 'elapsedMs)
                   +check-cache-gate-max-launcher-changed-ms+)
+               => #t)))
+
+    (test-case "gxtest scoped policy warm receipt stays in millisecond budget"
+      (let* ((files (scoped-policy-gate-target-files))
+             (cold (run-scoped-policy/silent files))
+             (warm (run-scoped-policy-warm/silent/best files)))
+        (check (benchmark-fixture-ref cold 'status) => 0)
+        (check (benchmark-fixture-ref warm 'status) => 0)
+        (check (< (benchmark-fixture-ref warm 'elapsedMs)
+                  +scoped-policy-gate-max-warm-ms+)
                => #t)))))

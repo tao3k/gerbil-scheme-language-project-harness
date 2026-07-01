@@ -2,16 +2,16 @@
 ;;; User-friendly Gerbil testing helpers inspired by poo-flow test entrypoints.
 
 (import :gerbil/gambit
-        :benchmark/framework
-        (only-in :support/time
+        :gslph/src/benchmark/framework
+        (only-in :gslph/src/support/time
                  monotonic-micros
                  duration-micros)
-        :testing/model
-        :testing/scope
-        :testing/scenario
-        :testing/selection
-        :testing/batch
-        :testing/performance)
+        :gslph/src/testing/model
+        :gslph/src/testing/scope
+        :gslph/src/testing/scenario
+        :gslph/src/testing/selection
+        :gslph/src/testing/batch
+        :gslph/src/testing/performance)
 
 (export #t
         testing-member?

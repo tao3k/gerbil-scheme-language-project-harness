@@ -68,9 +68,9 @@
 (def (collect-test-source-scope root paths)
   (let* ((root (path-normalize root))
          (package (read-project-package root))
-         (files (sort (test-source-scope-files root package paths) string<?)))
+         (source-files (test-source-scope-source-files root package paths)))
     (make-project-index root
-                        (parse-source-files root files)
+                        source-files
                         package)))
 
 ;; test-source-scope-files
@@ -87,25 +87,63 @@
 ;;       ```
 ;;     %
 (def (test-source-scope-files root package paths)
-  (let loop ((seen '())
-             (queue (map (lambda (path) [path 0])
-                         (changed-source-files root package paths))))
-    (match queue
-      ([]
-       (reverse seen))
-      ([entry . rest]
-       (let ((path (car entry))
-             (depth (cadr entry)))
-       (let* ((file (parse-source-file root path))
-              (relpath (source-file-path file)))
-         (if (member relpath seen)
-           (loop seen rest)
-           (let (entries
-                 (test-source-scope-import-entries
-                  root package relpath depth
-                  (source-file-imports file)))
-             (loop (cons relpath seen)
-                   (foldr cons rest entries))))))))))
+  (map source-file-path
+       (test-source-scope-source-files root package paths)))
+
+;;; Boundary:
+;;; - Import closure discovery needs parsed imports from every reached file.
+;;; - The parsed source file is also the final ProjectIndex payload, so this
+;;;   collector preserves files-scoped semantics without parsing every file a
+;;;   second time during policy checks.
+;; : (-> Root MaybePackage (List Path) (List SourceFile))
+(def (test-source-scope-source-files root package paths)
+  (sort (test-source-scope-source-files/walk
+         root package '() '() '()
+         (test-source-scope-initial-queue root package paths))
+        source-file-path<?))
+
+;; : (-> Root MaybePackage (List Path) (List ScopeEntry))
+(def (test-source-scope-initial-queue root package paths)
+  (map (lambda (path) [path 0])
+       (changed-source-files root package paths)))
+
+;; : (-> Root MaybePackage (List Path) (List Path) (List SourceFile) (List ScopeEntry) (List SourceFile))
+(def (test-source-scope-source-files/walk root package seen-paths seen-relpaths
+                                         source-files queue)
+  (match queue
+    ([]
+     source-files)
+    ([[path depth] . rest]
+     (test-source-scope-source-files/entry
+      root package seen-paths seen-relpaths source-files path depth rest))))
+
+;; : (-> Root MaybePackage (List Path) (List Path) (List SourceFile) Path Integer (List ScopeEntry) (List SourceFile))
+(def (test-source-scope-source-files/entry root package seen-paths seen-relpaths
+                                          source-files path depth rest)
+  (if (member path seen-paths)
+    (test-source-scope-source-files/walk
+     root package seen-paths seen-relpaths source-files rest)
+    (let* ((file (parse-source-file root path))
+           (relpath (source-file-path file))
+           (seen-paths (cons path seen-paths)))
+      (if (member relpath seen-relpaths)
+        (test-source-scope-source-files/walk
+         root package seen-paths seen-relpaths source-files rest)
+        (test-source-scope-source-files/walk
+         root package
+         seen-paths
+         (cons relpath seen-relpaths)
+         (cons file source-files)
+         (foldr cons
+                rest
+                (test-source-scope-import-entries
+                 root package relpath depth
+                 (source-file-imports file))))))))
+
+;; : (-> SourceFile SourceFile Boolean)
+(def (source-file-path<? left right)
+  (string<? (source-file-path left)
+            (source-file-path right)))
 
 ;; : (-> Root MaybePackage Path Integer (List ModuleRef) (List ScopeEntry))
 (def (test-source-scope-import-entries root package owner-path depth imports)

@@ -7,11 +7,11 @@
         (only-in :std/srfi/13 string-suffix?)
         (only-in :std/sugar hash-get hash-put!)
         (only-in :gslph/src/policy/gxtest make-policy-test)
-        :testing/model
-        :testing/framework
-        :testing/build-paths
-        :testing/build-process
-        :testing/build-support)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/build-paths
+        :gslph/src/testing/build-process
+        :gslph/src/testing/build-support)
 
 (export #t)
 

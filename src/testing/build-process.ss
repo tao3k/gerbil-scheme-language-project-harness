@@ -6,9 +6,9 @@
         (only-in :std/misc/process run-process)
         (only-in :std/misc/string string-join)
         (only-in :std/sugar filter)
-        :testing/model
-        :testing/framework
-        :testing/build-paths)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/build-paths)
 
 (export #t)
 

@@ -3,7 +3,7 @@
 
 (import :gerbil/gambit
         :std/test
-        :scenario/policy
+        :scenario/benchmark-contract
         (only-in :std/sort sort)
         (only-in :std/sugar filter-map)
         (only-in :support/time duration-literal->nanos))
@@ -16,10 +16,6 @@
   '("collect-before" "policy-before"))
 (def +scenario-benchmark-expected-timing-names+
   '("collect-after" "policy-after"))
-
-;; : (-> String String )
-(def (scenario-benchmark-dir path)
-  (path-directory path))
 
 ;; : (-> String String )
 (def (scenario-benchmark-child root name)
@@ -51,8 +47,7 @@
 
 ;; : (-> String BenchmarkContract )
 (def (scenario-benchmark-contract path)
-  (policy-scenario-benchmark-contract
-   (make-policy-scenario path (scenario-benchmark-dir path))))
+  (scenario-benchmark-contract/path path path))
 
 ;; : (-> BenchmarkTimingName String Boolean)
 (def (scenario-benchmark-timing-name-equal? candidate name)
@@ -206,16 +201,15 @@
           'maxPhaseMs)
          (= max-ns (+ observed-ns regression-budget-ns)))))
 
+;; : (-> String (Maybe String))
+(def (scenario-benchmark-path-without-target path)
+  (and (not (scenario-benchmark-targeted?
+             (scenario-benchmark-contract path)))
+       path))
+
 ;; : (-> (List String) (List String) )
 (def (scenario-benchmark-paths-without-targets paths)
-  (cond
-   ((null? paths) [])
-   ((scenario-benchmark-targeted?
-     (scenario-benchmark-contract (car paths)))
-    (scenario-benchmark-paths-without-targets (cdr paths)))
-   (else
-    (cons (car paths)
-          (scenario-benchmark-paths-without-targets (cdr paths))))))
+  (filter-map scenario-benchmark-path-without-target paths))
 
 (def scenario-benchmark-policy-test
   (test-suite "gerbil scheme harness policy scenario benchmark contracts"

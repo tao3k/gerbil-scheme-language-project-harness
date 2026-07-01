@@ -182,6 +182,30 @@
               (check (map source-file-path files) => ["src/changed.ss"])
               (check (map definition-name (project-definitions index))
                      => ["changed"]))))
+    (test-case "collect-test-source-scope deduplicates shared import closure"
+          (let* ((root ".run/parser-test-source-scope-dedup")
+                 (src (string-append root "/src"))
+                 (tests (string-append root "/t")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir tests)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/parser-test-scope\n  policy: ((source-scope roots: (\"src\"))))\n")
+            (write-text (string-append src "/core.ss")
+                        ";;; -*- Gerbil -*-\n(export shared)\n(def (shared value) value)\n")
+            (write-text (string-append tests "/a-test.ss")
+                        ";;; -*- Gerbil -*-\n(import :core)\n(def (a) (shared 1))\n")
+            (write-text (string-append tests "/b-test.ss")
+                        ";;; -*- Gerbil -*-\n(import :core)\n(def (b) (shared 2))\n")
+            (let* ((index
+                    (collect-test-source-scope
+                     root
+                     ["t/a-test.ss" "t/b-test.ss" "src/core.ss"]))
+                   (files (map source-file-path
+                               (project-index-files index))))
+              (check files => ["src/core.ss" "t/a-test.ss" "t/b-test.ss"])
+              (check (length files) => 3))))
     (test-case "native reader captures definition formals"
           (let* ((root (path-normalize "."))
                  (file (parse-source-file root "t/fixtures/formals.ss")))
@@ -204,6 +228,22 @@
                           (selector-owner? selector "t/fixtures/formals.ss"))
                         (map call-fact-selector calls))
                    => [#t])))
+    (test-case "native reader preserves call order within one form"
+          (let* ((root ".run/parser-call-order")
+                 (src (string-append root "/src")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (write-text
+             (string-append src "/calls.ss")
+             ";;; -*- Gerbil -*-\n(def (ordered value)\n  (first value)\n  (second value))\n")
+            (let* ((file (parse-source-file root "src/calls.ss"))
+                   (calls
+                    (filter (lambda (call)
+                              (equal? (call-fact-caller call) "ordered"))
+                            (source-file-calls file))))
+              (check (map call-fact-callee calls)
+                     => ["first" "second"]))))
     (test-case "native reader captures top-level value binding facts"
           (let* ((root ".run/parser-top-level-value-binding")
                  (src (string-append root "/src")))

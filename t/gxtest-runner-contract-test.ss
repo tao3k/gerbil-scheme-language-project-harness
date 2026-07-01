@@ -96,6 +96,9 @@
                 (sources . 9)
                 (outputs . 1)))
              => "[gslph-scoped-policy] status=stale reason=dirty-source-or-missing-output sources=9 outputs=1\n"))
+    (test-case "scoped policy phase receipts are machine parseable"
+      (check (scoped-policy-phase-line "policy-report" 9876)
+             => "[gslph-scoped-policy-phase] name=policy-report elapsedMicros=9876 elapsedMs=9\n"))
     (test-case "gxtest timing summaries are machine parseable"
       (check (gxtest-summary-line "serial" 13 29643000 3624000)
              => "[gslph-test-summary] kind=serial count=13 sumMs=29643 wallMs=3624\n")
@@ -300,6 +303,7 @@
         (check (member "testing/gxtest-run.ss" stage) ? true)
         (check (member "testing/gxtest-runner.ss" stage) ? true)
         (check (member "extensions/poo-source-ref-validation.ss" stage) ? true)
+        (check (member "policy/gxtest-report.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) ? true)))
     (test-case "binary bootstrap spec includes downstream gxtest support"
       (configure-build-root! (current-directory))
@@ -323,6 +327,7 @@
         (check (member "testing/gxtest-build.ss" stage) => #f)
         (check (member "testing/gxtest-run.ss" stage) => #f)
         (check (member "extensions/poo-source-ref-validation.ss" stage) ? true)
+        (check (member "policy/gxtest-report.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) ? true)
         (check (member "policy/gxtest.ss"
                        (member "build-api/source-coverage.ss" stage))
