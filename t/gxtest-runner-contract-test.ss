@@ -5,11 +5,21 @@
         :std/test
         (only-in :std/misc/path path-expand)
         (only-in :std/srfi/13 string-contains)
+        (only-in "../src/build-api/package-spec"
+                 gslph-package-api-stage-specs)
         (only-in "../src/policy/gxtest"
                  make-gxtest-policy-test)
         "../src/testing/model"
         "../src/testing/gxtest-runner")
 (export gxtest-runner-contract-test)
+
+;; : (-> (List (List Path)) Path MaybeInteger)
+(def (stage-index-containing stages file)
+  (let loop ((rest stages) (index 0))
+    (cond
+     ((null? rest) #f)
+     ((member file (car rest)) index)
+     (else (loop (cdr rest) (+ index 1))))))
 
 (def gxtest-runner-contract-test
   (test-suite "gslph gxtest runner contract"
@@ -310,6 +320,21 @@
         (check (member "extensions/poo-source-ref-validation.ss" stage) ? true)
         (check (member "policy/gxtest-report.ss" stage) ? true)
         (check (member "policy/gxtest.ss" stage) ? true)))
+    (test-case "package api stages keep clean-ci dependency order"
+      (let* ((stages (gslph-package-api-stage-specs))
+             (gate (stage-index-containing stages "benchmark/gate.ss"))
+             (benchmark-framework
+              (stage-index-containing stages "benchmark/framework.ss"))
+             (model (stage-index-containing stages "testing/model.ss"))
+             (scope (stage-index-containing stages "testing/scope.ss"))
+             (scenario (stage-index-containing stages "testing/scenario.ss"))
+             (selection (stage-index-containing stages "testing/selection.ss"))
+             (framework (stage-index-containing stages "testing/framework.ss")))
+        (check (< gate benchmark-framework) => #t)
+        (check (< model scope) => #t)
+        (check (< scope scenario) => #t)
+        (check (< scenario selection) => #t)
+        (check (< selection framework) => #t)))
     (test-case "binary bootstrap spec includes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #t))
