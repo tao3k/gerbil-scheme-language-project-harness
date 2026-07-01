@@ -112,16 +112,20 @@
      (lambda ()
        (project-policy-report-json index findings "source-files" files)))))
 
+;; : (-> Path Path)
+(def (project-policy-trim-trailing-slash path)
+  (let trim ((end (string-length path)))
+    (if (and (> end 1)
+             (char=? (string-ref path (- end 1)) #\/))
+      (trim (- end 1))
+      (substring path 0 end))))
+
 ;; : (-> Root Root)
 (def (project-policy-root root)
   (let* ((expanded-root
           (path-normalize (path-expand root (current-directory))))
          (normalized-root
-          (let trim ((end (string-length expanded-root)))
-            (if (and (> end 1)
-                     (char=? (string-ref expanded-root (- end 1)) #\/))
-              (trim (- end 1))
-              (substring expanded-root 0 end)))))
+          (project-policy-trim-trailing-slash expanded-root)))
     (let loop ((candidate normalized-root))
       (let (parent (path-directory candidate))
         (cond
