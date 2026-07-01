@@ -521,10 +521,10 @@
 ;;; - Empty timing lists stay valid for degenerate fixtures.
 ;; : (-> (List Timing) Integer )
 (def (policy-scenario-timings-total-ns timings)
-  (if (null? timings)
-    0
-    (+ (hash-get (car timings) 'durationNs)
-       (policy-scenario-timings-total-ns (cdr timings)))))
+  (foldl (lambda (timing total)
+           (+ total (hash-get timing 'durationNs)))
+         0
+         timings))
 
 ;;; Full policy runner:
 ;;; - Use this when a scenario validates user-facing package policy controls.

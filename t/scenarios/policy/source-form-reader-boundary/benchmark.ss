@@ -1,4 +1,4 @@
-((max_total . 28ms)
+((max_total . 29ms)
  (observed_total . 9ms)
  (target_total . 16ms)
  (regression_budget . 20ms)
