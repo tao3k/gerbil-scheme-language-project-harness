@@ -4,6 +4,8 @@
 (import :gerbil/gambit
         :std/test
         :scenario/policy
+        (only-in :std/sort sort)
+        (only-in :std/sugar filter-map)
         (only-in :support/time duration-literal->nanos))
 (export scenario-benchmark-policy-test)
 
@@ -25,26 +27,20 @@
     name
     (string-append root "/" name)))
 
-;; : (-> String (List String) (List String) )
-(def (scenario-benchmark-paths/entries root entries)
-  (cond
-   ((null? entries) [])
-   (else
-    (let* ((name (car entries))
-           (path (scenario-benchmark-child root name)))
-      (cond
-       ((eq? (file-type path) 'directory)
-        (append (scenario-benchmark-paths path)
-                (scenario-benchmark-paths/entries root (cdr entries))))
-       ((equal? name +scenario-benchmark-file+)
-        (cons path
-              (scenario-benchmark-paths/entries root (cdr entries))))
-       (else
-        (scenario-benchmark-paths/entries root (cdr entries))))))))
+;; : (-> String String (Maybe String))
+(def (scenario-benchmark-path root entry)
+  (let* ((scenario-root (scenario-benchmark-child root entry))
+         (benchmark-path
+          (scenario-benchmark-child scenario-root +scenario-benchmark-file+)))
+    (and (eq? (file-type scenario-root) 'directory)
+         (file-exists? benchmark-path)
+         benchmark-path)))
 
 ;; : (-> (List String) )
 (def (scenario-benchmark-paths root)
-  (scenario-benchmark-paths/entries root (directory-files root)))
+  (filter-map (lambda (entry)
+                (scenario-benchmark-path root entry))
+              (sort (directory-files root) string<?)))
 
 ;; : (-> (List String) (List String) )
 (def (scenario-benchmark-paths/include-dirs roots)
