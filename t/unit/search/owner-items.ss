@@ -20,6 +20,7 @@
         check-search-fast-path-build-boundary
         check-search-light-uses-bounded-preview
         check-owner-items-omits-empty-role-field
+        check-owner-items-definition-next-command-uses-structural-selector
         check-guide-sections-static-data-loads
         check-search-guide-fast-entrypoint-stays-light)
 
@@ -159,9 +160,31 @@
             (lambda (out)
               (parameterize ((current-output-port out))
                 (emit-owner-items file [] facts 4))))))
-    (check (> (length facts) 0) => #t)
-    (check (source-contains? output " languageKind=call") => #t)
-    (check (source-contains? output " role=") => #f)))
+        (check (> (length facts) 0) => #t)
+        (check (source-contains? output " languageKind=call") => #t)
+        (check (source-contains? output " role=") => #f)))
+
+;; : (-> Unit )
+(def (check-owner-items-definition-next-command-uses-structural-selector)
+  (let* ((file (parse-owner-items-source-file "."
+                                              (path-expand "src/parser/selectors.ss" ".")))
+         (definitions [(find (lambda (defn)
+                               (equal? (definition-name defn) "selector-from"))
+                             (source-file-definitions file))])
+         (output
+          (call-with-output-string
+            (lambda (out)
+              (parameterize ((current-output-port out))
+                (emit-owner-items file definitions [] 4))))))
+    (check (source-contains?
+            output
+            "selector=gerbil-scheme://src/parser/selectors.ss#item/def/selector-from")
+           => #t)
+    (check (source-contains?
+            output
+            "nextCommand=\"asp gerbil-scheme query --selector gerbil-scheme://src/parser/selectors.ss#item/def/selector-from --workspace . --code\"")
+           => #t)
+    (check (source-contains? output "selector=selector-from") => #f)))
 
 ;; : (-> Unit )
 (def (check-search-guide-fast-entrypoint-stays-light)

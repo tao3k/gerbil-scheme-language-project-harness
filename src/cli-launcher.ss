@@ -9,7 +9,7 @@
         (only-in :std/misc/ports read-all-as-string)
         (only-in :std/misc/process run-process)
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-index string-index-right string-prefix?)
+        (only-in :std/srfi/13 string-contains string-index string-index-right string-prefix?)
         (only-in :std/sugar filter foldl ormap))
 (export main
         command-line-args
@@ -164,7 +164,7 @@
                 (equal? from-hook "direct-source-read")
                 (not selector))
            (error "direct-source-read requires --selector"))
-          (selector
+          ((and selector (launcher-direct-source-selector? selector))
            (emit-native-direct-source-query rest selector)
            0)
           (else #f)))))
@@ -177,6 +177,17 @@
     (and (pair? (cdr args)) (cadr args)))
    (else
     (launcher-option name (cdr args)))))
+
+;; : (-> String Boolean)
+(def (launcher-direct-source-selector? selector)
+  (and (not (launcher-structural-selector? selector))
+       (or (string-contains selector "/")
+           (string-contains selector ".")
+           (string-contains selector ":"))))
+
+;; : (-> String Boolean)
+(def (launcher-structural-selector? selector)
+  (string-prefix? "gerbil-scheme://" selector))
 
 ;; : (-> String (List String) Boolean)
 (def (launcher-flag? name args)

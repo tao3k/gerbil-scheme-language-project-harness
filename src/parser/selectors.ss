@@ -39,6 +39,7 @@
         typed-contract-fact-selector
         comment-quality-fact-selector
         top-form-selector
+        item-structural-selector
         relative-path
         source-full-path
         normalize-owner)
@@ -162,7 +163,9 @@
 
 ;; : (-> Definition Selector )
 (def (definition-selector defn)
-  (selector-from definition-path definition-start definition-end defn))
+  (item-structural-selector (definition-path defn)
+                            (definition-kind defn)
+                            (definition-name defn)))
 
 ;; : (-> CallFact Selector )
 (def (call-fact-selector call)
@@ -290,6 +293,17 @@
   (source-range-selector (path-accessor fact)
                          (start-accessor fact)
                          (end-accessor fact)))
+
+;;; Structural item selector encoding is parser-owned so owner-items and query
+;;; share one stable item identity instead of treating symbols as file paths.
+;; : (-> Path Kind Name Selector)
+(def (item-structural-selector path kind name)
+  (string-append "gerbil-scheme://"
+                 path
+                 "#item/"
+                 kind
+                 "/"
+                 name))
 
 ;;; Range selector encoding is shared by parser, search, snapshots, and CLI query.
 ;;; Keep the string shape centralized so colon/dash compatibility cannot drift.

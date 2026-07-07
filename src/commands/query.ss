@@ -11,8 +11,9 @@
                  parse-owner-items-source-file)
         :parser/query
         :protocol/json
+        (only-in :std/srfi/1 find)
         (only-in :std/sugar unless)
-        (only-in :std/srfi/13 string-join)
+        (only-in :std/srfi/13 string-contains string-index string-join string-prefix?)
         :support/args
         :support/io)
 
@@ -47,11 +48,82 @@
 
 ;; : (-> ProjectRoot Selector Boolean Integer)
 (def (emit-query-selector workspace selector json?)
-  (let (code (read-selector workspace selector))
+  (let (code (read-query-selector workspace selector))
     (if json?
       (write-json-line (hash (selector selector) (code code)))
       (display code)))
   0)
+
+;; : (-> ProjectRoot Selector ParsedData)
+(def (read-query-selector workspace selector)
+  (cond
+   ((structural-item-selector? selector)
+    (read-structural-item-selector workspace selector))
+   ((source-range-or-file-selector? selector)
+    (read-selector workspace selector))
+   (else
+    (read-symbol-item-selector workspace selector))))
+
+;; : (-> Selector Boolean)
+(def (structural-item-selector? selector)
+  (string-prefix? "gerbil-scheme://" selector))
+
+;; : (-> Selector Boolean)
+(def (source-range-or-file-selector? selector)
+  (or (string-contains selector "/")
+      (string-contains selector ".")
+      (string-contains selector ":")))
+
+;; : (-> ProjectRoot Selector ParsedData)
+(def (read-symbol-item-selector workspace selector)
+  (let (defn (find (lambda (defn)
+                    (equal? (definition-name defn) selector))
+                  (project-definitions (collect-project workspace))))
+    (unless defn
+      (error "selector item not found" selector))
+    (read-definition-code workspace defn)))
+
+;; : (-> ProjectRoot Selector ParsedData)
+(def (read-structural-item-selector workspace selector)
+  (let* ((parts (split-structural-item-selector selector))
+         (owner (car parts))
+         (kind (cadr parts))
+         (name (caddr parts))
+         (file (query-owner-source-file workspace owner))
+         (defn (find (lambda (defn)
+                       (and (structural-item-kind-matches? kind
+                                                           (definition-kind defn))
+                            (equal? (definition-name defn) name)))
+                     (source-file-definitions file))))
+    (unless defn
+      (error "selector item not found" selector))
+    (read-definition-code workspace defn)))
+
+;; : (-> Selector (List String))
+(def (split-structural-item-selector selector)
+  (let* ((prefix "gerbil-scheme://")
+         (body (substring selector
+                          (string-length prefix)
+                          (string-length selector)))
+         (marker (string-contains body "#item/")))
+    (unless marker
+      (error "unsupported structural selector" selector))
+    (let* ((owner (substring body 0 marker))
+           (item (substring body
+                            (+ marker (string-length "#item/"))
+                            (string-length body)))
+           (separator (string-index item #\/)))
+      (unless separator
+        (error "unsupported structural selector" selector))
+      [owner
+       (substring item 0 separator)
+       (substring item (+ separator 1) (string-length item))])))
+
+;; : (-> SelectorKind DefinitionKind Boolean)
+(def (structural-item-kind-matches? selector-kind definition-kind)
+  (or (equal? selector-kind definition-kind)
+      (and (equal? selector-kind "function")
+           (equal? definition-kind "def"))))
 
 ;; : (-> ProjectRoot Boolean Boolean Boolean (List String) Integer)
 (def (query-main/owner-route workspace json? code? names-only? args)

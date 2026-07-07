@@ -93,6 +93,33 @@
                   "[gslph-package-build-receipt] status=current"
                   (gslph-package-build-receipt-status-line status))
                  => #t))))
+    (test-case "reports current receipts with compile debug metadata"
+      (package-build-receipt-reset!)
+      (let* ((source (package-build-receipt-path "metadata/source.ss"))
+             (output (package-build-receipt-path "metadata/source.ssi"))
+             (stamp (package-build-receipt-path "metadata/build.sexp")))
+        (package-build-receipt-write-file source "source")
+        (package-build-receipt-write-file output "output")
+        (gslph-package-build-receipt-write
+         stamp
+         [source]
+         [output]
+         metadata: `((phase . compile-selected-gxtest)
+                     (command . "gxc")
+                     (command-dir . ,+package-build-receipt-test-root+)
+                     (elapsed-micros . 42)
+                     (cache-key . "metadata/source.ss")))
+        (let (status (gslph-package-build-receipt-status stamp))
+          (check (gslph-package-build-receipt-status-ref status 'status #f)
+                 => 'current)
+          (check (gslph-package-build-receipt-status-ref status 'phase #f)
+                 => 'compile-selected-gxtest)
+          (check (gslph-package-build-receipt-status-ref status 'command #f)
+                 => "gxc")
+          (check (gslph-package-build-receipt-status-ref status 'elapsed-micros #f)
+                 => 42)
+          (check (gslph-package-build-receipt-status-ref status 'cache-key #f)
+                 => "metadata/source.ss"))))
     (test-case "reports stale when an output is missing"
       (package-build-receipt-reset!)
       (let* ((source (package-build-receipt-path "missing-output/source.ss"))

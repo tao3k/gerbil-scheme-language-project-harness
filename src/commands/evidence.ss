@@ -87,7 +87,7 @@
          (receipt-id (evidence-node-id "gerbil-scheme:receipt" "gerbil-harness-check-changed"))
          (action-id (evidence-node-id "gerbil-scheme:action" "run-gerbil-harness-check"))
          (gap-id (evidence-node-id "gerbil-scheme:gap" (string-append owner-path ":receipt")))
-         (check-command "gerbil-scheme-harness check --changed .")
+         (check-command "asp gerbil-scheme check --changed .")
          (nodes [(evidence-node owner-id "owner" owner-path owner-path "current"
                                 (hash (languageId +language-id+)
                                       (source "provider-project")))
@@ -104,7 +104,7 @@
                                       (command check-command)
                                       (summary "Run the Gerbil Scheme harness check and attach the receipt before treating the claim as verified.")))
                  (evidence-node action-id "review-action"
-                                "Run gerbil-scheme-harness check --changed ."
+                                (string-append "Run " check-command)
                                 owner-path "missing"
                                 (hash (actionId "gerbil-scheme.run-harness-check")
                                       (priority "p0")

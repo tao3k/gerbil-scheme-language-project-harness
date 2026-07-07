@@ -53,9 +53,19 @@
     ("testing/build-runner.ss")
     ("testing/gxtest-runner.ss")))
 
+;; : (List (List Path))
+(def +gslph-package-api-command-prologue-stages+
+  '(("support/args.ss"
+     "support/io.ss")))
+
 ;; : (List String)
 (def +gslph-package-api-directories+
-  '("types" "parser" "checker" "policy" "extensions"))
+  '("types" "parser" "checker" "policy" "extensions" "commands"))
+
+;; : (List (List Path))
+(def +gslph-package-api-launcher-stages+
+  '(("search-light-launcher.ss")
+    ("cli-launcher.ss")))
 
 ;; : (-> String Boolean)
 (def (gslph-ss-file? file)
@@ -79,14 +89,20 @@
 (def (gslph-package-api-spec)
   (append (gslph-package-api-flatten-stages
            +gslph-package-api-prologue-stages+)
+          (gslph-package-api-flatten-stages
+           +gslph-package-api-command-prologue-stages+)
           (append-map gslph-package-api-directory-spec
                       +gslph-package-api-directories+)
+          (gslph-package-api-flatten-stages
+           +gslph-package-api-launcher-stages+)
           (gslph-package-api-flatten-stages
            +gslph-package-api-epilogue-stages+)))
 
 ;; : (-> (List (List Path)))
 (def (gslph-package-api-stage-specs)
   (append +gslph-package-api-prologue-stages+
+          +gslph-package-api-command-prologue-stages+
           (map gslph-package-api-directory-spec
-               +gslph-package-api-directories+)
+                +gslph-package-api-directories+)
+          +gslph-package-api-launcher-stages+
           +gslph-package-api-epilogue-stages+))

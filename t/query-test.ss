@@ -46,6 +46,32 @@
                   (query-result-output result)
                   "(def (guide-lines)")))
                => #t)))
+    (test-case "selector query accepts structural parser item selectors"
+      (let (result (query-output ["--selector"
+                                  "gerbil-scheme://src/parser/selectors.ss#item/function/selector-from"
+                                  "--workspace"
+                                  "."
+                                  "--code"]))
+        (check (query-result-exit-code result) => 0)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "(def (selector-from path-accessor start-accessor end-accessor fact)")))
+               => #t)))
+    (test-case "selector query accepts parser item symbol selectors"
+      (let (result (query-output ["--selector"
+                                  "selector-from"
+                                  "--workspace"
+                                  "."
+                                  "--code"]))
+        (check (query-result-exit-code result) => 0)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "(def (selector-from path-accessor start-accessor end-accessor fact)")))
+               => #t)))
     (test-case "native provider selector content returns without Gerbil runtime cold path"
       (if (native-provider-binary-available?)
         (let (result (native-query-output ["--selector"

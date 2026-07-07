@@ -62,20 +62,23 @@
 (def (gslph-package-build-receipt-all-exist? paths)
   (andmap file-exists? paths))
 
-;; : (-> Path (List Path) (List Path) version: Symbol Void)
+;; : (-> Path (List Path) (List Path) version: Symbol metadata: Alist Void)
 (def (gslph-package-build-receipt-write stamp sources outputs
-                                        version: (version gslph-package-build-receipt-version))
+                                        version: (version gslph-package-build-receipt-version)
+                                        metadata: (metadata []))
   (call-with-output-file stamp
     (lambda (port)
-      (write `((version . ,version)
-               (sources . ,sources)
-               (outputs . ,outputs))
+      (write (append
+              `((version . ,version)
+                (sources . ,sources)
+                (outputs . ,outputs))
+              metadata)
              port)
       (newline port))))
 
-;; : (-> Path version: Symbol (Maybe Pair))
-(def (gslph-package-build-receipt-read stamp
-                                       version: (version gslph-package-build-receipt-version))
+;; : (-> Path version: Symbol (Maybe Alist))
+(def (gslph-package-build-receipt-read/raw stamp
+                                           version: (version gslph-package-build-receipt-version))
   (and (file-exists? stamp)
        (with-catch
         (lambda (_) #f)
@@ -93,7 +96,15 @@
             (and (eq? receipt-version version)
                  (gslph-package-build-receipt-path-list? sources)
                  (gslph-package-build-receipt-path-list? outputs)
-                 (cons sources outputs)))))))
+                 receipt))))))
+
+;; : (-> Path version: Symbol (Maybe Pair))
+(def (gslph-package-build-receipt-read stamp
+                                       version: (version gslph-package-build-receipt-version))
+  (let (receipt (gslph-package-build-receipt-read/raw stamp version: version))
+    (and receipt
+         (cons (gslph-package-build-receipt-ref receipt 'sources [])
+               (gslph-package-build-receipt-ref receipt 'outputs [])))))
 
 ;; : (-> (List Path) (List Path) Boolean)
 (def (gslph-package-build-receipt-populated? sources outputs)
@@ -146,12 +157,23 @@
          (gslph-package-build-receipt-sources-current? stamp sources))))
 
 ;; : (-> Symbol Symbol Path (Maybe Pair) Alist)
-(def (gslph-package-build-receipt-make-status status reason stamp receipt)
-  `((status . ,status)
-    (reason . ,reason)
-    (sources . ,(if receipt (length (car receipt)) 0))
-    (outputs . ,(if receipt (length (cdr receipt)) 0))
-    (stamp . ,stamp)))
+(def (gslph-package-build-receipt-debug-metadata receipt)
+  (if receipt
+    (filter
+     (lambda (entry)
+       (not (memq (car entry) '(version sources outputs))))
+     receipt)
+    []))
+
+(def (gslph-package-build-receipt-make-status status reason stamp receipt
+                                             metadata: (metadata []))
+  (append
+   `((status . ,status)
+     (reason . ,reason)
+     (sources . ,(if receipt (length (car receipt)) 0))
+     (outputs . ,(if receipt (length (cdr receipt)) 0))
+     (stamp . ,stamp))
+   metadata))
 
 ;; : (-> Path version: Symbol expected-sources: MaybePathList expected-outputs: MaybePathList Alist)
 (def (gslph-package-build-receipt-status stamp
@@ -162,14 +184,22 @@
    ((not (file-exists? stamp))
     (gslph-package-build-receipt-make-status 'stale 'missing-stamp stamp #f))
    (else
-    (let (receipt (gslph-package-build-receipt-read stamp version: version))
+    (let* ((raw-receipt
+            (gslph-package-build-receipt-read/raw stamp version: version))
+           (receipt
+            (and raw-receipt
+                 (cons (gslph-package-build-receipt-ref raw-receipt 'sources [])
+                       (gslph-package-build-receipt-ref raw-receipt 'outputs []))))
+           (metadata
+            (gslph-package-build-receipt-debug-metadata raw-receipt)))
       (cond
        ((not receipt)
         (gslph-package-build-receipt-make-status 'stale 'invalid-stamp stamp #f))
        ((gslph-package-build-receipt-current? stamp receipt
                                              expected-sources: expected-sources
                                              expected-outputs: expected-outputs)
-        (gslph-package-build-receipt-make-status 'current #f stamp receipt))
+        (gslph-package-build-receipt-make-status
+         'current #f stamp receipt metadata: metadata))
        (else
         (gslph-package-build-receipt-make-status
          'stale
@@ -178,7 +208,8 @@
            'receipt-shape-mismatch
            'dirty-source-or-missing-output)
          stamp
-         receipt)))))))
+         receipt
+         metadata: metadata)))))))
 
 ;; : (-> Alist Symbol Value Value)
 (def (gslph-package-build-receipt-status-ref status key default)

@@ -29,7 +29,7 @@
                 "search/pattern" "search/runtime-source" "search/compare"
                 "search/proof" "search/compiler-evidence"
                 "index/structural" "index/native-syntax-owner-facts"
-                "query/direct-source-read" "check/changed" "guide" "info"
+                "query/selector" "check/changed" "guide" "info"
                 "evidence/graph" "evidence/analyze"])
       (schemas [(hash (schemaId "agent.semantic-protocols.semantic-extension-pattern-mapping")
                       (schemaVersion "1")

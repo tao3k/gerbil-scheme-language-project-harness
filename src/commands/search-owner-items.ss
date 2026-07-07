@@ -129,11 +129,19 @@
              " limit=" limit)
   (for-each
    (lambda (defn)
-     (displayln "|item kind=" (definition-kind defn)
-                " name=" (definition-name defn)
-                " selector=" (definition-selector defn)))
+     (emit-owner-definition-item defn))
    shown-definitions)
   (for-each emit-owner-syntax-item shown-syntax)))
+
+;; : (-> Definition Unit)
+(def (emit-owner-definition-item defn)
+  (let (selector (definition-selector defn))
+    (displayln "|item kind=" (definition-kind defn)
+               " name=" (definition-name defn)
+               " selector=" selector
+               " nextCommand=\"asp gerbil-scheme query --selector "
+               selector
+               " --workspace . --code\"")))
 
 (def (owner-items-effective-limit maybe-limit)
   (if (and (pair? maybe-limit) (car maybe-limit))

@@ -172,16 +172,58 @@
     (error "gerbil.pkg must declare package: for build output prefix"))
   (string-append package-name "/t"))
 
-;; : (-> Void)
-(def (gslph-package-compile-stage modules worker-count optimized release)
+(def (gslph-package-build-elapsed-micros start-jiffy end-jiffy)
+  (inexact->exact
+   (round
+    (* 1000000
+       (/ (- end-jiffy start-jiffy)
+          (jiffies-per-second))))))
+
+(def (gslph-package-build-debug-tracking-line receipt)
+  (display "|gslph-compile-debug ")
+  (write receipt)
+  (newline)
+  (force-output))
+
+(def (gslph-package-compile-stage/owner phase modules worker-count optimized release
+                                      prefix srcdir debug?)
   (unless (null? modules)
-    (make modules
-      optimize: optimized
-      build-release: release
-      build-optimized: optimized
-      parallelize: worker-count
-      prefix: (source-output-prefix)
-      srcdir: source-root)))
+    (let (started-at (current-jiffy))
+      (make modules
+        optimize: optimized
+        build-release: release
+        build-optimized: optimized
+        parallelize: worker-count
+        prefix: prefix
+        srcdir: srcdir)
+      (when debug?
+        (gslph-package-build-debug-tracking-line
+         `((phase . ,phase)
+           (status . compiled)
+           (command . "std/make")
+           (command-dir . ,(current-directory))
+           (modules . ,modules)
+           (module-count . ,(length modules))
+           (worker-count . ,worker-count)
+           (optimized . ,optimized)
+           (release . ,release)
+           (prefix . ,prefix)
+           (srcdir . ,srcdir)
+           (elapsed-micros . ,(gslph-package-build-elapsed-micros
+                               started-at
+                               (current-jiffy)))))))))
+
+;; : (-> Void)
+(def (gslph-package-compile-stage modules worker-count optimized release . maybe-debug)
+  (gslph-package-compile-stage/owner
+   'compile-api-stage
+   modules
+   worker-count
+   optimized
+   release
+   (source-output-prefix)
+   source-root
+   (and (pair? maybe-debug) (car maybe-debug))))
 
 ;; : (-> Path ModulePath)
 (def (gxtest-test-module-path path)
@@ -203,10 +245,10 @@
    (lambda ()
      (let ((worker-count (sync-build-worker-count!))
            (optimize? (and optimized (not no-optimize))))
-       (for-each
-        (lambda (stage)
-          (gslph-package-compile-stage stage worker-count optimize? release))
-        (gslph-package-api-stage-specs)))))
+      (for-each
+       (lambda (stage)
+          (gslph-package-compile-stage stage worker-count optimize? release debug))
+       (gslph-package-api-stage-specs)))))
   #!void)
 
 ;; : (-> (List BuildSpec) Void)
@@ -222,21 +264,29 @@
        srcdir: package-root)))
   #!void)
 
-;; : (-> (List ModulePath) (List Path) Integer Void)
-(def (gslph-package-compile-gxtest-target source-modules files worker-count)
+;; : (-> (List ModulePath) (List Path) Integer [Boolean] Void)
+(def (gslph-package-compile-gxtest-target source-modules files worker-count . maybe-debug)
   (ensure-package-build-root!)
   (current-directory package-root)
   (gslph-package-build-with-lock
    (lambda ()
-     (unless (null? source-modules)
-       (make (map gxtest-source-module-path source-modules)
-         optimize: #f
-         parallelize: worker-count
-         prefix: (source-output-prefix)
-         srcdir: source-root))
-     (make (map gxtest-test-module-path files)
-       optimize: #f
-       parallelize: worker-count
-       prefix: (test-output-prefix)
-       srcdir: test-root)))
+     (let (debug? (and (pair? maybe-debug) (car maybe-debug)))
+       (gslph-package-compile-stage/owner
+        'compile-selected-source-gxtest
+        (map gxtest-source-module-path source-modules)
+        worker-count
+        #f
+        #f
+        (source-output-prefix)
+        source-root
+        debug?)
+       (gslph-package-compile-stage/owner
+        'compile-selected-test-gxtest
+        (map gxtest-test-module-path files)
+        worker-count
+        #f
+        #f
+        (test-output-prefix)
+        test-root
+        debug?))))
   #!void)

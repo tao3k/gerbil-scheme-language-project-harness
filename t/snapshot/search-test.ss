@@ -22,6 +22,8 @@
       (check-owner-items-query-ignores-selected-owner-path))
     (test-case "search owner items exposes gerbil.pkg package facts"
       (check-owner-items-gerbil-package-facts))
+    (test-case "search owner items emits structural selector query next command"
+      (check-owner-items-definition-next-command-uses-structural-selector))
     (test-case "search owner items fast entrypoint stays lightweight"
       (check-owner-items-fast-entrypoint-stays-light))
     (test-case "search guide fast entrypoint stays lightweight"
