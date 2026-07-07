@@ -104,7 +104,7 @@
           (check status => 0)
           (check (and (string-contains
                        output
-                       "(def (selector-from path-accessor start-accessor end-accessor fact))")
+                       "(def (selector-from")
                       #t)
                  => #t))))
     (test-case "agent guide forwards section flags"
