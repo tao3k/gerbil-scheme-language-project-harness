@@ -101,7 +101,8 @@
 (def (testing-display-policy-report! files)
   (with-catch
    (lambda (exn)
-     (displayln "[gerbil-gxtest] policy-report-error=" exn)
+     (display "[gerbil-gxtest] policy-report-error=")
+     (displayln exn)
      (force-output))
    (lambda ()
      (gslph-load-source-coverage ".")
