@@ -67,6 +67,9 @@
         testing-gxtest-suite-hot-path-receipt)
 
 ;; : (-> Symbol Symbol MaybeString List List TestingReceipt)
+(import :gslph/src/build-api/source-coverage
+        :gslph/src/policy/gxtest-report)
+
 (def (testing-phase-receipt phase status: (status 'ok)
                             suite: (suite #f)
                             files: (files [])
@@ -94,6 +97,19 @@
 ;; : (-> TestingSuite List (List TestingReceipt) (List TestingReceipt))
 (def (testing-suite-phase-receipts suite files phases)
   (append phases (testing-gate-phase-receipts suite files)))
+
+(def (testing-display-policy-report! files)
+  (with-catch
+   (lambda (exn)
+     (displayln "[gerbil-gxtest] policy-report-error=" exn)
+     (force-output))
+   (lambda ()
+     (gslph-load-source-coverage ".")
+     (let (report (policy-source-report
+                   "."
+                   (gslph-source-coverage-files ".")))
+       (when (pair? (hash-get report 'findings []))
+         (display-project-policy-report report))))))
 
 ;; : (-> TestingSuite List List Integer TestingReceipt)
 (def (testing-expand-manifest-phase-receipt suite files args elapsed-micros)
@@ -201,6 +217,7 @@
          (elapsed-micros
           (duration-micros suite-started-at (monotonic-micros)))
          (status (testing-receipts-status receipts)))
+    (testing-display-policy-report! files)
     (testing-receipt
      kind: 'gxtest-suite
      status: status
@@ -282,6 +299,7 @@
            (testing-batches scenarios batch-size)
            testing-run-scenario-batch))
          (status (testing-receipts-status receipts)))
+    (testing-display-policy-report! files)
     (testing-receipt
      kind: 'scenario-suite
      status: status

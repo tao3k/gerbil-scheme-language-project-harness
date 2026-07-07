@@ -18,6 +18,7 @@
     ("build-api/package-receipt.ss"
      "build-api/worker-count.ss"
      "build-api/build-path-contract.ss"
+     "build-api/package-spec.ss"
      "support/time.ss")
     ("benchmark/gate.ss")
     ("benchmark/framework.ss")

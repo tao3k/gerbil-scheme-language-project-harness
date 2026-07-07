@@ -11,6 +11,9 @@
                  gslph-package-build-receipt-status
                  gslph-package-build-receipt-status-ref
                  gslph-package-build-receipt-write)
+        (only-in "../build-api/source-coverage"
+                 gslph-load-source-coverage
+                 gslph-source-coverage-files)
         (only-in "./gxtest-context"
                  package-root
                  source-root)
@@ -38,7 +41,7 @@
    (string-append ".gerbil/build/scoped-policy/"
                   (scoped-policy-cache-key files)
                   ".receipt")
-   package-root))
+   "."))
 
 ;; : (-> Path Boolean)
 (def (gslph-source-directory? path)
@@ -77,6 +80,13 @@
                                          "parser")
    (scoped-policy-directory-source-files (path-expand "types" source-root)
                                          "types")))
+
+(def (scoped-policy-project-source-files)
+  (with-catch
+   (lambda (_) [])
+   (lambda ()
+     (gslph-load-source-coverage ".")
+     (gslph-source-coverage-files "."))))
 
 ;; : (-> (List Path))
 (def (scoped-policy-engine-witness-relative-files)
@@ -126,6 +136,7 @@
     (scoped-policy-unique-paths
      (append
       (if (null? selected) files selected)
+      (scoped-policy-project-source-files)
       (scoped-policy-engine-witness-relative-files)))))
 
 ;; : (-> (List Path) (List Path))
@@ -133,8 +144,9 @@
   (sort (append
          (scoped-policy-engine-source-files)
          (scoped-policy-engine-witness-source-files)
+         (scoped-policy-project-source-files)
          (map (lambda (file)
-                (path-expand file package-root))
+                (path-expand file))
               files))
         string<?))
 
@@ -229,18 +241,19 @@
                                       "."
                                       files
                                       display-scoped-policy-phase)))))
+    (when (pair? (hash-get report 'findings []))
+      (display-report report))
     (when (not (equal? (hash-get report 'status) "pass"))
-      (display-report report)
       (exit 1))))
 
 ;; : (-> (List Path) Void)
 (def (run-scoped-policy-if-stale files (prepare-stale! #f))
   (let (status (scoped-policy-receipt-status files))
     (display-scoped-policy-status status)
-    (unless (scoped-policy-current? status)
+    (when (not (scoped-policy-current? status))
       (when prepare-stale!
-        (run-scoped-policy-phase "prepare-stale" prepare-stale!))
-      (run-scoped-policy! files)
-      (run-scoped-policy-phase "write-receipt"
-                               (lambda ()
-                                 (write-scoped-policy-receipt! files))))))
+        (run-scoped-policy-phase "prepare-stale" prepare-stale!)))
+    (run-scoped-policy! files)
+    (run-scoped-policy-phase "write-receipt"
+                             (lambda ()
+                               (write-scoped-policy-receipt! files)))))

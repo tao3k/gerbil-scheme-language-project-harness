@@ -123,6 +123,9 @@
                                 (current-error-port port))
                    (unless (thunk)
                      (set! status 1))))))))
+      (unless (equal? output "")
+        (display output)
+        (force-output))
       (values status output))))
 
 ;; : (-> (List Path) (-> (List Path) Boolean) GxTestResult)
