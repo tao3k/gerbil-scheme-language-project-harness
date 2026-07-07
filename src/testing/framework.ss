@@ -99,18 +99,12 @@
   (append phases (testing-gate-phase-receipts suite files)))
 
 (def (testing-display-policy-report! files)
-  (with-catch
-   (lambda (exn)
-     (display "[gerbil-gxtest] policy-report-error=")
-     (displayln exn)
-     (force-output))
-   (lambda ()
-     (gslph-load-source-coverage ".")
-     (let (report (policy-source-report
-                   "."
-                   (gslph-source-coverage-files ".")))
-       (when (pair? (hash-get report 'findings []))
-         (display-project-policy-report report))))))
+  (gslph-load-source-coverage ".")
+  (let (report (policy-source-report
+                "."
+                (gslph-source-coverage-files ".")))
+    (when (pair? (or (hash-get report 'findings) []))
+      (display-project-policy-report report))))
 
 ;; : (-> TestingSuite List List Integer TestingReceipt)
 (def (testing-expand-manifest-phase-receipt suite files args elapsed-micros)

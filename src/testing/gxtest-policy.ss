@@ -241,7 +241,7 @@
                                       "."
                                       files
                                       display-scoped-policy-phase)))))
-    (when (pair? (hash-get report 'findings []))
+    (when (pair? (or (hash-get report 'findings) []))
       (display-report report))
     (when (not (equal? (hash-get report 'status) "pass"))
       (exit 1))))
