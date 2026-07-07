@@ -2,7 +2,9 @@
 ;;; Development executable root for gslph.
 
 (import :gerbil/gambit
-        (only-in :search-light-launcher try-search-light-main))
+        (only-in :commands/query query-main)
+        (only-in :search-light-launcher try-search-light-main)
+        (only-in :std/srfi/13 string-prefix?))
 
 (export main)
 
@@ -128,6 +130,22 @@
        (or (option "--selector" (cdr args))
            (equal? (option "--from-hook" (cdr args)) "direct-source-read"))))
 
+;; : (-> String Boolean)
+(def (structural-selector? selector)
+  (string-prefix? "gerbil-scheme://" selector))
+
+;; : (-> String Boolean)
+(def (direct-source-selector? selector)
+  (and (not (structural-selector? selector))
+       (or (string-index selector #\/)
+           (string-index selector #\.)
+           (string-index selector #\:))))
+
+;; : (-> (List String) Boolean)
+(def (direct-source-read-query? args)
+  (let (selector (option "--selector" args))
+    (and selector (direct-source-selector? selector))))
+
 ;; : (-> (List String) Integer)
 (def (main . args)
   (cond
@@ -135,6 +153,9 @@
     ((and (pair? args) (equal? (car args) "search"))
      (or (try-search-light-main (cdr args))
          (emit-help 2)))
-    ((direct-source-query? args)
+    ((and (direct-source-query? args)
+          (direct-source-read-query? (cdr args)))
      (emit-direct-source-query (cdr args)))
+    ((and (pair? args) (equal? (car args) "query"))
+     (query-main (cdr args)))
     (else (emit-help 2))))

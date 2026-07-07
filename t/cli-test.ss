@@ -6,6 +6,7 @@
         (only-in :std/srfi/13 string-contains)
         (only-in :std/sugar ormap)
         "../src/build-api/native-build"
+        (rename-in :cli-dev-linker (main dev-linker-main))
         (only-in :cli-launcher provider-command-line-args)
         (only-in :commands/agent agent-main))
 (export cli-test)
@@ -87,6 +88,25 @@
         (check (member "benchmark/gate.ss" spec) ? true)
         (check (member "parser/model.ss" spec) ? true)
         (check (member "policy/core.ss" spec) ? true)))
+    (test-case "dev binary routes structural selectors through parser query"
+      (let (status #f)
+        (let (output
+              (with-output-to-string
+                (lambda ()
+                  (set! status
+                    (dev-linker-main
+                     "query"
+                     "--selector"
+                     "gerbil-scheme://src/parser/selectors.ss#item/function/selector-from"
+                     "--workspace"
+                     "."
+                     "--code")))))
+          (check status => 0)
+          (check (and (string-contains
+                       output
+                       "(def (selector-from path-accessor start-accessor end-accessor fact))")
+                      #t)
+                 => #t))))
     (test-case "agent guide forwards section flags"
       (let (status #f)
         (let (output
