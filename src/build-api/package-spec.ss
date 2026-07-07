@@ -28,6 +28,7 @@
      "testing/performance.ss"
      "testing/batch.ss")
     ("testing/selection.ss")
+    ("policy/gxtest-report.ss")
     ("testing/framework.ss")))
 
 ;; : (List (List Path))
