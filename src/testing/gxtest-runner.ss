@@ -72,7 +72,6 @@
                  scoped-policy-engine-output-files
                  scoped-policy-engine-receipt-path
                  scoped-policy-engine-source-files
-                 scoped-policy-engine-source-module-files
                  scoped-policy-source-files
                  scoped-policy-status-line
                  scoped-policy-target-files)
@@ -211,7 +210,6 @@
       (lambda ()
         (compile-scoped-policy-engine-if-stale
          (scoped-policy-engine-source-files)
-         (scoped-policy-engine-source-module-files)
          (scoped-policy-engine-output-files)
          (scoped-policy-engine-receipt-path)
          (build-worker-count))))))

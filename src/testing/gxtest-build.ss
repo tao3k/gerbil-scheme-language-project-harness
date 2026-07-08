@@ -115,13 +115,6 @@
 (def +scoped-policy-engine-build-receipt-version+
   'gslph-scoped-policy-engine-build.v1)
 
-(def (compile-scoped-policy-engine! source-modules worker-count)
-  (load-package-build-api!)
-  (eval `(gslph-package-compile-gxtest-target
-          ',source-modules
-          '()
-          ,worker-count)))
-
 (def (write-scoped-policy-engine-build-receipt! receipt-path source-files output-files)
   (ensure-directory! (path-directory receipt-path))
   (gslph-package-build-receipt-write
@@ -137,7 +130,7 @@
    expected-sources: source-files
    expected-outputs: output-files))
 
-(def (compile-scoped-policy-engine-if-stale source-files source-modules output-files receipt-path worker-count)
+(def (compile-scoped-policy-engine-if-stale source-files output-files receipt-path worker-count)
   (let (status (scoped-policy-engine-build-receipt-status
                 receipt-path
                 source-files
@@ -146,7 +139,7 @@
     (if (eq? (gslph-package-build-receipt-status-ref status 'status #f) 'current)
       status
       (begin
-        (compile-scoped-policy-engine! source-modules worker-count)
+        (compile-package-api-if-stale worker-count)
         (write-scoped-policy-engine-build-receipt! receipt-path source-files output-files)
         (scoped-policy-engine-build-receipt-status
          receipt-path
