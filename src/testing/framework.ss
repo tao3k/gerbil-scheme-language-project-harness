@@ -99,12 +99,18 @@
   (append phases (testing-gate-phase-receipts suite files)))
 
 (def (testing-display-policy-report! files)
-  (gslph-load-source-coverage ".")
-  (let (report (policy-source-report
-                "."
-                (gslph-source-coverage-files ".")))
-    (when (pair? (or (hash-get report 'findings) []))
-      (display-project-policy-report report))))
+  (with-catch
+   (lambda (exn)
+     (display "[gerbil-gxtest] policy-report-error=")
+     (write exn)
+     (newline))
+   (lambda ()
+     (gslph-load-source-coverage ".")
+     (let (report (policy-source-report
+                   "."
+                   (gslph-source-coverage-files ".")))
+       (when (pair? (or (hash-get report 'findings) []))
+         (display-project-policy-report report))))))
 
 ;; : (-> TestingSuite List List Integer TestingReceipt)
 (def (testing-expand-manifest-phase-receipt suite files args elapsed-micros)
@@ -212,7 +218,6 @@
          (elapsed-micros
           (duration-micros suite-started-at (monotonic-micros)))
          (status (testing-receipts-status receipts)))
-    (testing-display-policy-report! files)
     (testing-receipt
      kind: 'gxtest-suite
      status: status
@@ -294,7 +299,6 @@
            (testing-batches scenarios batch-size)
            testing-run-scenario-batch))
          (status (testing-receipts-status receipts)))
-    (testing-display-policy-report! files)
     (testing-receipt
      kind: 'scenario-suite
      status: status
@@ -354,6 +358,7 @@
                  (testing-run-suite project suite args run-files))
                suites))
          (status (testing-receipts-status receipts)))
+    (testing-display-policy-report! [])
     (testing-receipt
      kind: 'testing-project
      status: status
