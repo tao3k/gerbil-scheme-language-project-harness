@@ -35,7 +35,7 @@
  (inputShape
   .
   "one selection helper walks requested indexes and calls list-ref on the source list inside the loop")
- (expectedRepair
+ (expectedOutcome
   .
   "source list is materialized once with list->vector and the hot loop uses vector-ref")
  (expectedReferencePattern . "gerbil-list-random-access-loop-boundary")

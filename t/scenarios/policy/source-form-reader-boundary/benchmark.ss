@@ -33,7 +33,7 @@
  (inputShape
   .
   "one file helper embeds a port EOF loop, and one exported function opens a source file, reads forms, extracts def symbols, and accumulates results in the same named-let loop")
- (expectedRepair
+ (expectedOutcome
   .
   "read-forms owns port/read state; source-forms passes that helper to call-with-input-file; local-def-symbols composes filter-map with def-symbol")
  (expectedReferencePattern . "source-form-reader-boundary")

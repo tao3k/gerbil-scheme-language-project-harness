@@ -24,7 +24,7 @@
 ;; `build.ss` files call this declaration so ASP can parse the project source
 ;; coverage universe. Build support also consumes the same declaration so policy
 ;; gates and std/make coverage stay tied to the package's build entrypoint.
-;; : (-> roots: (List Path) runtime-roots: (Maybe (List Path)) exclude-directories: (List Path) explanation: MaybeString Unit)
+;; : (forall (A) (-> roots: (List Path) runtime-roots: (Maybe (List Path)) exclude-directories: (List Path) explanation: (Maybe A) Unit))
 (def (gslph-source-coverage roots: (roots '())
                             runtime-roots: (runtime-roots #f)
                             exclude-directories: (exclude-directories '())
@@ -117,7 +117,7 @@
                 (source-coverage-entry-files directory prefix entry))
               (sort (directory-files directory) string<?))))
 
-;; : (forall (a) (-> Path (-> a) a))
+;; : (forall (A) (-> Path (-> A) A))
 (def (with-directory directory thunk)
   (let (previous (current-directory))
     (dynamic-wind

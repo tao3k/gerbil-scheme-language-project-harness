@@ -16,12 +16,12 @@
 
 ;;; Repair payload: keep agent-facing fields bounded while preserving enough evidence to edit safely.
 ;; : (-> SourceFile Nat Nat Nat Nat Nat Evidence Nat Boolean Coverage QualityFacets RepairEvidence Boolean PolicyDetails )
-(def (typed-combinator-style-details file definition-count typed-comment-line-count valid-typed-comment-count invalid-typed-comment-count missing-count implementation-evidence implementation-evidence-count missing-implementation-evidence? implementation-evidence-callers covered-definition-names covered-definition-count function-definition-count minimum-covered-definition-count uncovered-definition-names implementation-coverage-insufficient? typed-doc-missing-targets quality-facets repair-evidence typed-doc-missing? quality-repair-triggered?)
+(def (typed-combinator-style-details file definition-count typed-comment-line-count valid-typed-comment-count invalid-typed-comment-count missing-count implementation-evidence implementation-evidence-count missing-implementation-evidence? implementation-evidence-callers covered-definition-names covered-definition-count function-definition-count minimum-covered-definition-count uncovered-definition-names implementation-coverage-insufficient? typed-doc-missing-targets typed-forall-missing-targets quality-facets repair-evidence typed-doc-missing? typed-forall-missing? quality-repair-triggered?)
   (hash (styleGuide "typed-combinator-style")
         (styleCommand "asp gerbil-scheme guide --code --topic typed-combinator-style --intent style")
         (expectedCommentPrefix ";;")
-        (expectedCommentShape "adjacent Gerbil contract projection block such as ;; : (forall (a) (-> (-> a a Order) (List a) (List a) Order))")
-        (signatureShape "adjacent Gerbil contract/signature projection using ;; : (forall (a) (-> Input Output)), optional ;; | type aliases, U unions, Values, and Refine predicates")
+        (expectedCommentShape "adjacent Gerbil contract projection block; generic helpers should keep both the polymorphic generic reasoning line ;; : (forall (k v) (-> [(Pair k v)] [(Pair k v)] [(Pair k v)])) and a readable/domain summary such as ;; : (-> List Alist Alist)")
+        (signatureShape "adjacent Gerbil contract/signature projection using human-readable polymorphic generic lines plus readable/domain lines such as ;; : (-> (Maybe Type) (Maybe Type) Boolean); every ;; : line is parser-validated")
         (expectedDocShape "full form for role/facet risk boundaries: leading name matching the definition, ;;   : signature, optional ;;   | type/contract/requires/warning/rationale fields, and ;;   | doc m% with # Examples fenced Scheme input/result")
         (typedDocRequiredWhen "arity-bearing macro/protocol/POO roles, or exported helpers that also carry parser-owned risk facets such as macro-runtime-source-witness, poo-protocol-evidence, or loop-driver-classified")
         (typedCommentMetadataFields +typed-comment-metadata-fields+)
@@ -32,6 +32,13 @@
         (typedDocMissingTargets
          (take typed-doc-missing-targets
                (min 12 (length typed-doc-missing-targets))))
+        (typedForallMissing typed-forall-missing?)
+        (typedForallMissingCount (length typed-forall-missing-targets))
+        (typedForallMissingTargets
+         (take typed-forall-missing-targets
+               (min 12 (length typed-forall-missing-targets))))
+        (typedForallPolicy
+         "parser-owned public higher-order, sequence, and parameterized functional helpers must bind type variables with explicit forall; missing either the forall line for human/agent polymorphic reasoning or the second readable/domain signature line triggers a warning")
         (contractLinePolicy "multi-line typed-combinator-style contracts are allowed when needed to preserve precision")
         (compositionShape "Gerbil-native expression shape; prefer lambda-match/match for shape dispatch, cut/curry/rcurry for specialization, case-lambda for real arity boundaries, values/call-with-values for tuple projection, and map/filter/filter-map/fold/andmap/ormap for sequence transforms")
         (qualityReferenceCorpus "gerbil-reference-corpus")

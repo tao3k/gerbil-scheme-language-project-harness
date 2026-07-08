@@ -32,7 +32,7 @@
  (inputShape
   .
   "single exported function mixes Thread, Spawn, Join, Mutex, Race, and Parallel responsibilities")
- (expectedRepair
+ (expectedOutcome
   .
   "local concurrency helpers split scheduling responsibilities without adding gerbil-utils dependencies")
  (expectedReferencePattern . "concurrency-control-boundary")

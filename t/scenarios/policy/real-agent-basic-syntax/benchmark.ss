@@ -32,7 +32,7 @@
  (inputShape
   .
   "agent-style dashboard workflow mixes rest/accumulator named-let, car/cdr tuple projection, nested conditional dispatch, and loop-local POO clone override")
- (expectedRepair
+ (expectedOutcome
   .
   "use fold and lambda-match for event scoring, case for closed symbolic dispatch, case-lambda for arity specialization, values/call-with-values for tuple protocol, dynamic-wind for explicit control boundary, and one final POO clone")
  (expectedReferencePattern . "gerbil-gambit-native-idiom-real-agent-workflow")

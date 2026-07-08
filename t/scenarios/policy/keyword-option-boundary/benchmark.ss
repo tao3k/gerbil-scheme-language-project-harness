@@ -35,7 +35,7 @@
  (inputShape
   .
   "one report API repeats inline assq/cdr over an opts alist for format, limit, and metadata options")
- (expectedRepair
+ (expectedOutcome
   .
   "the report API declares #!key defaults and callers pass format:/limit:/metadata: keyword arguments")
  (expectedReferencePattern . "gerbil-keyword-option-boundary")

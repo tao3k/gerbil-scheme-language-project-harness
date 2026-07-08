@@ -1,0 +1,32 @@
+;;; -*- Gerbil -*-    
+;;; Boundary: numeric tower procedure calls and comparison chains.    
+
+(import :gerbil/gambit)    
+
+(export numeric-procedure-sample)    
+
+(def (numeric-procedure-sample x y)
+  (list (= x y)
+        (< x y)
+        (<= x y)
+        (> x y)
+        (>= x y)
+        (+ x y)
+        (- x y)
+        (* x y)
+        (/ x y)
+        (abs x)
+        (max x y)
+        (min x y)
+        (floor x)
+        (ceiling x)
+        (truncate x)
+        (round x)
+        (quotient x y)
+        (remainder x y)
+        (modulo x y)
+        (gcd x y)
+        (lcm x y)
+        (expt x y)
+        (sqrt x)))    
+

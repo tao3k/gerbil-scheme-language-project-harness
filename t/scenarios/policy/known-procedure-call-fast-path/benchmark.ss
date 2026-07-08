@@ -30,7 +30,7 @@
  (inputShape
   .
   "hot code repeatedly calls a known procedure through generic wrappers or dynamic dispatch after the callable boundary is already known")
- (expectedRepair
+ (expectedOutcome
   .
   "make the callable boundary explicit, preserve the checked public edge, and keep the hot internal path eligible for known-procedure lowering")
  (expectedReferencePattern . "gerbil-optimizer-known-call-fast-path")

@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-020")
  (optimizationFocus . "keep std/make and clan/building as build owners; expose acceleration and receipts as harness APIs")
  (inputShape . "build.ss imports std/make and clan/building, then defines local cache freshness, stamp writing, phase receipt control, and worker queue dispatch")
- (expectedRepair . "delete local phase/cache/stamp/worker ownership, keep the native build call path, and use a thin gslph API declaration for project coverage")
+ (expectedOutcome . "delete local phase/cache/stamp/worker ownership, keep the native build call path, and use a thin gslph API declaration for project coverage")
  (misuseGuard . "do not move build-system scheduling, dependency graph, worker queue, or phase ownership into downstream build.ss")
  (expectedReferencePattern . "package-build-framework-overreach")
  (expectedReferenceExamples

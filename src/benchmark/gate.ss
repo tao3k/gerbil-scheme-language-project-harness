@@ -110,7 +110,7 @@
     feature
     optimizationFocus
     inputShape
-    expectedRepair
+    expectedOutcome
     measurementPhases
     tags))
 
@@ -143,7 +143,7 @@
 
 ;; : (List Symbol)
 (def +benchmark-receipt-leading-fields+
-  '(rule feature optimizationFocus inputShape expectedRepair))
+  '(rule feature optimizationFocus inputShape expectedOutcome))
 
 ;; : (List Symbol)
 (def +benchmark-receipt-budget-fields+
@@ -219,7 +219,7 @@
         (cons 'feature feature)
         (cons 'optimizationFocus optimization-focus)
         (cons 'inputShape input-shape)
-        (cons 'expectedRepair expected-repair)
+        (cons 'expectedOutcome expected-repair)
         (cons 'measurementPhases
               '(collect-before collect-after policy-before policy-after
                 assert-time-gate assert-memory-gate))

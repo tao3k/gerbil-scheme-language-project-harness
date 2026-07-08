@@ -30,7 +30,7 @@
  (inputShape
   .
   "manual loop repeatedly constructing stable Function type objects")
- (expectedRepair . "hoist stable Function type object to a named binding")
+ (expectedOutcome . "hoist stable Function type object to a named binding")
  (hotPathExemption . "type-object-construction-hot-loop")
  (hotPathEvidence
   "manual-loop"

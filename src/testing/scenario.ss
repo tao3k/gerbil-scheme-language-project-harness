@@ -91,7 +91,7 @@
    (lambda (key)
      (let (value (testing-scenario-metadata-ref scenario key #f))
        (and value (cons key value))))
-   '(downstreamRepairTarget idiom expectedRepair benchmarkPhases nextRepairAction)))
+   '(downstreamRepairTarget idiom expectedOutcome benchmarkPhases nextRepairAction)))
 
 ;; testing-declared-scenario-by-id
 ;;   : (-> ScenarioSuite String MaybePolicyScenario)

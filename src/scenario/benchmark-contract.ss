@@ -39,7 +39,7 @@
     (rule . #f)
     (optimizationFocus . #f)
     (inputShape . #f)
-    (expectedRepair . #f)
+    (expectedOutcome . #f)
     (nativePooPrimary . #f)
     (adapterBoundary . #f)
     (expectedReferencePattern . #f)

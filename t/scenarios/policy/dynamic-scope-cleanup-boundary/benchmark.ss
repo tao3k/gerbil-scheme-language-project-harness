@@ -33,7 +33,7 @@
  (inputShape
   .
   "single exported helper saves current-directory, mutates it, runs thunk, and restores only after normal return")
- (expectedRepair
+ (expectedOutcome
   .
   "dynamic-wind before/thunk/after boundary restores current-directory across exceptions and continuations")
  (expectedReferencePattern . "gerbil-runtime-dynamic-scope-cleanup-boundary")

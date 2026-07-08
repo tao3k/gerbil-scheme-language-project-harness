@@ -27,7 +27,7 @@
  (rule . "GERBIL-SCHEME-BENCHMARK-FRAMEWORK")
  (optimizationFocus . "benchmark.ss-driven gxtest framework gate")
  (inputShape . "POO scenario benchmark fixtures plus expected source trees")
- (expectedRepair . "reuse benchmark/framework APIs instead of ad hoc timing assertions")
+ (expectedOutcome . "reuse benchmark/framework APIs instead of ad hoc timing assertions")
  (measurementPhases
   "collect-before"
   "collect-after"

@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-027")
  (optimizationFocus . "native large .o object shape reuse")
  (inputShape . "large native POO profile projection shape with one dynamic overlay")
- (expectedRepair . "preserve native .o shape, compose a small boundary overlay, and keep loop state scalar")
+ (expectedOutcome . "preserve native .o shape, compose a small boundary overlay, and keep loop state scalar")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o remains the optimized POO declaration shape")
  (hotPathExemption . "native-poo-declaration")

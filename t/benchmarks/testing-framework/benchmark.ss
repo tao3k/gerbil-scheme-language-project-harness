@@ -29,7 +29,7 @@
  (rule . "GERBIL-SCHEME-TESTING-FRAMEWORK")
  (optimizationFocus . "user-friendly gxtest expansion and receipt gate")
  (inputShape . "POO-shaped testing project with manifest root and batch runner")
- (expectedRepair . "declare testing project once; let framework expand and receipt batches")
+ (expectedOutcome . "declare testing project once; let framework expand and receipt batches")
  (measurementPhases
   "collect-before"
   "collect-after"

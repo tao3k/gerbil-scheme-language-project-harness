@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-036")
  (optimizationFocus . "loop-local slot spec mutation")
  (inputShape . "manual loop repeatedly mutating POO slot definitions")
- (expectedRepair . "construct the mutable profile with native .o, define slots once, and mutate values intentionally")
+ (expectedOutcome . "construct the mutable profile with native .o, define slots once, and mutate values intentionally")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o remains the mutable POO source shape")
  (hotPathExemption . "slot-spec-mutation-hot-loop")

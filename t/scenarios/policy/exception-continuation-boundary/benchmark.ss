@@ -32,7 +32,7 @@
  (inputShape
   .
   "single exported function mixes Exception, Continuation, Handler, Context, and Raise responsibilities")
- (expectedRepair
+ (expectedOutcome
   .
   "local exception helpers split printable diagnostics, contextual logging, and re-raise behavior without adding gerbil-utils dependencies")
  (expectedReferencePattern . "exception-continuation-boundary")

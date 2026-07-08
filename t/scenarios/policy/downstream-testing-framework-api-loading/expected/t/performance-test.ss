@@ -36,7 +36,7 @@
     (rule . "GERBIL-SCHEME-AGENT-TESTING-DOWNSTREAM-BENCHMARK-HELPER-001")
     (optimizationFocus . "expose downstream benchmark body timing through Testing Framework receipts")
     (inputShape . "gxtest performance case asks the framework for raw receipt, result, and body phase")
-    (expectedRepair . "route the benchmark through testing-benchmark-run/result")
+    (expectedOutcome . "route the benchmark through testing-benchmark-run/result")
     (measurementPhases "benchmark-body")
     (tags "testing" "framework" "downstream" "benchmark-body" "hot")))
 

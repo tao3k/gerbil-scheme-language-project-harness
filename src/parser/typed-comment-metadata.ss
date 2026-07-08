@@ -45,10 +45,12 @@
         (blockStyle block-style)
         (fullForm #f)
         (leadingName #f)
-        (leadingNameMatchesDefinition #f)
-        (signature signature)
-        (signatureType #f)
-        (localTypes [])
+         (leadingNameMatchesDefinition #f)
+         (signature signature)
+         (signatureType #f)
+         (signatureTypes [])
+         (polymorphicSignatures [])
+         (localTypes [])
         (runtimeContracts [])
         (runtimeContractsDetailed [])
         (requires [])
@@ -91,11 +93,15 @@
           (blockStyle "gerbil-contract-block")
           (fullForm (if leading-entry #t #f))
           (leadingName (and leading-entry (string-trim (cadr leading-entry))))
-          (leadingNameMatchesDefinition #f)
-          (signature signature)
-          (signatureType signature-type)
-          (localTypes
-           (filter-map typed-comment-type-section-json sections))
+           (leadingNameMatchesDefinition #f)
+           (signature signature)
+           (signatureType signature-type)
+           (signatureTypes
+            (typed-comment-signature-types block))
+           (polymorphicSignatures
+            (typed-comment-polymorphic-signature-types block))
+           (localTypes
+            (filter-map typed-comment-type-section-json sections))
           (runtimeContracts
            (typed-comment-section-values sections "contract"))
           (runtimeContractsDetailed
@@ -153,6 +159,38 @@
 ;;     %
 (def (typed-comment-section-start? entry)
   (string-prefix? "|" (string-trim (cadr entry))))
+
+;;; Signature type projection:
+;;; - Layered comments may carry a polymorphic generic signature and a readable
+;;;   domain summary.
+;;; - Validate each `;; :` line independently so a valid summary cannot hide a
+;;;   bogus forall line.
+;; : (-> (List TypedCommentLine) (List Json))
+(def (typed-comment-signature-types block)
+  (map typed-comment-signature-line-type
+       (filter typed-comment-signature-start? block)))
+
+;; : (-> (List TypedCommentLine) (List Json))
+(def (typed-comment-polymorphic-signature-types block)
+  (map typed-comment-signature-line-type
+       (filter typed-comment-polymorphic-signature-start? block)))
+
+;; : (-> TypedCommentLine Json)
+(def (typed-comment-signature-line-type entry)
+  (scheme-type-signature-json
+   (typed-comment-strip-signature-marker
+    (string-trim (cadr entry)))))
+
+;; : (-> TypedCommentLine Boolean)
+(def (typed-comment-polymorphic-signature-start? entry)
+  (and (typed-comment-signature-start? entry)
+       (string-prefix? "(forall"
+                       (typed-comment-strip-signature-marker
+                        (string-trim (cadr entry))))))
+
+;; : (-> TypedCommentLine Boolean)
+(def (typed-comment-signature-start? entry)
+  (string-prefix? ":" (string-trim (cadr entry))))
 
 ;; typed-comment-strip-signature-marker
 ;;   : (-> TypedCommentText SignatureContract)

@@ -30,7 +30,7 @@
  (inputShape
   .
   "single exported owner collapses Interface, Contract, Slot, Get, Set, Modify, and Validate responsibilities")
- (expectedRepair
+ (expectedOutcome
   .
   "introduce a local typed descriptor and use Gerbil `using` slot access while keeping validation and mutation in separate helpers")
  (expectedReferencePattern . "gerbil-native-interface-contract-boundary")

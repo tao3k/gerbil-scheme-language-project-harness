@@ -29,7 +29,7 @@
  (rule . "GERBIL-SCHEME-TESTING-UPSTREAM-BUILD-IMPROVEMENT")
  (optimizationFocus . "keep upstream std/make/gxtest ownership while preserving incremental scope, receipts, and benchmark gates")
  (inputShape . "multi-suite testing project with explicit gxtest file, manifest root, and policy scenario id")
- (expectedRepair . "declare a thin build.ss testing project and pass upstream-selected scope into the framework without widening")
+ (expectedOutcome . "declare a thin build.ss testing project and pass upstream-selected scope into the framework without widening")
  (measurementPhases
   "collect-before"
   "policy-before"

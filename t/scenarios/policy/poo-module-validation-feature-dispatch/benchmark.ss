@@ -30,7 +30,7 @@
  (inputShape
   .
   "POO module validation repeats resolved-field traversal, harness field extraction, and cache receipt construction across object and field validators")
- (expectedRepair
+ (expectedOutcome
   .
   "extract feature-specific validation handlers and keep the validation surface as a dispatch table with shared cache key construction")
  (expectedReferencePattern . "gerbil-compiler-feature-dispatch")

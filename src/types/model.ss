@@ -6,8 +6,18 @@
 
 (import :gerbil/gambit
         (only-in :std/srfi/1 drop-right every last lset=)
-        (only-in :std/srfi/13 string-join)
-        (only-in :std/sugar cut filter-map ormap))
+        :utilities/functional
+        (only-in :std/sugar cut filter-map ormap)
+        (only-in :utilities/contracts
+                 make-object-type-contract
+                 make-slot-contract
+                 object-contract-issues
+                 object-contract-valid?
+                 require-object-contract!)
+        (only-in :utilities/projection
+                 object-contract-report-rows
+                 object-type-contract->alist)
+        :utilities/contract-syntax)
 
 (export make-type-unknown
         make-type-any
@@ -50,13 +60,27 @@
         type-record-required
         record-field-type
         type=?
+        +type-spec-slot-contracts+
+        +type-spec-type-contract+
+        require-type-spec-slots!
+        type-spec-type-contract->alist
+        type-spec-contract-issues
+        type-spec-contract-valid?
+        type-spec-contract-report-rows
         type->string
         parse-type-contract
         parse-type-sexpr)
 ;;; Invariant: TypeSpec has one compact representation for every parsed type
 ;;; form; constructor helpers are responsible for normalizing their own fields.
 ;; TypeSpecStruct
-(defstruct type-spec (kind name params result))
+(defobject-contract type-spec
+  owner: 'types
+  object-kind: 'type-spec
+  slots:
+  ((kind Symbol symbol? required)
+   (name Any (lambda (_) #t) required)
+   (params Any (lambda (_) #t) required)
+   (result Any (lambda (_) #t) required)))
 ;; TypeSpec
 (def (make-type-unknown)
   (make-type-spec 'unknown "unknown" '() #f))
@@ -192,7 +216,7 @@
     (and found (cdr found))))
 ;;; Invariant: TypeSpec equality is structural. Records compare required names
 ;;; as a set and fields by name so source order does not affect compatibility.
-;; : (-> Left Right Boolean )
+;; : (-> Type Type Boolean )
 (def (type=? left right)
   (and (eq? (type-kind left) (type-kind right))
        (case (type-kind left)
@@ -241,7 +265,7 @@
                     ")"))
     ((values)
      (string-append "(values "
-                    (string-join (map type->string (type-values-members type)) " ")
+                    (string-join-with (map type->string (type-values-members type)) " ")
                     ")"))
     ((refine)
      (string-append "(refine "
@@ -254,7 +278,7 @@
                     (type-name type)
                     (if (pair? (type-params type))
                       (string-append " "
-                                     (string-join (map type->string (type-params type))
+                                     (string-join-with (map type->string (type-params type))
                                            " "))
                       "")
                     ")"))
@@ -266,7 +290,7 @@
                     (type->string (type-keyword-parameter-type type))))
     ((function)
      (string-append "(function ("
-                    (string-join (map type->string (type-params type)) " ")
+                    (string-join-with (map type->string (type-params type)) " ")
                     ") "
                     (type->string (type-result type))
                     ")"))
@@ -280,13 +304,13 @@
                     ")"))
     ((union)
      (string-append "(union "
-                    (string-join (map type->string (type-union-members type)) " ")
+                    (string-join-with (map type->string (type-union-members type)) " ")
                     ")"))
     ((record)
      (string-append "(record ("
-                    (string-join (map record-field->string (type-record-fields type)) " ")
+                    (string-join-with (map record-field->string (type-record-fields type)) " ")
                     ") ("
-                    (string-join (type-record-required type) " ")
+                    (string-join-with (type-record-required type) " ")
                     "))"))
     (else "unknown")))
 ;;; Boundary:
@@ -311,26 +335,34 @@
 ;; : (-> Sexpr (List TypeVariable) TypeSpec )
 (def (parse-type-sexpr* sexpr bound-vars)
   (cond
-   ((symbol? sexpr) (parse-type-symbol sexpr bound-vars))
-   ((string? sexpr) (parse-type-name sexpr bound-vars))
-   ((boolean? sexpr)
-    (make-type-literal-symbol (if sexpr '#t '#f)))
-   ((pair? sexpr)
-    (let (head (car sexpr))
-      (cond
-       ((eq? head 'quote)
-        (make-type-literal-symbol (type-sexpr-first-operand sexpr)))
-       ((eq? head 'forall)
-        (parse-forall-type-sexpr sexpr bound-vars))
-       ((compound-type-sexpr-parser head)
-        => (lambda (parser)
-             (parser sexpr bound-vars)))
-       ((symbol? head)
-        (make-type-application
-         head
-         (map (cut parse-type-sexpr* <> bound-vars) (cdr sexpr))))
-       (else (make-type-unknown)))))
-   (else (make-type-unknown))))
+    ((symbol? sexpr) (parse-type-symbol sexpr bound-vars))
+    ((string? sexpr) (parse-type-name sexpr bound-vars))
+    ((boolean? sexpr)
+     (make-type-literal-symbol (if sexpr '#t '#f)))
+    ((list-type-shorthand-sexpr? sexpr)
+     (make-type-list (parse-type-sexpr* (car sexpr) bound-vars)))
+    ((pair? sexpr)
+     (let (head (car sexpr))
+       (cond
+        ((eq? head 'quote)
+         (make-type-literal-symbol (type-sexpr-first-operand sexpr)))
+        ((eq? head 'forall)
+         (parse-forall-type-sexpr sexpr bound-vars))
+        ((compound-type-sexpr-parser head)
+         => (lambda (parser)
+              (parser sexpr bound-vars)))
+        ((symbol? head)
+         (make-type-application
+          head
+          (map (cut parse-type-sexpr* <> bound-vars) (cdr sexpr))))
+        (else (make-type-unknown)))))
+    (else (make-type-unknown))))
+
+;; : (-> TypeDatum Boolean )
+(def (list-type-shorthand-sexpr? sexpr)
+  (and (list? sexpr)
+       (= (length sexpr) 1)
+       (pair? (car sexpr))))
 
 ;; : (-> TypeName (List TypeVariable) TypeSpec )
 (def (parse-type-symbol symbol bound-vars)
@@ -540,13 +572,13 @@
      (append (map normalize-type-name (type-sexpr-first-operand sexpr))
              bound-vars))
     (make-type-unknown)))
-;; : (-> Left Right Boolean )
+;; : (-> (Maybe Type) (Maybe Type) Boolean )
 (def (type-results=? left right)
   (cond
    ((and left right) (type=? left right))
    ((or left right) #f)
    (else #t)))
-;; : (-> Left Right Boolean )
+;; : (-> (List Type) (List Type) Boolean )
 (def (types=? left right)
   (cond
    ((and (null? left) (null? right)) #t)
@@ -556,7 +588,7 @@
          (types=? (cdr left) (cdr right))))))
 ;;; Invariant: record field equality is structural and order-insensitive after
 ;;; field-name normalization; required-field set equality is checked by type=?.
-;; : (-> Left Right Boolean )
+;; : (-> Fields Fields Boolean )
 (def (record-fields=? left right)
   (and (= (length left) (length right))
        (every (lambda (field)

@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-028")
  (optimizationFocus . "loop-local clone override")
  (inputShape . "manual loop repeatedly cloning POO state")
- (expectedRepair . "keep the stable profile as native .o, accumulate scalar loop state, and apply one final native clone override")
+ (expectedOutcome . "keep the stable profile as native .o, accumulate scalar loop state, and apply one final native clone override")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o/.cc remains the optimized POO shape")
  (optimizerVisibility

@@ -131,7 +131,9 @@
 ;;       ```
 ;;     %
 (def (check-main args)
-  (let* ((total-start-ms (monotonic-ms))
+  (if (flag? "--full" args)
+    (emit-check-full-removed)
+    (let* ((total-start-ms (monotonic-ms))
          (root (path-normalize (project-root args)))
          (json? (flag? "--json" args))
          (profile-json? (flag? "--profile-json" args))
@@ -161,7 +163,12 @@
                              whitelist-path
                              cache-enabled?
                              cache-path
-                             cache-state))))
+                             cache-state)))))
+
+;; : (-> Integer)
+(def (emit-check-full-removed)
+  (displayln "[gerbil-check] status=error scope=full reason=removed-cli-full message=\"gslph check --full has been removed; use gxtest/library policy integration\"")
+  2)
 
 ;; check-main/cache-miss
 ;;   : (-> Integer String Boolean Boolean String MaybePath Boolean MaybePath MaybeCacheState Integer)
@@ -237,10 +244,7 @@
     findings))
 ;; : (-> (List String) String)
 (def (check-scope args)
-  (if (and (flag? "--changed" args)
-           (not (flag? "--full" args)))
-    "changed"
-    "full"))
+  "changed")
 ;; : (-> String (List String))
 (def (changed-project-paths root)
   (unique

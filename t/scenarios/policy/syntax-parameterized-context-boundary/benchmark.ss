@@ -32,7 +32,7 @@
  (inputShape
   .
   "macro owner mutates a compile-time global to simulate contextual macro state")
- (expectedRepair
+ (expectedOutcome
   .
   "defsyntax-parameter* declares the contextual macro and syntax-parameterize binds it at the call boundary")
  (expectedReferencePattern . "gerbil-syntax-parameterized-context-boundary")

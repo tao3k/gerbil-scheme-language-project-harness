@@ -19,6 +19,8 @@
   '(("build-api/source-coverage.ss"
      "constants.ss")
     ("build-api/package-receipt.ss"
+     "build-api/cli-gsc-options.ss"
+     "build-api/launcher-receipt.ss"
      "build-api/worker-count.ss"
      "build-api/build-path-contract.ss"
      "build-api/package-spec.ss"
@@ -31,6 +33,10 @@
      "testing/performance.ss"
      "testing/batch.ss")
     ("testing/selection.ss")
+    ("utilities/functional.ss")
+    ("utilities/contracts.ss")
+    ("utilities/projection.ss")
+    ("utilities/contract-syntax.ss")
     ("types/core.ss"
      "types/env.ss"
         "checker/model.ss"
@@ -161,7 +167,7 @@
 
 ;; : (List String)
 (def +gslph-package-api-directories+
-  '("types" "parser" "checker" "policy" "extensions" "commands"))
+  '("utilities" "types" "parser" "checker" "policy" "extensions" "format" "commands"))
 
 ;; : (List (List Path))
 (def +gslph-package-api-launcher-stages+

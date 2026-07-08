@@ -34,7 +34,7 @@
         testing-build-gxtest-runs
         testing-build-scenario-runs)
 
-;; : (-> TestingBuild String Alist)
+;; : (forall (A) (-> TestingBuild String (List (Pair Symbol A))))
 (def (testing-build-scenario-metadata build id)
   (let (entry (assoc id (testing-object-ref build 'scenarioMetadata [])))
     (if entry (cdr entry) [])))
@@ -107,11 +107,11 @@
                    name: (testing-object-ref build 'name "testing-build")
                    contract-root: (testing-build-contract-root build)))))))
 
-;; : (-> List List)
+;; : (forall (A) (-> (List (Maybe A)) (List A)))
 (def (testing-build-filter values)
   (filter identity values))
 
-;; : (-> TestingBuild TestingProject)
+;; : (forall (A) (-> TestingBuild TestingProject))
 (def (testing-build-project build)
   (let* ((gxtest-suites
           (map (lambda (spec)
@@ -135,7 +135,11 @@
      receipt-prefix: (testing-object-ref build 'receiptPrefix
                                          (testing-object-ref build 'name "testing-build")))))
 
-;; : (-> String Path MaybePath List List MaybePath List MaybeList Alist Path String List Integer Integer Integer Integer MaybeString MaybeString MaybeString TestingBuild)
+;; : (forall (A B C D E)
+;;      (-> String Path (Maybe Path) (List A) (List B) (Maybe Path)
+;;          (List Path) (Maybe (List Path)) (List (Pair Symbol C))
+;;          Path String (List D) Integer Integer Integer Integer
+;;          (Maybe String) (Maybe String) (Maybe E) TestingBuild))
 (def (testing-build name: (name "testing-build")
                     package-name: (package-name #f)
                     root: (root ".")
@@ -201,10 +205,10 @@
   (vector-set! (testing-object-ref build 'gxtestRuns) 0 [])
   (vector-set! (testing-object-ref build 'scenarioRuns) 0 []))
 
-;; : (-> TestingBuild List)
+;; : (forall (A) (-> TestingBuild (List A)))
 (def (testing-build-gxtest-runs build)
   (reverse (vector-ref (testing-object-ref build 'gxtestRuns) 0)))
 
-;; : (-> TestingBuild List)
+;; : (forall (A) (-> TestingBuild (List A)))
 (def (testing-build-scenario-runs build)
   (reverse (vector-ref (testing-object-ref build 'scenarioRuns) 0)))

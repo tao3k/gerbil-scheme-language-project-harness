@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-034")
  (optimizationFocus . "loop-local finite-field type construction")
  (inputShape . "manual loop repeatedly constructing stable F_q type objects")
- (expectedRepair . "hoist stable F_q type object to a named binding")
+ (expectedOutcome . "hoist stable F_q type object to a named binding")
  (hotPathExemption . "numeric-type-construction-hot-loop")
  (hotPathEvidence
   "manual-loop"

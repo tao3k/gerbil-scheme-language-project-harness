@@ -30,7 +30,7 @@
  (inputShape
   .
   "macro owner mixes class descriptor tables, slot layout, mixin accessors and mutators, constructor/predicate metadata, method binding, and slot contract/default metadata")
- (expectedRepair
+ (expectedOutcome
   .
   "native defclass/defmethod surface with descriptor metadata declared once and runtime behavior kept in ordinary method helpers")
  (learnedStyleSources

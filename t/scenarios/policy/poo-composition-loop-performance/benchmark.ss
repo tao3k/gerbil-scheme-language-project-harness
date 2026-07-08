@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-030")
  (optimizationFocus . "loop-local POO composition")
  (inputShape . "manual loop repeatedly composing POO objects")
- (expectedRepair . "keep the stable profile as native .o, accumulate scalar state, and apply one final native .o overlay composition")
+ (expectedOutcome . "keep the stable profile as native .o, accumulate scalar state, and apply one final native .o overlay composition")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o/.mix remains the optimized POO shape")
  (optimizerVisibility

@@ -32,7 +32,7 @@
  (inputShape
   .
   "poo-flow-shaped defrules wrappers repeated across the same macro prefix")
- (expectedRepair
+ (expectedOutcome
   .
   "one macro family helper with typed documentation and runtime semantics left in ordinary helpers")
  (expectedReferencePattern . "gerbil://macro-family-thin-wrapper")

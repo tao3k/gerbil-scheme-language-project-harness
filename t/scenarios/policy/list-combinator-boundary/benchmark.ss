@@ -32,7 +32,7 @@
  (inputShape
   .
   "single exported function uses named-let, reverse accumulator, and inline selection/projection over a list")
- (expectedRepair
+ (expectedOutcome
   .
   "local selector plus filter-map traversal with full typed documentation")
  (expectedReferencePattern . "list-combinator-boundary")

@@ -91,7 +91,7 @@ Every new policy style rule must carry a scenario under =t/scenarios/policy= unl
 A style scenario must include:
 - input code that looks like plausible agent-authored Gerbil;
 - expected code that demonstrates one idiomatic repair without pretending it is the only valid repair;
-- =benchmark.ss= with =feature=, =rule=, =optimizationFocus=, =inputShape=, =expectedRepair=, =learnedStyleSources=, =scenarioQualityAxes=, timing gates, and memory gates;
+- =benchmark.ss= with =feature=, =rule=, =optimizationFocus=, =inputShape=, =expectedOutcome=, =learnedStyleSources=, =scenarioQualityAxes=, timing gates, and memory gates;
 - a focused test that checks parser facts, policy details, reference examples, finding count before repair, and zero findings after repair;
 - aggregate suite wiring so the scenario is not an orphan file.
 

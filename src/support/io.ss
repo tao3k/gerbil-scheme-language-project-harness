@@ -6,13 +6,15 @@
                  definition-path
                  definition-start
                  definition-end)
-        (only-in :std/misc/ports read-file-lines)
+        (only-in :std/misc/ports read-all-as-string read-file-lines)
         (only-in :std/srfi/13 string-index string-index-right string-prefix?)
         (only-in :std/sugar foldl iota))
 
 (export read-definition-code
         read-definition-with-leading-comments
         read-source-file-purpose-comment
+        read-source-text
+        write-source-text
         read-selector
         split-selector
         read-line-range
@@ -81,7 +83,7 @@
 ;;; Boundary:
 ;;; - line-at keeps selector lines one-based at the call boundary.
 ;;; - Guard before list-ref so malformed selectors return #f instead of raising.
-;; : (-> (List String) Target LineAt )
+;; : (forall (A) (-> (List A) Target (Maybe A)))
 (def (line-at lines target)
   (and (fx>= target 1)
        (fx<= target (length lines))
@@ -129,6 +131,18 @@
            (string-append out text "\n"))
          ""
          (read-file-lines path)))
+
+;; : (-> String String)
+(def (read-source-text path)
+  (call-with-input-file path read-all-as-string))
+
+;; : (-> String String Void)
+(def (write-source-text path text)
+  (when (file-exists? path)
+    (delete-file path))
+  (call-with-output-file path
+    (lambda (out)
+      (display text out))))
 ;; read-line-range
 ;;   : (-> String Integer Integer String)
 ;;   | doc m%
@@ -155,7 +169,7 @@
             (cons 1 "")
             lines))))
 
-;; : (-> String Value LineField )
+;; : (forall (A) (-> String A (Pair String A)))
 (def (line-field name value)
   (cons name value))
 
@@ -166,7 +180,7 @@
 ;;; Boundary:
 ;;; - Callers own projection values; this helper owns emission mechanics.
 ;;; - Keeping display/newline here lets command renderers stay field-list driven.
-;; : (-> String (List LineField) Unit )
+;; : (forall (A) (-> String (List (Pair String A)) Unit))
 (def (emit-field-line prefix fields)
   (display prefix)
   (for-each

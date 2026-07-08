@@ -1,19 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; Installed executable root for gslph.
 
-(import :checker/model
-        :extensions/model
-        :parser/model
-        :policy/model
-        :types/findings
-        :types/model
+(import :gerbil/gambit
         (rename-in :cli-launcher (main launcher-main)))
 (export main)
 
 ;;; Install binary boundary:
-;;; - The command graph remains dynamic so install/link stays small.
-;;; - Struct/class model modules are statically loaded to avoid optimized
-;;;   executable dynamic-load gaps around `make-class-predicate`.
+;;; - The installed executable is the native command boundary.
+;;; - Cold command implementations are dynamically loaded after argv selects
+;;;   them; launcher load paths provide Gerbil stdlib and package modules.
 
 ;; : (-> Args Integer)
 (def (main . args)

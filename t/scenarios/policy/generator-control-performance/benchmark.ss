@@ -32,7 +32,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "push/pull generator control inversion boundary")
  (inputShape . "manual pull generator loop behind a Generating contract")
- (expectedRepair
+ (expectedOutcome
   .
   "local generator reducer boundary with full typed documentation")
  (expectedReferencePattern . "gerbil-utils-generator-control")

@@ -32,7 +32,7 @@
  (inputShape
   .
   "macro owner stores compile-time metadata in a mutable hash table keyed by syntax->datum")
- (expectedRepair
+ (expectedOutcome
   .
   "bind metadata to the identifier with defsyntax and validate it through syntax-local-value before expansion")
  (expectedReferencePattern . "gerbil-syntax-local-registry-boundary")

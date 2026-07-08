@@ -4,11 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
-        (only-in :std/sugar ormap)
-        "../src/build-api/native-build"
-        (rename-in :cli-dev-linker (main dev-linker-main))
-        (only-in :cli-launcher provider-command-line-args)
-        (only-in :commands/agent agent-main))
+        (only-in :cli-launcher provider-command-line-args main))
 (export cli-test)
 
 ;; : TestSuite
@@ -24,8 +20,8 @@
              => ["check" "--changed" "."]))
     (test-case "provider argv strips generated binary frames"
       (check (provider-command-line-args
-              ["gslph" "check" "--full" "/tmp/project"])
-             => ["check" "--full" "/tmp/project"]))
+              ["gslph" "fmt" "--check" "/tmp/project"])
+             => ["fmt" "--check" "/tmp/project"]))
     (test-case "provider argv preserves help requests"
       (check (provider-command-line-args
               ["gslph" "--help"])
@@ -38,83 +34,16 @@
       (check (provider-command-line-args
               ["gxi" "src/cli.ss" "bogus"])
              => ["bogus"]))
-    (test-case "release build spec uses native exe linker root"
-      (let (spec (compile-spec #f #t #f))
-        (check (member "cli-release-linker.ss" spec) => #f)
-        (check (member "cli-launcher.ss" spec) ? true)
-        (check (ormap (lambda (entry)
-                        (match entry
-                          ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
-                          (_ #f)))
-                      spec)
-               => #t)
-        (check (ormap (lambda (entry)
-                        (match entry
-                          ([optimized-exe: "cli-dev-linker" bin: "gslph" . _] #t)
-                          (_ #f)))
-                      spec)
-               => #f)))
-    (test-case "release binary builds runtime module graph"
-      (let (spec (cli-binary-build-spec #t))
-        (check (member "cli-release-linker.ss" spec) => #f)
-        (check (member "cli-launcher.ss" spec) ? true)
-        (check (ormap (lambda (entry)
-                        (match entry
-                          ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
-                          (_ #f)))
-                      spec)
-               => #t)
-        (check (member "parser/model.ss" spec) ? true)
-        (check (member "policy/core.ss" spec) ? true)))
-    (test-case "non-release binary build spec stays bootstrap scoped"
-      (let (spec (cli-binary-build-spec #f))
-        (check (member "cli-dev-linker.ss" spec) => #f)
-        (check (ormap (lambda (entry)
-                        (match entry
-                          ([optimized-exe: "cli-dev-linker" bin: "gslph" . _] #t)
-                          (_ #f)))
-                      spec)
-               => #t)
-        (check (ormap (lambda (entry)
-                        (match entry
-                          ([optimized-exe: "cli-release-linker" bin: "gslph" . _] #t)
-                          (_ #f)))
-                      spec)
-               => #f)
-        (check (member "parser/model.ss" spec) => #f)
-        (check (member "policy/core.ss" spec) => #f)))
-    (test-case "default compile spec builds full harness and benchmark gate helper"
-      (let (spec (compile-spec #f #f #f))
-        (check (member "benchmark/gate.ss" spec) ? true)
-        (check (member "parser/model.ss" spec) ? true)
-        (check (member "policy/core.ss" spec) ? true)))
-    (test-case "dev binary routes structural selectors through parser query"
+    (test-case "provider argv keeps formatter command"
+      (check (provider-command-line-args
+              ["gslph" "fmt" "--check" "."])
+             => ["fmt" "--check" "."]))
+    (test-case "check full is removed from CLI surface"
       (let (status #f)
         (let (output
               (with-output-to-string
                 (lambda ()
-                  (set! status
-                    (dev-linker-main
-                     "query"
-                     "--selector"
-                     "gerbil-scheme://src/parser/selectors.ss#item/function/selector-from"
-                     "--workspace"
-                     "."
-                     "--code")))))
-          (check status => 0)
-          (check (and (string-contains
-                       output
-                       "(def (selector-from")
-                      #t)
-                 => #t))))
-    (test-case "agent guide forwards section flags"
-      (let (status #f)
-        (let (output
-              (with-output-to-string
-                (lambda ()
-                  (set! status (agent-main ["guide" "." "--poo"])))))
-          (check status => 0)
-          (check (and (string-contains output "poo-prototype-fixed-point") #t)
-                 => #t)
-          (check (and (string-contains output "GERBIL-SCHEME-AGENT-POLICY-026") #t)
+                  (set! status (main "check" "--full" ".")))))
+          (check status => 2)
+          (check (and (string-contains output "removed-cli-full") #t)
                  => #t))))))

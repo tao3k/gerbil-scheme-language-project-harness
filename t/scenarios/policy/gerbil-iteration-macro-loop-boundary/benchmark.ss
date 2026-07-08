@@ -30,7 +30,7 @@
  (inputShape
   .
   "agent-generated loops manually thread accumulators, predicates, and pattern checks through verbose generic recursion")
- (expectedRepair
+ (expectedOutcome
   .
   "use Gerbil for/iteration macro forms when bindings, filters, contracts, or match patterns are static enough to generate a tight loop")
  (expectedReferencePattern . "gerbil-iteration-macro-contract-boundary")

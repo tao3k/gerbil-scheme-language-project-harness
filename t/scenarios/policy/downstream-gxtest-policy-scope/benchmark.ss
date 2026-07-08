@@ -34,7 +34,7 @@
  (inputShape
   .
   "unit-tests imports project-policy-test and cli-test; cli-test imports src/cli where the R013 warning lives")
- (expectedRepair
+ (expectedOutcome
   .
   "gxtest policy report on unit-tests sees src/cli before repair and passes after the source owner uses fold style")
  (expectedReferencePattern . "loop-driver-combinator-boundary")

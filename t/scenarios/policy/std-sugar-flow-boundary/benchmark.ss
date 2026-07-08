@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "nested let/if flow scaffolding to std/sugar chain and if-let")
  (inputShape . "workflow helpers combine nested conditional branches, required field lookups, optional retry state, and a resource-scoped audit writer")
- (expectedRepair . "use if-let for required bindings and chain for the linear status projection while preserving resource-scoped output flow")
+ (expectedOutcome . "use if-let for required bindings and chain for the linear status projection while preserving resource-scoped output flow")
  (misuseGuard . "do not rewrite call-with-output-file or other resource/control boundaries into std/sugar expression flow")
  (expectedReferencePattern . "std-sugar-flow-boundary")
  (expectedReferenceExamples

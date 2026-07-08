@@ -30,7 +30,7 @@
  (inputShape
   .
   "macro transformer with global mutable phase/context state, datum dispatcher, no source-aware syntax error, and no expansion documentation")
- (expectedRepair
+ (expectedOutcome
   .
   "thin hygienic syntax-case/with-syntax transformer with typed expansion context, parameterized macro state, source-aware syntax errors, and full typed documentation")
  (learnedStyleSources "gerbil://" "gerbil-utils")

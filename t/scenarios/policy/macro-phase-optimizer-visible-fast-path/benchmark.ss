@@ -30,7 +30,7 @@
  (inputShape
   .
   "macro DSL generates a hot runtime helper that routes a known operation through a dynamic table and repeated apply")
- (expectedRepair
+ (expectedOutcome
   .
   "keep the macro surface thin, pass the checked helper lexically, and generate a loop whose hot call remains direct and optimizer-visible")
  (expectedReferencePattern . "macro-phase-optimizer-visible-fast-path")

@@ -7,7 +7,10 @@
         (only-in :std/srfi/1 take)
         (only-in :std/sugar cut filter filter-map hash hash-get ormap))
 
+(import :utilities/functional)
+
 (export typed-combinator-style-missing-doc-targets
+        typed-combinator-style-missing-forall-targets
         file-typed-contract-invalid-reasons
         file-typed-contract-invalid-examples)
 
@@ -19,6 +22,17 @@
 (def +typed-combinator-style-doc-required-facets+
   '("macro-runtime-source-witness" "poo-protocol-evidence"
     "loop-driver-classified"))
+
+(def +typed-combinator-style-forall-required-facets+
+  '("higher-order-used" "parameterized-transform" "sequence-filter-map"
+    "sequence-fold" "sequence-predicate"))
+
+(def +typed-combinator-style-unbound-type-variable-prefix+
+  "unbound-type-variable:")
+
+;; (List SignatureToken)
+(def +typed-combinator-style-polymorphic-summary-tokens+
+  '("Alist" "AssocList" "PairList" "Predicate" "Mapper" "Reducer"))
 
 ;;; Documentation target boundary:
 ;;; - Merge function-profile and macro evidence into one target list.
@@ -36,6 +50,107 @@
 ;;; - Return the public helper name only when docs are required and absent.
 ;;; - The caller owns de-duplication across function and macro evidence.
 ;; : (-> SourceFile FunctionQualityProfile MaybeTargetName )
+(def (typed-combinator-style-missing-forall-targets file)
+  (unique
+   (filter-map (cut typed-combinator-style-profile-missing-forall-target file <>)
+               (source-file-function-quality-profiles file))))
+
+(def (typed-combinator-style-profile-missing-forall-target file profile)
+  (let (fact
+        (typed-combinator-style-typed-contract-fact
+         file
+         (function-quality-profile-name profile)))
+    (and fact
+         (typed-combinator-style-profile-requires-forall? profile fact)
+         (function-quality-profile-name profile))))
+
+(def (typed-combinator-style-profile-requires-forall? profile fact)
+  (and (> (function-quality-profile-arity profile) 0)
+       (function-quality-profile-exported profile)
+       (typed-combinator-style-profile-forall-required-facet? profile)
+       (or (typed-combinator-style-typed-contract-generic-candidate? fact)
+           (typed-combinator-style-typed-contract-missing-polymorphic-signature? fact)
+           (typed-combinator-style-typed-contract-missing-readable-domain-signature? fact))))
+
+(def (typed-combinator-style-profile-forall-required-facet? profile)
+  (list-intersects? +typed-combinator-style-forall-required-facets+
+                    (function-quality-profile-quality-facets profile)))
+
+(def (typed-combinator-style-typed-contract-generic-candidate? fact)
+  (pair? (typed-combinator-style-typed-contract-missing-forall-vars fact)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-typed-contract-missing-polymorphic-signature? fact)
+  (and (not (member 'typed-contract-precision-signature
+                    (typed-contract-fact-quality-facets fact)))
+       (typed-combinator-style-typed-contract-polymorphic-summary? fact)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-typed-contract-missing-readable-domain-signature? fact)
+  (and (typed-combinator-style-typed-contract-has-polymorphic-signature? fact)
+       (not (typed-combinator-style-typed-contract-has-readable-domain-signature? fact))))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-typed-contract-has-polymorphic-signature? fact)
+  (pair? (typed-combinator-style-typed-contract-polymorphic-signatures fact)))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-typed-contract-has-readable-domain-signature? fact)
+  (let ((signature-types (typed-combinator-style-typed-contract-signature-types fact))
+        (polymorphic-signatures
+         (typed-combinator-style-typed-contract-polymorphic-signatures fact)))
+    (> (length signature-types)
+       (length polymorphic-signatures))))
+
+;; : (-> TypedContractFact (List Json) )
+(def (typed-combinator-style-typed-contract-signature-types fact)
+  (let (typed-comment (typed-contract-fact-typed-comment fact))
+    (if typed-comment
+      (or (hash-get typed-comment 'signatureTypes) [])
+      [])))
+
+;; : (-> TypedContractFact (List Json) )
+(def (typed-combinator-style-typed-contract-polymorphic-signatures fact)
+  (let (typed-comment (typed-contract-fact-typed-comment fact))
+    (if typed-comment
+      (or (hash-get typed-comment 'polymorphicSignatures) [])
+      [])))
+
+;; : (-> TypedContractFact Boolean )
+(def (typed-combinator-style-typed-contract-polymorphic-summary? fact)
+  (list-intersects? +typed-combinator-style-polymorphic-summary-tokens+
+                    (typed-contract-fact-tokens fact)))
+
+;; : (-> TypedContractFact (List TypeVariable) )
+(def (typed-combinator-style-typed-contract-missing-forall-vars fact)
+  (let* ((typed-comment (typed-contract-fact-typed-comment fact))
+         (signature-type
+          (and typed-comment (hash-get typed-comment 'signatureType)))
+         (diagnostics
+          (or (and signature-type (hash-get signature-type 'diagnostics)) [])))
+    (unique
+     (filter-map typed-combinator-style-unbound-type-variable-diagnostic-name
+                 diagnostics))))
+
+;; : (-> Diagnostic MaybeTypeVariable )
+(def (typed-combinator-style-unbound-type-variable-diagnostic-name diagnostic)
+  (and (string? diagnostic)
+       (typed-combinator-style-string-prefix?
+        +typed-combinator-style-unbound-type-variable-prefix+
+        diagnostic)
+       (let (name
+             (substring
+              diagnostic
+              (string-length +typed-combinator-style-unbound-type-variable-prefix+)
+              (string-length diagnostic)))
+         (and (> (string-length name) 0) name))))
+
+;; : (-> String String Boolean )
+(def (typed-combinator-style-string-prefix? prefix text)
+  (let (prefix-length (string-length prefix))
+    (and (<= prefix-length (string-length text))
+         (equal? (substring text 0 prefix-length) prefix))))
+
 (def (typed-combinator-style-profile-missing-doc-target file profile)
   (and (typed-combinator-style-profile-requires-doc? profile)
        (not (typed-combinator-style-profile-has-doc? file profile))
@@ -57,10 +172,8 @@
 ;;; - This keeps R013 extensible without hard-coding path-specific policy exceptions.
 ;; : (-> FunctionQualityProfile Boolean)
 (def (typed-combinator-style-profile-doc-required-facet? profile)
-  (ormap (lambda (facet)
-           (member facet
-                   (function-quality-profile-quality-facets profile)))
-         +typed-combinator-style-doc-required-facets+))
+  (list-intersects? +typed-combinator-style-doc-required-facets+
+                    (function-quality-profile-quality-facets profile)))
 
 ;;; Profile doc lookup:
 ;;; - A profile is documented only by its own adjacent typed contract.

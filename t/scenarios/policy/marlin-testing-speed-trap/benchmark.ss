@@ -33,7 +33,7 @@
  (inputShape
   .
   "Marlin-like build.ss keeps long gxtest file lists, appends source policy files, and routes test through one gxtest-main entrypoint")
- (expectedRepair
+ (expectedOutcome
   .
   "declare multiple gxtest suites and policy scenarios through the harness testing API so explicit files, manifest roots, and scenario ids stay separate")
  (measurementPhases

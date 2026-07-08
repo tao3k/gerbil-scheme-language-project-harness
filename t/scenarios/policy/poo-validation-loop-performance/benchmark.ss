@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-031")
  (optimizationFocus . "loop-local validation")
  (inputShape . "manual loop repeatedly validating the same POO shape")
- (expectedRepair . "keep the stable profile as native .o and validate once outside the loop")
+ (expectedOutcome . "keep the stable profile as native .o and validate once outside the loop")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o remains the typed profile shape")
  (optimizerVisibility

@@ -30,7 +30,7 @@
  (inputShape
   .
   "method table slots are anonymous lambdas that hide dispatch and pass boundaries")
- (expectedRepair
+ (expectedOutcome
   .
   "extract local pass handlers and keep the method table as a dispatch surface")
  (expectedReferencePattern . "gerbil-compiler-method-pass-boundary")

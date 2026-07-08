@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-034")
  (optimizationFocus . "loop-local modular integer type construction")
  (inputShape . "manual loop repeatedly constructing stable Z/ type objects")
- (expectedRepair . "hoist stable Z/ type object to a named binding")
+ (expectedOutcome . "hoist stable Z/ type object to a named binding")
  (hotPathExemption . "numeric-type-construction-hot-loop")
  (hotPathEvidence
   "manual-loop"

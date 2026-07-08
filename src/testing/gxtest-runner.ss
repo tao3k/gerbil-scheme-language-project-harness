@@ -24,6 +24,7 @@
         (only-in "./gxtest-build"
                  clean-target
                  compile-package-api-if-stale
+                 compile-scoped-policy-engine-if-stale
                  compile-selected-gxtest-if-stale
                  compile-spec
                  dev-launcher-binpath
@@ -68,6 +69,10 @@
                  run-scoped-policy-if-stale
                  scoped-policy-phase-line
                  scoped-policy-receipt-path
+                 scoped-policy-engine-output-files
+                 scoped-policy-engine-receipt-path
+                 scoped-policy-engine-source-files
+                 scoped-policy-engine-source-module-files
                  scoped-policy-source-files
                  scoped-policy-status-line
                  scoped-policy-target-files)
@@ -197,19 +202,23 @@
   (current-directory package-root)
   (when (null? tests)
     (error "no top-level Gerbil test files found"))
-  (let (policy-files (scoped-policy-target-files tests))
-    (sync-build-worker-count!)
-    (run-test-phase
-     "run-scoped-policy"
-     (lambda ()
-       (run-scoped-policy-if-stale
-        policy-files
-        (lambda ()
-          (compile-package-api-if-stale (build-worker-count))))))
-    (run-test-phase
-     "run-gxtest"
-     (lambda ()
-       (run-gxtest-files tests)))))
+  (sync-build-worker-count!)
+  (run-test-phase
+   "run-scoped-policy"
+   (lambda ()
+     (run-scoped-policy-if-stale
+      tests
+      (lambda ()
+        (compile-scoped-policy-engine-if-stale
+         (scoped-policy-engine-source-files)
+         (scoped-policy-engine-source-module-files)
+         (scoped-policy-engine-output-files)
+         (scoped-policy-engine-receipt-path)
+         (build-worker-count))))))
+  (run-test-phase
+   "run-gxtest"
+   (lambda ()
+     (run-gxtest-files tests))))
 
 ;; : (-> Void)
 (def (test-target)

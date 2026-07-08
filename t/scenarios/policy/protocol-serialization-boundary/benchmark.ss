@@ -30,7 +30,7 @@
  (inputShape
   .
   "single exported function mixes JSON, String, Bytes, and Marshal representation layers")
- (expectedRepair
+ (expectedOutcome
   .
   "local protocol helpers split representation layers without adding gerbil-poo or gerbil-utils dependencies")
  (expectedReferencePattern . "protocol-serialization-boundary")

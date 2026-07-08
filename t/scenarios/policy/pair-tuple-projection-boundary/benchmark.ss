@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "cons-built Pair result protocol to values/call-with-values tuple projection")
  (inputShape . "one helper returns a Pair with cons and a public config helper immediately splits it with car/cdr")
- (expectedRepair . "producer returns multiple values and consumer destructures with call-with-values while preserving the public config API")
+ (expectedOutcome . "producer returns multiple values and consumer destructures with call-with-values while preserving the public config API")
  (expectedReferencePattern . "pair-tuple-projection-boundary")
  (expectedReferenceExamples
   "gerbil-utils/base.ss#values/call-with-values"

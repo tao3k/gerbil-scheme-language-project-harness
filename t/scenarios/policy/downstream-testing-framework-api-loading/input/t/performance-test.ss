@@ -32,7 +32,7 @@
     (rule . "GERBIL-SCHEME-AGENT-TESTING-DOWNSTREAM-BENCHMARK-HELPER-001")
     (optimizationFocus . "detect downstream direct benchmark glue before it becomes user API")
     (inputShape . "gxtest performance case calls benchmark-run/result directly")
-    (expectedRepair . "route the benchmark through testing-benchmark-run/result")
+    (expectedOutcome . "route the benchmark through testing-benchmark-run/result")
     (measurementPhases "benchmark-body")
     (tags "testing" "framework" "downstream" "benchmark-body" "hot")))
 

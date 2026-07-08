@@ -116,7 +116,7 @@
    '(("poo-construction-performance"
       . ((downstreamRepairTarget . "poo-flow")
          (idiom . "native-poo-construction")
-         (expectedRepair . "preserve native POO object syntax while optimizing runner mechanics")
+         (expectedOutcome . "preserve native POO object syntax while optimizing runner mechanics")
          (benchmarkPhases . ("batch-split" "scenario-root-projection"))
          (nextRepairAction . "apply the native POO construction idiom to the downstream object builder"))))))
 

@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-043")
  (optimizationFocus . "fixed defstruct generated receipt state with explicit bounded ->alist ABI projection")
  (inputShape . "agent-generated receipt builder using object<-alist for internal runtime state")
- (expectedRepair . "model generated receipt state with defstruct and serialize through one named ->alist function at presentation/runtime ABI boundaries")
+ (expectedOutcome . "model generated receipt state with defstruct and serialize through one named ->alist function at presentation/runtime ABI boundaries")
  (generatedRuntimeBoundary . #t)
  (hotPathExemption . "generated-receipt-boundary")
  (hotPathEvidence

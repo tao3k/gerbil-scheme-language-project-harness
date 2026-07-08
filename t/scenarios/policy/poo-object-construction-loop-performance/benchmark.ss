@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-033")
  (optimizationFocus . "loop-local object construction")
  (inputShape . "manual loop repeatedly constructing POO objects through object<-hash, object<-fun, and make-object")
- (expectedRepair . "use native .o for the stable profile shape, collapse repeated adapter construction into scalar loop state, and build one final native object at the boundary")
+ (expectedOutcome . "use native .o for the stable profile shape, collapse repeated adapter construction into scalar loop state, and build one final native object at the boundary")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o remains the optimized POO shape")
  (hotPathExemption . "object-construction-hot-loop")

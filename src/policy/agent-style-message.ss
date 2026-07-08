@@ -49,7 +49,15 @@
     " public/policy-sensitive helpers need full typed doc blocks with | doc m%, # Examples, and result comments")))
 
 ;; : (-> DefinitionCount ValidContractCount InvalidContractCount Boolean Boolean Boolean Boolean Nat Nat Nat Nat Message )
-(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? typed-doc-missing? quality-repair-triggered? typed-doc-missing-count covered-definition-count function-definition-count minimum-covered-definition-count)
+(def (typed-combinator-style-forall-fragment typed-forall-missing? typed-forall-missing-count)
+  (typed-combinator-style-message-fragment
+   typed-forall-missing?
+    (string-append
+     "; "
+     (number->string typed-forall-missing-count)
+     " generic functional helpers need both layered typed comment forms; missing either the human-readable polymorphic generic line like ;; : (forall (k v) (-> [(Pair k v)] [(Pair k v)] [(Pair k v)])) or the readable/domain summary line like ;; : (-> List Alist Alist) triggers this warning; keep both because the forall line explains type-variable relationships and every signature line is parser-validated")))
+
+(def (typed-combinator-style-message definition-count typed-comment-count invalid-typed-comment-count missing-implementation-evidence? implementation-coverage-insufficient? typed-doc-missing? typed-forall-missing? quality-repair-triggered? typed-doc-missing-count typed-forall-missing-count covered-definition-count function-definition-count minimum-covered-definition-count)
   (string-append
    "Scheme source owner has "
    (number->string definition-count)
@@ -69,10 +77,13 @@
    (typed-combinator-style-doc-fragment
     typed-doc-missing?
     typed-doc-missing-count)
+   (typed-combinator-style-forall-fragment
+    typed-forall-missing?
+    typed-forall-missing-count)
    (typed-combinator-style-message-fragment
     quality-repair-triggered?
     "; parser-owned quality facets require repair toward compact expression-level composition")
-   "; typed-combinator-style has three criteria: adjacent Scheme-native typed block such as ;; : (-> Input Output), compact expression-level composition, and optimization-boundary comments for specialized branches"))
+   "; typed-combinator-style has three criteria: adjacent Scheme-native typed block with both polymorphic generic signatures such as ;; : (forall (k v) (-> [(Pair k v)] [(Pair k v)] [(Pair k v)])) and readable/domain signatures such as ;; : (-> (Maybe Type) (Maybe Type) Boolean), compact expression-level composition, and optimization-boundary comments for specialized branches"))
 
 ;;; Missing contract count:
 ;;; - Clamp at zero so extra parser facts never produce negative diagnostics.

@@ -97,6 +97,10 @@
                (typed-combinator-style-missing-doc-targets file))
               (typed-doc-missing?
                (pair? typed-doc-missing-targets))
+              (typed-forall-missing-targets
+               (typed-combinator-style-missing-forall-targets file))
+              (typed-forall-missing?
+               (pair? typed-forall-missing-targets))
               (quality-repair-triggered?
                (and (typed-combinator-style-quality-repair-source-file? file)
                     (typed-combinator-style-quality-repair-triggered?
@@ -140,6 +144,7 @@
                       missing-implementation-evidence?
                       implementation-coverage-insufficient?
                       typed-doc-missing?
+                      typed-forall-missing?
                       quality-repair-triggered?])
               (make-type-finding
                (policy-rule-id +agent-typed-combinator-style-rule+)
@@ -151,8 +156,10 @@
                                                missing-implementation-evidence?
                                                implementation-coverage-insufficient?
                                                typed-doc-missing?
+                                               typed-forall-missing?
                                                quality-repair-triggered?
                                                (length typed-doc-missing-targets)
+                                               (length typed-forall-missing-targets)
                                                covered-definition-count
                                                function-definition-count
                                                minimum-covered-definition-count)
@@ -175,9 +182,11 @@
                 uncovered-definition-names
                 implementation-coverage-insufficient?
                 typed-doc-missing-targets
+                typed-forall-missing-targets
                 quality-facets
                 repair-evidence
                 typed-doc-missing?
+                typed-forall-missing?
                 quality-repair-triggered?))))))
 
 ;;; Scope boundary:

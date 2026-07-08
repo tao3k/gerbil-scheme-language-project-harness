@@ -558,10 +558,13 @@
         (min-definition-count (if (and (pair? maybe-limits)
                                        (pair? (cdr maybe-limits)))
                                 (cadr maybe-limits)
-                                +min-source-definition-count+)))
+                                +min-source-definition-count+))
+        (severity (if (fx>= effective-line-count +hard-max-leaf-line-count+)
+                    "error"
+                    (policy-rule-severity +modularity-source-leaf-rule+))))
     (make-type-finding
      (policy-rule-id +modularity-source-leaf-rule+)
-     (policy-rule-severity +modularity-source-leaf-rule+)
+     severity
      (source-file-path file)
      (string-append (source-file-path file)
                     " carries " (number->string effective-line-count)
@@ -593,31 +596,34 @@
 ;;; Boundary: test leaf findings keep count, span, and configured policy in one payload.
 ;; : (-> SourceFile EffectiveLineCount LineLimit DefinitionLimit TestCaseCount TestCaseLimit DefinitionSpan DefinitionSpanLimit MaybePolicy TypeFinding )
 (def (test-leaf-bloat-finding file effective-line-count max-line-count min-definition-count test-case-count max-test-case-count definition-span max-definition-span policy)
-  (make-type-finding
-   (policy-rule-id +modularity-test-leaf-rule+)
-   (policy-rule-severity +modularity-test-leaf-rule+)
-   (source-file-path file)
-   (string-append (source-file-path file)
-                  " carries " (number->string effective-line-count)
-                  " effective test lines and "
-                  (number->string (length (source-file-definitions file)))
-                  " definitions; parsed complexity shows "
-                  (number->string test-case-count)
-                  " test cases and max definition span "
-                  (number->string definition-span)
-                  "; split the test owner; gerbil.pkg may justify parsed complexity limits, but effective owner lines are hard-capped at "
-                  (number->string +hard-max-leaf-line-count+))
-   (source-file-path file)
-   (hash (sourceClass (source-path-class (source-file-path file)))
-         (lineCount effective-line-count)
-         (lineCountLimit max-line-count)
-         (hardLineCountLimit +hard-max-leaf-line-count+)
-         (physicalLineCount (source-file-line-count file))
-         (definitionCount (length (source-file-definitions file)))
-         (definitionCountMinimum min-definition-count)
-         (testCaseCount test-case-count)
-         (testCaseCountLimit max-test-case-count)
-         (maxDefinitionSpan definition-span)
-         (maxDefinitionSpanLimit max-definition-span)
-         (policyConfigPath (and policy (modularity-policy-config-path policy)))
-         (policyExplanation (and policy (modularity-policy-explanation policy))))))
+  (let (severity (if (fx>= effective-line-count +hard-max-leaf-line-count+)
+                   "error"
+                   (policy-rule-severity +modularity-test-leaf-rule+)))
+    (make-type-finding
+     (policy-rule-id +modularity-test-leaf-rule+)
+     severity
+     (source-file-path file)
+     (string-append (source-file-path file)
+                    " carries " (number->string effective-line-count)
+                    " effective test lines and "
+                    (number->string (length (source-file-definitions file)))
+                    " definitions; parsed complexity shows "
+                    (number->string test-case-count)
+                    " test cases and max definition span "
+                    (number->string definition-span)
+                    "; split the test owner; gerbil.pkg may justify parsed complexity limits, but effective owner lines are hard-capped at "
+                    (number->string +hard-max-leaf-line-count+))
+     (source-file-path file)
+     (hash (sourceClass (source-path-class (source-file-path file)))
+           (lineCount effective-line-count)
+           (lineCountLimit max-line-count)
+           (hardLineCountLimit +hard-max-leaf-line-count+)
+           (physicalLineCount (source-file-line-count file))
+           (definitionCount (length (source-file-definitions file)))
+           (definitionCountMinimum min-definition-count)
+           (testCaseCount test-case-count)
+           (testCaseCountLimit max-test-case-count)
+           (maxDefinitionSpan definition-span)
+           (maxDefinitionSpanLimit max-definition-span)
+           (policyConfigPath (and policy (modularity-policy-config-path policy)))
+           (policyExplanation (and policy (modularity-policy-explanation policy)))))))

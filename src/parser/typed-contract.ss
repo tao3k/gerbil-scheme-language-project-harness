@@ -628,8 +628,42 @@
   (typed-comment-block-signature-entry/cache block #f))
 
 ;; : (-> (List TypedCommentLine) (Maybe HashTable) (Maybe TypedContractEntry))
+(def (typed-comment-last entries)
+  (if (null? (cdr entries))
+    (car entries)
+    (typed-comment-last (cdr entries))))
+
+(def (typed-comment-signature-starts block)
+  (filter typed-comment-signature-start? block))
+
+(def (typed-comment-signature-entry-text entry)
+  (typed-comment-strip-signature-marker
+   (string-trim (cadr entry))))
+
+(def (typed-comment-forall-signature-entry? entry)
+  (string-prefix? "(forall"
+                  (typed-comment-signature-entry-text entry)))
+
+(def (typed-comment-layered-signature-facets signature-starts signature-start)
+  (let ((layered? (and (pair? signature-starts)
+                       (pair? (cdr signature-starts))))
+        (precision?
+         (find (lambda (entry)
+                 (and (< (car entry) (car signature-start))
+                      (typed-comment-forall-signature-entry? entry)))
+               signature-starts)))
+    (append (if layered?
+              ['typed-contract-layered-signature
+               'typed-contract-summary-signature]
+              [])
+            (if precision?
+              ['typed-contract-precision-signature]
+              []))))
+
 (def (typed-comment-block-signature-entry/cache block signature-analysis-cache)
-  (let (signature-start (find typed-comment-signature-start? block))
+  (let* ((signature-starts (typed-comment-signature-starts block))
+         (signature-start (and (pair? signature-starts)
+                               (typed-comment-last signature-starts))))
     (and signature-start
          (typed-comment-signature-entry/cache
           block
@@ -683,12 +717,18 @@
          (signature-type (car signature-analysis))
          (signature-projection
           (or (cadr signature-analysis)
-              [signature []])))
+              [signature []]))
+         (layered-facets
+          (typed-comment-layered-signature-facets
+           (typed-comment-signature-starts block)
+           signature-start)))
     [(typed-comment-signature-comment-start block signature-start)
      (typed-comment-block-end-line entries)
      signature
      "scheme-native-block"
-     (typed-comment-section-facets/groups sections)
+     (unique
+      (append layered-facets
+              (typed-comment-section-facets/groups sections)))
      (typed-comment-metadata/groups/signature-type
       block
       signature-start

@@ -23,7 +23,7 @@
  (rule . "GERBIL-SCHEME-GXTEST-DEFAULT-SMOKE")
  (optimizationFocus . "receipt-current scoped policy plus small smoke-only selected closure")
  (inputShape . "five default smoke test entries with scoped policy receipt current")
- (expectedRepair . "move full/focused suites out of default smoke and keep selected closure within the gate")
+ (expectedOutcome . "move full/focused suites out of default smoke and keep selected closure within the gate")
  (measurementPhases "run-scoped-policy-current"
                     "run-gxtest-source-in-process")
  (tags "gxtest" "smoke" "performance" "compiled-in-process"))

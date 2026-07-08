@@ -1,0 +1,27 @@
+;;; -*- Gerbil -*-
+;;; Boundary: complex and inexact library procedure calls.
+
+(define-library (fixture rs7 basic complex-inexact)
+  (export complex-inexact-sample)
+  (import (scheme base)
+          (scheme complex)
+          (scheme inexact))
+  (begin
+    (define (complex-inexact-sample x y)
+      (list (make-rectangular x y)
+            (make-polar x y)
+            (real-part x)
+            (imag-part x)
+            (magnitude x)
+            (angle x)
+            (exp x)
+            (log x)
+            (sin x)
+            (cos x)
+            (tan x)
+            (asin x)
+            (acos x)
+            (atan x y)
+            (finite? x)
+            (infinite? x)
+            (nan? x)))))

@@ -150,7 +150,7 @@
                => "apply the native POO construction idiom to the downstream object builder")
         (check (testing-details-ref (car repair-guidance) 'id)
                => "poo-construction-performance")
-        (check (testing-details-ref (car repair-guidance) 'expectedRepair)
+        (check (testing-details-ref (car repair-guidance) 'expectedOutcome)
                => "preserve native POO object syntax while optimizing runner mechanics")))
 
     (test-case "complex upstream build hot path has a benchmark gate"
@@ -165,7 +165,7 @@
                  (testing-run-project
                   +upstream-build-improvement-project+
                   (list file)
-                  fake-run-files)))))
+                 fake-run-files)))))
         (check (benchmark-contract-receipt-pass? bench) => #t)))
 
     (test-case "performance gate remains a benchmark.ss gate under testing"

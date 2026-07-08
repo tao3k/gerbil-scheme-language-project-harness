@@ -30,7 +30,7 @@
  (inputShape
   .
   "single exported function mixes Slot, Lens, Get, Set, Modify, and Validate responsibilities")
- (expectedRepair
+ (expectedOutcome
   .
   "local slot/lens helpers split get, set, modify, and validation without adding gerbil-poo or gerbil-utils dependencies")
  (expectedReferencePattern . "slot-lens-boundary")

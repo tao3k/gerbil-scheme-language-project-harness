@@ -17,7 +17,7 @@
         file-directory?)
 ;; ConfigConstant
 (def +boolean-flags+
-  '("--json" "--code" "--names-only" "--changed" "--full" "--more"
+  '("--json" "--code" "--names-only" "--changed" "--full" "--check" "--more"
     "--artifact"))
 ;; ConfigConstant
 (def +value-options+

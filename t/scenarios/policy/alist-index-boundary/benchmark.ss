@@ -38,7 +38,7 @@
  (inputShape
   .
   "four exported event helpers repeat inline assq/cdr over one event alist")
- (expectedRepair
+ (expectedOutcome
   .
   "one event-index builder stores symbolic keys in make-hash-table-eq and accessors read through hash-get")
  (expectedReferencePattern . "gerbil-compiler-symbol-index-boundary")

@@ -25,7 +25,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "temporary destructuring scaffolding to native match, selector, or syntax-local boundary")
  (inputShape . "three exported helpers repeat assq/cdr alist probing, defaults, and conditional routing over one event record")
- (expectedRepair . "single with/match destructuring boundary, RouteKey domain type, core match dispatch, and full typed documentation")
+ (expectedOutcome . "single with/match destructuring boundary, RouteKey domain type, core match dispatch, and full typed documentation")
  (expectedReferencePattern . "destructuring-combinator-boundary")
  (expectedReferenceExamples
   "gerbil://gerbil/core/match.ss#applicative-destructuring"

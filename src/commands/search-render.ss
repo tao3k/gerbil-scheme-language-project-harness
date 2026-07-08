@@ -2,7 +2,7 @@
 ;;; Compact search renderer helpers for agent-facing source evidence.
 
 (import :parser/source-class
-        (only-in :std/srfi/13 string-empty? string-join))
+        :utilities/functional)
 
 (export emit-selector-resolver-line
         emit-source-example-line
@@ -202,7 +202,7 @@
 (def (ranked-syntax-fact-selected? predicate seen remaining fact)
   (and (> remaining 0)
        (predicate fact)
-       (not (member (hash-get fact 'id) seen))))
+       (not (list-contains? seen (hash-get fact 'id)))))
 
 ;;; Predicate selectors share the same syntax field accessor so role and
 ;;; quality checks stay expression-level instead of re-opening the fields hash
@@ -329,7 +329,7 @@
 (def (dash-empty value)
   (cond
    ((not value) "-")
-   ((and (string? value) (string-empty? value)) "-")
+   ((and (string? value) (not (non-empty-string? value))) "-")
    (else value)))
 ;; : (-> FieldValue String )
 (def (value->field-string value)
@@ -346,4 +346,4 @@
 (def (join-or-dash values)
   (if (null? values)
     "-"
-    (string-join values ",")))
+    (string-join-with values ",")))

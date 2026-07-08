@@ -30,7 +30,7 @@
  (inputShape
   .
   "single define-type mixes Wrapper, Functor, wrap/unwrap, and IO/JSON/bytes/marshal method lambdas")
- (expectedRepair
+ (expectedOutcome
   .
   "local adapter helpers lift protocol methods through wrap/unwrap without adding gerbil-poo dependencies")
  (expectedReferencePattern . "typeclass-wrapper-adapter")

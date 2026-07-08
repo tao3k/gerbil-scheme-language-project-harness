@@ -30,7 +30,7 @@
  (inputShape
   .
   "large byte or numeric data is represented as lists, hash entries, or boxed generic vectors in a hot path")
- (expectedRepair
+ (expectedOutcome
   .
   "choose u8vector/f64vector or the matching specialized vector family, keep conversion at the boundary, and use length/ref/set/copy primitives in the hot lane")
  (expectedReferencePattern . "gambit-specialized-vector-storage")

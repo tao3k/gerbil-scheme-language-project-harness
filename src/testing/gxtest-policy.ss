@@ -4,7 +4,7 @@
 (import (only-in :gerbil/expander import-module)
         (only-in :std/misc/path directory-files path-directory path-expand)
         (only-in :std/sort sort)
-        (only-in :std/srfi/13 string-suffix?)
+        (only-in :std/srfi/13 string-prefix? string-suffix?)
         (only-in :std/sugar foldl hash-get hash-put!)
         (only-in "../support/time" monotonic-micros duration-micros)
         (only-in "../build-api/package-receipt"
@@ -15,10 +15,12 @@
                  gslph-load-source-coverage
                  gslph-source-coverage-files)
         (only-in "./gxtest-context"
+                 module-path-stem
                  package-root
+                 source-output-prefix
                  source-root)
         (only-in "./gxtest-discovery"
-                 gxtest-selected-source-files)
+                 gxtest-selected-test-files)
         (only-in "./gxtest-receipts"
                  ensure-directory!
                  file-set-cache-key)
@@ -29,11 +31,21 @@
         scoped-policy-status-line
         scoped-policy-source-files
         scoped-policy-target-files
+        scoped-policy-engine-source-files
+        scoped-policy-engine-source-module-files
+        scoped-policy-engine-output-files
+        scoped-policy-engine-receipt-path
         run-scoped-policy-if-stale)
 
 ;; : (-> (List Path) String)
+(def +scoped-policy-receipt-version+ 'gslph-scoped-policy-receipt.v2)
+
 (def (scoped-policy-cache-key files)
-  (file-set-cache-key files))
+  (file-set-cache-key
+   (cons (string-append
+          "receipt-version:"
+          (symbol->string +scoped-policy-receipt-version+))
+         files)))
 
 ;; : (-> Path)
 (def (scoped-policy-receipt-path (files []))
@@ -81,22 +93,33 @@
    (scoped-policy-directory-source-files (path-expand "types" source-root)
                                          "types")))
 
-(def (scoped-policy-project-source-files)
-  (with-catch
-   (lambda (_) [])
-   (lambda ()
-     (gslph-load-source-coverage ".")
-     (gslph-source-coverage-files "."))))
+(def (scoped-policy-engine-source-module-file path)
+  (let (prefix (string-append source-root "/"))
+    (if (string-prefix? prefix path)
+      (substring path (string-length prefix) (string-length path))
+      (error "scoped policy engine source is outside source root" path))))
+
+(def (scoped-policy-engine-source-module-files)
+  (map scoped-policy-engine-source-module-file
+       (scoped-policy-engine-source-files)))
+
+(def (scoped-policy-engine-output-file module)
+  (path-expand
+   (string-append (module-path-stem module) ".ssi")
+   (path-expand (source-output-prefix)
+                (path-expand ".gerbil/lib" package-root))))
+
+(def (scoped-policy-engine-output-files)
+  (map scoped-policy-engine-output-file
+       (scoped-policy-engine-source-module-files)))
+
+(def (scoped-policy-engine-receipt-path)
+  (path-expand ".gerbil/build/scoped-policy-engine.receipt" package-root))
+
 
 ;; : (-> (List Path))
-(def (scoped-policy-engine-witness-relative-files)
-  ["t/policy/agent-dependency-adapter-test.ss"])
 
 ;; : (-> (List Path))
-(def (scoped-policy-engine-witness-source-files)
-  (map (lambda (file)
-         (path-expand file package-root))
-       (scoped-policy-engine-witness-relative-files)))
 
 ;; : (-> (List Path) (List Path))
 (def (scoped-policy-unique-paths files)
@@ -132,22 +155,17 @@
 ;;       ```
 ;;     %
 (def (scoped-policy-target-files files)
-  (let (selected (gxtest-selected-source-files files))
+  (let (selected (gxtest-selected-test-files files))
     (scoped-policy-unique-paths
-     (append
-      (if (null? selected) files selected)
-      (scoped-policy-project-source-files)
-      (scoped-policy-engine-witness-relative-files)))))
+     (if (null? selected) files selected))))
 
 ;; : (-> (List Path) (List Path))
 (def (scoped-policy-source-files files)
   (sort (append
          (scoped-policy-engine-source-files)
-         (scoped-policy-engine-witness-source-files)
-         (scoped-policy-project-source-files)
          (map (lambda (file)
                 (path-expand file))
-              files))
+              (scoped-policy-target-files files)))
         string<?))
 
 ;; : (-> (List Path) Void)
@@ -158,14 +176,14 @@
      stamp
      (scoped-policy-source-files files)
      [stamp]
-     version: 'gslph-scoped-policy-receipt.v1)))
+     version: +scoped-policy-receipt-version+)))
 
 ;; : (-> (List Path) BuildReceiptStatus)
 (def (scoped-policy-receipt-status files)
   (let (stamp (scoped-policy-receipt-path files))
     (gslph-package-build-receipt-status
      stamp
-     version: 'gslph-scoped-policy-receipt.v1
+     version: +scoped-policy-receipt-version+
      expected-sources: (scoped-policy-source-files files)
      expected-outputs: [stamp])))
 
@@ -224,25 +242,28 @@
   (add-load-path! "src")
   (add-load-path! "t")
   (add-load-path! (path-expand ".gerbil/lib" package-root))
-  (import-module ':gslph/src/policy/gxtest-report #f #t))
+  (import-module ':gslph/src/policy/gxtest-runtime #f #t))
 
 ;; : (-> (List Path) Void)
 (def (run-scoped-policy! files)
   (run-scoped-policy-phase "load-policy"
                            load-compiled-gxtest-policy!)
-  (let* ((policy-source-report
-          (eval 'gslph/src/policy/gxtest-report#policy-source-report))
-         (display-report
-          (eval 'gslph/src/policy/gxtest-report#display-project-policy-report))
+  (let* ((policy-report
+          (eval 'gslph/src/policy/gxtest-runtime#policy-report))
          (report
           (run-scoped-policy-phase "policy-report"
                                    (lambda ()
-                                     (policy-source-report
+                                     (policy-report
                                       "."
                                       files
                                       display-scoped-policy-phase)))))
     (when (pair? (or (hash-get report 'findings) []))
-      (display-report report))
+      (run-scoped-policy-phase
+       "load-policy-display"
+       (lambda ()
+         (import-module ':gslph/src/policy/gxtest-report #f #t)))
+      ((eval 'gslph/src/policy/gxtest-report#display-project-policy-report)
+       report))
     (when (not (equal? (hash-get report 'status) "pass"))
       (exit 1))))
 
@@ -250,10 +271,10 @@
 (def (run-scoped-policy-if-stale files (prepare-stale! #f))
   (let (status (scoped-policy-receipt-status files))
     (display-scoped-policy-status status)
-    (when (not (scoped-policy-current? status))
+    (unless (scoped-policy-current? status)
       (when prepare-stale!
-        (run-scoped-policy-phase "prepare-stale" prepare-stale!)))
-    (run-scoped-policy! files)
-    (run-scoped-policy-phase "write-receipt"
-                             (lambda ()
-                               (write-scoped-policy-receipt! files)))))
+        (run-scoped-policy-phase "prepare-stale" prepare-stale!))
+      (run-scoped-policy! files)
+      (run-scoped-policy-phase "write-receipt"
+                               (lambda ()
+                                 (write-scoped-policy-receipt! files))))))

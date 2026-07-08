@@ -35,7 +35,7 @@
  (inputShape
   .
   "agent-style loop mixes object construction, validation, projection, predicates, clone overrides, composition, debug tracing, and materialization")
- (expectedRepair
+ (expectedOutcome
   .
   "keep dashboard config as native .o, use adapters only at external ingestion/materialization boundaries, project events to scalar deltas first, and keep the hot scoring loop scalar-only")
  (nativePooPrimary . #t)

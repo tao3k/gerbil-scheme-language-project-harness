@@ -37,7 +37,7 @@
  (inputShape
   .
   "scenario build.ss declares one gxtest manifest suite with files that export test-setup!, test-cleanup!, and *-test suites")
- (expectedRepair
+ (expectedOutcome
   .
   "use testing-select-project for scope selection, pass selected files to the gxtest delegate, and inspect gxtest exports through the runner")
  (measurementPhases

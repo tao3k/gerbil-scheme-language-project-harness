@@ -8,6 +8,7 @@
         (only-in "../constants" +language-id+ +provider-id+)
         (only-in "../parser/facade"
                  collect-source-scope
+                 collect-selected-source-scope
                  collect-test-source-scope
                  project-definitions
                  project-index-files)
@@ -99,7 +100,7 @@
            phase!
            "policy-collect"
            (lambda ()
-             (collect-source-scope root files))))
+             (collect-selected-source-scope root files))))
          (findings
           (policy-report-phase
            phase!

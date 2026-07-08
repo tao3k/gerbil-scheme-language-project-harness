@@ -30,7 +30,7 @@
  (inputShape
   .
   "one helper mixes SSXI, inline rule, optimizer metadata, primitive dispatch, and dynamic apply")
- (expectedRepair
+ (expectedOutcome
   .
   "name the optimizer boundary and keep the primitive call lexical and direct instead of routing through a dynamic table")
  (expectedReferencePattern . "gerbil-ssxi-optimizer-metadata-boundary")

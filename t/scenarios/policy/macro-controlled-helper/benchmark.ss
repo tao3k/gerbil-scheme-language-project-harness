@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-011")
  (optimizationFocus . "controlled macro helper boundary")
  (inputShape . "macro transformer without local parser helper")
- (expectedRepair . "syntax-case transformer with local syntax error helper")
+ (expectedOutcome . "syntax-case transformer with local syntax error helper")
  (measurementPhases
   "collect-before"
   "collect-after"

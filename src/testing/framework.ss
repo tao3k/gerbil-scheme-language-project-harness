@@ -2,6 +2,7 @@
 ;;; User-friendly Gerbil testing helpers inspired by poo-flow test entrypoints.
 
 (import :gerbil/gambit
+        :gerbil/expander
         :gslph/src/benchmark/framework
         (only-in :gslph/src/support/time
                  monotonic-micros
@@ -68,7 +69,7 @@
 
 ;; : (-> Symbol Symbol MaybeString List List TestingReceipt)
 (import :gslph/src/build-api/source-coverage
-        :gslph/src/policy/gxtest-report)
+        )
 
 (def (testing-phase-receipt phase status: (status 'ok)
                             suite: (suite #f)
@@ -105,10 +106,19 @@
      (write exn)
      (newline))
    (lambda ()
+     (add-load-path! ".")
+     (add-load-path! "src")
+     (add-load-path! "t")
+     (add-load-path! ".gerbil/lib")
+     (import-module ':gslph/src/policy/gxtest-report #f #t)
      (gslph-load-source-coverage ".")
-     (let (report (policy-source-report
-                   "."
-                   (gslph-source-coverage-files ".")))
+     (let* ((policy-source-report
+             (eval 'gslph/src/policy/gxtest-report#policy-source-report))
+            (display-project-policy-report
+             (eval 'gslph/src/policy/gxtest-report#display-project-policy-report))
+            (report (policy-source-report
+                     "."
+                     (gslph-source-coverage-files "."))))
        (when (pair? (or (hash-get report 'findings) []))
          (display-project-policy-report report))))))
 
@@ -358,7 +368,6 @@
                  (testing-run-suite project suite args run-files))
                suites))
          (status (testing-receipts-status receipts)))
-    (testing-display-policy-report! [])
     (testing-receipt
      kind: 'testing-project
      status: status

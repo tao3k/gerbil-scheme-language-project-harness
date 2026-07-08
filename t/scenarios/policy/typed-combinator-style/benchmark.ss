@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "manual traversal and missing expression evidence to Gerbil-native combinator style")
  (inputShape . "small owner exposes hand-written named-let traversal and no adjacent typed-combinator contracts")
- (expectedRepair . "typed docs, lambda-match shape dispatch, curry/rcurry, compose, and map traversal")
+ (expectedOutcome . "typed docs, lambda-match shape dispatch, curry/rcurry, compose, and map traversal")
  (expectedReferencePattern . "gerbil-upstream-idiom-performance")
  (expectedReferenceExamples
   "gerbil://gerbil/core/match.ss#match/match*"

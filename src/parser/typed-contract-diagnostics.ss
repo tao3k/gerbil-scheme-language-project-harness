@@ -82,15 +82,23 @@
   (and typed-comment
        (hash-get typed-comment 'signatureType)))
 
+;; : (-> TypedCommentMetadata (List Json) )
+(def (typed-comment-signature-types typed-comment)
+  (if typed-comment
+    (let (signature-types (hash-get typed-comment 'signatureTypes))
+      (if (pair? signature-types)
+        signature-types
+        (let (signature-type (typed-comment-signature-type typed-comment))
+          (if signature-type [signature-type] []))))
+    []))
+
 ;;; Boundary:
 ;;; - Doc metadata syntax owns the =m%= fence marker.
 ;;; - A value such as =100%= is a malformed marker, not a documentation score.
 ;; : (-> TypedCommentMetadata (List SignatureReason) )
 (def (typed-comment-structural-invalid-reasons typed-comment)
   (append
-   (typed-contract-json-invalid-reasons
-    "type-signature"
-    (typed-comment-signature-type typed-comment))
+   (typed-comment-signature-types-invalid-reasons typed-comment)
    (typed-comment-runtime-contract-invalid-reasons typed-comment)
    (filter-map
     (lambda (doc)
@@ -101,7 +109,25 @@
              (string-append "doc-marker-invalid:" marker))))
     (if typed-comment
       (or (hash-get typed-comment 'docs) [])
-      []))))
+       []))))
+
+;; : (-> TypedCommentMetadata (List SignatureReason) )
+(def (typed-comment-signature-types-invalid-reasons typed-comment)
+  (typed-comment-signature-types-invalid-reasons*
+   (typed-comment-signature-types typed-comment)
+   0))
+
+;; : (-> (List Json) Integer (List SignatureReason) )
+(def (typed-comment-signature-types-invalid-reasons* signature-types index)
+  (if (null? signature-types)
+    []
+    (append
+     (typed-contract-json-invalid-reasons
+      (string-append "type-signature[" (number->string index) "]")
+      (car signature-types))
+     (typed-comment-signature-types-invalid-reasons*
+      (cdr signature-types)
+      (fx1+ index)))))
 
 ;; : (-> TypedCommentMetadata (List SignatureReason) )
 (def (typed-comment-runtime-contract-invalid-reasons typed-comment)

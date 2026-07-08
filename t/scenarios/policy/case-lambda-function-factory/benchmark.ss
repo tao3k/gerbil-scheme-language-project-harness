@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "case-lambda arity-specialized function factory")
  (inputShape . "single wrapper-lambda factory hiding distinct arity variants")
- (expectedRepair
+ (expectedOutcome
   .
   "case-lambda factory with explicit arity branches and typed documentation")
  (expectedReferencePattern . "gerbil-utils-higher-order-expression")

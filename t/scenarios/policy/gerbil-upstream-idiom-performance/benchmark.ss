@@ -32,7 +32,7 @@
  (inputShape
   .
   "agent-authored owner repeats assq route lookup, named-let traversal, reverse accumulator, and branch-local defaulting")
- (expectedRepair
+ (expectedOutcome
   .
   "event shape helpers, core match dispatch, route-index make-hash-table-eq precomputation, cut-specialized map traversal, and filter-map label projection")
  (expectedReferencePattern . "gerbil-upstream-idiom-performance")

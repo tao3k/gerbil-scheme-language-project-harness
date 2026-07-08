@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-032")
  (optimizationFocus . "loop-local lens modification")
  (inputShape . "manual loop repeatedly applying lens-style POO updates")
- (expectedRepair
+ (expectedOutcome
   .
   "keep the stable profile as native .o, accumulate scalar lens target state, and apply one final native update")
  (nativePooPrimary . #t)

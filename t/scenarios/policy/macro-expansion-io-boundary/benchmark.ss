@@ -35,7 +35,7 @@
  (inputShape
   .
   "one macro owner reads a fragment file during expansion with call-with-input-file before constructing syntax")
- (expectedRepair
+ (expectedOutcome
   .
   "macro consumes explicit syntax payloads and leaves fragment loading to a separate source-backed build or caller boundary")
  (expectedReferencePattern . "gerbil-macro-expansion-io-boundary")

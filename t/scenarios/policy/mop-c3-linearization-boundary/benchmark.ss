@@ -30,7 +30,7 @@
  (inputShape
   .
   "single exported owner reconstructs precedence order while mixing superclass shape checks, duplicate filtering, and merge policy")
- (expectedRepair
+ (expectedOutcome
   .
   "introduce local precedence node descriptors, split tail merge/select helpers, and keep the exported linearizer as a small orchestration boundary")
  (expectedReferencePattern . "gerbil-runtime-c3-linearization-boundary")

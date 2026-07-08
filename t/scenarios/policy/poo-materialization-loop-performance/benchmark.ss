@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "loop-local materialization")
  (inputShape . "manual loop repeatedly materializing POO object data through .alist/sort, .all-slots, .all-slots/sort, hash<-object, and force-object")
- (expectedRepair . "keep the stable profile as native .o, materialize each required boundary snapshot once, and keep loop state scalar")
+ (expectedOutcome . "keep the stable profile as native .o, materialize each required boundary snapshot once, and keep loop state scalar")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o remains the profile/config source shape")
  (hotPathExemption . "poo-materialization-hot-loop")

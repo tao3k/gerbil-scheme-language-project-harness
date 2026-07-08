@@ -30,7 +30,7 @@
  (inputShape
   .
   "hot code hides primitive operations behind dynamic tables and apply, preventing Gerbil builtin inline rules from seeing the call shape")
- (expectedRepair
+ (expectedOutcome
   .
   "keep the hot primitive call target lexical and direct, using fixnum primitives when the value boundary is already known")
  (expectedReferencePattern . "gerbil-builtin-inline-rule-call-shape")

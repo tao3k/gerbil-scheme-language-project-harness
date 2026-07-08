@@ -30,7 +30,7 @@
  (inputShape
   .
   "manual loop repeatedly constructing stable IntegerRange type objects")
- (expectedRepair . "hoist stable IntegerRange type object to a named binding")
+ (expectedOutcome . "hoist stable IntegerRange type object to a named binding")
  (hotPathExemption . "numeric-type-construction-hot-loop")
  (hotPathEvidence
   "manual-loop"

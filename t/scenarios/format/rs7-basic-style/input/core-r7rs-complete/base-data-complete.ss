@@ -1,0 +1,26 @@
+;;; -*- Gerbil -*-    
+;;; Boundary: base list/string/vector/bytevector copy and conversion variants.    
+
+(define-library (fixture rs7 basic data-complete)
+  (export base-data-complete-sample)
+  (import (scheme base))
+  (begin
+    (define (base-data-complete-sample items text vec bytes)
+      (list (list? items)
+            (make-list 3 'x)
+            (list-copy items)
+            (string->vector text)
+            (vector->string vec)
+            (string->utf8 text)
+            (utf8->string bytes)
+            (bytevector? bytes)
+            (bytevector-copy bytes 0 (bytevector-length bytes))
+            (bytevector-copy! bytes 0 (make-bytevector (bytevector-length bytes)) 0)
+            (bytevector-append bytes #u8(1 2))
+            (vector-copy vec 0 (vector-length vec))
+            (vector-copy! vec 0 (vector-copy vec))
+            (vector-fill! (vector-copy vec) 'filled)
+            (string-copy text 0 (string-length text))
+            (string-fill! (string-copy text) #\x)
+            (write-string text))))    
+

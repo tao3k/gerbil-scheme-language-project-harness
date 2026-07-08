@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-037")
  (optimizationFocus . "loop-local slot predicate")
  (inputShape . "manual loop repeatedly checking stable slot predicates")
- (expectedRepair
+ (expectedOutcome
   .
   "keep the stable profile as native .o and hoist predicate result or predicate closure outside the loop")
  (nativePooPrimary . #t)

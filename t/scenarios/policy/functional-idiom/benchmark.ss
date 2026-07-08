@@ -32,7 +32,7 @@
  (inputShape
   .
   "single exported function uses named-let, cdr/car traversal, and an accumulator over a list")
- (expectedRepair
+ (expectedOutcome
   .
   "foldl total, !>/curry pipeline, and named lambda-match classifier with full typed documentation")
  (expectedReferencePattern . "loop-driver-combinator-boundary")

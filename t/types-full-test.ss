@@ -28,10 +28,14 @@
              (refine-type (parse-type-contract "(Refine Number natural?)"))
              (application-type
               (parse-type-contract "(NonEmptyList TypeFinding)"))
-             (literal-union-type
-              (parse-type-contract "(U 'Left 'Right)"))
-             (application-arrow-type
-              (parse-type-contract "(forall (a) (-> (NonEmptyList a) a))")))
+              (literal-union-type
+               (parse-type-contract "(U 'Left 'Right)"))
+              (application-arrow-type
+               (parse-type-contract "(forall (a) (-> (NonEmptyList a) a))"))
+              (pair-list-arrow-type
+               (parse-type-contract "(forall (k v) (-> [(Pair k v)] [(Pair k v)] [(Pair k v)]))"))
+              (maybe-arrow-type
+               (parse-type-contract "(-> (Maybe Type) (Maybe Type) Boolean)")))
         (check (type->string pair-type) => "(pair string number)")
         (check (type->string (type-pair-car pair-type)) => "string")
         (check (type->string (type-pair-cdr pair-type)) => "number")
@@ -97,7 +101,11 @@
         (check (type->string application-arrow-type)
                => "(function ((NonEmptyList a)) a)")
         (check (type-kind (car (type-params application-arrow-type)))
-               => 'application)))))
+               => 'application)
+        (check (type->string pair-list-arrow-type)
+               => "(function ((list (pair k v)) (list (pair k v))) (list (pair k v)))")
+        (check (type->string maybe-arrow-type)
+               => "(function ((maybe Type) (maybe Type)) Boolean)")))))
 
 ;; : TestSuite
 (def types-subtyping-proof-test
@@ -238,7 +246,37 @@
           (check (hash-get (car (hash-get record-json 'premises)) 'rule)
                  => "record-field"))))))
 
+(def types-object-contract-test
+  (test-suite "gerbil scheme harness type object contracts"
+    (test-case "type specs expose declarative slot contracts"
+      (let* ((number-type (parse-type-contract "Number"))
+             (invalid-object "not-a-type-spec")
+             (invalid-issues (type-spec-contract-issues invalid-object))
+             (contract-alist (type-spec-type-contract->alist))
+             (slot-alists (cdr (assoc 'slots contract-alist)))
+             (slot-names (map (lambda (slot)
+                                (cdr (assoc 'name slot)))
+                              slot-alists))
+             (slot-types (map (lambda (slot)
+                                (cdr (assoc 'type slot)))
+                              slot-alists))
+             (report-slot-names
+              (map (lambda (row)
+                     (cdr (assoc 'slot row)))
+                   (type-spec-contract-report-rows))))
+        (check (require-type-spec-slots! number-type) => number-type)
+        (check (type-spec-contract-valid? number-type) => #t)
+        (check (type-spec-contract-issues number-type) => '())
+        (check (type-spec-contract-valid? invalid-object) => #f)
+        (check (length invalid-issues) => 1)
+        (check (cdr (assoc 'owner contract-alist)) => 'types)
+        (check (cdr (assoc 'object-kind contract-alist)) => 'type-spec)
+        (check slot-names => '(kind name params result))
+        (check slot-types => '(Symbol Any Any Any))
+        (check report-slot-names => '(kind name params result))))))
+
 (def types-full-test
   (test-suite "gerbil scheme harness types"
     types-parser-shape-test
-    types-subtyping-proof-test))
+    types-subtyping-proof-test
+    types-object-contract-test))

@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-029")
  (optimizationFocus . "with-slots fixed slot total")
  (inputShape . "manual loop repeatedly projecting POO slots")
- (expectedRepair . "keep the stable profile as native .o, bind fixed local slots with with-slots, and reduce scalar state once before the loop")
+ (expectedOutcome . "keep the stable profile as native .o, bind fixed local slots with with-slots, and reduce scalar state once before the loop")
  (nativePooPrimary . #t)
  (adapterBoundary . "adapters are only for external data boundaries; native .o remains the profile/config source shape")
  (hotPathExemption . "poo-slot-projection-hot-loop")

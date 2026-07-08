@@ -30,7 +30,7 @@
  (inputShape
   .
   "one actor helper mixes Actor, Mailbox, Send, Receive, Spawn, Join, Shutdown, and Parameter responsibilities")
- (expectedRepair
+ (expectedOutcome
   .
   "split actor spawn, mailbox delivery, shutdown, and parameter-propagation helpers without adding dependency requirements")
  (expectedReferencePattern . "gerbil-actor-runtime-boundary")

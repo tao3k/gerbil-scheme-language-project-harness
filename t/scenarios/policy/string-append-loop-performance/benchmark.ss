@@ -35,7 +35,7 @@
  (inputShape
   .
   "one renderer walks lines and repeatedly appends to the accumulated string inside the loop")
- (expectedRepair
+ (expectedOutcome
   .
   "line fragments are accumulated as a list and rendered once with string-join at the boundary")
  (expectedReferencePattern . "gerbil-string-builder-loop-boundary")

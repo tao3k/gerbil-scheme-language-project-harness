@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
  (optimizationFocus . "wrapper lambda to composition boundary")
  (inputShape . "repeated wrapper lambdas around a reusable string transform")
- (expectedRepair . "compose/cut pipeline with full typed documentation")
+ (expectedOutcome . "compose/cut pipeline with full typed documentation")
  (expectedReferencePattern . "gerbil-utils-higher-order-expression")
  (expectedReferenceExamples
   "gerbil-utils/base.ss#left-to-right"

@@ -30,7 +30,7 @@
  (inputShape
   .
   "macro owner mixes match pattern parsing, syntax-local expansion, struct/class field accessors, applicative apply destructuring, pattern variables, and source-aware errors in one runtime dispatcher")
- (expectedRepair
+ (expectedOutcome
   .
   "defsyntax-for-match surface with pattern parsing isolated from runtime predicate helpers and source-aware errors kept at the match extension boundary")
  (learnedStyleSources

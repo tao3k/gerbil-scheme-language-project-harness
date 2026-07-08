@@ -15,6 +15,7 @@
         :parser/profile
         :parser/poo
         :parser/quality-shape
+        :parser/reader
         :parser/selectors
         :parser/source-file
         :parser/source-scope
@@ -40,11 +41,20 @@
         collect-project
         collect-project/profile
         collect-source-scope
+        collect-selected-source-scope
         collect-test-source-scope
         collect-project-package-only
         collect-source-files
         gerbil-source-path?
         parse-source-file
+        parser-reader-initial-state
+        parser-reader-literal-line?
+        parser-reader-literal-open-at-line-end?
+        parser-reader-scan-line-state
+        parser-reader-scan-line/indent
+        parser-reader-leading-close-count
+        parser-reader-leading-whitespace-count
+        parser-reader-whitespace?
         project-definitions
         project-calls
         project-macro-family-facts
@@ -400,6 +410,15 @@
 ;;       `collect-project/profile root` returns a parsed index plus profile
 ;;       telemetry for package, source-scope, and parse phases.
 ;;     %
+(def (collect-selected-source-scope root paths)
+  (let* ((root (path-normalize root))
+         (package (read-project-package root))
+         (files (sort (map path-normalize paths) string<?)))
+    (make-project-index root
+                        (parse-source-files root files)
+                        package)))
+
+;; : (-> String ProjectIndex)
 (def (collect-project/profile root)
   (let* ((root (path-normalize root))
          (total-start (monotonic-ms)))

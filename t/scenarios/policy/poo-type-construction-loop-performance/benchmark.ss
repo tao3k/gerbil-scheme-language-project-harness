@@ -30,7 +30,7 @@
  (inputShape
   .
   "manual loop repeatedly constructing stable POO/MOP type objects")
- (expectedRepair . "hoist stable type object to a named binding")
+ (expectedOutcome . "hoist stable type object to a named binding")
  (hotPathExemption . "type-object-construction-hot-loop")
  (hotPathEvidence
   "manual-loop"

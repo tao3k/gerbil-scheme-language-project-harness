@@ -33,7 +33,7 @@
  (inputShape
   .
   "single exported parser uses named-let cursor state, string-ref, substring, and inline parse errors")
- (expectedRepair
+ (expectedOutcome
   .
   "defparser grammar with parser-fail/parser-rewind and source-aware parse-error boundary")
  (expectedReferencePattern . "gerbil-std-parser-combinator-boundary")

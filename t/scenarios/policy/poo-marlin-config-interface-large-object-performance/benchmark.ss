@@ -31,7 +31,7 @@
  (inputShape
   .
   "Marlin config-interface profile projection descriptors built through adapter alists plus repeated .get governor projections")
- (expectedRepair
+ (expectedOutcome
   .
   "represent large POO declarations with native .o, use lambda-match over compact specs, map specs to descriptors, project repeated object reads with .o match patterns, and keep adapters at external boundaries only")
  (nativePooPrimary . #t)

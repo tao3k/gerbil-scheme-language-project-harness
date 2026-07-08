@@ -12,11 +12,20 @@
         collect-project
         collect-project/profile
         collect-source-scope
+        collect-selected-source-scope
         collect-test-source-scope
         collect-project-package-only
         collect-source-files
         gerbil-source-path?
         parse-source-file
+        parser-reader-initial-state
+        parser-reader-literal-line?
+        parser-reader-literal-open-at-line-end?
+        parser-reader-scan-line-state
+        parser-reader-scan-line/indent
+        parser-reader-leading-close-count
+        parser-reader-leading-whitespace-count
+        parser-reader-whitespace?
         project-definitions
         project-calls
         project-macro-family-facts

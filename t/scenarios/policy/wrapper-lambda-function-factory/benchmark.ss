@@ -32,7 +32,7 @@
  (inputShape
   .
   "single exported function allocates repeated same-formal lambdas inside one let before returning another wrapper")
- (expectedRepair
+ (expectedOutcome
   .
   "prefix/suffix specializers plus a named normalization helper, preserving the public function factory")
  (expectedReferencePattern . "gerbil-utils-higher-order-expression")

@@ -49,7 +49,14 @@
         type-record-required
         record-field-type
         type=?
-        type->string
+         +type-spec-slot-contracts+
+         +type-spec-type-contract+
+         require-type-spec-slots!
+         type-spec-type-contract->alist
+         type-spec-contract-issues
+         type-spec-contract-valid?
+         type-spec-contract-report-rows
+         type->string
         parse-type-contract
         parse-type-sexpr
         make-type-alias-env

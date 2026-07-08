@@ -30,7 +30,7 @@
  (inputShape
   .
   "one macro owner mixes Phase, Macro, Context, Transformer, Expansion, and Runtime helper responsibilities")
- (expectedRepair
+ (expectedOutcome
   .
   "keep the syntax wrapper thin, document the expansion contract, and move reusable behavior into ordinary runtime helpers")
  (expectedReferencePattern . "gerbil-phase-aware-macro-boundary")

@@ -35,7 +35,7 @@
  (inputShape
   .
   "one merge helper appends each chunk onto an accumulated list inside the named loop")
- (expectedRepair
+ (expectedOutcome
   .
   "nested accumulators cons elements and reverse once at the boundary, matching poo-flow hash/index merge style for keyed list operations")
  (expectedReferencePattern . "gerbil-list-growth-loop-boundary")

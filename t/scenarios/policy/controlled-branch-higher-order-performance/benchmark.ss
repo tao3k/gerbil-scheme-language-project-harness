@@ -28,7 +28,7 @@
  (rule . "GERBIL-SCHEME-AGENT-POLICY-014")
  (optimizationFocus . "higher-order branch repair")
  (inputShape . "conditional dispatch helper with repeated branch bodies")
- (expectedRepair . "source-backed fun/compose/curry style")
+ (expectedOutcome . "source-backed fun/compose/curry style")
  (measurementPhases
   "collect-before"
   "collect-after"

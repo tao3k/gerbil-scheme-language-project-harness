@@ -22,7 +22,7 @@
 
 ;; : (List String)
 (def +commands+
-  '("search" "query" "check" "bench" "evidence" "agent" "guide" "info"
+  '("search" "query" "check" "fmt" "bench" "evidence" "agent" "guide" "info"
     "help" "-h" "--help"))
 
 ;; : (List String)
@@ -34,6 +34,7 @@
   '(("search" "gslph/src/commands/search" gslph/src/commands/search#search-main)
     ("query" "gslph/src/commands/query" gslph/src/commands/query#query-main)
     ("check" "gslph/src/commands/check" gslph/src/commands/check#check-main)
+    ("fmt" "gslph/src/commands/fmt" gslph/src/commands/fmt#fmt-main)
     ("evidence" "gslph/src/commands/evidence" gslph/src/commands/evidence#evidence-main)
     ("agent" "gslph/src/commands/agent" gslph/src/commands/agent#agent-main)
     ("guide" "gslph/src/commands/guide" gslph/src/commands/guide#guide-main)
@@ -199,7 +200,8 @@
 ;; : (-> String (List String) (U Integer #f))
 (def (try-native-check-cache-command command rest)
   (and (equal? command "check")
-       (or (try-native-empty-changed-check rest)
+       (or (try-native-removed-full-check rest)
+           (try-native-empty-changed-check rest)
            (and (launcher-check-cache-eligible? rest)
                 (let* ((root (path-normalize (path-expand (launcher-check-root rest))))
                        (mode (launcher-check-output-mode rest))
@@ -213,6 +215,13 @@
                               (launcher-emit-cached-check hit)))))))))
 
 ;; : (-> (List String) (U Integer #f))
+(def (try-native-removed-full-check args)
+  (and (launcher-flag? "--full" args)
+       (begin
+         (displayln "[gerbil-check] status=error scope=full reason=removed-cli-full message=\"gslph check --full has been removed; use gxtest/library policy integration\"")
+         2)))
+
+;; : (-> (List String) (U Integer #f))
 (def (try-native-empty-changed-check args)
   (and (launcher-empty-changed-check-eligible? args)
        (let (root (path-normalize (path-expand (launcher-check-root args))))
@@ -223,8 +232,7 @@
 
 ;; : (-> (List String) Boolean)
 (def (launcher-empty-changed-check-eligible? args)
-  (and (launcher-changed-check-scope? args)
-       (not (launcher-flag? "--full" args))
+  (and (not (launcher-flag? "--full" args))
        (not (launcher-check-output-requested? args))
        (not (launcher-option "--whitelist" args))))
 
@@ -298,7 +306,8 @@
 
 ;; : (-> (List String) Boolean)
 (def (launcher-check-cache-eligible? args)
-  (and (not (launcher-flag? "--profile-json" args))
+  (and #f
+       (not (launcher-flag? "--profile-json" args))
        (not (launcher-flag? "--changed" args))))
 
 ;; : (-> (List String) String)
@@ -597,7 +606,19 @@
 
 ;; : (-> Unit)
 (def (ensure-runtime-loader!)
-  (##global-var-set! (##make-global-var 'load-module) load-module))
+  (##global-var-set! (##make-global-var 'load-module) load-module)
+  (launcher-add-runtime-load-paths!))
+
+;; : (-> Unit)
+(def (launcher-add-runtime-load-paths!)
+  (launcher-add-load-path! (path-expand ".gerbil/lib" (current-directory)))
+  (launcher-add-load-path! (path-expand "lib" (gerbil-home)))
+  (launcher-add-load-path! (path-expand "lib" (gerbil-path))))
+
+;; : (-> Path Unit)
+(def (launcher-add-load-path! path)
+  (when (file-exists? path)
+    (add-load-path! path)))
 
 ;; : (-> String Symbol Procedure)
 (def (dynamic-command-main module-id binding-id)

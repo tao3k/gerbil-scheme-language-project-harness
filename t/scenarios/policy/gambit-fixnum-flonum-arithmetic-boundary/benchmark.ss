@@ -30,7 +30,7 @@
  (inputShape
   .
   "hot numeric loops use generic arithmetic even when values are already constrained to fixnum or flonum domains")
- (expectedRepair
+ (expectedOutcome
   .
   "surface the numeric domain contract, use fx/fl primitive families in the hot lane, and keep overflow/type behavior covered by tests")
  (expectedReferencePattern . "gambit-numeric-primitive-domain-boundary")

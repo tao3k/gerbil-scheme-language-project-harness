@@ -32,7 +32,7 @@
  (inputShape
   .
   "same-prefix defrules wrappers plus a procedural transformer without a documented decision boundary")
- (expectedRepair
+ (expectedOutcome
   .
   "declarative defrules family for fixed rewrites, procedural syntax-case/with-syntax only for identifier validation and source-aware errors")
  (expectedReferencePattern . "gerbil-macro-metaprogramming-decision-boundary")
