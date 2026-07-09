@@ -202,12 +202,23 @@ jobs:
           .bin/gslph search workspace-scope --workspace . | tee /tmp/gslph-workspace-scope.txt
           grep -q 'filePreview=' /tmp/gslph-workspace-scope.txt
 
-      - name: Run harness check
+      - name: Verify binary policy check command is removed
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          .bin/gslph check --full .
+          check_output="$(mktemp)"
+          if .bin/gslph check --full . > "$check_output" 2>&1; then
+            cat "$check_output"
+            echo "gslph check unexpectedly succeeded"
+            exit 1
+          fi
+          cat "$check_output"
+          grep -q 'gslph fmt' "$check_output"
+          if grep -q 'gslph check' "$check_output"; then
+            echo "gslph check is still advertised"
+            exit 1
+          fi
 
       - name: Run harness verification bench
         if: runner.os == 'Linux'
