@@ -11,6 +11,10 @@
         compiler-evidence-facts
         language-rule-facts
         standard-library-facts
+        project-contract-pattern-evidence
+        project-contract-pattern-query?
+        project-contract-pattern-minimal-forms
+        project-contract-pattern-failure-cases
         hygienic-macro-pattern-evidence
         hygienic-macro-pattern-query?
         hygienic-macro-minimal-forms
@@ -22,6 +26,15 @@
 ;; (List SearchTerm)
 (def +hygienic-macro-query-terms+
   '("hygienic-macro" "hygienic" "macro" "defsyntax" "syntax-case"))
+;;; Contract projection terms are intentionally stricter than lexical search.
+;;; A broad "schema" query is not enough to claim this executable pattern.
+;; (List SearchTerm)
+(def +project-contract-pattern-query-terms+
+  '("poo-flow-json-schema-node->object-type-contract"
+    "json-schema-node"
+    "object-type-contract"
+    "contract-projection"
+    "defobject-contract"))
 ;; : (-> String RuntimeBin )
 (def (runtime-bin name)
   (let ((default-bin (path-expand (string-append "bin/" name) (gerbil-home)))
@@ -650,6 +663,119 @@
     [(hash (id "foreign-test-framework")
            (risk "agent-adds-python-or-non-gerbil-test-wrapper")
            (correction "use-std-test-native-gerbil-test-suite"))])])
+;;; Boundary:
+;;; - Project contract patterns are provider-owned registry facts.
+;;; - They do not require a gerbil-poo dependency activation.
+;; : (-> (List SearchTerm) MaybePattern )
+(def (project-contract-pattern-evidence terms)
+  (and (project-contract-pattern-query? terms)
+       (hash (id "project-json-schema-object-type-contract")
+             (extension "gerbil-scheme")
+             (focus "json schema node to object type contract")
+             (origin "provider-registry")
+             (sourceRef
+              (hash (kind "provider-pattern-registry")
+                    (manager "native-provider")
+                    (package "gerbil-scheme-language-project-harness")
+                    (dependency "project-contract-patterns")
+                    (repository "agent-semantic-protocols/languages/gerbil-scheme-language-project-harness")
+                    (pathPolicy "workspace-logical-selector")
+                    (selectorScheme "project-contract-logical-symbol")))
+             (sourceOwners ["src/utilities/contracts.ss"
+                            "src/utilities/contract-syntax.ss"
+                            "src/utilities/projection.ss"])
+             (selectors
+              [(hash (role "json-schema-node-projection")
+                     (symbol "poo-flow-json-schema-node->object-type-contract")
+                     (selector "src/utilities/contracts.ss#poo-flow-json-schema-node->object-type-contract"))
+               (hash (role "declarative-contract-macro")
+                     (symbol "defobject-contract")
+                     (selector "src/utilities/contract-syntax.ss#defobject-contract"))
+               (hash (role "object-type-contract")
+                     (symbol "object-type-contract")
+                     (selector "src/utilities/contracts.ss#object-type-contract"))
+               (hash (role "slot-contract")
+                     (symbol "slot-contract")
+                     (selector "src/utilities/contracts.ss#slot-contract"))
+               (hash (role "contract-report-projection")
+                     (symbol "object-type-contract->alist")
+                     (selector "src/utilities/projection.ss#object-type-contract->alist"))])
+             (agentScenario "agent-projects-json-schema-objects-without-a-contract-boundary")
+             (agentSteering "use a declarative object contract projection before writing schema-to-object code; avoid ad hoc POJO/alist decoding without slot predicates and report projection")
+             (intent "query-json-schema-object-contract-projection-before-writing-schema-to-contract-code")
+             (minimalForms (project-contract-pattern-minimal-forms))
+             (failureCases (project-contract-pattern-failure-cases))
+             (qualitySignals ["registered-pattern-query"
+                              "json-schema-node-mapping"
+                              "object-type-contract-boundary"
+                              "slot-contract-predicates"
+                              "declarative-contract-macro"
+                              "projection-report"])
+             (witness "project-json-schema-object-type-contract-pattern-registry")
+             (missing [])
+             (next "search pattern json-schema-node object-type-contract"))))
+;; : (-> (List SearchTerm) Boolean )
+(def (project-contract-pattern-query? terms)
+  (and (pair? terms)
+       (or (project-contract-term-any?
+            terms
+            +project-contract-pattern-query-terms+)
+           (and (project-contract-json-schema-query? terms)
+                (project-contract-object-contract-query? terms)))))
+;; : (-> (List SearchTerm) Boolean )
+(def (project-contract-json-schema-query? terms)
+  (or (project-contract-term-any? terms ["json-schema" "json-schema-node"
+                                         "schema-node"])
+      (and (member "json" terms) (member "schema" terms))))
+;; : (-> (List SearchTerm) Boolean )
+(def (project-contract-object-contract-query? terms)
+  (or (project-contract-term-any? terms ["object-type-contract"
+                                         "contract-projection"
+                                         "defobject-contract"])
+      (and (member "object" terms)
+           (member "type" terms)
+           (member "contract" terms))))
+;; : (-> (List SearchTerm) Needles Boolean )
+(def (project-contract-term-any? terms needles)
+  (ormap (lambda (needle) (member needle terms)) needles))
+;; (List FormMapping)
+(def (project-contract-pattern-minimal-forms)
+  [(hash (role "json-schema-node-projection")
+         (symbol "poo-flow-json-schema-node->object-type-contract")
+         (template (hash (head "poo-flow-json-schema-node->object-type-contract")
+                         (operands ["<json-schema-node>"])
+                         (keywords ["owner:" "object-kind:" "slots:"])))
+         (selector "src/utilities/contracts.ss#poo-flow-json-schema-node->object-type-contract"))
+   (hash (role "declarative-contract-macro")
+         (symbol "defobject-contract")
+         (template (hash (head "defobject-contract")
+                         (operands ["<contract-id>"])
+                         (keywords ["owner:" "object-kind:" "slots:"])))
+         (selector "src/utilities/contract-syntax.ss#defobject-contract"))
+   (hash (role "contract-report-projection")
+         (symbol "object-type-contract->alist")
+         (template (hash (head "object-type-contract->alist")
+                         (operands ["<object-type-contract>"])
+                         (keywords [])))
+         (selector "src/utilities/projection.ss#object-type-contract->alist"))])
+;; (List FailureCase)
+(def (project-contract-pattern-failure-cases)
+  [(hash (id "pojo-json-schema-projection")
+         (risk "contract-boundary-bypass")
+         (badPattern "parse-json-schema-into-ad-hoc-alists-without-object-type-contract")
+         (correction "project-json-schema-through-object-type-contract-and-slot-contracts")
+         (selectors ["src/utilities/contracts.ss#poo-flow-json-schema-node->object-type-contract"
+                     "src/utilities/contracts.ss#object-type-contract"]))
+   (hash (id "missing-slot-predicate")
+         (risk "typed-contract-gap")
+         (badPattern "schema-property-without-required-slot-predicate-or-type-contract")
+         (correction "materialize-slot-contract-predicates-before-object-projection")
+         (selectors ["src/utilities/contracts.ss#slot-contract"]))
+   (hash (id "manual-contract-report")
+         (risk "projection-drift")
+         (badPattern "hand-written-report-rows-that-do-not-come-from-contract-data")
+         (correction "derive-report-rows-from-object-type-contract->alist")
+         (selectors ["src/utilities/projection.ss#object-type-contract->alist"]))])
 ;;; Boundary:
 ;;; - hygienic-macro-pattern-evidence coordinates multiple evidence fields.
 ;;; - Keep packet shape and invariants stable.

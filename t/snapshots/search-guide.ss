@@ -6,7 +6,7 @@
                "|flow build-ss=choose a native lane by package need: clan/building for src-root all-gerbil-modules packages, std/build-script for simple gxpkg packages, std/make build-spec for ssi:/gsc:/FFI; do not hand-write loadpath/srcdir/compiler/runtime routing"
                "|cmd prime=asp gerbil-scheme search prime --workspace . --view seeds"
                "|cmd pipe=asp gerbil-scheme search pipe '<term>' --workspace . --view seeds"
-               "|cmd lexical=asp gerbil-scheme search lexical '<term>' owner tests --workspace . --view seeds"
+               "|cmd lexical=asp gerbil-scheme search lexical --query '<seed>' --query '<related-seed>' owner tests --workspace . --view seeds"
                "|cmd owner=asp gerbil-scheme search owner <path> --workspace . --view seeds"
                "|cmd owner-items=asp gerbil-scheme search owner <path> items --query <symbol> --names-only ."
                "|cmd query-code=asp gerbil-scheme query --selector <path:start-end> --workspace . --code"

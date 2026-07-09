@@ -167,7 +167,7 @@
 
 ;; : (List String)
 (def +gslph-package-api-directories+
-  '("utilities" "types" "parser" "checker" "policy" "extensions" "format" "commands"))
+  '("utilities" "types" "parser" "checker" "policy" "extensions" "language" "format" "commands"))
 
 ;; : (List (List Path))
 (def +gslph-package-api-launcher-stages+

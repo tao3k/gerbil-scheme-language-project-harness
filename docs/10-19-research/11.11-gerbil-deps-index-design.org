@@ -1,0 +1,68 @@
+#+TITLE: Gerbil Deps Index Design
+
+* Decision
+
+The Gerbil standard-library dependency index is owned by Rust in the ASP
+language facade. It is not a workspace seed, and it is not implemented inside
+the Scheme provider.
+
+The first public surface is:
+
+#+begin_src sh
+asp gerbil-scheme search deps gerbil :std/srfi/13 items --query string-prefix
+asp gerbil-scheme query --selector 'gerbil:/std/srfi/13#export/string-prefix?' --code
+#+end_src
+
+* Namespace
+
+The namespace is explicit:
+
+#+begin_example
+namespace=gerbil
+authority=active-gxi
+module=:std/srfi/13
+scope=standard-library/srfi
+#+end_example
+
+=gerbil= means the active Gerbil distribution, not the current workspace. The
+active distribution is resolved from =gxi= on =PATH= and its installed Gerbil
+home/source tree. The command must not require =--workspace=.
+
+* Output Contract
+
+The search command returns a compact receipt for agents:
+
+#+begin_example
+[gerbil-deps] namespace=gerbil authority=active-gxi module=:std/srfi/13 scope=standard-library/srfi
+|use import="(import (only-in :std/srfi/13 string-prefix? string-prefix-ci?))"
+|item kind=export name=string-prefix? selector=gerbil:/std/srfi/13#export/string-prefix?
+|item kind=export name=string-prefix-ci? selector=gerbil:/std/srfi/13#export/string-prefix-ci?
+#+end_example
+
+The import is emitted once for the result set. Items keep stable selectors that
+can be passed directly to =asp gerbil-scheme query --selector ... --code=.
+
+* Query Contract
+
+Selectors use the active Gerbil source tree:
+
+#+begin_example
+gerbil:/std/srfi/13#export/string-prefix?
+#+end_example
+
+The query command returns the smallest useful source window for the export. If
+the module includes implementation files, the index follows bounded local
+=include= forms from the module source.
+
+* Performance Boundary
+
+The index is a Rust hot path and runs before provider activation. It does not
+start =gslph=, does not require a hook activation file, and does not scan the
+workspace. Broad input is rejected with a concrete next command so agents refine
+the module and query instead of launching wide searches.
+
+* Evolution
+
+The initial index is source-backed. A future cache can persist module export
+tables keyed by active =gxi= path and source metadata, while keeping the same
+command contract and selectors.

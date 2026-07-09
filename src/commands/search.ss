@@ -71,7 +71,7 @@
    ((equal? view "proof") (emit-type-proof-search args json?))
    ((language-evidence-index-free-view? view)
     (emit-language-evidence-search root view args json?))
-   ((poo-pattern-package-only-search? view args)
+   ((language-pattern-package-only-search? view args)
     (emit-pattern-search (collect-project-package-only root) args json?))
    ((equal? view "workspace-scope")
     (emit-workspace-scope root json?))
@@ -120,11 +120,6 @@
     (and path
          (gerbil-source-path? path)
          (file-exists? path))))
-
-;; : (-> SearchView Args Boolean )
-(def (poo-pattern-package-only-search? view args)
-  (and (equal? view "pattern")
-       (poo-pattern-query? (positional-args args))))
 
 ;; : (-> Args Boolean )
 (def (prime-seeds-view? args)

@@ -12,6 +12,8 @@ Gerbil policy is the project mechanism for helping an agent become a better Gerb
 The policy layer should therefore prefer facts over string guesses, scenarios over slogans, and misuse guards over one-off style preferences. When several idiomatic repairs are valid, diagnostics should teach the boundary and leave the final code shape to the agent.
 
 The full policy direction is documented in `docs/50-59-policy/51.00-policy-philosophy.org`.
+The macro/module research root is `docs/10-19-research/11.12-gerbil-macro-module-system-research.org`; use it before turning advanced Gerbil macro or module features into parser facts, policy warnings, or scenarios.
+The broader advanced-feature backlog is `docs/10-19-research/11.13-gerbil-advanced-feature-exploration.org`.
 ## Commands
 Build the repository-local provider wrapper from the harness root:
 ```sh

@@ -134,4 +134,21 @@
                  => "project-capability-posture")
           (check (language-evidence-authority "pattern") => "executable-pattern")
           (check (language-evidence-next "pattern" "hygienic-macro")
-                 => "search pattern hygienic-macro"))))
+                 => "search pattern hygienic-macro"))
+    (test-case "project contract pattern query has registry witness"
+      (let (output
+            (search-output
+             ["pattern"
+              "poo-flow-json-schema-node->object-type-contract"
+              "--workspace"
+              "."]))
+        (check-output-contains
+         output
+         ["[gerbil-search-pattern] query=poo-flow-json-schema-node->object-type-contract evidenceGrade=fact authority=executable-pattern quality=verified"
+          "|pattern id=project-json-schema-object-type-contract"
+          "witness=project-json-schema-object-type-contract-pattern-registry"
+          "symbol=poo-flow-json-schema-node->object-type-contract"
+          "selector=src/utilities/contracts.ss#poo-flow-json-schema-node->object-type-contract"
+          "next=search pattern json-schema-node object-type-contract"])
+        (check (contains? output "|missing extension-fact,pattern-registry,runnable-witness")
+               => #f)))))

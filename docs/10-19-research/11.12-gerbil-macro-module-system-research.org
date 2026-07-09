@@ -1,0 +1,339 @@
+#+title: 11.12 Gerbil Macro And Module System Research
+#+category: 11.12
+#+startup: overview
+
+* 11.12 Gerbil Macro And Module System Research
+:PROPERTIES:
+:JD_ID: 11.12
+:STATUS: active
+:OWNER: gerbil-scheme-language-project-harness
+:EVIDENCE: gerbil://src/gerbil/expander, gerbil://src/gerbil/compiler
+:END:
+
+** 11.12.1 Research Question
+
+Gerbil describes itself as providing "a state of the art macro and module
+system on top of the Gambit runtime and compiler".  The same upstream note says
+that the macro system is based on =quote-syntax=, has a full meta-syntactic
+tower, implements =syntax-case= natively, and uses single-instantiation modules
+to support ahead-of-time compilation and compiled macros.
+
+For the harness this cannot remain a slogan.  The parser, policy, scenario, and
+agent guidance need a concrete model of what those words mean in source.
+
+*** 11.12.1.1 Working Mental Model
+
+Read Gerbil's macro/module system as one pipeline with four layers:
+
+1. Syntax object layer
+   - The reader/expander does not treat source only as raw Scheme lists.
+   - Identifiers can carry source, lexical context, and marks.
+   - =quote-syntax= preserves that context; =syntax->datum= deliberately drops
+     it; =datum->syntax= deliberately reattaches it from a template.
+
+2. Native macro-pattern layer
+   - =syntax-case= matches syntax objects, not strings.
+   - Literal identifiers are compared by binding/context, not by printed name
+     alone.
+   - Ellipses, pattern variables, fenders, and splices are explicit expansion
+     facts.
+
+3. Phase and module-context layer
+   - =current-expander-phi= records whether code is runtime code, syntax-time
+     code, or a higher macro phase.
+   - A =module-context= owns namespace, path, imports, exports, delayed syntax
+     evaluation, and expanded code.
+   - Imports and exports carry phase, so compile-time and runtime dependencies
+     are distinct facts.
+
+4. Compiler split layer
+   - The compiler consumes expanded module-context code.
+   - Runtime code, meta/syntax code, phase code, and optional SSXI optimizer
+     metadata are generated from the same core AST.
+   - Compiled macros work because syntax-time code is emitted as a compiled
+     artifact that can be loaded during later expansion.
+
+This is the key point: Gerbil macros, modules, and AOT compilation are not
+separate features glued together.  The module system gives macros a stable
+phase-aware home, and the compiler preserves that home by emitting both runtime
+and meta artifacts.
+
+*** 11.12.1.2 Why This Is Easy To Misread
+
+Basic Scheme mental model:
+
+#+begin_example
+source text -> lists -> eval
+#+end_example
+
+Gerbil's model for real modules:
+
+#+begin_example
+source text
+  -> syntax objects with context/marks
+  -> phase-aware macro expansion
+  -> module-context with import/export facts
+  -> expanded core AST
+  -> runtime artifact + meta/syntax artifact + optimizer metadata
+  -> Gambit compilation
+#+end_example
+
+An agent that only knows the first model writes broad list walkers, datum-only
+macros, ad hoc import scans, and duplicate module collectors.  The harness must
+teach the second model through parser facts, diagnostics, and scenarios.
+
+** 11.12.2 Source Boundary
+
+The local research mirror for this note is
+=.data/gerbil-v0.19-staging-fresh-direnv=.  That path is not a stable contract.
+Stable evidence should be addressed through =gerbil://= selectors rooted at the
+active Gerbil distribution.
+
+Line ranges in this note are source evidence hints.  They are not exact
+parser-owned read selectors.  Exact query/read commands should use item
+selectors emitted by the provider once the Gerbil facade exposes them.
+
+High-signal source owners:
+
+- =gerbil://README.md:1-13= states the macro/module claim.
+- =gerbil://README.md:158-172= connects the public system to Gambit,
+  source bootstrap, and a precompiled macro/compiler image.
+- =gerbil://src/gerbil/expander/core.ss:12-56= defines the expander
+  parameters and context classes, including =current-expander-phi=,
+  =module-context=, and =prelude-context=.
+- =gerbil://src/gerbil/expander/stx.ss:13-120= defines syntax objects:
+  =identifier-wrap=, =syntax-wrap=, =syntax-quote=, =syntax-e=,
+  =syntax->datum=, and =datum->syntax=.
+- =gerbil://src/gerbil/expander/stxcase.ss:17-208= implements =syntax= and
+  syntax template generation over =quote-syntax= / =datum->syntax=.
+- =gerbil://src/gerbil/expander/stxcase.ss:210-365= implements native
+  =syntax-case= matching, fenders, pattern variables, ellipses, and splice
+  collection.
+- =gerbil://src/gerbil/expander/module.ss:12-80= defines module registries,
+  import/export records, and import/export expanders.
+- =gerbil://src/gerbil/expander/module.ss:139-178= imports a module by
+  reading, expanding, quoting, delaying evaluation, storing compiled code, and
+  caching the context by path and module id.
+- =gerbil://src/gerbil/expander/module.ss:607-643= expands inline modules into
+  module contexts with delayed syntax evaluation and quoted module code.
+- =gerbil://src/gerbil/expander/module.ss:742-785= resolves imports as
+  module contexts and phase-adjusted import sets.
+- =gerbil://src/gerbil/expander/module.ss:1028-1085= folds exports back into
+  the current module context and binds features at the active phase.
+- =gerbil://src/gerbil/compiler/compile.ss:56-64= collects runtime and syntax
+  definitions from the expanded core AST.
+- =gerbil://src/gerbil/compiler/compile.ss:137-213= separates empty/runtime
+  generation and phased runtime generation.
+- =gerbil://src/gerbil/compiler/compile.ss:242-288= separates meta-code and
+  phase meta-code generation.
+- =gerbil://src/gerbil/compiler/compile.ss:1150-1198= generates runtime
+  representations for =%#quote-syntax=, including serialized marks and context
+  references.
+- =gerbil://src/gerbil/compiler/compile.ss:1258-1276= compiles
+  =begin-syntax= by advancing =current-expander-phi=.
+- =gerbil://src/gerbil/compiler/compile.ss:1471-1498= compiles
+  =define-syntax= into phase-specific runtime definitions and syntax bindings.
+- =gerbil://src/gerbil/compiler/driver.ss:100-136= compiles by importing the
+  module through the expander, then compiling the resulting module context.
+- =gerbil://src/gerbil/compiler/driver.ss:621-641= compiles a module by
+  collecting bindings, runtime code, meta code, and optional SSXI metadata.
+- =gerbil://src/gerbil/compiler/driver.ss:767-779= turns module meta state
+  into SSI and phase-runtime code.
+
+** 11.12.3 Macro System Model
+
+Gerbil's macro system starts from syntax objects, not raw lists.  The upstream
+expander defines an ordinary =AST= layer plus three syntax wrappers:
+=identifier-wrap= holds an identifier with marks, =syntax-wrap= applies a
+mark, and =syntax-quote= carries context plus marks.  This is the concrete
+meaning of "based on quote-syntax": a quoted syntax object can preserve lexical
+context and mark history instead of collapsing immediately to a datum.
+
+=syntax-e= is therefore intentionally not just =car= or =cdr= over lists.  It
+unwraps syntax while preserving marks on substructure.  =syntax->datum= removes
+syntax context, while =datum->syntax= reattaches context and marks from a
+template identifier.  Good Gerbil macros are written at this boundary: use
+datum conversion only when the repair is intentionally leaving the syntax
+world, and keep syntax context when generating identifiers or pattern-bound
+terms.
+
+The native =syntax-case= implementation is not a library-level string matcher.
+It parses patterns, recognizes literal identifiers with
+=bound-identifier=?=, records pattern variables with depth, builds matching
+code, handles fenders, and generates splice loops for ellipses.  The generated
+macro code itself is built from core forms such as =lambda%=, =let-values=,
+=let-syntax=, =if=, and =quote-syntax=.  This explains why macro quality in the
+harness cannot be judged by surface syntax alone: the important facts are
+syntax context, pattern variables, ellipsis depth, fender placement, and phase.
+
+** 11.12.4 Meta-Syntactic Tower
+
+The tower is represented by =current-expander-phi= and =phi-context=.  Normal
+runtime code starts at phase 0.  =begin-syntax= and =define-syntax= advance the
+phase while compiling or evaluating syntax code.  User macro expanders remember
+their creation context and phase, and bindings store their phase.
+
+This makes macros compiled Gerbil code that runs in a phase-specific expander
+world.  A macro can import modules, bind syntax, define helpers, and generate
+runtime code while still carrying syntax context through =quote-syntax=.  The
+harness should model this as phase-aware ownership, not as a flat top-level
+definition list.
+
+Harness facts that should come from this model:
+
+- syntax owner: =defsyntax=, =defrules=, =define-syntax=, =let-syntax=, and
+  =letrec-syntax= should be first-class owners.
+- phase edge: =begin-syntax= and syntax definitions should create a compile-time
+  edge distinct from runtime imports.
+- syntax object operation: =quote-syntax=, =syntax=, =syntax-case=,
+  =datum->syntax=, =syntax->datum=, and =syntax-e= should be indexed as macro
+  semantics, not generic function calls.
+- hygiene boundary: identifier generation should preserve context unless the
+  source explicitly drops to datum.
+- ellipsis/fender boundary: complex =syntax-case= macros need scenario facts for
+  pattern depth, fenders, and splice loops.
+
+** 11.12.5 Module System Model
+
+Gerbil modules are represented by =module-context= objects.  A module context
+has a namespace, path, imports, exports, delayed evaluation object, and quoted
+expanded code.  Importing a source module performs a transaction:
+
+1. reset expander context, marks, phase, and import/export phase parameters
+2. read package/prelude/namespace/module body
+3. build or import the prelude context
+4. create a =module-context=
+5. expand the module body in that context
+6. quote the expanded body as a =%#begin= core AST
+7. store delayed =eval-syntax*= in =module-context-e=
+8. store the quoted expanded code in =module-context-code=
+9. cache the context in =__module-registry= by path and module id
+
+This is the concrete single-instantiation mechanism: the registry is consulted
+before a module is imported again, and a module context is reused instead of
+re-expanded and re-instantiated.  Submodules are also syntax-bound module
+contexts.  Imports and exports are not string lists; they are =module-import=,
+=module-export=, =import-set=, and =export-set= values with source context,
+identifier key, name, phase, and weak-import information.
+
+The harness implication is direct: a Gerbil module graph should be recovered
+from module contexts and phase-adjusted import/export sets where possible.  A
+plain source scan of =(import ...)= is useful for a fast seed, but it is not the
+complete module system.
+
+** 11.12.6 Ahead-Of-Time And Compiled Macro Boundary
+
+The compiler consumes =module-context-code= after expansion.  It does not
+compile arbitrary source text directly.  The driver imports a module through
+the expander, then =compile-top-module= collects bindings, generates runtime
+code, generates meta code, and optionally generates SSXI optimizer metadata.
+
+Runtime code and meta code are separate compiler methods over the same core AST.
+=%#define-values= contributes runtime definitions; =%#define-syntax= and
+=%#begin-syntax= contribute meta/phase code; =%#quote-syntax= has dedicated
+runtime generation that serializes marks and references module contexts.  This
+is why compiled macros can work with AOT compilation: the compiler emits the
+runtime part and the phase/meta part needed by future expansion.
+
+For harness policy this means "compiled macro" is not an aesthetic rule.  It is
+a boundary where the source creates reusable compile-time code.  Quality checks
+should reward thin macro surfaces that preserve phase, isolate runtime helpers,
+and avoid unnecessary datum conversion.  They should not force every abstraction
+into a macro, and they should not rewrite measured runtime hot paths into
+compile-time machinery.
+
+** 11.12.7 Gambit Boundary
+
+Gerbil sits above Gambit.  The expander and module system are Gerbil-owned, and
+the compiler eventually generates Gambit Scheme/C artifacts through =gsc=.  The
+Gambit boundary is therefore the runtime/compiler substrate, not the semantic
+owner of Gerbil modules or hygienic macros.
+
+This distinction matters for the harness:
+
+- Gerbil macro/module facts should be extracted from Gerbil expander/compiler
+  concepts first.
+- Gambit primitives are relevant for performance and low-level runtime behavior,
+  but they should not erase phase, context, or module facts.
+- Build and benchmark policy should measure the real Gerbil path: source ->
+  module context -> expanded core AST -> runtime/meta generation -> Gambit
+  compilation.
+
+** 11.12.8 Harness Research Gaps
+
+Current harness research has good application-level policy notes, but the
+source-root model is still incomplete.  The next improvement plan should add
+scenario-backed parser and policy facts for:
+
+- phase-aware owner extraction for =begin-syntax=, =define-syntax=,
+  =defsyntax=, =defrules=, =let-syntax=, and =letrec-syntax=
+- module-context import/export facts with phase and weak-import metadata
+- syntax-object operation facts for =quote-syntax=, =datum->syntax=,
+  =syntax->datum=, and =syntax-e=
+- =syntax-case= pattern complexity facts: literal ids, fenders, ellipsis depth,
+  splice loops, and pattern-variable depth
+- compiled macro boundaries: runtime helper, syntax helper, meta section, and
+  emitted phase code
+- single-instantiation checks that detect repeated ad hoc module loading or
+  bespoke source collectors that bypass the module registry
+- performance scenarios that compare direct module-context extraction with
+  broad source rescans
+
+** 11.12.9 Policy Direction
+
+The policy objective is to help agents write better Gerbil, not to hard-code
+Gerbil source style into downstream packages.  Good policy should fire when
+parser facts prove that the code is already at a macro/module boundary and the
+repair can preserve Gerbil's native semantics.
+
+High-value warnings should say:
+
+- use syntax objects instead of datum-only generation when hygiene matters
+- keep macro transformers thin and push runtime behavior into ordinary helpers
+- use =syntax-case= when pattern depth, fenders, or ellipses are real
+- keep compile-time imports and runtime imports distinct
+- let module contexts own package/prelude/namespace/import/export facts
+- do not rescan a package when the expander has already materialized the module
+  context
+
+Low-value warnings to avoid:
+
+- "use macros" without a phase or syntax-object reason
+- "use syntax-case" for simple =defrule= cases
+- "use advanced syntax" without benchmark evidence
+- broad style rewrites that hide runtime hot paths or module boundaries
+
+** 11.12.10 Immediate Next Scenarios
+
+The next scenario set should be complex enough to represent real agent-written
+Gerbil, not toy syntax:
+
+1. =macro-hygiene-context-preservation=
+   - input: macro converts syntax to datum too early and generates identifiers
+     without template context
+   - expected: repair uses =syntax-case= plus =datum->syntax= at the local
+     identifier boundary
+   - benchmark: parse/check stays subsecond on repeated files
+
+2. =phase-aware-helper-split=
+   - input: one macro owner mixes =begin-syntax= helper code, runtime helper
+     code, and generated runtime forms
+   - expected: compile-time parser helpers and runtime helpers are split while
+     keeping the public macro thin
+   - benchmark: no duplicate full-project collection
+
+3. =module-context-import-export=
+   - input: ad hoc collector scans source imports/exports and misses prelude,
+     namespace, and phase facts
+   - expected: repair uses the module-context API boundary
+   - benchmark: warm path reuses module context facts
+
+4. =single-instantiation-build-boundary=
+   - input: build/test helper repeatedly imports or evaluates the same module
+     outside the registry path
+   - expected: repair uses the normal module import path and cached context
+   - benchmark: repeated test target does not re-expand the same module graph
+
+These scenarios should be added before expanding policy further.  Otherwise the
+harness will keep producing surface-level "advanced syntax" rules instead of
+teaching agents the real Gerbil macro and module system.

@@ -1,0 +1,618 @@
+#+title: 11.13 Gerbil Advanced Feature Exploration
+#+category: 11.13
+#+startup: overview
+
+* 11.13 Gerbil Advanced Feature Exploration
+:PROPERTIES:
+:JD_ID: 11.13
+:STATUS: active
+:OWNER: gerbil-scheme-language-project-harness
+:EVIDENCE: gerbil://src/gerbil/runtime, gerbil://src/gerbil/core, gerbil://src/gerbil/compiler, gerbil://src/std
+:END:
+
+** 11.13.1 Purpose
+
+This note continues the macro/module research from
+=11.12-gerbil-macro-module-system-research.org=.  The question is broader:
+which Gerbil features are high-value for improving agent-written Scheme, but
+are unlikely to be used by a general LLM unless the harness exposes them as
+parser facts, policy guidance, and scenarios?
+
+The answer is not "use more clever syntax".  The useful features are the ones
+that replace common agent failure modes:
+
+- ad hoc hash/alist object models
+- broad source collectors instead of module/context APIs
+- repetitive loops where Gerbil already has iteration macros
+- datum-only macros that drop context
+- untyped protocol boundaries with no contract evidence
+- runtime checks that could be expressed as class/interface/optimizer metadata
+- hand-rolled inheritance, dispatch, or slot lookup
+
+** 11.13.2 Evidence Discipline
+
+Evidence was collected through ASP owner/search routes.  Line ranges below are
+evidence hints from provider output, not exact read selectors.
+
+Stable evidence owners:
+
+- =gerbil://src/gerbil/runtime/mop.ss= for class descriptors, slots, methods,
+  method lookup, method specialization, sealing, and next-method support.
+- =gerbil://src/gerbil/runtime/interface.ss= for interface descriptors,
+  interface instances, interface indexes, and per-class interface tables.
+- =gerbil://src/gerbil/runtime/c3.ss= for C4/C3-style precedence
+  linearization and slot computation.
+- =gerbil://src/gerbil/compiler/ssxi.ss= for optimizer declarations:
+  =declare-type=, =declare-class=, =declare-method=, primitive predicates,
+  primitive procedures, and inline rules.
+- =gerbil://src/gerbil/core/contract.ss= for contract/type/signature
+  checking over runtime type descriptors, class slots, checked methods, checked
+  macros, and checked contracts.
+- =gerbil://src/gerbil/core/match.ss= for extensible match macros,
+  =match=, =match*=, =defsyntax-for-match=, and =defrules-for-match=.
+- =gerbil://src/gerbil/core/macro-object.ss= for macro objects as classed
+  macro expanders.
+- =gerbil://src/gerbil/core/mop.ss= for source-level =defclass=,
+  =defmethod=, built-in runtime type categories, and typed class metadata.
+- =gerbil://src/std/interface.ss= for user-facing interface/prototype method
+  dispatch macros and =syntax-local-value= based interface metadata.
+- =gerbil://src/std/iter/macros.ss= for =for=, =for/collect=, =for/fold=,
+  range/integer/number iteration, and syntax-time binding parsing.
+- =gerbil://src/std/net/address/parser.ss= for measured, explicit parser hot
+  paths using typed constructors, regex front doors, state transitions, and
+  fixnum arithmetic.
+
+Candidate but not first-slice evidence:
+
+- Actor/message owners in this checkout resolve mostly under
+  =v0.19-WIP/v0.19-TODO-std= or =v0.19-WIP/v0.19-TODIE-std=.  They may be
+  important later, but they are not first-slice stable package guidance.
+
+** 11.13.3 Tier 1: Stable High-Yield Features
+
+*** 11.13.3.1 MOP, Classes, Slots, And Methods
+
+Gerbil has a real metaobject protocol, not only structs and hashes.  The
+runtime MOP exposes class type descriptors, object descriptors, slot
+accessors/mutators, class predicates, class instances, method lookup,
+method binding, method specialization, sealing, and =next-method=.
+
+Why LLMs miss it:
+
+- General Scheme training data tends to use records, alists, or hash tables.
+- Agent code often creates "object-shaped" hashes with manually repeated
+  getters/setters.
+- Multi-method or slot behavior is often encoded as a large conditional.
+
+Harness opportunity:
+
+- Detect broad hash/alist records whose keys behave like stable fields.
+- Suggest =defstruct= / =defclass= / slot accessors when the object shape is
+  stable and performance matters.
+- Suggest method dispatch when a conditional branches on object/class kind.
+- Preserve hand-written loops where the MOP hot path is already measured.
+
+Scenario shape:
+
+- input: a package has repeated =hash-ref= / =hash-put!= field access,
+  conditional method dispatch, and no clear class boundary
+- expected: class/slot/method boundary with ordinary helpers
+- benchmark: field access and dispatch do not regress against the input
+
+*** 11.13.3.2 Interfaces And Prototype Method Dispatch
+
+Gerbil has interface descriptors and user-facing interface/prototype method
+macros.  Runtime interface support owns =interface-descriptor=,
+=interface-instance=, interface indexes, subclass checks, and per-class
+interface tables.  The std interface layer adds syntax-time interface metadata
+through =syntax-local-value= and macros such as interface method callers and
+fallback dispatch.
+
+Why LLMs miss it:
+
+- They usually write a protocol as comments plus dynamic checks.
+- They often duplicate function families for each concrete data type.
+- They do not naturally use compile-time interface metadata to generate method
+  dispatch surfaces.
+
+Harness opportunity:
+
+- Detect repeated function families with the same operation names over multiple
+  object shapes.
+- Suggest an interface/prototype dispatch boundary when the source already has
+  method sets and fallback behavior.
+- Keep the diagnostic concrete: name the repeated method family and show the
+  smallest interface surface.
+
+Scenario shape:
+
+- input: three object-like records implement the same =render= / =validate= /
+  =emit= function family manually
+- expected: interface-style dispatch surface and class-local methods
+- benchmark: dispatch remains bounded and does not introduce broad reflection
+
+*** 11.13.3.3 Contracts, Runtime Type Descriptors, And Checked Boundaries
+
+=core/contract.ss= shows that Gerbil has a rich contract/type boundary tied to
+runtime type descriptors, class slot contracts, signature checks, compatible
+type contracts, checked methods, checked macros, and checked contracts.
+
+Why LLMs miss it:
+
+- Agents tend to add defensive =if= checks at call sites.
+- They scatter validation across business logic instead of naming the boundary.
+- They write comments that say "expects X" without executable evidence.
+
+Harness opportunity:
+
+- Detect repeated local checks that describe the same boundary.
+- Suggest a contract/signature boundary for public APIs and macro-generated
+  APIs.
+- Require scenarios to prove warning quality: do not suggest contracts for tiny
+  private helpers or hot loops unless the boundary is public or repeated.
+
+Scenario shape:
+
+- input: exported function and macro both repeat type/class checks
+- expected: named contract or checked boundary plus slimmer implementation
+- benchmark: hot internal path can use unchecked/private helper after boundary
+  validation
+
+*** 11.13.3.4 SSXI Optimizer Metadata
+
+The compiler SSXI layer exposes optimizer-visible declarations for types,
+classes, methods, primitive predicates/procedures, and inline rules.  This is a
+performance feature and a semantic feature: it makes facts visible to the
+compiler instead of leaving them as comments.
+
+Why LLMs miss it:
+
+- General Scheme code rarely includes optimizer metadata.
+- Agents often micro-optimize syntax while leaving the compiler blind to stable
+  type/class/method facts.
+- They may add manual caches or broad inlining without proving the compiler
+  can see the shape.
+
+Harness opportunity:
+
+- Detect stable public predicates/classes/methods used in performance-sensitive
+  code.
+- Suggest SSXI metadata only when there is an existing compiler-facing
+  boundary, benchmark evidence, and a stable API.
+- Do not use SSXI as a style rule for ordinary code.
+
+Scenario shape:
+
+- input: repeated hot calls over known class/predicate surfaces but no
+  optimizer metadata
+- expected: metadata declaration at the correct module boundary
+- benchmark: compile/check remains bounded and runtime microbenchmark improves
+  or stays neutral
+
+*** 11.13.3.5 Extensible Match Macros
+
+=core/match.ss= is not only =match=.  It has match macro support through
+=syntax-local-value= plus =defsyntax-for-match= and =defrules-for-match=.
+This lets a project teach the pattern matcher domain-specific destructuring.
+
+Why LLMs miss it:
+
+- Agents write repeated nested destructuring by hand.
+- They use =match= as a local convenience but do not extend the pattern
+  language.
+- They often create helper functions that hide a domain pattern instead of
+  making the pattern visible.
+
+Harness opportunity:
+
+- Detect repeated destructuring of the same domain object shape.
+- Suggest a match macro only after repeated pattern evidence exists.
+- Prefer =lambda-match= / ordinary =match= for simple one-off destructuring;
+  reserve match macros for domain patterns that appear across owners.
+
+Scenario shape:
+
+- input: multiple functions destructure the same packet/object/list grammar
+- expected: one match macro plus simpler call-site matches
+- benchmark: no parser/check regression from macro expansion
+
+*** 11.13.3.6 Iteration Macros And Accumulator Boundaries
+
+=std/iter/macros.ss= gives Gerbil-native iteration forms: =for=,
+=for/collect=, =for/fold=, numeric ranges, integer streams, and syntax-time
+binding parsing.  This is a large style improvement for agent code that writes
+manual recursive loops for straightforward traversal.
+
+Why LLMs miss it:
+
+- They default to named recursive loops even when the operation is collect/fold.
+- They mix traversal, filtering, and accumulation in one owner.
+- They do not use Gerbil's syntax-time iteration binding checks.
+
+Harness opportunity:
+
+- Detect simple recursive traversal that maps directly to =for/collect= or
+  =for/fold=.
+- Keep exceptions for numeric hot loops, state machines, and parser hot paths.
+- Diagnostics should name the loop role: collect, fold, range iteration, or
+  multi-binding iteration.
+
+Scenario shape:
+
+- input: recursive loop builds a list or accumulates state with no early exit
+- expected: =for/collect= or =for/fold= with named accumulator boundary
+- benchmark: compiled/runtime cost is neutral or better
+
+** 11.13.4 Tier 2: Useful But Needs Narrow Scenarios
+
+*** 11.13.4.1 Parser Hot Paths And State Machines
+
+=std/net/address/parser.ss= is a good counterexample to naive "make everything
+higher-order" guidance.  It uses explicit parse functions, regex front doors,
+typed constructors, =fail!= / =finish!= transitions, and fixnum arithmetic.
+
+Harness implication:
+
+- Parser/state-machine code is allowed to be explicit and imperative when the
+  boundary is hot or grammar-sensitive.
+- Policy should not rewrite parser hot paths into generic combinator style
+  without benchmark evidence.
+- A good repair might extract states and transitions, not replace the loop.
+
+*** 11.13.4.2 Macro Objects
+
+=core/macro-object.ss= shows that macro expanders can be classed objects.  This
+is advanced and powerful, but it is not a first repair for normal code.
+
+Harness implication:
+
+- Treat macro objects as a high-level extension point for libraries that need
+  stateful or classed expanders.
+- Do not suggest macro objects for ordinary syntactic sugar.
+
+*** 11.13.4.3 Actor/Message Runtime
+
+Actor/message sources in this v0.19 staging checkout mostly resolve to WIP/TODO
+std directories.  The idea is important, but this note does not promote it as
+stable first-slice policy evidence.
+
+Harness implication:
+
+- Keep actor/message as a future research lane.
+- Do not fire policy warnings that require actor/message APIs until the stable
+  installed Gerbil surface is verified.
+
+** 11.13.5 What This Means For Agent-Written Projects
+
+The first optimization target is not "make code fancy".  It is to detect when
+agent-written code is rebuilding a Gerbil feature poorly:
+
+| Agent-written smell | Better Gerbil feature | First policy fact |
+| repeated hash/alist object fields | MOP class/slots | stable field family |
+| conditionals over object kind | method dispatch | repeated operation/kind matrix |
+| repeated protocol function family | interface/prototype dispatch | shared method names across owners |
+| repeated call-site validation | contracts/signatures | repeated type/class check boundary |
+| comments about type/class facts | SSXI metadata | stable public predicate/class/method |
+| repeated nested destructuring | match macro | repeated domain pattern |
+| simple collect/fold recursive loop | iter macros | collector/folder loop role |
+| explicit parser state machine | keep hot path, extract states | parser/hot-path exemption |
+
+** 11.13.6 First Scenario Backlog
+
+The next scenario work should start here:
+
+1. =mop-slot-method-boundary=
+   - detects repeated field hash access and manual method dispatch
+   - expected repair introduces class/slot/method boundary
+   - benchmark keeps field access/dispatch bounded
+
+2. =interface-method-family-boundary=
+   - detects repeated method families over several concrete objects
+   - expected repair introduces interface/prototype dispatch
+   - benchmark checks dispatch cost and macro expansion cost
+
+3. =contract-public-boundary=
+   - detects repeated exported validation logic
+   - expected repair introduces a named contract/signature boundary
+   - benchmark preserves hot internal helper path
+
+4. =ssxi-optimizer-metadata-boundary=
+   - detects stable class/predicate/method facts in a hot owner
+   - expected repair adds compiler-visible metadata
+   - benchmark proves compile/check and runtime effects
+
+5. =match-macro-domain-pattern=
+   - detects repeated domain destructuring
+   - expected repair introduces a match macro
+   - benchmark checks expansion does not regress
+
+6. =iter-collect-fold-boundary=
+   - detects simple recursive collectors/folders
+   - expected repair uses =for/collect= or =for/fold=
+   - benchmark keeps parser/state-machine exemptions explicit
+
+** 11.13.7 Policy Rule
+
+Every rule from this note must satisfy three gates before implementation:
+
+1. Parser evidence proves the feature boundary exists.
+2. A scenario shows the bad agent-written shape and the repaired shape.
+3. A benchmark proves the repair does not damage compile/check/runtime costs.
+
+If a feature cannot pass those gates, it remains research guidance, not policy.
+
+** 11.13.8 Policy Convergence
+
+The first six feature families should not converge into policy at the same
+strength.  The harness needs three policy modes:
+
+1. Reasoning policy
+   - used before generation or repair
+   - teaches the model which Gerbil boundary to consider
+   - does not fail a completed check by itself
+
+2. Diagnostic policy
+   - runs after parser facts prove a concrete boundary smell
+   - emits a warning with one targeted repair direction
+   - still lets the agent choose the final shape
+
+3. Benchmark-gated policy
+   - applies only when a scenario and benchmark prove the rewrite boundary
+   - can become a strong warning or future failing gate
+   - must preserve compile/check/runtime performance
+
+*** 11.13.8.1 Convergence Table
+
+| Feature family | Converges now? | First policy mode | Why |
+| MOP / class / slot / method | yes | diagnostic policy | repeated hash/alist fields and kind-condition dispatch are parser-detectable agent smells |
+| Interface / prototype dispatch | yes, narrower | reasoning policy -> diagnostic policy | repeated method families are detectable, but the interface shape needs model reasoning |
+| Contract / checked boundary | yes, narrow | diagnostic policy | repeated exported validation can be detected, but private/hot helpers need exemption |
+| SSXI optimizer metadata | not as general policy | benchmark-gated policy | compiler metadata is performance-sensitive and must not become style advice |
+| Extensible match macros | yes, narrow | reasoning policy -> diagnostic policy | repeated domain destructuring is detectable; one-off matches should not be escalated |
+| Iteration macros | yes, narrow | diagnostic policy | simple collect/fold loops are detectable; parser/state-machine hot paths need exemption |
+
+*** 11.13.8.2 What Should Become Policy First
+
+The first implementation slice should use diagnostic policy for boundary
+clarity, not hard rewriting:
+
+1. =mop-slot-method-boundary=
+   - fire only when a file has a repeated stable field family or repeated
+     object-kind dispatch
+   - message should ask the agent to consider =defstruct=, =defclass=, slots,
+     or methods, not demand a specific abstraction
+
+2. =contract-public-boundary=
+   - fire only when repeated validation protects exported functions, macros, or
+     cross-module APIs
+   - message should name the public boundary and allow unchecked/private hot
+     helpers behind it
+
+3. =iter-collect-fold-boundary=
+   - fire only for simple recursive loops that are recognizably collect/fold
+     traversals
+   - message must mention that parser/state-machine/numeric hot loops are not
+     targets without benchmark evidence
+
+These three are safe because their smells are visible from parser facts and
+their repairs clarify state boundaries.  They should still be warnings first.
+
+*** 11.13.8.3 What Should Stay Reasoning-First
+
+Two families should be primarily used by the future reasoning phase before
+generation:
+
+1. Interface / prototype dispatch
+   - the model must infer the protocol surface from repeated operations
+   - a hard checker cannot reliably pick the minimal interface by itself
+   - scenario should show the model how to derive the method family once
+
+2. Extensible match macros
+   - the model must recognize a repeated domain pattern
+   - policy should not turn every nested =match= into a custom macro
+   - scenario should show when a domain pattern is repeated enough to deserve a
+     match macro
+
+For these, the best policy is an agent-facing reasoning prompt plus examples.
+The post-check warning should only fire when repetition is obvious.
+
+*** 11.13.8.4 What Must Remain Benchmark-Gated
+
+SSXI optimizer metadata must not become a generic quality rule.  It should only
+be recommended when all of these are true:
+
+- the owner already has stable public type/class/predicate/method facts
+- the hot path is measured in a scenario benchmark
+- the metadata is attached at the compiler-visible module boundary
+- compile/check/runtime effects are neutral or improved
+
+This rule exists to prevent the harness from teaching cargo-cult optimizer
+annotations.
+
+*** 11.13.8.5 Reasoning-Phase Contract
+
+The future reasoning phase should consume scenario content before code is
+written.  It should present the model with a compact decision frame:
+
+#+begin_example
+Observed shape:
+- repeated stable fields
+- repeated kind-dispatch
+- exported validation boundary
+
+Gerbil boundary candidates:
+- class/slots/methods
+- public contract
+- ordinary helper behind the checked boundary
+
+Do not:
+- introduce SSXI without benchmark evidence
+- rewrite parser/state-machine hot paths
+#+end_example
+
+The goal is one-shot correct generation.  The policy checker remains a backstop
+that reports when the model missed a boundary already taught by the scenarios.
+
+** 11.13.9 Follow-Up Feature Candidates From v0.19 Staging
+
+The second exploration pass found several additional high-yield features. These are not immediate hard policies. They should first become scenario-backed reasoning material, then narrow diagnostic rules only when the parser can prove a repeated state or boundary smell.
+
+*** 11.13.9.1 Compile-Time Method Families
+
+Evidence: =src/gerbil/compiler/method.ss= exposes =current-compile-method=, =defcompile-method=, and repeated compiler methods for struct predicates, refs, sets, unchecked refs, and unchecked sets.
+
+Agent-written Scheme often repeats runtime dispatch branches or helper functions for every operation in a family. The Gerbil idiom is to name the family as a compile-time method surface when the operations share the same receiver and expansion shape.
+
+Reasoning value:
+- identify repeated method families before writing code;
+- keep the runtime API small while centralizing compile-time expansion behavior;
+- avoid scattering handwritten branches across command or parser modules.
+
+Policy boundary: reasoning-first and benchmark-gated. This should not warn on ordinary runtime helper groups. It becomes diagnostic only when a module has repeated expansion-like functions with the same receiver shape and no explicit compile-method boundary.
+
+*** 11.13.9.2 Dynamic Parameter Boundaries
+
+Evidence: =src/gerbil/compiler/method.ss= uses =make-parameter= for =current-compile-method=; =src/std/cli/getopt.ss= uses =current-getopt-parser= and =parameterize=; =src/std/error.ss= uses =exit-on-error?=.
+
+Agent-written code frequently passes the same context object through many helper calls, or stores mutable module-level state with unclear lifetime. Gerbil parameters give a clearer boundary for dynamic, scoped context: parser state, compile context, output/error behavior, or request/session-local settings.
+
+Reasoning value:
+- distinguish lexical data flow from dynamically scoped execution context;
+- replace long context-threading argument lists only when the value is ambient and scoped;
+- make state lifetime explicit with =parameterize=.
+
+Policy boundary: diagnostic only for repeated context argument threading or module globals that are read by many helpers and mutated around a scoped operation. Do not warn on ordinary explicit parameters, pure data flow, or hot paths where explicit arguments are clearer.
+
+*** 11.13.9.3 Structured Error And CLI Boundaries
+
+Evidence: =src/std/error.ss= uses =deferror-class=, =raise/context=, =defraise/context=, =ignore-errors=, =report-errors=, and =with-exit-on-error=. =src/std/cli/getopt.ss= combines =deferror-class=, =current-getopt-parser=, =option=, =command=, help display, and =exit-with-error=.
+
+Agent-written CLI code often mixes argv parsing, validation, display, exit behavior, and raw =error= calls in one command function. The Gerbil standard library shows a better boundary: typed error classes, contextual raising, a parser object, and a thin command entrypoint.
+
+Reasoning value:
+- choose =std/cli/getopt= for non-trivial command surfaces instead of hand-parsing argv;
+- choose =deferror-class= and contextual raising for public tool errors;
+- keep display and exit behavior at the command boundary.
+
+Policy boundary: strong scenario candidate. A warning can trigger when a command module has repeated argv destructuring, scattered =error=/=display=/=exit= behavior, or multiple ad hoc usage strings. The warning should suggest a structured CLI/error boundary, not a fixed rewrite.
+
+*** 11.13.9.4 Syntax Object And Source-Location Boundaries
+
+Evidence: =src/gerbil/runtime/syntax.ss= exposes =SyntaxError=, =make-syntax-error=, =__AST-source=, =__AST-datum?=, =__AST->datum=, =read-syntax=, =read-syntax-from-file=, =source-location?=, =source-location-path?=, and =source-location-path=.
+
+Agent code often collapses syntax into raw datum too early, losing source identity and making diagnostics weak. Gerbil keeps syntax object, datum conversion, and source-location handling as explicit boundaries.
+
+Reasoning value:
+- preserve syntax/source identity until the boundary where plain data is required;
+- make diagnostics attach to source locations instead of generic strings;
+- avoid file/path/string plumbing in parser and formatter internals.
+
+Policy boundary: reasoning-first. A future diagnostic can warn when parser/formatter code repeatedly converts syntax to datum and separately carries path/line data. It must not warn inside intentionally datum-only algorithms.
+
+*** 11.13.9.5 Hash And Collection Boundary Helpers
+
+Evidence: =src/std/hash/misc.ss= exposes =hash-ref/default=, =hash-ensure-ref=, =hash-value-map=, =hash-key-value-map=, =hash-filter=, =hash-remove=, =hash-ensure-modify!=, =hash-merge/override=, and =hash->list/sort=. It also uses =cut=, =foldl=, object-style hash methods such as =h.ref=, =h.set!=, and =from.for-each=.
+
+Agent-written code often repeats small hash loops for defaults, filtering, merging, and value mapping. This is a high-signal AI-code smell because it increases surface area without improving semantics.
+
+Reasoning value:
+- prefer named hash helpers for defaulting, ensure/get, filtering, mapping, and merging;
+- keep object-style table operations local and obvious;
+- avoid one-off loops unless they encode real algorithmic state.
+
+Policy boundary: diagnostic candidate for repeated hash table loops with simple default/filter/map/merge semantics. It should not fire on algorithmic hash traversal with domain state or benchmark-sensitive loops.
+
+*** 11.13.9.6 Updated Scenario Backlog
+
+Add scenarios before adding new hard rules:
+
+1. =scenario-dynamic-parameter-boundary=: a command/parser module threads the same context argument through many helpers and mutates module state around a scoped call. Expected reasoning: consider =make-parameter= and =parameterize= only for ambient scoped context.
+2. =scenario-structured-cli-error-boundary=: a CLI module hand-parses argv and mixes validation, display, and exit. Expected reasoning: consider =std/cli/getopt=, typed error classes, and command-boundary exit behavior.
+3. =scenario-syntax-source-boundary=: a parser/formatter converts syntax to datum early and separately carries path strings. Expected reasoning: preserve syntax/source identity until the data boundary.
+4. =scenario-hash-helper-boundary=: repeated hash default/filter/map/merge loops. Expected reasoning: prefer named =std/hash= helpers unless the loop is algorithmic or benchmark-sensitive.
+5. =scenario-compile-method-family-boundary=: repeated expansion-like operation families over the same receiver shape. Expected reasoning: consider a compile-time method family only after proving expansion-shape repetition and benchmark neutrality.
+
+These scenarios should feed the future reasoning phase first. The policy checker remains a backstop that names the boundary and presents one compact Gerbil idiom example.
+
+First implemented wave:
+
+- =structured-cli-error-boundary= is now represented under
+  =t/scenarios/policy/structured-cli-error-boundary= with input/expected source
+  and benchmark metadata.
+- =writer-json-boundary= is now represented under
+  =t/scenarios/policy/writer-json-boundary= with input/expected source and
+  benchmark metadata.
+
+** 11.13.10 Writer, Serialization, And Concurrency Boundaries
+
+The next exploration pass checked whether IO and concurrency features should
+also become agent-quality guidance. The answer is asymmetric: writer and
+serializer boundaries are high-yield for everyday agent code; channel
+concurrency is important but must stay narrowly scenario-gated.
+
+*** 11.13.10.1 Writer Extension Boundaries
+
+Evidence: =src/std/format/writer.ss= and =src/std/io/bio/writer.ss= expose
+writer-oriented extension points such as =defwriter-ext=, =writer.serialize=,
+=writer.format-float=, =writer.write-u8=, =writer.write-sint=,
+=writer.write-uint=, =writer.write-varuint=, buffered output helpers, and
+format-specific output paths. =src/std/encoding/json/writer.ss= layers
+=defjson-writer= and =defwriter-ext= over object, hash-table, slot, and field
+serialization.
+
+Agent-written code often builds textual or JSON output with repeated
+=string-append=, scattered =display= calls, or ad hoc object-to-string helpers.
+Gerbil's standard library shows a better boundary: make output a writer
+protocol, add domain writers once, and keep buffered/typed emission below the
+public API.
+
+Reasoning value:
+- identify repeated serializer functions before writing code;
+- keep JSON, format, and binary output as writer methods instead of scattered
+  string construction;
+- preserve performance by using buffer-oriented writer operations on hot paths.
+
+Policy boundary: strong scenario candidate for formatter, JSON, report, and
+artifact-output modules. A warning can trigger when a module repeatedly appends
+strings or emits object fields by hand. It must not require writer abstraction
+for one-off messages or test assertions.
+
+*** 11.13.10.2 Channel And Synchronization Boundaries
+
+Evidence: =src/std/sync/channel.ss= exposes =Channel=, =make-channel=,
+=channel-put=, =channel-try-put=, =channel-sync=, =channel-get=,
+=channel-try-get=, =channel-close=, and =channel-closed?=. Internally it hides
+mutex, condition variable, queue, timeout, and close-state handling.
+
+Agent-written concurrent code often repeats queue/mutex/condition-variable
+plumbing directly. The Gerbil idiom is to use a synchronization primitive that
+owns the state transition boundary.
+
+Reasoning value:
+- choose =std/sync/channel= when the real domain is producer/consumer,
+  fan-in/fan-out, or async handoff;
+- keep close/eof/timeout semantics at the channel boundary;
+- avoid open-coded mutex and queue state in business logic.
+
+Policy boundary: narrow reasoning-only candidate. It should not warn just
+because a module imports mutexes or queues. It becomes useful only when a
+scenario shows repeated send/receive/close state transitions or handwritten
+producer-consumer plumbing.
+
+*** 11.13.10.3 Additional Scenario Backlog
+
+1. =scenario-writer-extension-boundary=: a report or artifact module builds
+   structured output with repeated =string-append=, =display=, and manual field
+   separators. Expected reasoning: consider =defwriter-ext= or a domain writer
+   protocol; keep one-off messages alone.
+2. =scenario-json-writer-boundary=: a serializer manually walks object slots or
+   hash fields and emits JSON punctuation. Expected reasoning: consider
+   =defjson-writer= and writer field helpers.
+3. =scenario-channel-boundary=: a concurrent module manages queue, mutex,
+   condition variable, eof/close, and timeout state together. Expected
+   reasoning: consider =std/sync/channel=; do not apply to ordinary sequential
+   queues.
+
+These should be used by the future reasoning stage before generation. The
+diagnostic check should only name the missing boundary and show one compact
+idiom example; it should not rewrite serializers or concurrency logic by rule.

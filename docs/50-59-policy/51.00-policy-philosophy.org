@@ -19,6 +19,8 @@ the rule trigger.
 
 ** 51.00.2 Scenario As Reasoning Harness
 
+Future reasoning phases should consume scenario-backed policy boundaries before code is written, so the model can choose the right Gerbil abstraction in one pass. Post-write policy checks are the backstop, not the primary teaching mechanism.
+
 Scenarios are the evidence loop for this philosophy. A style scenario should
 show:
 

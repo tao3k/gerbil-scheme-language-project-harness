@@ -2,7 +2,7 @@
 :PROPERTIES:
 :STATUS: active
 :OWNER: gerbil-scheme-language-project-harness
-:EVIDENCE: .data/gerbil, .data/gerbil-utils, .data/gerbil-poo, src/parser/higher-order.ss
+:EVIDENCE: gerbil://, .data/gerbil-utils, .data/gerbil-poo, src/parser/higher-order.ss
 :END:
 ** 11.09.1 Scope
 This note turns the Gerbil language-feature audit into a policy and scenario plan.
@@ -18,6 +18,17 @@ The first implementation slice covers:
 - benchmark-owned scenarios for each performance-sensitive policy fixture
 
 ** 11.09.2 Evidence Boundary
+The root macro/module model is now owned by
+=docs/10-19-research/11.12-gerbil-macro-module-system-research.org=.  Use
+=gerbil://= as the stable selector namespace for upstream Gerbil evidence;
+local =.data= checkouts are research mirrors only.
+
+The broader advanced-feature backlog is owned by
+=docs/10-19-research/11.13-gerbil-advanced-feature-exploration.org=.  It ranks
+MOP/classes, interfaces, contracts, SSXI metadata, match macros, iteration
+macros, parser hot paths, macro objects, and actor/message candidates by
+stability, expected code-quality gain, and scenario readiness.
+
 Evidence came from ASP search-first and bounded selectors:
 #+begin_src sh
 asp gerbil-scheme search pipe \
@@ -37,25 +48,25 @@ High-signal source windows:
 - =.data/gerbil-poo/object.ss:1-160= for POO runtime state, C3 precedence, =rcurry=, =cut=, =for/collect=, and controlled mutation.
 - =.data/gerbil-poo/proto.ss:1-140= for prototype composition as a small algebra.
 - =.data/gerbil-poo/fq.ss:1-140= for DSL expressiveness with explicit numeric hot-path loops.
-- =.data/gerbil/src/gerbil/expander/module.ss:15-35= and
-  =.data/gerbil/src/gerbil/expander/module.ss:139-174= for phase-aware
+- =gerbil://src/gerbil/expander/module.ss:15-35= and
+  =gerbil://src/gerbil/expander/module.ss:139-174= for phase-aware
   module import/export, =current-expander-phi=, module registries, and delayed
   syntax evaluation.
-- =.data/gerbil/src/gerbil/compiler/ssxi.ss:16-35= and
-  =.data/gerbil/src/gerbil/compiler/ssxi.ss:105-115= for optimizer-visible
+- =gerbil://src/gerbil/compiler/ssxi.ss:16-35= and
+  =gerbil://src/gerbil/compiler/ssxi.ss:105-115= for optimizer-visible
   type/class/method declarations and inline-rule metadata.
-- =.data/gerbil/src/gerbil/compiler/method.ss:31-73= and
-  =.data/gerbil/src/gerbil/compiler/method.ss:97-121= for method-dispatched
+- =gerbil://src/gerbil/compiler/method.ss:31-73= and
+  =gerbil://src/gerbil/compiler/method.ss:97-121= for method-dispatched
   compiler passes through =current-compile-method=, =method-ref=, and
   =defcompile-method=.
-- =.data/gerbil/src/std/actor-v18/message.ss:32-45=,
-  =.data/gerbil/src/std/actor-v18/message.ss:187-214=, and
-  =.data/gerbil/src/std/actor-v18/message.ss:345-407= for typed message
+- =gerbil://src/std/actor-v18/message.ss:32-45=,
+  =gerbil://src/std/actor-v18/message.ss:187-214=, and
+  =gerbil://src/std/actor-v18/message.ss:345-407= for typed message
   definitions, macro-generated receive loops, and Gambit mailbox primitives.
-- =.data/gerbil/src/gerbil/runtime/interface.ss:33-60= and
-  =.data/gerbil/src/gerbil/runtime/c3.ss:33-45=,
-  =.data/gerbil/src/gerbil/runtime/c3.ss:74-105=,
-  =.data/gerbil/src/gerbil/runtime/c3.ss:170-185= for MOP interface
+- =gerbil://src/gerbil/runtime/interface.ss:33-60= and
+  =gerbil://src/gerbil/runtime/c3.ss:33-45=,
+  =gerbil://src/gerbil/runtime/c3.ss:74-105=,
+  =gerbil://src/gerbil/runtime/c3.ss:170-185= for MOP interface
   descriptors, prototype tables, and C3/C4 precedence-list linearization.
 
 *** 11.09.2.1 Core Gerbil Root Finding

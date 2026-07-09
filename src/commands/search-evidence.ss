@@ -19,6 +19,7 @@
         language-evidence-index-free-view?
         language-evidence-authority
         language-evidence-next
+        language-pattern-package-only-search?
         emit-pattern-search
         emit-compare-search
         emit-language-evidence-search
@@ -48,6 +49,13 @@
 ;; : (-> Namespace Query String )
 (def (language-evidence-next namespace query)
   (string-append "search " namespace " " query))
+;; : (-> SearchView Args Boolean )
+(def (language-pattern-package-only-search? view args)
+  (and (equal? view "pattern")
+       (let (terms (positional-args args))
+         (or (project-contract-pattern-query? terms)
+             (poo-pattern-query? terms)
+             (hygienic-macro-pattern-query? terms)))))
 ;; String
 (def +semantic-language-evidence-schema-id+
   "agent.semantic-protocols.semantic-language-evidence")
@@ -227,7 +235,8 @@
       0)))
 ;; : (-> ProjectIndex (List String) String )
 (def (pattern-evidence index terms)
-  (or (poo-pattern-evidence index terms)
+  (or (project-contract-pattern-evidence terms)
+      (poo-pattern-evidence index terms)
       (hygienic-macro-pattern-evidence terms)))
 ;; emit-pattern-lines
 ;;   : (-> Pattern Unit)

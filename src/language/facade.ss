@@ -17,6 +17,10 @@
         compare-facts
         matching-compare-facts
         compare-fact-json
+        project-contract-pattern-evidence
+        project-contract-pattern-query?
+        project-contract-pattern-minimal-forms
+        project-contract-pattern-failure-cases
         hygienic-macro-pattern-evidence
         hygienic-macro-pattern-query?
         hygienic-macro-minimal-forms
