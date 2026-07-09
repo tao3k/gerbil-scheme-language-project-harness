@@ -10,7 +10,8 @@
 
 ;; : (-> (List (Maybe String)))
 (def (gslph-cli-gsc-options-cache-key)
-  [(getenv "OPENSSL_DIR" #f)
+  [(getenv "CC" #f)
+   (getenv "OPENSSL_DIR" #f)
    (getenv "OPENSSL_ROOT_DIR" #f)
    (getenv "PKG_CONFIG" #f)
    (getenv "PKG_CONFIG_PATH" #f)
@@ -20,6 +21,13 @@
 (def (openssl-prefix)
   (or (getenv "OPENSSL_DIR" #f)
       (getenv "OPENSSL_ROOT_DIR" #f)))
+
+;; : (-> (List String))
+(def (cc-compiler-option)
+  (let (cc (getenv "CC" #f))
+    (if (and cc (not (string=? cc "")))
+      ["-cc" cc]
+      [])))
 
 ;; : (-> Path Void)
 (def (ensure-directory! path)
@@ -121,7 +129,8 @@
 
 ;; : (-> (List String))
 (def (uncached-cli-gsc-options)
-  (append (gsc-option "-cc-options" (openssl-cc-options))
+  (append (cc-compiler-option)
+          (gsc-option "-cc-options" (openssl-cc-options))
           (gsc-option "-ld-options" (openssl-ld-options))))
 
 ;; : (-> Path (List String))

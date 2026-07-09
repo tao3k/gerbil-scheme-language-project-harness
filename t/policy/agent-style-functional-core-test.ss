@@ -6,7 +6,6 @@
         :std/misc/ports
         :std/misc/process
         :std/sort
-        :commands/check
         :parser/facade
         :policy/agent-style
         :policy/facade

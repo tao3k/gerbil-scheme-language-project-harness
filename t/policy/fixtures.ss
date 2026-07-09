@@ -3,7 +3,22 @@
 
 (import :gerbil/gambit
         :std/misc/process
-        :commands/check
+        (only-in :std/srfi/13 string-prefix? string-tokenize)
+        (only-in :constants +language-id+ +provider-id+)
+        (only-in :parser/facade
+                 collect-project
+                 collect-source-scope
+                 project-definitions
+                 project-index-files)
+        (only-in :policy/core run-policy-checks)
+        (only-in :policy/facade
+                 agent-repair-report-json
+                 agent-repair-summary-parts
+                 finding-agent-repair-json
+                 finding-agent-repair-parts
+                 finding-guide-detail-parts)
+        (only-in :protocol/json write-json-line)
+        (only-in :types/core type-status)
         :types/facade)
 (export filter-rule
         json-finding-by-rule
@@ -59,13 +74,141 @@
    (else (json-finding-by-rule (cdr findings) rule-id))))
 ;; : (-> (List TypeFinding) CheckOutput )
 (def (policy-check-output args)
-  (let* ((status #f)
+  (let* ((root (policy-check-root args))
+         (scope (policy-check-scope args))
+         (changed-paths (if (equal? scope "changed")
+                          (policy-check-changed-paths root)
+                          []))
+         (json? (or (member "--json" args)
+                    (member "--profile-json" args)))
+         (index (if (equal? scope "changed")
+                  (collect-source-scope root changed-paths)
+                  (collect-project root)))
+         (findings (run-policy-checks index))
+         (status (type-status findings))
+         (report
+          (hash (schemaId "agent.semantic-protocols.gerbil-scheme-harness-report")
+                (schemaVersion "1")
+                (languageId +language-id+)
+                (providerId +provider-id+)
+                (status status)
+                (scope scope)
+                (changedPaths changed-paths)
+                (files (length (project-index-files index)))
+                (definitions (length (project-definitions index)))
+                (agentRepair (agent-repair-report-json findings))
+                (findings (map policy-finding-json findings))))
          (output
           (call-with-output-string
             (lambda (out)
               (parameterize ((current-output-port out))
-                (set! status (check-main args)))))))
-    (cons status output)))
+                (if json?
+                  (write-json-line report)
+                  (policy-check-display-report report findings)))))))
+    (cons (if (equal? status "pass") 0 1) output)))
+
+;; : (-> TypeFinding Json )
+(def (policy-finding-json finding)
+  (hash (ruleId (type-finding-rule-id finding))
+        (severity (type-finding-severity finding))
+        (path (type-finding-path finding))
+        (selector (type-finding-selector finding))
+        (message (type-finding-message finding))
+        (agentRepair (finding-agent-repair-json finding))
+        (details (or (type-finding-details finding) (hash)))))
+
+;; : (-> PolicyReport (List TypeFinding) Void )
+(def (policy-check-display-report report findings)
+  (displayln "[gerbil-policy] status=" (hash-get report 'status)
+             " scope=" (hash-get report 'scope)
+             " files=" (hash-get report 'files)
+             " definitions=" (hash-get report 'definitions)
+             " findings=" (length findings))
+  (policy-check-display-parts-line "|agent-repair-info"
+                                   (agent-repair-summary-parts findings))
+  (for-each policy-check-display-finding findings))
+
+;; : (-> TypeFinding Void )
+(def (policy-check-display-finding finding)
+  (displayln "|finding rule=" (type-finding-rule-id finding)
+             " severity=" (type-finding-severity finding)
+             " path=" (type-finding-path finding)
+             " selector=" (or (type-finding-selector finding) "")
+             " message=" (type-finding-message finding))
+  (policy-check-display-parts-line "|agent-repair"
+                                   (finding-agent-repair-parts finding))
+  (policy-check-display-parts-line "|finding-detail"
+                                   (finding-guide-detail-parts finding)))
+
+;; : (-> String (List String) Void )
+(def (policy-check-display-parts-line prefix parts)
+  (when (and parts (pair? parts))
+    (display prefix)
+    (for-each (lambda (part)
+                (display " ")
+                (display part))
+              parts)
+    (newline)))
+
+;; : (-> (List String) String )
+(def (policy-check-scope args)
+  (if (or (member "--changed" args)
+          (member "changed" args))
+    "changed"
+    "project"))
+
+;; : (-> Root (List Path) )
+(def (policy-check-changed-paths root)
+  (let (output
+        (run-process ["git" "status" "--porcelain" "--untracked-files=all" "--"
+                      ":(glob)**/*.ss"
+                      ":(glob)**/*.scm"
+                      ":(glob)**/gerbil.pkg"
+                      "gerbil.pkg"]
+                     directory: root
+                     stderr-redirection: #t))
+    (policy-check-status-paths output)))
+
+;; : (-> String (List Path) )
+(def (policy-check-status-paths output)
+  (let loop ((tokens (string-tokenize output)) (paths []))
+    (match tokens
+      ([] (reverse paths))
+      ([_status path . rest]
+       (loop rest (cons path paths)))
+      ([_] (reverse paths)))))
+
+;; : (-> (List String) Root )
+(def (policy-check-root args)
+  (or (policy-check-option "--workspace" args)
+      (let (positionals (policy-check-positionals args))
+        (if (pair? positionals)
+          (car (reverse positionals))
+          "."))))
+
+;; : (-> String (List String) MaybeString )
+(def (policy-check-option name args)
+  (cond
+   ((null? args) #f)
+   ((equal? (car args) name)
+    (and (pair? (cdr args)) (cadr args)))
+   (else
+    (policy-check-option name (cdr args)))))
+
+;; : (-> (List String) (List String) )
+(def (policy-check-positionals args)
+  (let loop ((rest args) (out []) (skip-next? #f))
+    (cond
+     ((null? rest)
+      (reverse out))
+     (skip-next?
+      (loop (cdr rest) out #f))
+     ((member (car rest) '("--workspace" "--whitelist"))
+      (loop (cdr rest) out #t))
+     ((string-prefix? "-" (car rest))
+      (loop (cdr rest) out #f))
+     (else
+      (loop (cdr rest) (cons (car rest) out) #f)))))
 ;; : (-> String FacadeName FacadeSource CoreSource Unit )
 (def (write-policy-project root facade-name facade-source core-source)
   (let* ((src (string-append root "/src"))

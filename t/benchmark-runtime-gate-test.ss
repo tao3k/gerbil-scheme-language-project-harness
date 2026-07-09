@@ -1,11 +1,9 @@
 ;;; -*- Gerbil -*-
-;;; Runtime benchmark gates for the installed/check command path.
+;;; Runtime benchmark gates for the gxtest policy library path.
 
 (import :gerbil/gambit
         :std/test
         (only-in :build-api/worker-count build-worker-count)
-        (rename-in :cli-release-linker (main launcher-main))
-        (only-in :std/misc/process run-process)
         (only-in :support/time monotonic-ms duration-ms)
         (only-in :testing/gxtest-build compile-package-api-if-stale)
         (only-in :testing/gxtest-context configure-build-root!)
@@ -15,16 +13,6 @@
         :benchmark/gate)
 
 (export benchmark-runtime-gate-test)
-
-(def +changed-empty-gate-root+
-  (path-expand ".cache/agent-semantic-protocol/test/check-changed-empty-gate"
-               (current-directory)))
-
-;;; Boundary:
-;;; - Empty changed-scope launcher checks measured 135-191ms on the package
-;;;   runtime path; keep the gate subsecond while avoiding scheduler noise.
-;; : Integer
-(def +check-cache-gate-max-launcher-changed-ms+ 250)
 
 ;;; Boundary:
 ;;; - Scoped policy warm receipt checks should stay in the same millisecond
@@ -37,67 +25,8 @@
 (def +scoped-policy-gate-entry-files+
   ["t/build-install-test.ss"])
 
-;;; Boundary:
-;;; - The POO scenario contract fast gate measured 4.7-7.1s after removing
-;;;   selected gxtest recompilation. Keep the guard below 15s so regressions
-;;;   to the previous 40s+ path fail loudly.
-;; : Integer
-;; trim-trailing-slashes
-;;   : (-> String String)
-;;   | doc m%
-;;       `trim-trailing-slashes path` normalizes a directory path before the
-;;       recursive fixture creator checks parents.
-;;     %
-(def (trim-trailing-slashes path)
-  (let loop ((end (string-length path)))
-    (if (and (> end 1)
-             (char=? (string-ref path (- end 1)) #\/))
-      (loop (- end 1))
-      (substring path 0 end))))
-
-;; : (-> Path Void)
-(def (ensure-directory* path)
-  (when path
-    (let (dir (trim-trailing-slashes path))
-      (unless (or (string=? dir "")
-                  (string=? dir ".")
-                  (file-exists? dir))
-        (let (parent (path-directory dir))
-          (when (and parent
-                     (not (string=? parent dir)))
-            (ensure-directory* parent)))
-        (unless (file-exists? dir)
-          (create-directory dir))))))
-
-;; : (-> Path Void)
-(def (delete-file* path)
-  (with-catch
-   (lambda (_) #!void)
-   (lambda ()
-     (when (file-exists? path)
-       (delete-file path)))))
-
-;; : (-> Path String Void)
-(def (write-text-file path text)
-  (delete-file* path)
-  (ensure-directory* (path-directory path))
-  (call-with-output-file path
-    (lambda (out) (display text out))))
-
-;; : (-> Void)
-(def (prepare-changed-empty-gate-project!)
-  (ensure-directory* +changed-empty-gate-root+)
-  (write-text-file
-   (path-expand "README.md" +changed-empty-gate-root+)
-   "non-gerbil change\n")
-  (run-process ["git" "init"]
-               directory: +changed-empty-gate-root+
-               stdout-redirection: #t
-               stderr-redirection: #t
-               check-status: void))
-
 ;; : (-> (-> Integer) Alist)
-(def (run-check-command/silent thunk)
+(def (run-policy-command/silent thunk)
   (let* ((start-ms (monotonic-ms))
          (status
           (parameterize ((current-output-port (open-output-string)))
@@ -106,32 +35,25 @@
     (list (cons 'status status)
           (cons 'elapsedMs elapsed-ms))))
 
-;; run-check-command/silent/best
+;; run-policy-command/silent/best
 ;;   : (-> Integer (-> Integer) Alist)
 ;;   | doc m%
-;;       `run-check-command/silent/best attempts thunk` returns the fastest
+;;       `run-policy-command/silent/best attempts thunk` returns the fastest
 ;;       successful timing receipt from a small repeated benchmark window.
 ;;     %
-(def (run-check-command/silent/best attempts thunk)
+(def (run-policy-command/silent/best attempts thunk)
   (if (<= attempts 0)
-    (error "check benchmark attempts must be positive" attempts)
+    (error "policy benchmark attempts must be positive" attempts)
     (let loop ((remaining attempts) (best #f))
       (if (zero? remaining)
         best
-        (let (receipt (run-check-command/silent thunk))
+        (let (receipt (run-policy-command/silent thunk))
           (loop (- remaining 1)
                 (if (or (not best)
                         (< (benchmark-fixture-ref receipt 'elapsedMs)
                            (benchmark-fixture-ref best 'elapsedMs)))
                   receipt
                   best)))))))
-
-;; : (-> Path Alist)
-(def (run-launcher-check-changed/silent root)
-  (run-check-command/silent/best
-   3
-   (lambda ()
-     (apply launcher-main ["check" "changed" "--view" "seeds" root]))))
 
 ;; : (-> (List Path))
 (def (scoped-policy-gate-target-files)
@@ -140,7 +62,7 @@
 
 ;; : (-> (List Path) Alist)
 (def (run-scoped-policy/silent files)
-  (run-check-command/silent
+  (run-policy-command/silent
    (lambda ()
      (run-scoped-policy-if-stale
       files
@@ -150,29 +72,20 @@
 
 ;; : (-> (List Path) Alist)
 (def (run-scoped-policy-warm/silent/best files)
-  (run-check-command/silent/best
+  (run-policy-command/silent/best
    5
    (lambda ()
      (run-scoped-policy-if-stale files)
      0)))
 
-;; : (-> Alist)
 ;; : TestSuite
 (def benchmark-runtime-gate-test
   (test-suite "gerbil scheme runtime benchmark gate"
-    (test-case "check changed empty Gerbil scope stays in launcher millisecond budget"
-      (prepare-changed-empty-gate-project!)
-      (let (changed (run-launcher-check-changed/silent +changed-empty-gate-root+))
-        (check (benchmark-fixture-ref changed 'status) => 0)
-        (check (< (benchmark-fixture-ref changed 'elapsedMs)
-                  +check-cache-gate-max-launcher-changed-ms+)
-               => #t)))
+    (test-case "gxtest scoped policy keeps selected-file boundary"
+      (check (scoped-policy-gate-target-files) => +scoped-policy-gate-entry-files+)
+      (check (length (scoped-policy-gate-target-files)) => 1))
 
-   (test-case "gxtest scoped policy keeps selected-file boundary"
-     (check (scoped-policy-gate-target-files) => +scoped-policy-gate-entry-files+)
-     (check (length (scoped-policy-gate-target-files)) => 1))
-
-   (test-case "gxtest scoped policy warm receipt stays in millisecond budget"
+    (test-case "gxtest scoped policy warm receipt stays in millisecond budget"
       (let* ((files (scoped-policy-gate-target-files))
              (cold (run-scoped-policy/silent files))
              (warm (run-scoped-policy-warm/silent/best files)))

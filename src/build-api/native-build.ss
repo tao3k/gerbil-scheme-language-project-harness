@@ -157,24 +157,7 @@
     "commands/search-prime-light-list.ss"
     "commands/search-prime-light.ss"
     "commands/search-workspace-scope-light.ss"
-    "commands/search.ss"
-    "commands/query.ss"
-    "commands/check-cache.ss"
-    "commands/check.ss"
-    "format/core.ss"
-    "format/files.ss"
-    "format/facade.ss"
-    "commands/fmt.ss"
-    "commands/evidence.ss"
-    "commands/agent.ss"
-    "commands/guide.ss"
-    "commands/info.ss"
     "search-light-launcher.ss"
-    "build-api/source-coverage.ss"
-    "build-api/package-receipt.ss"
-    "build-api/cli-gsc-options.ss"
-    "build-api/launcher-receipt.ss"
-    "policy/gxtest.ss"
     "support/time.ss"
     "benchmark/gate.ss"
     "commands/bench-light.ss"))
@@ -185,7 +168,7 @@
 
 ;; : (List String)
 (def +library-excluded-dirs+
-  '("search-fast"))
+  '("search-fast" "testing"))
 
 ;; : (List String)
 (def +default-excluded-dirs+
@@ -215,7 +198,15 @@
 
 ;; : (-> ModulePath Boolean)
 (def (runtime-library-module? module)
-  (not (member module excluded-library-files)))
+  (and (not (member module excluded-library-files))
+       (not (library-excluded-dir-module? module))))
+
+;; : (-> ModulePath Boolean)
+(def (library-excluded-dir-module? module)
+  (let loop ((dirs +library-excluded-dirs+))
+    (and (pair? dirs)
+         (or (string-prefix? (string-append (car dirs) "/") module)
+             (loop (cdr dirs))))))
 
 ;; : (-> ModulePath Boolean)
 (def (library-module? module)

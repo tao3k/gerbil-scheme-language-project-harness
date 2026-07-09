@@ -51,7 +51,6 @@
    "|cmd evidence-graph=asp gerbil-scheme evidence graph --json ."
    "|cmd evidence-analyze=asp gerbil-scheme evidence analyze --json ."
    "|cmd info=asp gerbil-scheme info --json ."
-   "|cmd check=asp gerbil-scheme check --changed ."
     "|cmd bench=asp gerbil-scheme bench --json --iterations 1 --max-interface-ms 50 ."
     "|more guide-detail=asp gerbil-scheme guide --downstream | --policy | --extensions | --poo | --exemplars | --all"]))
 
@@ -64,7 +63,6 @@
    "|downstream gxtest-import=(import :gslph/src/policy/gxtest)"
    "|downstream gxtest-fixture=(def project-policy-test (make-project-policy-test \".\"))"
    "|cmd downstream-test=gxtest t/project-policy-test.ss"
-   "|cmd downstream-policy-check=gerbil-scheme-harness check --full ."
    "|policy downstream-state-boundary=gxpkg package state belongs under ~/.gerbil; do not create, depend on, or commit repository-local .gerbil"
     "|policy downstream-policy-ownership=gerbil.pkg owns source-scope, runtime-roots, modularity config, and agent-policy overrides; gxtest should call the harness, not duplicate policy rules"
     "|policy downstream-reporting=make-project-policy-test prints gerbil-gxtest compact findings plus agent repair lines on failure; use project-policy-report plus gxtest-report-* accessors for custom structured status/files/definitions/findings"]))
@@ -100,7 +98,7 @@
     "|policy typed-combinator-style-signature=ordinary helpers use ;; : (forall (a) (-> Input Output)) as a Gerbil contract/signature projection; exported helpers/macros/policy helpers use full form with matching leading name, | type/contract/requires/warning/rationale metadata when needed, | doc m% with # Examples fenced scheme input/result comments, and parser-owned typedComment.signatureType/docs.hasResultExamples diagnostics"
     "|policy typed-combinator-style-composition=prefer small helper functions and expression-level map/filter/fold/cut/curry/compose chains when behavior fits"
     "|policy typed-combinator-style-optimization-boundary=for case-lambda or common-case specializations, comment why the branch exists; do not restate the code mechanics"
-    "|policy m3-policy-repair-loop=when check --full emits findings, follow agentRepair.nextCommand and grouped repair phases; when findings=0, continue from POO-adjacent owner evidence and source-backed guide exemplars instead of adding isolated rules"
+    "|policy m3-policy-repair-loop=when gxtest policy emits findings, follow agentRepair.nextCommand and grouped repair phases; when findings=0, continue from POO-adjacent owner evidence and source-backed guide exemplars instead of adding isolated rules"
     "|policy engineering-comment-quality=Scheme-native typed blocks describe algebraic shape only; engineering comments should cover parserEvidence with concise prose, bullets, or optional Boundary/Invariant/Intent labels; split multi-clause rationale across adjacent lines"
     "|policy dependency-protocol-adapter=when a dependency provides durable data primitives, do not hand-write loose hash/alist objects; wrap primitives as a thin define-type/protocol adapter with Key/Value/validate/serialization/equality slots, derived table/set/list/sexp/json/marshal capabilities, precise only-in imports, and generic t/ contract witnesses"
     "|policy dependency-protocol-adapter-repair-action=R017 findings should run guide --code --rule GERBIL-SCHEME-AGENT-POLICY-017 --intent repair first; the --code flag prints the adapter code shape the agent should follow"

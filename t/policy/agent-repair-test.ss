@@ -24,8 +24,10 @@
              (finding-groups (hash-get agent-repair "findingGroups"))
              (comment-group
               (find (lambda (group)
-                      (member "GERBIL-SCHEME-AGENT-POLICY-015"
-                              (hash-get group "rules")))
+                      (and (equal? (hash-get group "ownerPath")
+                                   "src/orders/core.ss")
+                           (member "GERBIL-SCHEME-AGENT-POLICY-015"
+                                   (hash-get group "rules"))))
                     finding-groups))
              (comment-diagnostic (hash-get comment-group "diagnostic"))
              (comment-location (hash-get comment-diagnostic "location"))
@@ -58,19 +60,19 @@
                => "policy-diagnostic")
         (check (hash-get repair-plan "diagnosticSchema")
                => "gerbil-policy-diagnostic-v1")
-        (check (member "editing without guide code evidence"
-                       (hash-get repair-plan "antiPatterns"))
+        (check (not (not (member "editing without guide code evidence"
+                                  (hash-get repair-plan "antiPatterns"))))
                => #t)
-        (check (member "asp gerbil-scheme check --workspace . reports findings=0"
-                       (hash-get repair-plan "verification"))
+        (check (not (not (member "gxtest policy library report returns findings=0"
+                                  (hash-get repair-plan "verification"))))
                => #t)
         (check (> (hash-get repair-plan "groupCount") 0) => #t)
         (check (not (not comment-group)) => #t)
-        (check (member "rerun check after edit"
-                       (hash-get comment-group "repairHints"))
+        (check (not (not (member "rerun gxtest policy after edit"
+                                  (hash-get comment-group "repairHints"))))
                => #t)
-        (check (member "targeted harness tests still pass"
-                       (hash-get comment-group "verification"))
+        (check (not (not (member "targeted harness tests still pass"
+                                  (hash-get comment-group "verification"))))
                => #t)
         (check (not (not (member "functionQualityProfile"
                                   (hash-get comment-group "requiredWitnesses"))))
@@ -80,9 +82,9 @@
         (check (hash-get comment-diagnostic "unit") => "findingGroup")
         (check (hash-get comment-diagnostic "guideRole") => "evidence-only")
         (check (hash-get comment-location "path")
-               => ".run/policy-functional-idiom-check-json/demo.ss")
+               => "src/orders/core.ss")
         (check (hash-get comment-location "selector")
-               => ".run/policy-functional-idiom-check-json/demo.ss:3-12")
+               => "src/orders/core.ss")
         (check (hash-get comment-group "multiPolicy") => #t)
         (check (hash-get comment-group "repairStrategy")
                => "multi-policy-structural-first")
@@ -113,7 +115,7 @@
                => "gerbil-policy-diagnostic-v1")
         (check (hash-get finding-diagnostic "unit") => "finding")
         (check (hash-get finding-location "path")
-               => ".run/policy-functional-idiom-check-json/demo.ss")
+               => "src/orders/core.ss")
         (check (hash-get (hash-get comment-finding "agentRepair")
                          "guideCommand")
                => "asp gerbil-scheme guide --code --rule GERBIL-SCHEME-AGENT-POLICY-015 --intent style")))

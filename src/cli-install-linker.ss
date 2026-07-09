@@ -2,7 +2,7 @@
 ;;; Installed executable root for gslph.
 
 (import :gerbil/gambit
-        (rename-in :cli-launcher (main launcher-main)))
+        :std/misc/path)
 (export main)
 
 ;;; Install binary boundary:
@@ -12,4 +12,19 @@
 
 ;; : (-> Args Integer)
 (def (main . args)
-  (apply launcher-main args))
+  (add-load-path! (path-expand ".gerbil/lib" (current-directory)))
+  (load-module "gslph/src/cli-launcher")
+  (let (launcher-main (eval 'gslph/src/cli-launcher#main))
+    (unless (procedure? launcher-main)
+      (error "provider-runtime-source-mismatch"
+             "gslph/src/cli-launcher"
+             'gslph/src/cli-launcher#main
+             launcher-main))
+    (exit (apply launcher-main (executable-argv args)))))
+
+;; : (-> Args Args)
+(def (executable-argv fallback)
+  (let (argv (command-line))
+    (if (pair? argv)
+      (cdr argv)
+      fallback)))

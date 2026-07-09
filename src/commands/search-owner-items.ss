@@ -2,10 +2,11 @@
 ;;; Owner-items rendering over definitions plus parser-owned owner facts.
 
 (import :parser/owner-items
+        :protocol/json
         :support/args
         (only-in :std/srfi/1 take)
         (only-in :std/srfi/13 string-contains string-empty?)
-        (only-in :std/sugar cut filter filter-map ormap))
+        (only-in :std/sugar cut filter filter-map hash ormap))
 
 (export emit-owner-items
         emit-owner-items-command
@@ -25,10 +26,9 @@
               args))
     (when (flag? "--code" args)
       (error "fast owner-items does not handle --code"))
-    (when (flag? "--json" args)
-      (error "fast owner-items does not handle --json"))
     (let* ((root (path-normalize (project-root args)))
            (args (drop-project-root args))
+           (json? (flag? "--json" args))
            (positionals (positional-args args))
            (owner (and (pair? positionals) (car positionals)))
            (items? (and (pair? (cdr positionals))
@@ -44,6 +44,12 @@
              (syntax-limit (max 0 (- limit (length definition-matches))))
              (syntax-matches
               (matching-owner-syntax-facts file terms syntax-limit root)))
+        (if json?
+          (write-json-line
+           (owner-items-evidence-packet file
+                                        definition-matches
+                                        syntax-matches
+                                        limit))
         (if (flag? "--names-only" args)
           (begin
             (for-each (lambda (defn) (displayln (definition-name defn)))
@@ -51,7 +57,7 @@
                             (min limit (length definition-matches))))
             (for-each (lambda (fact) (displayln (hash-get fact 'name)))
                       syntax-matches))
-          (emit-owner-items file definition-matches syntax-matches limit)))
+          (emit-owner-items file definition-matches syntax-matches limit))))
       0)))
 
 ;;; Parse boundary:
@@ -135,10 +141,15 @@
 
 ;; : (-> Definition Unit)
 (def (emit-owner-definition-item defn)
-  (let (selector (definition-selector defn))
+  (let* ((selector (definition-selector defn))
+         (proof-span (owner-item-source-span (definition-path defn)
+                                             (definition-start defn)
+                                             (definition-end defn))))
     (displayln "|item kind=" (definition-kind defn)
                " name=" (definition-name defn)
                " selector=" selector
+               " proofSpan=" proof-span
+               " source=native-parser"
                " nextCommand=\"asp gerbil-scheme query --selector "
                selector
                " --workspace . --code\"")))
@@ -151,13 +162,100 @@
 ;;; Boundary: syntax items preserve parser fact ownership while giving owner-items operator granularity.
 ;; : (-> SyntaxFact Unit )
 (def (emit-owner-syntax-item fact)
-  (displayln "|item kind=" (hash-get fact 'kind)
-             " name=" (hash-get fact 'name)
-             " selector=" (hash-get (hash-get fact 'location) 'path)
-             ":" (hash-get (hash-get fact 'location) 'lineRange)
+  (let* ((location (hash-get fact 'location))
+         (path (hash-get location 'path))
+         (line-range (hash-get location 'lineRange))
+         (kind (hash-get fact 'kind))
+         (name (hash-get fact 'name)))
+  (displayln "|item kind=" kind
+             " name=" name
+             " selector=" (owner-item-structural-selector path kind name)
+             " proofSpan=" path ":" line-range
              " source=" (hash-get fact 'source)
              " languageKind=" (hash-get fact 'languageKind)
-             (owner-syntax-role-segment fact)))
+             (owner-syntax-role-segment fact))))
+
+;; : (-> Path Kind Name Selector)
+(def (owner-item-structural-selector path kind name)
+  (string-append "gerbil-scheme://"
+                 path
+                 "#item/"
+                 kind
+                 "/"
+                 name))
+
+;; : (-> SourceFile (List Definition) (List SyntaxFact) Nat Json)
+(def (owner-items-evidence-packet file definition-matches syntax-matches limit)
+  (let* ((shown-definitions
+          (take definition-matches (min limit (length definition-matches))))
+         (syntax-budget (max 0 (- limit (length shown-definitions))))
+         (shown-syntax
+          (take syntax-matches (min syntax-budget (length syntax-matches)))))
+    (hash (schemaId "semantic-owner-item-evidence.v1")
+          (language "gerbil-scheme")
+          (owner (hash (path (source-file-path file))))
+          (limit limit)
+          (matches (+ (length definition-matches)
+                      (length syntax-matches)))
+          (shown (+ (length shown-definitions)
+                    (length shown-syntax)))
+          (items (append (map owner-definition-evidence-json shown-definitions)
+                         (map owner-syntax-evidence-json shown-syntax)))
+          (edges (hash (calls (map owner-syntax-call-edge-json
+                                   (filter owner-syntax-call-fact?
+                                           shown-syntax))))))))
+
+;; : (-> Definition Json)
+(def (owner-definition-evidence-json defn)
+  (hash (kind (definition-kind defn))
+        (name (definition-name defn))
+        (selector (definition-selector defn))
+        (proof (hash (source "native-parser")
+                     (span (owner-item-source-span (definition-path defn)
+                                                   (definition-start defn)
+                                                   (definition-end defn)))))
+        (next (hash (readCommand
+                     (string-append
+                      "asp gerbil-scheme query --selector '"
+                      (definition-selector defn)
+                      "' --workspace . --code"))))))
+
+;; : (-> Path Line Line Selector)
+(def (owner-item-source-span path start end)
+  (string-append path ":"
+                 (number->string start)
+                 "-"
+                 (number->string end)))
+
+;; : (-> SyntaxFact Json)
+(def (owner-syntax-evidence-json fact)
+  (let* ((location (hash-get fact 'location))
+         (path (hash-get location 'path))
+         (line-range (hash-get location 'lineRange))
+         (kind (hash-get fact 'kind))
+         (name (hash-get fact 'name)))
+    (hash (kind kind)
+          (name name)
+          (selector (owner-item-structural-selector path kind name))
+          (proof (hash (source (hash-get fact 'source))
+                       (span (string-append path ":" line-range))))
+          (languageKind (hash-get fact 'languageKind))
+          (role (syntax-fact-field-string fact 'role)))))
+
+;; : (-> SyntaxFact Boolean)
+(def (owner-syntax-call-fact? fact)
+  (equal? (hash-get fact 'languageKind) "call"))
+
+;; : (-> SyntaxFact Json)
+(def (owner-syntax-call-edge-json fact)
+  (let* ((location (hash-get fact 'location))
+         (path (hash-get location 'path))
+         (line-range (hash-get location 'lineRange))
+         (name (hash-get fact 'name)))
+    (hash (callee name)
+          (selector (owner-item-structural-selector path "call" name))
+          (proof (hash (source (hash-get fact 'source))
+                       (span (string-append path ":" line-range)))))))
 
 ;; : (-> SyntaxFact String )
 (def (owner-syntax-role-segment fact)

@@ -241,7 +241,7 @@
           (strategy "repair once per owner/function selector; structural/style repairs run before comment rationale repairs")
           (requires ["parser-owned functionQualityProfiles when available"
                      "findingGroup primary rule guide"
-                     "check/self-apply/bench after grouped repair"]))))
+                     "gxtest/library policy and bench after grouped repair"]))))
 
 ;; : (-> (List TypeFinding) String )
 (def (primary-repair-next-command findings)
@@ -256,11 +256,11 @@
    "run repairPlan.nextCommand for guide code evidence"
    "edit only the owner or selector named by the group"
    "preserve requiredWitnesses"
-   "rerun check and targeted tests"])
+   "rerun gxtest policy and targeted tests"])
 
 ;; : (-> (List String) )
 (def (agent-repair-success-criteria)
-  ["asp gerbil-scheme check --workspace . reports findings=0"
+  ["gxtest policy library report returns findings=0"
    "targeted harness tests still pass"
    "no unrelated source rewrites"])
 
@@ -365,7 +365,7 @@
    (string-append "preserve requiredWitnesses="
                   (string-join (finding-group-required-witnesses rules) ","))
    "apply one grouped structural repair when rules share the selector"
-   "rerun check after edit"])
+   "rerun gxtest policy after edit"])
 
 ;;; Diagnostic JSON is a bounded projection over one grouped repair decision.
 ;;; The `map` preserves each raw finding evidence item while group-level fix

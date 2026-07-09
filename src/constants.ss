@@ -30,7 +30,6 @@ Usage:
   gslph search workspace-scope [--json] [PROJECT_ROOT]
   gslph query <owner-path> --term <symbol> [--term <symbol>] [--workspace PROJECT_ROOT] [--names-only | --code]
   gslph query --from-hook direct-source-read --selector <workspace-path:start-end> --workspace PROJECT_ROOT --code
-  gslph check [--changed] [--json] [--whitelist PATH] [PROJECT_ROOT]
   gslph fmt [--check] [--json] [--workspace PROJECT_ROOT] [PATH ...]
   gslph bench [--json] [--iterations N] [--max-total-ms N] [--max-interface-ms N] [--whitelist PATH] [PROJECT_ROOT]
   gslph evidence graph [--json] [PROJECT_ROOT]
