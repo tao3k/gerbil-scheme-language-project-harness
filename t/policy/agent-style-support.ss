@@ -6,12 +6,12 @@
         :std/misc/ports
         :std/misc/process
         :std/sort
-        :parser/facade
-        :policy/agent-style
-        :policy/facade
-        :policy/gxtest
-        :scenario/policy
-        :types/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/agent-style
+        :gslph/src/policy/facade
+        :gslph/src/policy/gxtest
+        :gslph/src/scenario/policy
+        :gslph/src/types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (export #t)

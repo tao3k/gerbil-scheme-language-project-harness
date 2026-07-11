@@ -5,12 +5,12 @@
 ;;; - guide --code must emit extracted comments plus code, not search packets.
 
 (import :gerbil/gambit
-        :commands/guide-sections
-        :language/evidence
-        :parser/facade
-        :policy/catalog
-        :support/args
-        :support/io
+        :gslph/src/commands/guide-sections
+        :gslph/src/language/evidence
+        :gslph/src/parser/facade
+        :gslph/src/policy/catalog
+        :gslph/src/support/args
+        :gslph/src/support/io
         (only-in :std/misc/list length<=n? unique)
         (only-in :std/srfi/1 drop take)
         (only-in :std/srfi/13

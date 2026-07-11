@@ -5,9 +5,9 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/sugar andmap)
-        :checker/facade
-        :parser/facade
-        :types/facade)
+        :gslph/src/checker/facade
+        :gslph/src/parser/facade
+        :gslph/src/types/facade)
 (export checker-test)
 ;; CheckerTest
 (def checker-test

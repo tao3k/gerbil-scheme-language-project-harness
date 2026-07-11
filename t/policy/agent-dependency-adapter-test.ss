@@ -4,10 +4,10 @@
 (import :gerbil/gambit
         :std/test
         (only-in :clan/poo/object .call)
-        :parser/facade
-        :policy/facade
-        :policy/prototype
-        :types/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
+        :gslph/src/policy/prototype
+        :gslph/src/types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (export agent-dependency-adapter-policy-test)

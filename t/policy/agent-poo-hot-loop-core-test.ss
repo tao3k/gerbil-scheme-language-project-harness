@@ -7,11 +7,11 @@
         :std/misc/process
         (only-in :std/text/json read-json)
         :commands/check
-        :parser/facade
-        :policy/facade
-        :policy/gxtest
-        :scenario/policy
-        :types/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
+        :gslph/src/policy/gxtest
+        :gslph/src/scenario/policy
+        :gslph/src/types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (import :policy/agent-poo-support)

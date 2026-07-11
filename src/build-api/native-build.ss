@@ -1,10 +1,20 @@
 ;;; -*- Gerbil -*-
 ;;; Build runtime API for the asp gerbil-scheme package.
 
-(import (only-in :std/make make)
-        (only-in :std/misc/path path-directory path-expand path-normalize path-strip-directory)
+(import (only-in "../building/facade"
+                  default-std-builder
+                  make-std-builder-profile
+                  make-std-builder-request
+                  build-plan-receipts->alist
+                  build-request-run!)
+        (only-in "../building/declarative" std-build)
+        (only-in :std/misc/path path-directory path-expand path-normalize)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
-        (only-in :gerbil/tools/env setup-local-pkg-env!)
+        (only-in "./package-build"
+                 gslph-package-configure-build-root!
+                 gslph-package-build-active-gerbil-path
+                 gslph-package-build-package-name
+                 gslph-package-build-with-lock)
         (only-in "./cli-gsc-options"
                  gslph-cli-gsc-options
                  gslph-cli-gsc-options-cache-key)
@@ -15,11 +25,14 @@
         (only-in "./package-receipt"
                  gslph-package-build-receipt-status
                  gslph-package-build-receipt-status-ref
+                 gslph-package-build-receipt-source-output-current?
                  gslph-package-build-receipt-status-line
                  gslph-package-build-receipt-write)
         (only-in "./launcher-receipt"
                  gslph-build-module-source-file
                  gslph-build-module-output-file
+                 gslph-build-module-artifact-files
+                 gslph-build-module-artifact-file
                  gslph-cli-launcher-build-current?
                  gslph-cli-launcher-build-receipt-status
                  gslph-ensure-cli-launcher-inputs!
@@ -28,16 +41,27 @@
                  gslph-install-launcher-build-receipt-status
                  gslph-write-cli-launcher-build-receipt!
                  gslph-write-install-launcher-build-receipt!)
-        (only-in "./package-spec" gslph-package-api-spec)
+        (only-in "./artifact-cleanup"
+                 cleanup-compile-exe-artifacts!
+                 cleanup-generated-artifacts!
+                 cleanup-launcher-binary-artifacts!)
+        (only-in "./build-path-contract"
+                 configure-build-path-root!
+                 dev-launcher-binpath
+                 install-launcher-binpath)
+        (only-in "./package-spec"
+                 gslph-package-api-spec
+                 gslph-package-api-stage-specs)
+        (only-in "./release-modules" cli-release-modules)
         (only-in "./worker-count" build-worker-count sync-build-worker-count!)
-        (only-in "./install-static-modules" cli-install-static-modules)
-        :gerbil/gambit)
+        (only-in :gerbil/gambit current-jiffy jiffies-per-second))
 (export clean-target
         compile-target
-        install-target
-        compile-spec
-        cli-binary-build-spec
-        configure-build-root!
+         install-target
+         compile-spec
+         cli-binary-module-spec
+         cli-binary-build-spec
+         configure-build-root!
         dev-launcher-binpath
         install-launcher-binpath
         package-api-build-current?
@@ -45,9 +69,11 @@
         package-api-build-receipt-path
         package-api-build-receipt-status
         package-api-build-source-files
-        build-worker-count
-        compile-package-api-if-stale
-        sync-build-worker-count!
+         build-worker-count
+         compile-package-api-if-stale
+         run-package-api-build-request!
+         compile-selected-gxtest-target
+         sync-build-worker-count!
         write-package-api-build-receipt!
         package-build-spec)
 
@@ -69,8 +95,8 @@
 ;; : (-> String Void)
 (def (configure-build-root! root)
   (set! package-root (path-normalize root))
-  (current-directory package-root)
-  (setup-local-pkg-env! #t)
+  (configure-build-path-root! package-root)
+  (gslph-package-configure-build-root! package-root)
   (set! source-root (path-expand "src" package-root))
   (set! current-package-gerbil-modules-key #f)
   (set! current-package-gerbil-modules #f)
@@ -83,23 +109,7 @@
 
 ;; : (-> Path (Maybe String))
 (def (read-build-package-name root)
-  ;; : (-> (List Any) (Maybe (U Symbol String)))
-  (def (package-name-ref plist)
-    (let lp ((rest plist))
-      (if (and (pair? rest) (pair? (cdr rest)))
-        (if (eq? (car rest) 'package:)
-          (cadr rest)
-          (lp (cddr rest)))
-        #f)))
-  (let* ((package-file (path-expand "gerbil.pkg" root))
-         (plist (with-catch
-                 (lambda (_) #f)
-                 (lambda () (call-with-input-file package-file read))))
-         (name (and plist (package-name-ref plist))))
-    (cond
-     ((symbol? name) (symbol->string name))
-     ((string? name) name)
-     (else #f))))
+  (gslph-package-build-package-name root))
 
 ;; : (-> String String)
 (def (package-output-prefix root-name)
@@ -118,6 +128,11 @@
 ;; : (-> String)
 (def (source-output-prefix)
   (package-output-prefix "src"))
+
+;; : (-> String)
+;; : (-> String)
+(def (test-output-prefix)
+  (package-output-prefix "t"))
 
 ;; : (List ModulePath)
 (def excluded-library-files
@@ -143,13 +158,12 @@
   (cli-exe-spec optimized? "cli-release-linker"))
 
 ;; : (-> Boolean (List BuildSpec))
-(def (cli-install-spec optimized?)
-  (cli-exe-spec optimized? "cli-install-linker"))
+(def (cli-install-spec _optimized?)
+  (cli-exe-spec #f "cli-install-linker"))
 
 ;; : (-> (List ModulePath))
 (def (cli-install-module-spec)
-  (append cli-bootstrap-modules
-          cli-install-static-modules))
+  '("cli-install-linker.ss"))
 
 ;; : (List ModulePath)
 (def cli-bootstrap-modules
@@ -158,13 +172,7 @@
     "commands/search-prime-light.ss"
     "commands/search-workspace-scope-light.ss"
     "search-light-launcher.ss"
-    "support/time.ss"
-    "benchmark/gate.ss"
-    "commands/bench-light.ss"))
-
-;; : (List ModulePath)
-(def cli-release-static-modules
-  '("cli-launcher.ss"))
+    "support/time.ss"))
 
 ;; : (List String)
 (def +library-excluded-dirs+
@@ -174,7 +182,7 @@
 (def +default-excluded-dirs+
   '("run" "t" ".git" "_darcs" ".gerbil"))
 
-;; : (-> Boolean (List BuildSpec))
+;; : (-> Boolean (List ModulePath))
 (def (cli-binary-module-spec release?)
   (if release?
     (cli-release-module-spec)
@@ -182,8 +190,7 @@
 
 ;; : (-> (List BuildSpec))
 (def (cli-release-module-spec)
-  (append (runtime-library-spec)
-          cli-release-static-modules))
+  cli-release-modules)
 
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-exe-spec release? optimized?)
@@ -205,7 +212,10 @@
 (def (library-excluded-dir-module? module)
   (let loop ((dirs +library-excluded-dirs+))
     (and (pair? dirs)
-         (or (string-prefix? (string-append (car dirs) "/") module)
+         (or (let (prefix-output (open-output-string))
+               (display (car dirs) prefix-output)
+               (write-char #\/ prefix-output)
+               (string-prefix? (get-output-string prefix-output) module))
              (loop (cdr dirs))))))
 
 ;; : (-> ModulePath Boolean)
@@ -297,11 +307,14 @@
 ;; : (-> PackageLibOutputRoot)
 (def (package-api-output-root)
   (path-expand (source-output-prefix)
-               (path-expand ".gerbil/lib" package-root)))
+               (path-expand "lib"
+                            (gslph-package-build-active-gerbil-path
+                             package-root))))
 
 ;; : (-> PackageApiReceiptPath)
 (def (package-api-build-receipt-path)
-  (path-expand ".gerbil/build/package-api.receipt" package-root))
+  (path-expand "build/package-api.receipt"
+               (gslph-package-build-active-gerbil-path package-root)))
 
 ;; : (-> (List Path))
 (def (build-module-source-file module)
@@ -318,20 +331,49 @@
 
 ;; : (-> (List Path))
 (def (package-api-build-output-files)
-  (map build-module-output-file
+  (map package-api-module-output-file
        (package-build-spec)))
+
+;; : (-> ModulePath (List Path))
+(def (package-api-module-artifact-files module)
+  (gslph-build-module-artifact-files (package-api-output-root) module))
+
+;; : (-> ModulePath Path)
+(def (package-api-module-output-file module)
+  (gslph-build-module-artifact-file (package-api-output-root) module))
+
+;; : (-> ModulePath Boolean)
+(def (package-api-module-current? module)
+  (let ((source (build-module-source-file module))
+        (candidates (package-api-module-artifact-files module)))
+    (let loop ((remaining candidates))
+      (and (pair? remaining)
+           (or (gslph-package-build-receipt-source-output-current?
+                source
+                (car remaining))
+               (loop (cdr remaining)))))))
 
 ;; : (-> BuildReceiptStatus)
 (def (package-api-build-receipt-status)
   (gslph-package-build-receipt-status
    (package-api-build-receipt-path)
-   expected-sources: (package-api-build-source-files)
-   expected-outputs: (package-api-build-output-files)))
+   expected-sources: (package-api-build-source-files)))
 
 ;; : (-> BuildReceiptStatus Boolean)
 (def (package-api-build-current? status)
   (eq? (gslph-package-build-receipt-status-ref status 'status 'unknown)
        'current))
+
+;; : (-> BuildSpec (List ModulePath))
+(def (package-api-stage-modules spec)
+  (if (list? spec) spec [spec]))
+
+;; : (-> BuildSpec Boolean)
+(def (package-api-stage-current? spec)
+  (let loop ((modules (package-api-stage-modules spec)))
+    (or (null? modules)
+        (and (package-api-module-current? (car modules))
+             (loop (cdr modules))))))
 
 ;; : (-> BuildReceiptStatus Void)
 (def (display-package-api-build-receipt-status status)
@@ -339,36 +381,134 @@
   (newline)
   (force-output))
 
+;; : (-> Boolean String Integer Void)
+(def (display-build-progress verbose phase started-jiffy)
+  (when verbose
+    (display "[gslph-build] phase=")
+    (display phase)
+    (display " elapsed-ms=")
+    (display
+     (quotient (* 1000 (- (current-jiffy) started-jiffy))
+               (jiffies-per-second)))
+    (newline)
+    (force-output)))
+
 ;; : (-> Void)
-(def (write-package-api-build-receipt!)
+;; : (-> (Maybe List) Void)
+(def (write-package-api-build-receipt! (receipts #f))
   (let (stamp (package-api-build-receipt-path))
     (ensure-directory! (path-directory stamp))
     (gslph-package-build-receipt-write
      stamp
      (package-api-build-source-files)
-     (package-api-build-output-files))))
+     (package-api-build-output-files)
+     metadata: (if receipts
+                 `((buildPlan . ,(build-plan-receipts->alist receipts)))
+                 []))))
 
-;; : (-> Integer [Maybe (-> Void)] BuildReceiptStatus)
-(def (compile-package-api-if-stale worker-count (compile-thunk #f))
-  (let (status (package-api-build-receipt-status))
-    (display-package-api-build-receipt-status status)
-    (if (package-api-build-current? status)
-      status
-      (begin
-        (if compile-thunk
-          (compile-thunk)
-          (make (package-build-spec)
-            optimize: #f
-            parallelize: worker-count
-            prefix: (source-output-prefix)
-            srcdir: source-root))
-        (write-package-api-build-receipt!)
-        (package-api-build-receipt-status)))))
+;; : (forall (s) (-> String Path String [s] Integer (-> s Symbol Boolean) Symbol BuildRequest))
+;; : (-> String Path String List Integer Procedure Symbol BuildRequest)
+(def (make-package-build-request label srcdir prefix stage-specs worker-count
+                                 current-pred context)
+  (std-build
+   label: label
+   source: srcdir
+   make-options: [optimize: #f
+                  parallelize: worker-count
+                  prefix: prefix]
+   label-of: (lambda (stage)
+               (if (and (pair? stage) (string? (car stage)))
+                 (car stage)
+                 label))
+   after: (lambda (stage context result)
+            #!void)
+   stage-specs: stage-specs
+   current?: current-pred
+   context: context))
+
+;; : (-> Boolean Integer Boolean BuildReceiptStatus)
+(def (compile-package-api-with-receipt verbose worker-count force?)
+  (ensure-build-root!)
+  (current-directory package-root)
+  (let (started-jiffy (current-jiffy))
+    (display-build-progress verbose "package-api/lock" started-jiffy)
+    (let (result
+          (gslph-package-build-with-lock
+           (lambda ()
+             (let (status (package-api-build-receipt-status))
+               (display-package-api-build-receipt-status status)
+               (if (and (not force?) (package-api-build-current? status))
+                 status
+                 (let (request
+                       (make-package-build-request
+                        "package-api"
+                        source-root
+                        (source-output-prefix)
+                        (gslph-package-api-stage-specs)
+                        worker-count
+                        (lambda (_spec _context)
+                          (and (not force?)
+                               (package-api-stage-current? _spec)))
+                        'package-api))
+                   (write-package-api-build-receipt!
+                    (build-request-run! request))
+                   (package-api-build-receipt-status)))))))
+      (display-build-progress verbose "package-api/complete" started-jiffy)
+      result)))
+
+;; : (-> Integer BuildReceiptStatus)
+(def (compile-package-api-if-stale worker-count)
+  (compile-package-api-with-receipt #f worker-count #f))
+
+;; : (-> Integer BuildReceiptStatus)
+(def (run-package-api-build-request! worker-count)
+  (compile-package-api-if-stale worker-count))
+
+;; : (-> Path ModulePath)
+(def (gxtest-test-module-path path)
+  (if (string-prefix? "t/" path)
+    (substring path 2 (string-length path))
+    path))
+
+;; : (-> Path ModulePath)
+(def (gxtest-source-module-path path)
+  (if (string-prefix? "src/" path)
+    (substring path 4 (string-length path))
+    path))
+
+;; : (forall (m p) (-> (List m) (List p) Integer Alist))
+;; : (-> (List ModulePath) (List Path) Integer Alist)
+(def (compile-selected-gxtest-target source-modules files worker-count)
+  (ensure-build-root!)
+  (current-directory package-root)
+  (gslph-package-build-with-lock
+   (lambda ()
+     (let* ((source-request
+             (make-package-build-request
+              "selected-gxtest/source"
+              source-root
+              (source-output-prefix)
+              (map gxtest-source-module-path source-modules)
+              worker-count
+              (lambda (_spec _context) #f)
+              'selected-gxtest))
+            (test-request
+             (make-package-build-request
+              "selected-gxtest/test"
+              (path-expand "t" package-root)
+              (test-output-prefix)
+              (map gxtest-test-module-path files)
+              worker-count
+              (lambda (_spec _context) #f)
+              'selected-gxtest)))
+       (let (receipts
+             (append (build-request-run! source-request)
+                     (build-request-run! test-request)))
+         `((buildPlan . ,(build-plan-receipts->alist receipts))))))))
 
 ;; : (-> (List ModulePath))
 (def (install-launcher-source-modules)
-  (append (cli-install-module-spec)
-          '("cli-install-linker.ss")))
+  (all-package-gerbil-modules))
 
 ;; : (-> Boolean (List ModulePath))
 (def (cli-launcher-source-modules release?)
@@ -392,8 +532,8 @@
    (binary? (cli-binary-spec #f #f))
    (else (gslph-package-api-spec))))
 
-;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Boolean Void)
-(def (compile-target verbose debug no-optimize optimized release full binary)
+;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Boolean Boolean Void)
+(def (compile-target verbose debug no-optimize optimized release full binary force?)
   (ensure-build-root!)
   (current-directory package-root)
   (let* ((build-optimize? (and optimized (not no-optimize)))
@@ -401,14 +541,18 @@
          (effective-optimized? optimized)
          (worker-count (sync-build-worker-count!)))
     (if (and (not full) (or release binary))
-      (compile-cli-binary-if-stale (dev-launcher-binpath)
-                                   verbose debug build-optimize?
-                                   release effective-release? effective-optimized?
-                                   worker-count)
-      (make-target (compile-spec full release binary)
-                   verbose debug build-optimize?
-                   effective-release? effective-optimized?
-                   worker-count))
+      (begin
+        (compile-package-api-with-receipt verbose worker-count force?)
+        (compile-cli-binary-if-stale (dev-launcher-binpath)
+                                     verbose debug build-optimize?
+                                     release effective-release? effective-optimized?
+                                     worker-count))
+      (if (and (not full) (not release) (not binary))
+        (compile-package-api-with-receipt verbose worker-count force?)
+        (make-target (compile-spec full release binary)
+                     verbose debug build-optimize?
+                     effective-release? effective-optimized?
+                     worker-count)))
      #!void))
 
 ;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Integer BuildReceiptStatus)
@@ -461,34 +605,33 @@
          (cli-binary-module-spec release?)
          (cli-launcher-source-modules release?))))))
 
-;; : (-> Void)
 (def (clean-target)
   (ensure-build-root!)
   (current-directory package-root)
   (let (binpath (dev-launcher-binpath))
-    (delete-file* binpath)
-    (cleanup-compile-exe-artifacts! binpath))
+    (cleanup-launcher-binary-artifacts! binpath)
+    (cleanup-generated-artifacts!
+     (cons (package-api-build-receipt-path)
+           (package-api-build-output-files))))
   #!void)
 
 ;; : (-> Boolean Boolean Boolean Boolean Boolean Void)
-(def (install-target verbose debug no-optimize optimized release)
+;; : (-> Boolean Boolean Boolean Boolean Boolean Boolean Void)
+(def (install-target verbose debug _no-optimize _optimized _release full)
   (ensure-build-root!)
   (current-directory package-root)
-  (let* ((install-release? (and (not no-optimize) (or release #t)))
-         (install-optimized? (and (not no-optimize)
-                                  (or optimized install-release?)))
-         (build-optimize? (and install-optimized? (not no-optimize)))
-         (worker-count (sync-build-worker-count!)))
-    (compile-install-binary-if-stale (install-launcher-binpath)
-                                     verbose debug build-optimize?
-                                     install-release? install-optimized?
-                                     worker-count)
+  (let (worker-count (sync-build-worker-count!))
+    (compile-package-api-with-receipt verbose worker-count full)
+    (compile-install-binary-with-receipt (install-launcher-binpath)
+                                         verbose debug #f
+                                         #f #f
+                                         worker-count full)
     #!void))
 
-;; : (-> Path Boolean Boolean Boolean Boolean Boolean Integer BuildReceiptStatus)
-(def (compile-install-binary-if-stale binpath verbose debug build-optimize?
-                                      effective-release? effective-optimized?
-                                      worker-count)
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Integer Boolean BuildReceiptStatus)
+(def (compile-install-binary-with-receipt binpath verbose debug build-optimize?
+                                          effective-release? effective-optimized?
+                                          worker-count force?)
   (let* ((inputs-path
           (gslph-ensure-install-launcher-inputs!
            package-root
@@ -504,12 +647,13 @@
            (package-api-output-root)
            binpath
            inputs-path
-           (cli-install-module-spec)
+           '()
            (install-launcher-source-modules))))
     (display-package-api-build-receipt-status status)
-    (if (gslph-install-launcher-build-current? status)
+    (if (and (not force?)
+             (gslph-install-launcher-build-current? status))
       status
-      (begin
+      (begin (cleanup-launcher-binary-artifacts! binpath)
         (compile-install-binary binpath
                                 verbose debug build-optimize?
                                 effective-release? effective-optimized?
@@ -520,7 +664,7 @@
          (package-api-output-root)
          binpath
          inputs-path
-         (cli-install-module-spec)
+         '()
          (install-launcher-source-modules))
         (gslph-install-launcher-build-receipt-status
          package-root
@@ -528,7 +672,7 @@
          (package-api-output-root)
          binpath
          inputs-path
-         (cli-install-module-spec)
+         '()
          (install-launcher-source-modules))))))
 
 ;; : (-> Path Boolean Boolean Boolean Boolean Boolean Integer Path)
@@ -560,48 +704,26 @@
                               verbose debug build-optimize?
                               effective-release? effective-optimized?
                               worker-count)
-  (make-target module-spec
-               verbose debug build-optimize?
-               effective-release? effective-optimized?
-               worker-count)
-  (cleanup-compile-exe-artifacts! binpath)
-  (make-target/bindir exe-spec
-                       verbose debug build-optimize?
-                       effective-release? effective-optimized?
-                      1
-                      (path-directory binpath))
-  (cleanup-compile-exe-artifacts! binpath)
-  binpath)
+  (let (started-jiffy (current-jiffy))
+    (display-build-progress verbose "launcher/build" started-jiffy)
+    (make-target module-spec
+                 verbose debug build-optimize?
+                 effective-release? effective-optimized?
+                 worker-count)
+    (cleanup-compile-exe-artifacts! binpath)
+    (make-target/bindir exe-spec
+                        verbose debug build-optimize?
+                        effective-release? effective-optimized?
+                        1
+                        (path-directory binpath))
+    (cleanup-compile-exe-artifacts! binpath)
+    (display-build-progress verbose "launcher/complete" started-jiffy)
+    binpath))
 
 ;; : (-> Boolean (List BuildSpec))
 (def (cli-binary-build-spec release?)
   (cli-binary-spec release? #t))
 
-;; : (-> Path Void)
-(def (delete-file* path)
-  (with-catch
-   (lambda (_) #!void)
-   (lambda ()
-     (when (file-exists? path)
-       (delete-file path)))))
-
-;; : (-> Path Void)
-(def (cleanup-compile-exe-artifacts! binpath)
-  (let* ((bindir (path-directory binpath))
-         (name (path-strip-directory binpath))
-         (prefix (string-append name "__exe")))
-    (for-each
-     (lambda (suffix)
-       (delete-file* (path-expand (string-append prefix suffix) bindir)))
-     '(".c" "_.c" ".scm" ".o" "_.o"))))
-
-;; : (-> DevLauncherBinPath)
-(def (dev-launcher-binpath)
-  (path-expand ".bin/gslph" package-root))
-
-;; : (-> InstallLauncherBinPath)
-(def (install-launcher-binpath)
-  (path-expand ".local/bin/gslph" (user-home-directory)))
 
 ;; : (-> HomeDirectoryPath)
 (def (user-home-directory)
@@ -619,31 +741,51 @@
       (create-directory path))))
 
 ;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Void)
+;; : (-> String List Boolean Boolean Boolean Boolean Boolean Integer (Maybe Path) List)
+(def (run-target-build! label spec verbose debug build-optimize?
+                        effective-release? effective-optimized?
+                        worker-count (bindir #f))
+  (let* ((builder
+          (default-std-builder
+           source-root
+           (append [verbose: #f
+                    debug: (and debug 'env)
+                    optimize: build-optimize?
+                    build-release: effective-release?
+                    build-optimized: effective-optimized?
+                    parallelize: (and (> worker-count 1) worker-count)
+                    prefix: (source-output-prefix)]
+                   (if bindir [bindir: bindir] []))))
+         (profile
+          (make-std-builder-profile
+           builder
+           (lambda (_spec) label)))
+         (request
+          (make-std-builder-request
+           label
+           profile
+           (list spec)
+           (lambda (_spec _context) #f)
+           'native-target)))
+    (build-request-run! request)))
+
 (def (make-target spec verbose debug build-optimize?
                   effective-release? effective-optimized?
                   worker-count)
-  (make spec
-    verbose: (and verbose 9)
-    debug: (and debug 'env)
-    optimize: build-optimize?
-    build-release: effective-release?
-    build-optimized: effective-optimized?
-    parallelize: worker-count
-    prefix: (source-output-prefix)
-    srcdir: source-root))
+  (run-target-build! "native-target"
+                     spec
+                     verbose debug build-optimize?
+                     effective-release? effective-optimized?
+                     worker-count))
 
 ;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Path Void)
 (def (make-target/bindir spec verbose debug build-optimize?
                          effective-release? effective-optimized?
                          worker-count bindir)
   (ensure-directory! bindir)
-  (make spec
-    verbose: (and verbose 9)
-    debug: (and debug 'env)
-    optimize: build-optimize?
-    build-release: effective-release?
-    build-optimized: effective-optimized?
-    parallelize: worker-count
-    bindir: bindir
-    prefix: (source-output-prefix)
-    srcdir: source-root))
+  (run-target-build! "native-target/bindir"
+                     spec
+                     verbose debug build-optimize?
+                     effective-release? effective-optimized?
+                     worker-count
+                     bindir))

@@ -4,9 +4,9 @@
 ;;; repair wording, and agent-facing severity stay outside the parser layer.
 
 (import :gerbil/gambit
-        :parser/model
-        (only-in :parser/support datum-list-items)
-        (only-in :parser/syntax form-caller-name)
+        :gslph/src/parser/model
+        (only-in :gslph/src/parser/support datum-list-items)
+        (only-in :gslph/src/parser/syntax form-caller-name)
         (only-in :std/misc/list unique)
         (only-in :std/srfi/1 find)
         (only-in :std/srfi/13 string-prefix? string-suffix?)

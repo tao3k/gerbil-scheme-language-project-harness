@@ -2,8 +2,8 @@
 ;;; Lightweight prime-seeds renderer for the Gerbil search command.
 
 (import :gerbil/gambit
-        :constants
-        :commands/search-prime-light-list
+        :gslph/src/constants
+        :gslph/src/commands/search-prime-light-list
         (only-in :std/misc/path directory-files path-expand path-normalize)
         (only-in :std/sort sort)
         (only-in :std/srfi/13
@@ -624,8 +624,8 @@
                     " imports=skipped"
                     " next=owner:" owner)))
      (take files (min +prime-light-preview-limit+ (length files))))
-    (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")
-    (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"))
+    (displayln "recommendedNext=gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds")
+    (displayln "nextCommand=gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds"))
   0)
 
 ;; : (-> Root MaybePackage (List Path) )

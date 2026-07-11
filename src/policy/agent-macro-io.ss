@@ -1,10 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing macro expansion IO boundary policy.
 
-(import :parser/facade
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/model
         (only-in :std/sugar filter-map hash ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export macro-expansion-io-boundary-findings
         macro-expansion-io-boundary-finding)

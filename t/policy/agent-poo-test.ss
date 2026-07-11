@@ -6,8 +6,8 @@
 ;;; batch them instead of serializing every scenario through this aggregator.
 
 (import :std/test
-        :policy/catalog
-        :policy/model)
+        :gslph/src/policy/catalog
+        :gslph/src/policy/model)
 
 (export agent-poo-policy-test)
 

@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
-(import :commands/evidence
-        :commands/guide
-        :protocol/registry
+(import :gslph/src/commands/evidence
+        :gslph/src/commands/guide
+        :gslph/src/protocol/registry
         :std/srfi/13
         :std/test)
 
@@ -32,7 +32,7 @@
     (check (packet-has-edge-kind? packet "requires-evidence") => #t)
     (check (hash-get (hash-get (car (hash-get packet 'gaps)) 'fields)
                      'nextCommand)
-           => "gerbil-scheme-harness check --changed .")))
+           => "gxpkg env gxtest -q t/...")))
 ;; String
 (def (check-evidence-analysis-request-packet)
   (let* ((packet (evidence-analysis-request-packet "."))

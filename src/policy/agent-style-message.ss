@@ -2,7 +2,7 @@
 ;;; Typed-combinator policy messages and contract summary helpers.
 
 (import :gerbil/gambit
-        :parser/facade
+        :gslph/src/parser/facade
         (only-in :std/sugar foldl))
 
 (export typed-combinator-style-message

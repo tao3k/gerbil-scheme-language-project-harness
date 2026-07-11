@@ -10,7 +10,9 @@
   '("t/agent-poo-scenario-contract-test.ss"
     "t/build-install-test.ss"
     "t/poo-object-validation-test.ss"
+    "t/parser-memory-stability-test.ss"
     "t/support-test.ss"
+    "t/testing-memory-profile-test.ss"
     "t/testing-framework-smoke-test.ss"))
 
 (def (gslph-default-gxtest-smoke-files)

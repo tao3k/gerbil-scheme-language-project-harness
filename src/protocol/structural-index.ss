@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; Lightweight structural index interface packets.
 
-(import :constants
-        :parser/facade
-        :protocol/structural-facts
+(import :gslph/src/constants
+        :gslph/src/parser/facade
+        :gslph/src/protocol/structural-facts
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/sort sort)

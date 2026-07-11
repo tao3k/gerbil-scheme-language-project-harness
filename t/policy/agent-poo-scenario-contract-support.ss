@@ -2,7 +2,7 @@
 ;;; Lightweight POO scenario fixture contracts.
 
 (import :gerbil/gambit
-        :benchmark/framework
+        :gslph/src/benchmark/framework
         :policy/agent-poo-scenario-registry)
 
 (export #t)

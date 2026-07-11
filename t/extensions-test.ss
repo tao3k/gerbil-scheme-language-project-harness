@@ -2,10 +2,10 @@
 ;;; Boundary:
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
-(import :extensions/facade
-        :extensions/poo-patterns
-        :parser/facade
-        :snapshot/facade
+(import :gslph/src/extensions/facade
+        :gslph/src/extensions/poo-patterns
+        :gslph/src/parser/facade
+        :gslph/src/snapshot/facade
         :std/test
         (only-in :std/sugar andmap)
         (only-in :std/srfi/13 string-join))

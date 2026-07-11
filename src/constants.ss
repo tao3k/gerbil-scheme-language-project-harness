@@ -31,7 +31,6 @@ Usage:
   gslph query <owner-path> --term <symbol> [--term <symbol>] [--workspace PROJECT_ROOT] [--names-only | --code]
   gslph query --from-hook direct-source-read --selector <workspace-path:start-end> --workspace PROJECT_ROOT --code
   gslph fmt [--check] [--json] [--workspace PROJECT_ROOT] [PATH ...]
-  gslph bench [--json] [--iterations N] [--max-total-ms N] [--max-interface-ms N] [--whitelist PATH] [PROJECT_ROOT]
   gslph evidence graph [--json] [PROJECT_ROOT]
   gslph evidence analyze [--json] [PROJECT_ROOT]
   gslph agent doctor [--json] [PROJECT_ROOT]

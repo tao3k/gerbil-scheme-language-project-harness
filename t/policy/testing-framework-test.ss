@@ -4,9 +4,9 @@
 (import :gerbil/gambit
         :std/test
         (only-in :clan/poo/object object? .o .ref .slot?)
-        :testing/model
-        :testing/framework
-        :testing/build
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/build
         :policy/testing-framework-support)
 
 (export testing-framework-test)

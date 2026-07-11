@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Gerbil POO typeclass algebra pattern specs.
 
-(import :extensions/poo-pattern-support)
+(import :gslph/src/extensions/poo-pattern-support)
 
 (export +poo-typeclass-algebra-pattern-spec+)
 

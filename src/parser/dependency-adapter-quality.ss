@@ -2,8 +2,8 @@
 ;;; Parser-owned dependency protocol adapter quality facts.
 
 (import :gerbil/expander
-        :parser/model
-        :parser/support
+        :gslph/src/parser/model
+        :gslph/src/parser/support
         (only-in :std/misc/list unique)
         (only-in :std/misc/string string-trim-suffix)
         (only-in :std/sort sort)
@@ -22,7 +22,7 @@
 (def +internal-module-prefixes+
   '("." ":std/" ":gerbil/" ":parser/" ":policy/" ":protocol/"
     ":support/" ":types/" ":commands/" ":checker/" ":snapshot/"
-    ":language/" ":extensions/" ":package-manager/" ":constants"))
+    ":language/" ":extensions/" ":package-manager/" ":gslph/src/constants"))
 
 ;; (List String)
 (def +validation-slots+ '(".validate" ".element?"))

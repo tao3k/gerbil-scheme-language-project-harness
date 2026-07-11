@@ -2,27 +2,27 @@
 ;;; Agent-facing policy checks over facade intent comments.
 
 (import :gerbil/gambit
-        :parser/facade
-        :policy/agent-basic
-        :policy/agent-macro-protocol
-        :policy/agent-alist-access
-        :policy/agent-anonymous-pair
-        :policy/agent-build
-        :policy/agent-build-runtime
-        :policy/agent-comment
-        :policy/agent-dependency-adapter
-        :policy/agent-import
-        :policy/agent-list-growth
-        :policy/agent-list-random-access
-        :policy/agent-macro-io
-        :policy/agent-string-growth
-        :policy/agent-poo
-        :policy/agent-source-scope
-        :policy/agent-style
-        :policy/agent-support
-        :policy/gerbil-utils-source
-        :policy/model
-        :policy/modularity
+        :gslph/src/parser/facade
+        :gslph/src/policy/agent-basic
+        :gslph/src/policy/agent-macro-protocol
+        :gslph/src/policy/agent-alist-access
+        :gslph/src/policy/agent-anonymous-pair
+        :gslph/src/policy/agent-build
+        :gslph/src/policy/agent-build-runtime
+        :gslph/src/policy/agent-comment
+        :gslph/src/policy/agent-dependency-adapter
+        :gslph/src/policy/agent-import
+        :gslph/src/policy/agent-list-growth
+        :gslph/src/policy/agent-list-random-access
+        :gslph/src/policy/agent-macro-io
+        :gslph/src/policy/agent-string-growth
+        :gslph/src/policy/agent-poo
+        :gslph/src/policy/agent-source-scope
+        :gslph/src/policy/agent-style
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/gerbil-utils-source
+        :gslph/src/policy/model
+        :gslph/src/policy/modularity
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/1 take)
         (only-in :std/srfi/13
@@ -31,7 +31,7 @@
                  string-suffix?
                  string-trim)
         (only-in :std/sugar cut filter filter-map find hash ormap while with-catch)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export run-agent-policy
         facade-intent-finding

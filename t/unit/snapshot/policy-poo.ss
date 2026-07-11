@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Policy POO snapshot projections.
 
-(import :parser/facade
-        :policy/facade
-        :scenario/policy
-        :snapshot/facade
+(import :gslph/src/parser/facade
+        :gslph/src/policy/facade
+        :gslph/src/scenario/policy
+        :gslph/src/snapshot/facade
         :std/test
-        :types/facade
+        :gslph/src/types/facade
         :unit/policy/poo-scenarios)
 (import :unit/snapshot/policy-support)
 (export downstream-poo-agent-policy-snapshot

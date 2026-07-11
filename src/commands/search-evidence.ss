@@ -2,14 +2,14 @@
 ;;; Search evidence packet rendering for pattern, compare, runtime-source, and ingest views.
 
 (import :gerbil/gambit
-        :constants
-        :commands/search-render
-        :extensions/facade
-        :language/facade
-        :parser/facade
-        :protocol/json
-        :support/args
-        :support/io
+        :gslph/src/constants
+        :gslph/src/commands/search-render
+        :gslph/src/extensions/facade
+        :gslph/src/language/facade
+        :gslph/src/parser/facade
+        :gslph/src/protocol/json
+        :gslph/src/support/args
+        :gslph/src/support/io
         (only-in :std/misc/ports read-all-as-lines read-all-as-string)
         (only-in :std/misc/process process-status run-process)
         (only-in :std/srfi/13 string-contains string-join string-prefix?)

@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; Gxtest delegate contract projection and file filtering.
 
-(import (only-in "./gxtest-discovery"
+(import (only-in :gslph/src/testing/gxtest-discovery
                  gxtest-file-exported-suite)
-        (only-in "./model"
+        (only-in :gslph/src/testing/model
                  testing-object
                  testing-object-ref
                  testing-receipt

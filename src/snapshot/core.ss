@@ -1,14 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; Stable snapshot projections for provider facts and command packets.
 
-(import :checker/facade
-        :constants
-        :extensions/facade
-        :parser/facade
-        :snapshot/support
+(import :gslph/src/checker/facade
+        :gslph/src/constants
+        :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        :gslph/src/snapshot/support
         (only-in :std/srfi/1 list-copy)
         (only-in :std/sugar hash-key?)
-        :types/facade)
+        :gslph/src/types/facade)
 
 (export snapshot-load
         project-package-snapshot

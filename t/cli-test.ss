@@ -4,7 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
-        (only-in :cli-launcher provider-command-line-args main))
+        (only-in :gslph/src/cli-launcher provider-command-line-args main))
 (export cli-test)
 
 ;; : TestSuite

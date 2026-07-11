@@ -2,10 +2,10 @@
 ;;; Boundary:
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
-(import :commands/guide
-        :language/facade
-        :protocol/registry
-        :snapshot/facade
+(import :gslph/src/commands/guide
+        :gslph/src/language/facade
+        :gslph/src/protocol/registry
+        :gslph/src/snapshot/facade
         :std/test)
 
 (export check-language-evidence-snapshot-fields

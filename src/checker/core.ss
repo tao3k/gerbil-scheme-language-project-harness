@@ -1,10 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Checker dispatch over native Gerbil facts.
 
-(import :checker/arity
-        :checker/forms
-        :checker/types
-        :checker/whitelist)
+(import :gslph/src/checker/arity
+        :gslph/src/checker/forms
+        :gslph/src/checker/types
+        :gslph/src/checker/whitelist)
 
 (export run-checker-checks
         run-checker-checks/whitelist)

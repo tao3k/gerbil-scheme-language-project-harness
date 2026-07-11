@@ -3,10 +3,10 @@
 
 (import :gerbil/gambit
         :std/test
-        (only-in :support/time
+        (only-in :gslph/src/support/time
                  duration-literal->nanos)
-        :benchmark/gate
-        :benchmark/framework)
+        :gslph/src/benchmark/gate
+        :gslph/src/benchmark/framework)
 
 (export benchmark-gate-test)
 

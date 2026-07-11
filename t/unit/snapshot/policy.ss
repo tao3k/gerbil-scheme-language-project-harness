@@ -2,7 +2,7 @@
 ;;; Policy snapshot projection facade.
 
 (import :std/test
-        :snapshot/facade
+        :gslph/src/snapshot/facade
         (rename-in :unit/snapshot/policy-poo
           (downstream-poo-agent-policy-snapshot policy-poo-downstream-poo-agent-policy-snapshot)
           (poo-prototype-fixed-point-policy-snapshot policy-poo-poo-prototype-fixed-point-policy-snapshot)

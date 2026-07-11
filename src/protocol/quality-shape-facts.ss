@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Structural JSON projection for parser-owned quality-shape facts.
 
-(import :parser/facade
-        :protocol/support
+(import :gslph/src/parser/facade
+        :gslph/src/protocol/support
         (only-in :std/misc/list unique)
         (only-in :std/sugar filter hash))
 

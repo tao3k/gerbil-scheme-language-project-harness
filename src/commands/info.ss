@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Machine-readable harness info and verification receipt.
 
-(import :constants
-        :parser/facade
-        :policy/catalog
-        :protocol/json
-        :support/args
-        :support/io
+(import :gslph/src/constants
+        :gslph/src/parser/facade
+        :gslph/src/policy/catalog
+        :gslph/src/protocol/json
+        :gslph/src/support/args
+        :gslph/src/support/io
         (only-in :std/srfi/13 string-join))
 
 (export info-main

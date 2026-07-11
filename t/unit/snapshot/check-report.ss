@@ -1,5 +1,5 @@
 ;;; -*- Gerbil -*-
-(import :snapshot/facade
+(import :gslph/src/snapshot/facade
         :std/test)
 (export check-empty-check-report-snapshot)
 ;; Snapshot

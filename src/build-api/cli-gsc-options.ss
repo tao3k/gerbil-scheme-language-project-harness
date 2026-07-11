@@ -15,12 +15,41 @@
    (getenv "OPENSSL_ROOT_DIR" #f)
    (getenv "PKG_CONFIG" #f)
    (getenv "PKG_CONFIG_PATH" #f)
-   (getenv "PKG_CONFIG_LIBDIR" #f)])
+   (getenv "PKG_CONFIG_LIBDIR" #f)
+   (homebrew-openssl-prefix)])
+
+;; : (-> String)
+(def (pkg-config-command)
+  (let (command (getenv "PKG_CONFIG" #f))
+    (if (and command (not (string=? command "")))
+      command
+      "pkg-config")))
+
+;; : (-> (Maybe String))
+(def (homebrew-openssl-prefix)
+  (cond-expand
+   (darwin
+    (let (status 0)
+      (with-catch
+       (lambda (_) #f)
+       (lambda ()
+         (let* ((output
+                 (run-process ["brew" "--prefix" "openssl@3"]
+                              stderr-redirection: #t
+                              check-status:
+                              (lambda (exit-status _settings)
+                                (set! status exit-status))))
+                (tokens (string-tokenize output)))
+           (and (zero? status)
+                (pair? tokens)
+                (car tokens)))))))
+   (else #f)))
 
 ;; : (-> (Maybe String))
 (def (openssl-prefix)
   (or (getenv "OPENSSL_DIR" #f)
-      (getenv "OPENSSL_ROOT_DIR" #f)))
+      (getenv "OPENSSL_ROOT_DIR" #f)
+      (homebrew-openssl-prefix)))
 
 ;; : (-> (List String))
 (def (cc-compiler-option)
@@ -46,7 +75,7 @@
      (lambda (_) [])
      (lambda ()
        (let (output
-             (run-process (append ["pkg-config"] args ["openssl"])
+             (run-process (append [(pkg-config-command)] args ["openssl"])
                           stderr-redirection: #t
                           check-status:
                           (lambda (exit-status _settings)

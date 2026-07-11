@@ -2,11 +2,11 @@
 ;;; Formatter file discovery and write application.
 
 (import :gerbil/gambit
-        :format/core
+        :gslph/src/format/core
         (only-in :std/misc/path path-expand)
         (only-in :std/sort sort)
         (only-in :std/srfi/1 append-map)
-        :support/io)
+        :gslph/src/support/io)
 
 (export fmt-target-files
         fmt-file

@@ -2,8 +2,8 @@
 ;;; Boundary:
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
-(import :language/facade
-        :snapshot/facade
+(import :gslph/src/language/facade
+        :gslph/src/snapshot/facade
         :std/test)
 
 (export check-compare-snapshot-fields

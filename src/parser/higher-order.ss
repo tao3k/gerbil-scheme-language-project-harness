@@ -2,10 +2,10 @@
 ;;; Parser-owned higher-order syntax fact extraction.
 
 (import :gerbil/expander
-        :parser/formals
-        :parser/model
-        :parser/support
-        :parser/syntax
+        :gslph/src/parser/formals
+        :gslph/src/parser/model
+        :gslph/src/parser/support
+        :gslph/src/parser/syntax
         (only-in :std/misc/list unique))
 
 (export higher-order-facts-from-form

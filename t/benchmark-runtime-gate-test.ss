@@ -3,14 +3,14 @@
 
 (import :gerbil/gambit
         :std/test
-        (only-in :build-api/worker-count build-worker-count)
-        (only-in :support/time monotonic-ms duration-ms)
-        (only-in :testing/gxtest-build compile-package-api-if-stale)
-        (only-in :testing/gxtest-context configure-build-root!)
-        (only-in :testing/gxtest-policy
+        (only-in :gslph/src/build-api/worker-count build-worker-count)
+        (only-in :gslph/src/support/time monotonic-ms duration-ms)
+        (only-in :gslph/src/testing/gxtest-build compile-package-api-if-stale)
+        (only-in :gslph/src/testing/gxtest-context configure-build-root!)
+        (only-in :gslph/src/testing/gxtest-policy
                  scoped-policy-target-files
                  run-scoped-policy-if-stale)
-        :benchmark/gate)
+        :gslph/src/benchmark/gate)
 
 (export benchmark-runtime-gate-test)
 

@@ -70,6 +70,31 @@
                        'locked))
                     => 'locked)
              (check (file-exists? lock-path) => #f))))))
+    (test-case "reclaims a dead lock owner before entering the build"
+      (let* ((package-root (path-expand "stale-lock-package"
+                                        +package-build-test-root+))
+             (consumer-gerbil-path
+              (path-expand "stale-lock-consumer/.gerbil"
+                           +package-build-test-root+)))
+        (package-build-test-ensure-directory! package-root)
+        (package-build-test-ensure-directory! consumer-gerbil-path)
+        (with-gerbil-path
+         consumer-gerbil-path
+         (lambda ()
+           (gslph-package-configure-build-root! package-root)
+           (let ((lock-path (gslph-package-build-lock-path package-root))
+                 (owner-path #f))
+             (package-build-test-ensure-directory! (path-directory lock-path))
+             (unless (file-exists? lock-path)
+               (create-directory lock-path))
+             (set! owner-path (path-expand "owner.scm" lock-path))
+             (call-with-output-file owner-path
+               (lambda (port)
+                 (write '(gslph-package-build-owner 999999 0) port)
+                 (newline port)))
+             (check (gslph-package-build-with-lock (lambda () 'recovered))
+                    => 'recovered)
+             (check (file-exists? lock-path) => #f))))))
     (test-case "falls back to package local GERBIL_PATH when caller path is absent"
       (let* ((package-root (path-expand "standalone-package"
                                         +package-build-test-root+))

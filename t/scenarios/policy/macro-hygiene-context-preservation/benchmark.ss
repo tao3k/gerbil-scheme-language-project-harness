@@ -1,0 +1,62 @@
+((schemaId . "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
+ (schemaVersion . "2")
+ (feature . "macro-hygiene-context-preservation")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-013")
+ (purpose . "R013 proves that grammar literals and generated forms retain lexical and source context")
+ (inputShape . "macro grammar collapses syntax to printed symbols and stores call context in a mutable phase global")
+ (expectedOutcome . "binding-aware literal comparison, syntax-preserving planning, and source-aware expansion errors")
+ (optimizationFocus . "syntax->datum string dispatch to free-identifier equality and syntax context preservation")
+ (antiAiScaffoldIntent . "prevent generated DSL macros from erasing lexical identity and source locations")
+ (expectedReferencePattern . "macro-hygiene-context-preservation")
+ (expectedReferenceExamples
+  "gerbil://gerbil/expander/core.ss#free-identifier=?"
+  "gerbil://gerbil/expander/stx.ss#syntax/loc"
+  "gerbil://gerbil/expander/core.ss#raise-syntax-error")
+ (learnedStyleSources
+  "gerbil://gerbil/expander/core.ss"
+  "gerbil://gerbil/expander/stx.ss"
+  "harness-self-apply")
+ (expectedQualitySignals
+  "macro-hygiene-context-preservation"
+  "macro-hygiene-boundary"
+  "scoped-expander-state-boundary"
+  "source-aware-syntax-error")
+ (scenarioQualityAxes
+  "macro-hygiene-context-preservation"
+  "binding-aware-grammar-literal"
+  "syntax-context-preservation"
+  "source-aware-syntax-error")
+ (tags "style" "macro" "hygiene" "syntax-context" "source-location")
+ (targetRationale . "syntax-context inspection must remain inside the small R013 macro-policy gate")
+ (unit . "ms")
+ (iterations . 1)
+ (target_total . 18ms)
+ (regression_budget . 26ms)
+ (expected_over_input_budget . 26ms)
+ (expected_over_input_note . #f)
+ (max_total . 30ms)
+ (observed_total . 5ms)
+ (maxCollectMs . 15)
+ (maxParseMs . 15)
+ (maxFileMs . 5)
+ (maxPhaseMs . 10)
+ (observedCollectMs . 0)
+ (observedParseMs . 0)
+ (observedFileMs . 0)
+ (observedPhaseMs . 0)
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 1))
+  ((name . policy-before) (durationMs . 1))
+  ((name . policy-after) (durationMs . 1)))
+ (measurementPhases
+  "collect-before" "collect-after" "policy-before" "policy-after"
+  "assert-time-gate" "assert-memory-gate")
+ (memoryMetric . resident-set-size)
+ (memoryUnit . "MB")
+ (maxRssMb . 512)
+ (hotPathEvidence)
+ (hotPathExemption . #f)
+ (nativePooPrimary . #f)
+ (adapterBoundary . #f)
+ (styleRewriteBoundary . #f))

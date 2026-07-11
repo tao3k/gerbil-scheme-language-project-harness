@@ -6,7 +6,7 @@
         :commands/bench-light
         :std/misc/ports
         (only-in :std/sugar cut find ormap)
-        (rename-in :cli-launcher (main cli-main)))
+        (rename-in :gslph/src/cli-launcher (main cli-main)))
 (export json-get
         json-key?
         find-performance-finding

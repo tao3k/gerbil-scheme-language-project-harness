@@ -2,7 +2,7 @@
 ;;; Development executable root for gslph.
 
 (import :gerbil/gambit
-        :std/misc/path)
+        (only-in :std/misc/path path-expand))
 (export main)
 
 ;;; Dev binary boundary:
@@ -12,6 +12,7 @@
 ;; : (-> Args Integer)
 (def (main . args)
   (add-load-path! (path-expand ".gerbil/lib" (current-directory)))
+  (##global-var-set! (##make-global-var 'load-module) load-module)
   (load-module "gslph/src/cli-launcher")
   (let (launcher-main (eval 'gslph/src/cli-launcher#main))
     (unless (procedure? launcher-main)

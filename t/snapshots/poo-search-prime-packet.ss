@@ -140,10 +140,10 @@
  (nextActions
   ((nextAction
     (kind "search")
-    (target "fzf")
+    (target "lexical")
     (scope ".run/extensions-poo-search-prime")
     (fields
-     (command "gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))))
+     (command "gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds")))))
  (notes
   ((note
     (kind "parser")

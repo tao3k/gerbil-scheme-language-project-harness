@@ -1,13 +1,13 @@
 ;;; -*- Gerbil -*-
 ;;; Typed-combinator documentation and invalid-contract detail helpers.
 
-(import :parser/facade
-        :policy/agent-support
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-support
         (only-in :std/misc/list unique)
         (only-in :std/srfi/1 take)
         (only-in :std/sugar cut filter filter-map hash hash-get ormap))
 
-(import :utilities/functional)
+(import :gslph/src/utilities/functional)
 
 (export typed-combinator-style-missing-doc-targets
         typed-combinator-style-missing-forall-targets
@@ -152,7 +152,8 @@
          (equal? (substring text 0 prefix-length) prefix))))
 
 (def (typed-combinator-style-profile-missing-doc-target file profile)
-  (and (typed-combinator-style-profile-requires-doc? profile)
+  (and (> (function-quality-profile-arity profile) 0)
+       (typed-combinator-style-profile-requires-doc? profile)
        (not (typed-combinator-style-profile-has-doc? file profile))
        (function-quality-profile-name profile)))
 

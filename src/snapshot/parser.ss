@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Stable snapshot projections for native parser facts.
 
-(import :parser/facade
-        :snapshot/support
+(import :gslph/src/parser/facade
+        :gslph/src/snapshot/support
         (only-in :std/srfi/1 list-copy))
 
 (export parser-source-file-snapshot)

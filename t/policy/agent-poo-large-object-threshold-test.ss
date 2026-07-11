@@ -3,10 +3,10 @@
 
 (import :gerbil/gambit
         :std/test
-        :benchmark/gate
-        (only-in :parser/model make-call-fact)
-        :policy/agent-poo-callees
-        :policy/agent-poo-object-literal)
+        :gslph/src/benchmark/gate
+        (only-in :gslph/src/parser/model make-call-fact)
+        :gslph/src/policy/agent-poo-callees
+        :gslph/src/policy/agent-poo-object-literal)
 
 (export agent-poo-large-object-threshold-policy-test)
 

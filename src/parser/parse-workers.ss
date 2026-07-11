@@ -2,10 +2,10 @@
 ;;; Parallel source-file parse scheduling.
 
 (import :gerbil/gambit
-        :parser/model
-        :parser/profile
-        :parser/source-file
-        :support/time
+        :gslph/src/parser/model
+        :gslph/src/parser/profile
+        :gslph/src/parser/source-file
+        :gslph/src/support/time
         (only-in :std/srfi/1 iota)
         (only-in :std/sugar cut while))
 
@@ -16,131 +16,131 @@
 ;;; Profile row boundary:
 ;;; - Worker details become one JSON-ready row before crossing back into the
 ;;;   foreground scheduler.
-;;; - Stage rows remain optional so non-profile parsing has no row allocation.
+;;; - Full-project profile rows are scalar-only; stage timing is an explicit
+;;;   per-owner operation and never retains extra source trees here.
 ;; parse-profile-row
-;;   : (-> String Integer SourceFile (Maybe (List HashTable)) HashTable)
+;;   : (-> String Integer SourceFile HashTable)
 ;;   | doc m%
-;;       `parse-profile-row path elapsed-ms source-file stage-rows` records the
-;;       per-file parse cost and optional parser stage timings.
+;;       `parse-profile-row path elapsed-ms source-file` records the per-file
+;;       parser cost and scalar source facts.
 ;;     %
-(def (parse-profile-row path elapsed-ms source-file stage-rows)
-  (let (row
-        (hash (path path)
-              (durationMs elapsed-ms)
-              (lineCount (source-file-line-count source-file))
-              (definitions (length (source-file-definitions source-file)))
-              (calls (length (source-file-calls source-file)))))
-    (when stage-rows
-      (hash-put! row 'phases stage-rows))
-    row))
+(def (parse-profile-row path elapsed-ms source-file)
+  (hash (path path)
+        (durationMs elapsed-ms)
+        (lineCount (source-file-line-count source-file))
+        (definitions (length (source-file-definitions source-file)))
+        (calls (length (source-file-calls source-file)))))
 
 ;;; Worker body boundary:
 ;;; - Worker threads own exactly one parse operation and one mailbox send.
 ;;; - Error payloads stay data-shaped so the foreground thread remains the only
 ;;;   place that raises into the scheduler.
 ;; parse-source-worker!
-;;   : (-> Thread String String Integer Boolean Unit)
+;;   : (-> Thread String String Integer Boolean)
 ;;   | doc m%
-;;       `parse-source-worker! foreground-thread root path index profile?`
+;;       `parse-source-worker! foreground-thread root path index`
 ;;       parses one file and sends either an `ok` or `error` vector.
 ;;     %
-(def (parse-source-worker! foreground-thread root path index profile?)
+(def (parse-source-worker! foreground-thread root path index)
   (with-catch
    (lambda (exn)
      (thread-send foreground-thread
-                  (vector 'error (current-thread) index exn)))
+                  (vector 'error (current-thread) index exn))
+     #f)
    (lambda ()
-     (let (file-start (monotonic-ms))
-       (if profile?
-         (call-with-values
-          (lambda () (parse-source-file/profile root path))
-          (lambda (source-file stage-rows)
-            (thread-send foreground-thread
-                         (vector 'ok
-                                 (current-thread)
-                                 index
-                                 source-file
-                                 (duration-ms file-start (monotonic-ms))
-                                 stage-rows))))
-         (let (source-file (parse-source-file root path))
-           (thread-send foreground-thread
-                        (vector 'ok
-                                (current-thread)
-                                index
-                                source-file
-                                (duration-ms file-start (monotonic-ms))
-                                #f))))))))
+     (let* ((file-start (monotonic-ms))
+            (source-file (parse-source-file root path)))
+       (thread-send foreground-thread
+                    (vector 'ok
+                            (current-thread)
+                            index
+                            source-file
+                            (duration-ms file-start (monotonic-ms))
+                            #f))
+       #t))))
+
+;;; Worker reuse boundary:
+;;; - A collection creates one thread per worker, never one thread per source
+;;;   file, so repeated project collection cannot retain a thread history that
+;;;   grows with corpus size.
+;; parse-source-worker-batch!
+;;   : (-> Thread String Vector Integer Integer Unit)
+;;   | doc m%
+;;       `parse-source-worker-batch!` parses a stride-partitioned group of
+;;       source indexes and stops after its first reported error.
+;;     %
+(def (parse-source-worker-batch! foreground-thread root file-vector
+                                 start-index stride)
+  (let loop ((index start-index))
+    (when (< index (vector-length file-vector))
+      (let (path (vector-ref file-vector index))
+        (when (parse-source-worker! foreground-thread root path index)
+          (loop (+ index stride)))))))
 
 ;;; Spawn boundary:
 ;;; - The foreground scheduler chooses indexes; this helper only maps an index
 ;;;   to its path and starts a named worker.
 ;; spawn-parse-worker!
-;;   : (-> Thread String Vector Integer Boolean Thread)
+;;   : (-> Thread String Vector Integer Integer Thread)
 ;;   | doc m%
 ;;       `spawn-parse-worker! foreground-thread root file-vector index profile?`
 ;;       starts one bounded worker for the indexed source file.
 ;;     %
-(def (spawn-parse-worker! foreground-thread root file-vector index profile?)
-  (let (path (vector-ref file-vector index))
-    (spawn/name
-     [worker: path]
-     (lambda ()
-       (parse-source-worker! foreground-thread root path index profile?)))))
+(def (spawn-parse-worker! foreground-thread root file-vector
+                          start-index stride)
+  (spawn/name
+   [worker: start-index]
+   (lambda ()
+     (parse-source-worker-batch! foreground-thread root file-vector
+                                 start-index stride))))
 
 ;;; Receive boundary:
 ;;; - The mailbox protocol is vector-shaped and foreground-owned.
 ;;; - Successful results update output vectors in input order; errors re-raise
 ;;;   after the worker joins.
 ;; receive-parse-worker!
-;;   : (-> Vector Vector (Maybe Vector) Boolean Integer)
+;;   : (-> Vector Vector Boolean (Values Integer (Maybe HashTable)))
 ;;   | doc m%
 ;;       `receive-parse-worker! file-vector source-vector row-vector profile?`
 ;;       receives one worker message, records it, and returns completed count.
 ;;     %
-(def (receive-parse-worker! file-vector source-vector row-vector profile?)
+(def (receive-parse-worker! file-vector source-vector timing?)
   (let (message (thread-receive))
     (unless (vector? message)
       (error "unexpected parse worker message" message))
-    (let ((status (vector-ref message 0))
-          (worker-thread (vector-ref message 1))
-          (index (vector-ref message 2)))
-      (thread-join! worker-thread)
+    (let (status (vector-ref message 0))
       (case status
         ((ok)
-         (record-parse-worker-success! file-vector
-                                       source-vector
-                                       row-vector
-                                       profile?
-                                       message)
-         1)
+         (values 1
+                 (record-parse-worker-success! file-vector
+                                               source-vector
+                                               timing?
+                                               message)))
         ((error)
          (raise (vector-ref message 3)))
         (else
          (error "unexpected parse worker status" status))))))
 
 ;; record-parse-worker-success!
-;;   : (-> Vector Vector (Maybe Vector) Boolean Vector Unit)
+;;   : (-> Vector Vector Boolean Vector (Maybe HashTable))
 ;;   | doc m%
 ;;       `record-parse-worker-success!` writes one successful worker result into
 ;;       the foreground-owned result vectors.
 ;;     %
-(def (record-parse-worker-success! file-vector source-vector row-vector profile?
-                                   message)
+(def (record-parse-worker-success! file-vector source-vector timing? message)
   (let ((index (vector-ref message 2))
         (source-file (vector-ref message 3))
-        (elapsed-ms (vector-ref message 4))
-        (stage-rows (vector-ref message 5)))
-    (vector-set! source-vector index source-file)
-    (when profile?
-      (vector-set! row-vector
-                   index
-                   (parse-profile-row (vector-ref file-vector index)
-                                      elapsed-ms
-                                      source-file
-                                      stage-rows)))))
+        (elapsed-ms (vector-ref message 4)))
+    (when source-vector
+      (vector-set! source-vector index source-file))
+    (if timing?
+      (parse-profile-row (vector-ref file-vector index)
+                         elapsed-ms
+                         source-file)
+      #f)))
 
 ;;; Aggregate phase boundary:
-;;; - Keep scheduler metadata in one packet so benchmark receipts can explain
+;;; - Keep scheduler metadata in one packet so profile receipts can explain
 ;;;   concurrency behavior without re-reading source.
 ;; parse-worker-phase-row
 ;;   : (-> Integer Integer HashTable)
@@ -176,50 +176,50 @@
 ;;       ;; => source files in input order
 ;;       ```
 ;;     %
-(def (parse-source-files/concurrent root files profile?)
+(def (parse-source-files/concurrent* root files timing? retain-source?)
   (let* ((file-count (length files))
          (worker-count (collect-project-worker-count file-count))
          (file-vector (list->vector files))
-         (source-vector (make-vector file-count #f))
-         (row-vector (and profile? (make-vector file-count #f)))
+         (source-vector (and retain-source? (make-vector file-count #f)))
+         (profile-frontier '())
          (foreground-thread (current-thread))
-         (next-index 0)
-         (active-workers 0)
-         (completed 0)
+         (workers
+          (map (lambda (start-index)
+                 (spawn-parse-worker! foreground-thread
+                                      root
+                                      file-vector
+                                      start-index
+                                      worker-count))
+               (iota worker-count)))
          (start (monotonic-ms)))
-    ;; : (-> Boolean)
-    (def (spawn-next-worker!)
-      (and (< next-index file-count)
-           (let (index next-index)
-             (set! next-index (+ next-index 1))
-             (spawn-parse-worker! foreground-thread
-                                  root
-                                  file-vector
-                                  index
-                                  profile?)
-             (set! active-workers (+ active-workers 1))
-             #t)))
-    (for-each (lambda (_) (spawn-next-worker!))
-              (iota worker-count))
-    (while (> active-workers 0)
-      (set! completed
-        (+ completed
-           (receive-parse-worker! file-vector
-                                  source-vector
-                                  row-vector
-                                  profile?)))
-      (set! active-workers (- active-workers 1))
-      (spawn-next-worker!))
-    (when (not (= completed file-count))
-      (error "parse worker completion mismatch" completed file-count))
-    (let* ((source-files (vector->list source-vector))
-           (rows (and profile? (vector->list row-vector)))
+    (let loop ((completed 0))
+      (if (= completed file-count)
+        (for-each thread-join! workers)
+        (call-with-values
+         (lambda ()
+           (receive-parse-worker! file-vector source-vector timing?))
+         (lambda (count profile-row)
+           (when profile-row
+             (set! profile-frontier
+               (slowest-profile-rows
+                (cons profile-row profile-frontier)
+                10)))
+           (loop (+ completed count))))))
+    (let* ((source-files (and retain-source? (vector->list source-vector)))
            (parse-phase (parse-worker-phase-row start worker-count)))
-      (if profile?
+      (if timing?
         (values source-files
                 parse-phase
-                (slowest-profile-rows rows 10))
+                profile-frontier)
         source-files))))
+
+;; `profile?` preserves the public parser contract.  The implementation keeps
+;; all-file parsing on the ordinary concurrent path and profiles only its
+;; bounded timing frontier.
+(def (parse-source-files/concurrent root files profile?)
+  (if profile?
+    (parse-source-files/profile root files)
+    (parse-source-files/concurrent* root files #f #t)))
 
 ;; parse-source-files
 ;;   : (-> String (List String) (List SourceFile))
@@ -231,10 +231,18 @@
   ((cut parse-source-files/concurrent <> <> #f) root files))
 
 ;; parse-source-files/profile
-;;   : (-> String (List String) (Values (List SourceFile) HashTable (List HashTable)))
+;;   : (-> String (List String) HashTable)
 ;;   | doc m%
-;;       `parse-source-files/profile root files` parses files concurrently and
-;;       returns parsed sources plus aggregate and slowest-file profile rows.
+;;       `parse-source-files/profile root files` materializes the project once
+;;       and returns a packet with its parse phase and bounded timing frontier.
 ;;     %
 (def (parse-source-files/profile root files)
-  ((cut parse-source-files/concurrent <> <> #t) root files))
+  ;; Full-project profiling is evidence collection, not a second parser pass.
+  ;; A caller that needs stage timing can profile an already selected owner.
+  (call-with-values
+   (lambda ()
+     (parse-source-files/concurrent* root files #t #t))
+   (lambda (source-files parse-phase profile-frontier)
+     (hash (sourceFiles source-files)
+           (parsePhase parse-phase)
+           (slowestFiles profile-frontier)))))

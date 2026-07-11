@@ -1,13 +1,13 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing dependency protocol adapter policy over parser-owned facts.
 
-(import :parser/facade
-        :policy/agent-support
-        :policy/dependency-adapter-profile
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/dependency-adapter-profile
+        :gslph/src/policy/model
         (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-contains string-join string-prefix?)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export dependency-protocol-adapter-findings
         dependency-protocol-adapter-finding)

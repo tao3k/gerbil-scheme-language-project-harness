@@ -1,6 +1,6 @@
 ;;; -*- Gerbil -*-
-(import :parser/facade
-        :snapshot/facade
+(import :gslph/src/parser/facade
+        :gslph/src/snapshot/facade
         :std/test)
 
 (export check-parser-complex-native-facts-snapshot)

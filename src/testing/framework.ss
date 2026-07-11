@@ -12,7 +12,8 @@
         :gslph/src/testing/scenario
         :gslph/src/testing/selection
         :gslph/src/testing/batch
-        :gslph/src/testing/performance)
+        :gslph/src/testing/performance
+        :gslph/src/testing/commands)
 
 (export #t
         testing-member?
@@ -65,7 +66,8 @@
         testing-under-limit?
         testing-gxtest-suite-hot-path-diagnostics
         testing-gxtest-suite-hot-path?
-        testing-gxtest-suite-hot-path-receipt)
+        testing-gxtest-suite-hot-path-receipt
+        (import: :gslph/src/testing/commands))
 
 ;; : (-> Symbol Symbol MaybeString List List TestingReceipt)
 (import :gslph/src/build-api/source-coverage

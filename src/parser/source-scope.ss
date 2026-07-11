@@ -5,8 +5,8 @@
 ;;; - This module turns that policy into concrete parser file sets.
 
 (import :gerbil/gambit
-        :parser/package
-        (only-in :parser/selectors relative-path source-full-path)
+        :gslph/src/parser/package
+        (only-in :gslph/src/parser/selectors relative-path source-full-path)
         (only-in :std/iter for/fold)
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports read-file-lines)

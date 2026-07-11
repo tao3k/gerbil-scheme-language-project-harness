@@ -2,8 +2,8 @@
 ;;; Lightweight workspace-scope renderer for the native search launcher.
 
 (import :gerbil/gambit
-        :constants
-        (only-in :commands/search-prime-light
+        :gslph/src/constants
+        (only-in :gslph/src/commands/search-prime-light
                  drop-project-root
                  flag?
                  project-package-manager

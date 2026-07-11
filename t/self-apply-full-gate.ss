@@ -1,16 +1,16 @@
 ;;; -*- Gerbil -*-
 ;;; Explicit slow self-apply policy gate for this harness.
 
-(import :build-api/source-coverage
+(import :gslph/src/build-api/source-coverage
         :std/test
-        :parser/facade
-        :policy/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
         :policy/fixtures
-        :policy/gxtest
-        :policy/repair-calibration
-        :snapshot/facade
+        :gslph/src/policy/gxtest
+        :gslph/src/policy/repair-calibration
+        :gslph/src/snapshot/facade
         :std/sugar
-        :types/facade)
+        :gslph/src/types/facade)
 (export self-apply-full-test)
 
 ;; ConfigConstant

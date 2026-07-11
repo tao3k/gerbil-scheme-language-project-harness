@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Structural search interface renderer.
 
-(import :commands/search-render
-        :parser/facade
-        :parser/source-class
-        :protocol/json
-        :support/args
-        :support/io
+(import :gslph/src/commands/search-render
+        :gslph/src/parser/facade
+        :gslph/src/parser/source-class
+        :gslph/src/protocol/json
+        :gslph/src/support/args
+        :gslph/src/support/io
         (only-in :std/srfi/1 take))
 
 (export emit-structural-index)

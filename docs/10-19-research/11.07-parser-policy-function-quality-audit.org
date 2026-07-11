@@ -235,7 +235,7 @@ agent-facing index.
 
 Observed gaps:
 
-- The combined fzf-style research query for parser completeness, function
+- The combined lexical-style research query for parser completeness, function
   quality, and multi-layer monitoring did not surface strong document matches
   before this report.
 - This report adds the missing document vocabulary for =quality-profile=,

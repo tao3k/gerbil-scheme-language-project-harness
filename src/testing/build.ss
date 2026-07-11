@@ -35,6 +35,8 @@
         testing-build-scenario-runs)
 
 ;; : (forall (A) (-> TestingBuild String (List (Pair Symbol A))))
+;; testing-build-scenario-metadata
+;; : (-> TestingBuild String Alist)
 (def (testing-build-scenario-metadata build id)
   (let (entry (assoc id (testing-object-ref build 'scenarioMetadata [])))
     (if entry (cdr entry) [])))
@@ -108,10 +110,14 @@
                    contract-root: (testing-build-contract-root build)))))))
 
 ;; : (forall (A) (-> (List (Maybe A)) (List A)))
+;; testing-build-filter
+;; : (-> List List)
 (def (testing-build-filter values)
   (filter identity values))
 
 ;; : (forall (A) (-> TestingBuild TestingProject))
+;; testing-build-project
+;; : (-> TestingBuild TestingProject)
 (def (testing-build-project build)
   (let* ((gxtest-suites
           (map (lambda (spec)
@@ -135,11 +141,7 @@
      receipt-prefix: (testing-object-ref build 'receiptPrefix
                                          (testing-object-ref build 'name "testing-build")))))
 
-;; : (forall (A B C D E)
-;;      (-> String Path (Maybe Path) (List A) (List B) (Maybe Path)
-;;          (List Path) (Maybe (List Path)) (List (Pair Symbol C))
-;;          Path String (List D) Integer Integer Integer Integer
-;;          (Maybe String) (Maybe String) (Maybe E) TestingBuild))
+;; : (-> String (Maybe String) Path (Maybe Path) (List Datum) (List PerformanceSuite) (List Path) (Maybe (List Path)) (List Path) (Maybe (List Path)) (Maybe Path) (List String) (Maybe (List String)) (List Alist) Path String (List Path) (Maybe String) Integer Integer Integer Integer Boolean (Maybe Path) Symbol Boolean (List Path) (Maybe String) TestingBuild)
 (def (testing-build name: (name "testing-build")
                     package-name: (package-name #f)
                     root: (root ".")

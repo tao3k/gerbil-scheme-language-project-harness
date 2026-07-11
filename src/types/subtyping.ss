@@ -3,7 +3,7 @@
 
 (import :gerbil/gambit
         (only-in :std/sugar hash)
-        :types/model)
+        :gslph/src/types/model)
 
 (export make-type-proof
         type-proof?

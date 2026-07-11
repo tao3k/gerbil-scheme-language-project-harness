@@ -2,9 +2,9 @@
 ;;; Native search launcher with fast package/topology seed paths.
 
 (import :gerbil/gambit
-        (only-in :commands/search-prime-light
+        (only-in :gslph/src/commands/search-prime-light
                  search-prime-light-main)
-        (only-in :commands/search-workspace-scope-light
+        (only-in :gslph/src/commands/search-workspace-scope-light
                  search-workspace-scope-light-main)
         (only-in :std/misc/process run-process)
         (only-in :std/srfi/13 string-index))

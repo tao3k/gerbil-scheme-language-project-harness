@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Shared helpers for stable snapshot projections.
 
-(import :parser/facade
+(import :gslph/src/parser/facade
         (only-in :std/misc/string string-trim-suffix)
         (only-in :std/srfi/13 string-prefix?))
 

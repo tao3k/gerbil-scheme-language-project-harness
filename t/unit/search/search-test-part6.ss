@@ -3,10 +3,10 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :std/test
-        :commands/guide
-        :commands/info
-        :commands/search
-        :support/args
+        :gslph/src/commands/guide
+        :gslph/src/commands/info
+        :gslph/src/commands/search
+        :gslph/src/support/args
         :std/misc/ports
         (only-in :std/text/json read-json)
         :unit/poo/runtime-witness
@@ -139,7 +139,7 @@
             (check (contains? macro-output "[gerbil-search-runtime-source]") => #f)
             (check (contains? macro-output "protocolId") => #f)
             (check (contains? macro-output "selectorResolver scheme=") => #f)))
-    (test-case "search pipe routes through compact fzf frontier"
+    (test-case "search pipe routes through compact lexical frontier"
           (let (output (search-output ["pipe" "guide" "."]))
-            (check (contains? output "[gerbil-search-fzf] query=guide") => #t)
+            (check (contains? output "[gerbil-search-lexical] query=guide") => #t)
             (check (contains? output "recommendedNext=gerbil-scheme-harness search owner") => #t)))))

@@ -1,23 +1,23 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing style policy checks.
 
-(import :parser/facade
-        :policy/agent-style-steering
-        :policy/agent-style-details
-        :policy/agent-style-quality
-        :policy/agent-style-gerbil-signals
-        :policy/agent-style-destructuring-signals
-        :policy/agent-style-docs
-        :policy/agent-style-message
-        :policy/agent-style-performance-signals
-        :policy/gerbil-utils-source
-        :policy/agent-support
-        :policy/agent-style-shape
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-style-steering
+        :gslph/src/policy/agent-style-details
+        :gslph/src/policy/agent-style-quality
+        :gslph/src/policy/agent-style-gerbil-signals
+        :gslph/src/policy/agent-style-destructuring-signals
+        :gslph/src/policy/agent-style-docs
+        :gslph/src/policy/agent-style-message
+        :gslph/src/policy/agent-style-performance-signals
+        :gslph/src/policy/gerbil-utils-source
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/agent-style-shape
+        :gslph/src/policy/model
         (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-empty?)
         (only-in :std/sugar cut filter filter-map foldl hash hash-get ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export typed-combinator-style-findings
         typed-combinator-style-finding

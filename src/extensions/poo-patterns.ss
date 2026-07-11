@@ -2,10 +2,10 @@
 ;;; Gerbil-poo pattern specs and accessors for extension search packets.
 ;;; Boundary:
 ;;; - Owns source-backed pattern families and selector/schema payloads.
-;;; - Keeps :extensions/poo focused on activation and origin dispatch.
+;;; - Keeps :gslph/src/extensions/poo focused on activation and origin dispatch.
 
-(import :extensions/poo-pattern-support
-        :extensions/poo-pattern-typeclass
+(import :gslph/src/extensions/poo-pattern-support
+        :gslph/src/extensions/poo-pattern-typeclass
         (only-in :std/srfi/13 string-join)
         (only-in :std/sugar hash))
 
@@ -903,14 +903,20 @@
 (def (poo-pattern-intent kind)
   (poo-pattern-spec-slot kind 'intent))
 ;; : (-> String (List Selector) )
-(def (poo-pattern-selectors (kind 'object-system))
-  (poo-pattern-spec-slot kind 'selectors))
+(def poo-pattern-selectors
+  (case-lambda
+   (() (poo-pattern-spec-slot 'object-system 'selectors))
+   ((kind) (poo-pattern-spec-slot kind 'selectors))))
 ;; : (-> String (List FormMapping) )
-(def (poo-pattern-minimal-forms (kind 'object-system))
-  (poo-pattern-spec-slot kind 'minimalForms))
+(def poo-pattern-minimal-forms
+  (case-lambda
+   (() (poo-pattern-spec-slot 'object-system 'minimalForms))
+   ((kind) (poo-pattern-spec-slot kind 'minimalForms))))
 ;; : (-> String (List FailureCase) )
-(def (poo-pattern-failure-cases (kind 'object-system))
-  (poo-pattern-spec-slot kind 'failureCases))
+(def poo-pattern-failure-cases
+  (case-lambda
+   (() (poo-pattern-spec-slot 'object-system 'failureCases))
+   ((kind) (poo-pattern-spec-slot kind 'failureCases))))
 ;; : (-> String PooPatternQualitySignals )
 (def (poo-pattern-quality-signals kind)
   (poo-pattern-spec-slot kind 'qualitySignals))

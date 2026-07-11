@@ -1,15 +1,15 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing POO policy checks.
 
-(import :parser/facade
-        :policy/agent-poo-callees
-        :policy/agent-poo-object-literal
-        :policy/agent-poo-loop-performance
-        :policy/agent-support
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-poo-callees
+        :gslph/src/policy/agent-poo-object-literal
+        :gslph/src/policy/agent-poo-loop-performance
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/model
         (only-in :std/srfi/13 string-contains string-join string-prefix?)
         (only-in :std/sugar filter filter-map hash hash-get ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export poo-direct-writeenv-findings
         poo-direct-writeenv-finding

@@ -3,8 +3,8 @@
 
 (import :std/test
         (only-in :clan/poo/object object? .ref .slot?)
-        :testing/model
-        :testing/framework)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework)
 
 (export testing-framework-smoke-test)
 

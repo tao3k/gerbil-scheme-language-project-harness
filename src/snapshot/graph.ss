@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Stable evidence graph snapshot projections.
 
-(import :constants
-        :extensions/facade
-        :parser/facade
-        :parser/query
-        :snapshot/core
-        :snapshot/support
+(import :gslph/src/constants
+        :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        :gslph/src/parser/query
+        :gslph/src/snapshot/core
+        :gslph/src/snapshot/support
         (only-in :std/srfi/1 iota list-copy take))
 
 (export extension-packet-snapshot
@@ -55,11 +55,11 @@
           (list 'nextActions
                 (list (list 'nextAction
                             (list 'kind "search")
-                            (list 'target "fzf")
+                            (list 'target "lexical")
                             (list 'scope (snapshot-project-root index))
                             (list 'fields
                                   (list 'command
-                                        "gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))))
+                                        "gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds")))))
           (list 'notes
                 (list (list 'note
                             (list 'kind "parser")

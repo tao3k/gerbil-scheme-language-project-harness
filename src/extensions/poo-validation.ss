@@ -1,11 +1,11 @@
 ;;; -*- Gerbil -*-
 ;;; Formal structural validation for Gerbil POO extension pattern evidence.
 ;;; Boundary:
-;;; - :extensions/poo-patterns owns static POO pattern slots.
+;;; - :gslph/src/extensions/poo-patterns owns static POO pattern slots.
 ;;; - This module owns validation packets and diagnostics derived from them.
 
 (import :gerbil/gambit
-        :extensions/poo-patterns
+        :gslph/src/extensions/poo-patterns
         (only-in :std/srfi/1 append-map)
         (only-in :std/srfi/13 string-contains string-prefix?)
         (only-in :std/sugar filter hash ormap))

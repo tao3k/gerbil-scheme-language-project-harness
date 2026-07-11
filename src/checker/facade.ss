@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Stable checker facade for native Gerbil project checks.
 
-(import :checker/arity
-        :checker/core
-        :checker/forms
-        :checker/model
-        :checker/types
-        :checker/whitelist)
+(import :gslph/src/checker/arity
+        :gslph/src/checker/core
+        :gslph/src/checker/forms
+        :gslph/src/checker/model
+        :gslph/src/checker/types
+        :gslph/src/checker/whitelist)
 
 (export make-checker-rule
         checker-rule-id

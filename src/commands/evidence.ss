@@ -1,14 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; Boundary:
-;;; - module owns an agent-facing surface.
-;;; - Keep contracts, evidence, and failure semantics explicit.
-;;; Evidence graph command output.
+;;; - This module projects parser-owned project facts into evidence packets.
+;;; - Packet construction stays pure; display helpers own the serialization side effect.
+;;; Invariant: packet fields and receipt commands name executable public surfaces.
 
-(import :constants
-        :parser/facade
-        :protocol/json
+(import :gslph/src/constants
+        :gslph/src/parser/facade
+        :gslph/src/protocol/json
         (only-in :std/sugar filter match unless)
-        :support/args)
+        :gslph/src/support/args)
 
 (export evidence-main
         evidence-graph-packet
@@ -26,8 +26,7 @@
 (def +semantic-language-protocol-id+
   "agent.semantic-protocols.semantic-language")
 ;; evidence-main
-;;   : (-> (List String)
-;;         Integer)
+;;   : (-> (List String) Integer)
 ;;   | doc m%
 ;;       `evidence-main args` dispatches `graph` and `analyze` actions and
 ;;       returns zero after writing the selected evidence packet surface.
@@ -84,10 +83,10 @@
          (owner-path (evidence-owner-path index))
          (owner-id (evidence-node-id "gerbil-scheme:owner" owner-path))
          (claim-id (evidence-node-id "gerbil-scheme:claim" owner-path))
-         (receipt-id (evidence-node-id "gerbil-scheme:receipt" "gerbil-harness-check-changed"))
-         (action-id (evidence-node-id "gerbil-scheme:action" "run-gerbil-harness-check"))
+         (receipt-id (evidence-node-id "gerbil-scheme:receipt" "gerbil-harness-gxtest"))
+         (action-id (evidence-node-id "gerbil-scheme:action" "run-gerbil-harness-gxtest"))
          (gap-id (evidence-node-id "gerbil-scheme:gap" (string-append owner-path ":receipt")))
-         (check-command "asp gerbil-scheme check --changed .")
+         (test-command "gxpkg env gxtest -q t/...")
          (nodes [(evidence-node owner-id "owner" owner-path owner-path "current"
                                 (hash (languageId +language-id+)
                                       (source "provider-project")))
@@ -96,17 +95,17 @@
                                 owner-path "needs-injection"
                                 (hash (candidateId "gerbil-scheme.evidence.project-harness")
                                       (sourceRuleId "GERBIL-SCHEME-EVIDENCE-GRAPH")
-                                      (receiptKind "harness-check")
-                                      (summary "Project-level Gerbil Scheme search and policy behavior should be linked to verification receipts.")))
-                 (evidence-node receipt-id "verification-receipt" check-command
+                                      (receiptKind "gxtest-policy")
+                                      (summary "Project-level Gerbil Scheme search and policy behavior should be linked to GSLPH Testing Framework receipts.")))
+                 (evidence-node receipt-id "verification-receipt" test-command
                                 owner-path "needs-injection"
-                                (hash (receiptId "gerbil-scheme.harness.check.changed")
-                                      (command check-command)
-                                      (summary "Run the Gerbil Scheme harness check and attach the receipt before treating the claim as verified.")))
+                                (hash (receiptId "gerbil-scheme.harness.gxtest")
+                                      (command test-command)
+                                      (summary "Run project tests through the GSLPH Testing Framework and attach the receipt before treating the claim as verified.")))
                  (evidence-node action-id "review-action"
-                                (string-append "Run " check-command)
+                                (string-append "Run " test-command)
                                 owner-path "missing"
-                                (hash (actionId "gerbil-scheme.run-harness-check")
+                                (hash (actionId "gerbil-scheme.run-harness-gxtest")
                                       (priority "p0")
                                       (targetId "gerbil-scheme.evidence.project-harness")
                                       (summary "run-receipt")))])
@@ -118,9 +117,9 @@
                                 "requires-evidence" action-id claim-id)])
          (gaps [(hash (gapId gap-id)
                       (ownerPath owner-path)
-                      (summary "No attached Gerbil Scheme harness check receipt for this evidence graph.")
+                      (summary "No attached GSLPH Testing Framework receipt for this evidence graph.")
                       (severity "warning")
-                      (fields (hash (nextCommand check-command))))]))
+                      (fields (hash (nextCommand test-command))))]))
     (hash
      (schemaId +evidence-graph-schema-id+)
      (schemaVersion "1")
@@ -135,8 +134,7 @@
      (gaps gaps)
      (fields (hash (next "pipe JSON to `asp graph render --packet - --view seeds`"))))))
 ;; evidence-analysis-request-packet
-;;   : (-> String
-;;         Json)
+;;   : (-> String Json)
 ;;   | doc m%
 ;;       `evidence-analysis-request-packet root` wraps the evidence graph in a
 ;;       graph-turbo request packet for downstream ranking.
@@ -241,9 +239,7 @@
         (staleItems 0)
         (gaps (length gaps))))
 ;; count-node-kind
-;;   : (-> (List Json)
-;;         String
-;;         Integer)
+;;   : (-> (List Json) String Integer)
 ;;   | doc m%
 ;;       `count-node-kind nodes kind` counts graph nodes whose `kind` field
 ;;       matches `kind`.
@@ -272,8 +268,7 @@
           (package (if package (project-package-name package) "gerbil-scheme-project"))
           (fields (hash)))))
 ;; evidence-analysis-graph
-;;   : (-> Json
-;;         Json)
+;;   : (-> Json Json)
 ;;   | doc m%
 ;;       `evidence-analysis-graph graph` projects the packet graph into the
 ;;       compact analysis graph shape consumed by graph-turbo.
@@ -313,8 +308,7 @@
         (relation (hash-get edge 'kind))
         (fields (hash (edgeId (hash-get edge 'edgeId))))))
 ;; evidence-analysis-seed-ids
-;;   : (-> Json
-;;         (List String))
+;;   : (-> Json (List String))
 ;;   | doc m%
 ;;       `evidence-analysis-seed-ids graph` returns the node ids whose role is
 ;;       `owner`.

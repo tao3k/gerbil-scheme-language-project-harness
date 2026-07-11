@@ -2,8 +2,8 @@
 ;;; Parser-owned engineering comment quality facts.
 
 (import :gerbil/gambit
-        :parser/comment-quality-classifier
-        :parser/model
+        :gslph/src/parser/comment-quality-classifier
+        :gslph/src/parser/model
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/1 drop-while iota take take-while)
         (only-in :std/srfi/13 string-contains string-downcase string-empty? string-prefix?)

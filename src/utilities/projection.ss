@@ -1,7 +1,7 @@
 ;;; Module boundary: projection converts contract records into stable symbolic
 ;;; packets and intentionally drops procedures from public report rows.
 
-(import (only-in :utilities/contracts
+(import (only-in :gslph/src/utilities/contracts
                  slot-contract-name
                  slot-contract-type
                  slot-contract-presence

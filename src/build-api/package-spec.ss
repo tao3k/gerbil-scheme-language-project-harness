@@ -16,11 +16,13 @@
 ;;; owners materialized before report modules so cold CI cannot build a report
 ;;; facade without the transitive library graph it imports.
 (def +gslph-package-api-prologue-stages+
-  '(("build-api/source-coverage.ss"
+  '(("build-api/package-build.ss")
+    ("build-api/source-coverage.ss"
      "constants.ss")
     ("build-api/package-receipt.ss"
      "build-api/cli-gsc-options.ss"
      "build-api/launcher-receipt.ss"
+     "build-api/release-modules.ss"
      "build-api/worker-count.ss"
      "build-api/build-path-contract.ss"
      "build-api/package-spec.ss"
@@ -87,54 +89,60 @@
      "parser/facade.ss"
      "extensions/poo-pattern-support.ss"
      "extensions/poo-pattern-typeclass.ss"
-     "extensions/poo-patterns.ss"
-     "policy/agent-basic.ss"
+     "extensions/poo-patterns.ss")
+    ("testing/commands.ss")
+    ("testing/framework.ss")))
+
+;; Policy stages follow the internal import DAG. A facade must never expand
+;; against a concurrently generated model SSI.
+;; : (List (List Path))
+(def +gslph-package-api-policy-stages+
+  '(("policy/model.ss"
      "policy/agent-support.ss"
-     "policy/agent-alist-access.ss"
+     "policy/agent-import.ss"
+     "policy/agent-style-steering.ss"
+     "policy/agent-style-gerbil-signal-support.ss"
+     "policy/agent-style-destructuring-signals.ss"
+     "policy/agent-style-performance-signals.ss"
+     "policy/agent-style-message.ss"
+     "policy/prototype.ss"
+     "policy/agent-poo-callees.ss")
+    ("policy/agent-alist-access.ss"
      "policy/agent-anonymous-pair.ss"
-     "policy/poo-source.ss"
-     "policy/agent-package-build-system.ss"
-     "policy/agent-build-runtime.ss"
      "policy/agent-comment.ss"
      "policy/dependency-adapter-profile.ss"
-     "policy/agent-dependency-adapter.ss"
-     "policy/agent-import.ss"
      "policy/agent-list-growth.ss"
      "policy/agent-list-random-access.ss"
      "policy/agent-macro-io.ss"
      "policy/agent-source-scope.ss"
      "policy/agent-string-growth.ss"
-     "policy/agent-style-steering.ss"
-        "policy/agent-style-gerbil-signal-support.ss"
-        "policy/agent-style-gerbil-boundary-signals.ss"
-        "policy/agent-style-gerbil-macro-signals.ss"
-        "policy/agent-style-gerbil-signals.ss"
-        "policy/agent-style-destructuring-signals.ss"
-        "policy/agent-style-performance-signals.ss"
-        "policy/agent-style-docs.ss"
-        "policy/agent-style-shape.ss"
-        "policy/agent-style-quality.ss"
-        "policy/agent-style-message.ss"
-        "policy/agent-style-details.ss"
-     "policy/agent-style.ss"
-     "policy/prototype.ss"
+     "policy/agent-style-gerbil-boundary-signals.ss"
+     "policy/agent-style-gerbil-macro-signals.ss"
+     "policy/agent-style-docs.ss"
      "policy/detection.ss"
-     "policy/gerbil-utils-source.ss"
-     "policy/agent-macro-protocol.ss"
-     "policy/agent.ss"
-     "policy/agent-poo-callees.ss"
      "policy/agent-poo-object-literal.ss"
-     "policy/agent-poo-loop-performance.ss"
-     "policy/agent-poo.ss"
      "policy/agent-build.ss"
-     "policy/core.ss"
-     "policy/model.ss"
      "policy/modularity.ss"
-        "policy/catalog.ss"
-        "policy/repair.ss"
-     "policy/facade.ss"
-     "policy/gxtest-report.ss")
-    ("testing/framework.ss")))
+     "policy/catalog.ss")
+    ("policy/poo-source.ss"
+     "policy/agent-dependency-adapter.ss"
+     "policy/agent-style-gerbil-signals.ss"
+     "policy/gerbil-utils-source.ss"
+     "policy/agent-poo-loop-performance.ss"
+     "policy/repair.ss")
+    ("policy/agent-package-build-system.ss"
+     "policy/agent-style-shape.ss"
+     "policy/agent-style-quality.ss"
+     "policy/agent-style-details.ss"
+     "policy/agent-macro-protocol.ss"
+     "policy/agent-poo.ss")
+    ("policy/agent-basic.ss"
+     "policy/agent-build-runtime.ss"
+     "policy/agent-style.ss")
+    ("policy/agent.ss")
+    ("policy/core.ss")
+    ("policy/facade.ss")
+    ("policy/gxtest-report.ss")))
 
 ;; : (List (List Path))
 (def +gslph-package-api-epilogue-stages+
@@ -144,6 +152,7 @@
      "testing/gxtest-report.ss")
     ("testing/build-process.ss")
     ("testing/gxtest-syntax.ss")
+    ("testing/memory-profile.ss")
     ("testing/gxtest-imports.ss")
     ("testing/gxtest-sources.ss")
     ("testing/gxtest-discovery.ss")
@@ -158,7 +167,10 @@
     ("testing/gxtest-run.ss")
     ("testing/build-runtime.ss")
     ("testing/build-runner.ss")
-    ("testing/gxtest-runner.ss")))
+    ("testing/gxtest-runner.ss")
+    ("testing/project-build.ss")
+    ("build-api/project-build.ss")
+    ("build-api/project-cli.ss")))
 
 ;; : (List (List Path))
 (def +gslph-package-api-command-prologue-stages+
@@ -166,6 +178,16 @@
      "support/io.ss")))
 
 ;; : (List String)
+(def +gslph-package-api-building-stages+
+  '(("testing/building.ss")))
+
+;; Native build interfaces must precede directory-wide parallel compilation.
+;; : (List (List Path))
+(def +gslph-package-api-build-api-stages+
+  '(("build-api/artifact-cleanup.ss")
+    ("build-api/native-build.ss")
+    ("build-api/framework.ss")))
+
 (def +gslph-package-api-directories+
   '("utilities" "types" "parser" "checker" "policy" "extensions" "language" "format" "commands"))
 
@@ -192,24 +214,32 @@
 (def (gslph-package-api-flatten-stages stages)
   (append-map (lambda (stage) stage) stages))
 
-;; : (-> (List Path))
-(def (gslph-package-api-spec)
-  (append (gslph-package-api-flatten-stages
-           +gslph-package-api-prologue-stages+)
-          (gslph-package-api-flatten-stages
-           +gslph-package-api-command-prologue-stages+)
-          (append-map gslph-package-api-directory-spec
-                      +gslph-package-api-directories+)
-          (gslph-package-api-flatten-stages
-           +gslph-package-api-launcher-stages+)
-          (gslph-package-api-flatten-stages
-           +gslph-package-api-epilogue-stages+)))
+(def gslph-package-api-stage-specs-cache #f)
+(def gslph-package-api-spec-cache #f)
 
 ;; : (-> (List (List Path)))
-(def (gslph-package-api-stage-specs)
+(def (gslph-package-api-stage-specs/fresh)
   (append +gslph-package-api-prologue-stages+
+          +gslph-package-api-policy-stages+
+          +gslph-package-api-building-stages+
+          +gslph-package-api-build-api-stages+
           +gslph-package-api-command-prologue-stages+
           (map gslph-package-api-directory-spec
                 +gslph-package-api-directories+)
           +gslph-package-api-launcher-stages+
           +gslph-package-api-epilogue-stages+))
+
+;; : (-> (List (List Path)))
+(def (gslph-package-api-stage-specs)
+  (or gslph-package-api-stage-specs-cache
+      (let (stages (gslph-package-api-stage-specs/fresh))
+        (set! gslph-package-api-stage-specs-cache stages)
+        stages)))
+
+;; : (-> (List Path))
+(def (gslph-package-api-spec)
+  (or gslph-package-api-spec-cache
+      (let (spec (gslph-package-api-flatten-stages
+                  (gslph-package-api-stage-specs)))
+        (set! gslph-package-api-spec-cache spec)
+        spec)))

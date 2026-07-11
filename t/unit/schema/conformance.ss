@@ -2,8 +2,8 @@
 ;;; Boundary:
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
-(import :commands/info
-        :commands/search
+(import :gslph/src/commands/info
+        :gslph/src/commands/search
         :std/misc/ports
         :std/srfi/13
         :std/test

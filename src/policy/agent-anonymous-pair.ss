@@ -3,10 +3,10 @@
 ;;; Repeated car/cdr over a value named result is a test-quality smell: the
 ;;; command boundary may return a pair, but call sites should use named accessors.
 
-(import :parser/facade
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/model
         (only-in :std/sugar filter hash ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export anonymous-pair-access-findings
         anonymous-pair-access-finding)

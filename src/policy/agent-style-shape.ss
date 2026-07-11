@@ -1,14 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing branch-shape and predicate-family style policy checks.
 
-(import :parser/facade
-        :policy/agent-support
-        :policy/detection
-        :policy/gerbil-utils-source
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/detection
+        :gslph/src/policy/gerbil-utils-source
+        :gslph/src/policy/model
         (only-in :std/srfi/1 take)
         (only-in :std/sugar cut filter filter-map foldl hash ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export controlled-branch-shape-findings
         controlled-branch-shape-finding

@@ -3,10 +3,10 @@
 
 (import :gerbil/gambit
         :std/test
-        :parser/facade
-        :policy/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
         :policy/fixtures
-        :types/facade)
+        :gslph/src/types/facade)
 
 (export agent-anonymous-pair-policy-test)
 

@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Macro and POO typeclass style signals for R013 Gerbil guidance.
 
-(import :parser/facade
-        (only-in :policy/agent-style-gerbil-signal-support
+(import :gslph/src/parser/facade
+        (only-in :gslph/src/policy/agent-style-gerbil-signal-support
                  typed-combinator-style-facts->quality-facet
                  typed-combinator-style-facts->signals
                  typed-combinator-style-facts->targets
@@ -43,9 +43,13 @@
 ;;; policy turns them into copy-pasted syntax APIs.
 ;; : (-> SourceFile (List QualityFacet) )
 (def (typed-combinator-style-macro-family-quality-facets file)
-  (typed-combinator-style-facts->quality-facet
-   (source-file-macro-family-facts file)
-   "macro-family-boundary"))
+  (append
+   (typed-combinator-style-facts->quality-facet
+    (source-file-macro-family-facts file)
+    "macro-family-boundary")
+   (typed-combinator-style-facts->quality-facet
+    (source-file-typed-contract-facts file)
+    "typed-doc-block")))
 
 ;;; Signal boundary:
 ;;; - Family guidance is emitted only from parser-owned macro-family facts.

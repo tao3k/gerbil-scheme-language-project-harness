@@ -2,7 +2,7 @@
 ;;; Fast smoke for TypeSpec model APIs.
 
 (import :std/test
-        :types/model)
+        :gslph/src/types/model)
 
 (export types-test)
 

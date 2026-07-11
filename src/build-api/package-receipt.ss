@@ -8,6 +8,7 @@
         gslph-package-build-receipt-write
         gslph-package-build-receipt-read
         gslph-package-build-receipt-current?
+        gslph-package-build-receipt-source-output-current?
         gslph-package-build-receipt-status
         gslph-package-build-receipt-status-ref
         gslph-package-build-receipt-status-line)
@@ -15,7 +16,9 @@
 ;; : Symbol
 (def gslph-package-build-receipt-version 'gslph-package-build-receipt.v1)
 
-;; : (-> Alist Symbol Value Value)
+;; : (forall (k v) (-> [(Pair k v)] k v v))
+;; gslph-package-build-receipt-ref
+;; : (-> Alist Symbol Datum Datum)
 (def (gslph-package-build-receipt-ref receipt key default)
   (let (entry (assq key receipt))
     (if entry (cdr entry) default)))
@@ -62,7 +65,9 @@
 (def (gslph-package-build-receipt-all-exist? paths)
   (andmap file-exists? paths))
 
-;; : (-> Path (List Path) (List Path) version: Symbol metadata: Alist Void)
+;; : (forall (p m) (-> p [p] [p] Symbol m Void))
+;; gslph-package-build-receipt-write
+;; : (-> Path (List Path) (List Path) Symbol Alist Void)
 (def (gslph-package-build-receipt-write stamp sources outputs
                                         version: (version gslph-package-build-receipt-version)
                                         metadata: (metadata []))
@@ -122,6 +127,12 @@
   (and (file-exists? source)
        (not (gslph-package-build-receipt-file-newer-than? source stamp))))
 
+;; : (-> Path Path Boolean)
+(def (gslph-package-build-receipt-source-output-current? source output)
+  (and (file-exists? source)
+       (file-exists? output)
+       (not (gslph-package-build-receipt-file-newer-than? source output))))
+
 ;; : (-> Path (List Path) Boolean)
 (def (gslph-package-build-receipt-sources-current? stamp sources)
   (cond
@@ -165,6 +176,7 @@
      receipt)
     []))
 
+;; : (-> Symbol (Maybe Symbol) Path (Maybe Pair) Alist Alist)
 (def (gslph-package-build-receipt-make-status status reason stamp receipt
                                              metadata: (metadata []))
   (append

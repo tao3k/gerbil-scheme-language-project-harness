@@ -29,6 +29,8 @@
                  display-gxtest-timing-summary
                  first-failure-status
                  gxtest-runner-mode-label)
+        (only-in "./memory-profile"
+                 gxtest-file-memory-runtime-options)
         :gerbil/gambit)
 
 (export test-phase-receipt-line
@@ -44,7 +46,9 @@
         display-gxtest-timing-summary
         display-gxtest-result
         first-failure-status
-        gxtest-runner-mode-label)
+        gxtest-runner-mode-label
+        gxtest-result-status
+        run-gxtest-file/subprocess)
 
 ;; : (-> Integer Integer)
 (def (normalized-exit-status status)
@@ -60,7 +64,12 @@
         (start-micros (monotonic-micros))
         (label (gxtest-batch-label files)))
     (let (output
-          (run-process ["gxi" "-e" expression]
+          (run-process (append ["gxi"]
+                               (if (and (pair? files)
+                                        (null? (cdr files)))
+                                 (gxtest-file-memory-runtime-options (car files))
+                                 [])
+                               ["-e" expression])
                        directory: package-root
                        stderr-redirection: #t
                        check-status:

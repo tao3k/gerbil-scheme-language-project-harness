@@ -2,10 +2,10 @@
 ;;; Parser-owned workspace scope packet for Rust SQL source indexing.
 
 (import :gerbil/gambit
-        :constants
-        :parser/facade
-        :parser/selectors
-        :parser/source-class
+        :gslph/src/constants
+        :gslph/src/parser/facade
+        :gslph/src/parser/selectors
+        :gslph/src/parser/source-class
         (only-in :std/srfi/1 filter)
         (only-in :std/sugar hash))
 

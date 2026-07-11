@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; POO-composed dependency adapter repair profiles for policy payloads.
 
-(import :parser/facade
-        :policy/prototype
+(import :gslph/src/parser/facade
+        :gslph/src/policy/prototype
         (only-in :std/srfi/1 take)
         (only-in :std/sugar hash))
 

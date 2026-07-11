@@ -7,12 +7,12 @@
 
 (import :gerbil/gambit
         (only-in :std/sugar hash)
-        (only-in :extensions/poo-source-ref-validation
+        (only-in :gslph/src/extensions/poo-source-ref-validation
                  poo-object-source-ref-structural-validation)
-        (only-in :types/model
+        (only-in :gslph/src/types/model
                  parse-type-sexpr
                  type->string)
-        (only-in :types/validation
+        (only-in :gslph/src/types/validation
                  type-spec-valid?
                  type-validation-diagnostics))
 

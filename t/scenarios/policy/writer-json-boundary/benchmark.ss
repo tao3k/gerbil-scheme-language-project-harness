@@ -1,3 +1,12 @@
+(max_total . 150ms)
+(observed_total . 30ms)
+(target_total . 120ms)
+(targetRationale
+  .
+  "Writer/json boundary scenario uses typed writer contracts while keeping output behavior readable under failure.")
+(maxRssMb . 512)
+(rule . "GERBIL-SCHEME-AGENT-POLICY-013")
+(purpose . "R013 writer-json boundary replaces manual JSON string assembly with explicit writer extension contracts.")
 (regression_budget
   (parseMs 20)
   (policyMs 40)

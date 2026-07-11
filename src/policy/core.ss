@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Policy dispatch for Gerbil project rules.
 
-(import :parser/core
-        :parser/package
-        :policy/agent
-        :policy/modularity
+(import :gslph/src/parser/core
+        :gslph/src/parser/package
+        :gslph/src/policy/agent
+        :gslph/src/policy/modularity
         (only-in :std/srfi/13 string-trim)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export run-policy-checks)
 ;; : (-> ProjectIndex (List TypeFinding) )

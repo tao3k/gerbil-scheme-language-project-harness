@@ -5,7 +5,8 @@
         :std/test
         (only-in :std/misc/path path-directory path-expand)
         (only-in :std/srfi/13 string-prefix?)
-        "../src/build-api/package-receipt")
+        "../src/build-api/package-receipt"
+        "../src/build-api/launcher-receipt")
 
 (export package-build-receipt-test)
 
@@ -132,6 +133,30 @@
                  => 'stale)
           (check (gslph-package-build-receipt-status-ref status 'reason #f)
                  => 'dirty-source-or-missing-output))))
+    (test-case "checks a source against its selected artifact"
+      (package-build-receipt-reset!)
+      (let* ((source (package-build-receipt-path "artifact/source.ss"))
+             (output (package-build-receipt-path "artifact/source.ssi")))
+        (package-build-receipt-write-file source "source")
+        (package-build-receipt-write-file output "output")
+        (check (gslph-package-build-receipt-source-output-current?
+                source output)
+               => #t)
+        (thread-sleep! 1.1)
+        (package-build-receipt-write-file source "newer source")
+        (check (gslph-package-build-receipt-source-output-current?
+                source output)
+               => #f)))
+    (test-case "selects a persistent static artifact when scm is absent"
+      (package-build-receipt-reset!)
+      (let* ((output-root (package-build-receipt-path "artifact-family"))
+             (module "nested/example.ss")
+             (candidates
+              (gslph-build-module-artifact-files output-root module))
+             (static-output (cadr candidates)))
+        (package-build-receipt-write-file static-output "static output")
+        (check (gslph-build-module-artifact-file output-root module)
+               => static-output)))
     (test-case "reports stale when expected receipt shape changed"
       (package-build-receipt-reset!)
       (let* ((source (package-build-receipt-path "shape/source.ss"))

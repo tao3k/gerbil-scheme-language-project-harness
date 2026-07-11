@@ -2,7 +2,7 @@
 ;;; Functional utility tests for fold and list helpers.
 
 (import :std/test
-        :utilities/functional)
+        :gslph/src/utilities/functional)
 
 (export utilities-functional-test)
 

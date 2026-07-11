@@ -2,11 +2,11 @@
 ;;; Downstream build.ss integration tests for the POO-shaped testing framework.
 
 (import :std/test
-        :benchmark/framework
-        :testing/model
-        :testing/build
-        :testing/build-runner
-        :testing/gxtest-runner)
+        :gslph/src/benchmark/framework
+        :gslph/src/testing/model
+        :gslph/src/testing/build
+        :gslph/src/testing/build-runner
+        :gslph/src/testing/gxtest-runner)
 
 (export testing-framework-downstream-test)
 

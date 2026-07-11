@@ -1,10 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Stable extension facade for Gerbil package capability facts.
 
-(import :extensions/core
-        :extensions/model
-        :extensions/poo
-        :extensions/poo-object-validation)
+(import :gslph/src/extensions/core
+        :gslph/src/extensions/model
+        :gslph/src/extensions/poo
+        :gslph/src/extensions/poo-object-validation)
 
 (export extension-fact
         make-extension-fact

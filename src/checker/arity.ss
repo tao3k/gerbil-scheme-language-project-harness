@@ -1,15 +1,15 @@
 ;;; -*- Gerbil -*-
 ;;; Arity checks over parser-owned call facts and native type signatures.
 
-(import :checker/model
-        :parser/model
-        (only-in :parser/selectors
+(import :gslph/src/checker/model
+        :gslph/src/parser/model
+        (only-in :gslph/src/parser/selectors
                  call-fact-selector
                  project-calls)
         (only-in :std/sugar cut filter-map)
-        :types/findings
-        :types/model
-        :types/signatures)
+        :gslph/src/types/findings
+        :gslph/src/types/model
+        :gslph/src/types/signatures)
 
 (export run-arity-checks
         call-arity-finding)

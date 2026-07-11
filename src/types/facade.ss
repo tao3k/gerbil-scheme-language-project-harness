@@ -1,12 +1,12 @@
 ;;; -*- Gerbil -*-
 ;;; Stable types facade for the Gerbil Scheme project harness.
 
-(import :types/core
-        :types/env
-        :types/findings
-        :types/model
-        :types/signatures
-        :types/validation)
+(import :gslph/src/types/core
+        :gslph/src/types/env
+        :gslph/src/types/findings
+        :gslph/src/types/model
+        :gslph/src/types/signatures
+        :gslph/src/types/validation)
 
 (export make-type-unknown
         make-type-any

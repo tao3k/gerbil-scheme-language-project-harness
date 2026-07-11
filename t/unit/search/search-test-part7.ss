@@ -3,10 +3,10 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :std/test
-        :commands/guide
-        :commands/info
-        :commands/search
-        :support/args
+        :gslph/src/commands/guide
+        :gslph/src/commands/info
+        :gslph/src/commands/search
+        :gslph/src/support/args
         :std/misc/ports
         (only-in :std/text/json read-json)
         :unit/poo/runtime-witness
@@ -67,9 +67,9 @@
 ;; TestSuite
 (def search-test-part-7
   (test-suite "gerbil scheme harness search part 7"
-    (test-case "search fzf projects parser-owned protocol syntax facts"
-          (let (output (search-output ["fzf" "defprotocol protocol <Renderable>" "owner" "tests" "--view" "seeds" "."]))
-            (check (contains? output "[gerbil-search-fzf] query=defprotocol protocol <Renderable>") => #t)
+    (test-case "search lexical projects parser-owned protocol syntax facts"
+          (let (output (search-output ["lexical" "defprotocol protocol <Renderable>" "owner" "tests" "--view" "seeds" "."]))
+            (check (contains? output "[gerbil-search-lexical] query=defprotocol protocol <Renderable>") => #t)
             (check (contains? output "|owner path=t/fixtures/parser/complex-syntax.ss") => #t)
             (check (contains? output "recommendedNext=gerbil-scheme-harness search owner t/fixtures/parser/complex-syntax.ss") => #t)))
     (test-case "structural search default output exposes ASP-owned interface"

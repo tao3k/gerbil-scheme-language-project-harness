@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Shared helpers for Gerbil-specific style signal projection.
 
-(import :parser/facade
+(import :gslph/src/parser/facade
         (only-in :std/srfi/13 string-contains)
         (only-in :std/sugar ormap))
 

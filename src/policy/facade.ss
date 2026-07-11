@@ -1,13 +1,13 @@
 ;;; -*- Gerbil -*-
 ;;; Stable policy facade for Gerbil project rules.
 
-(import :policy/agent
-        :policy/agent-poo
-        :policy/agent-build
-        :policy/core
-        :policy/model
-        :policy/modularity
-        :policy/repair)
+(import :gslph/src/policy/agent
+        :gslph/src/policy/agent-poo
+        :gslph/src/policy/agent-build
+        :gslph/src/policy/core
+        :gslph/src/policy/model
+        :gslph/src/policy/modularity
+        :gslph/src/policy/repair)
 
 (export make-policy-rule
         policy-rule-id

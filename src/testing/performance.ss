@@ -62,25 +62,38 @@
     (if entry (cdr entry) default)))
 
 ;; : (-> String Alist List TestingReceipt)
+(def (testing-benchmark-details-without details key)
+  (cond
+   ((null? details) '())
+   ((eq? (caar details) key)
+    (testing-benchmark-details-without (cdr details) key))
+   (else
+    (cons (car details)
+          (testing-benchmark-details-without (cdr details) key)))))
+
 (def (testing-benchmark-body-phase name receipt (details []))
-  (let ((status (if (eq? (testing-performance-benchmark-ref
+  (let* ((status (if (eq? (testing-performance-benchmark-ref
+                           receipt
+                           'status
+                           'fail)
+                          'pass)
+                   'ok
+                   'failed))
+         (elapsed-micros (testing-performance-benchmark-ref
                           receipt
-                          'status
-                          'fail)
-                         'pass)
-                  'ok
-                  'failed))
-        (elapsed-micros (testing-performance-benchmark-ref
-                         receipt
-                         'elapsedMicros
-                         0)))
+                          'elapsedMicros
+                          0))
+         (phase (testing-performance-benchmark-ref details
+                                                   'phase
+                                                   'benchmark-body))
+         (phase-details (testing-benchmark-details-without details 'phase)))
     (testing-receipt
      kind: 'testing-phase
      status: status
      suite: name
      elapsed-micros: elapsed-micros
      details: (append
-               `((phase . benchmark-body)
+               `((phase . ,phase)
                  (name . ,name)
                  (elapsedMs . ,(testing-performance-benchmark-ref
                                 receipt
@@ -94,7 +107,7 @@
                            receipt
                            'rule
                            #f)))
-               details))))
+               phase-details))))
 
 ;; : (-> String Alist Procedure List (Values Alist Value TestingReceipt))
 (def (testing-benchmark-run/result name fixture thunk (details []))

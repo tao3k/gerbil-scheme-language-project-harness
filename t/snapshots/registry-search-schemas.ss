@@ -5,7 +5,7 @@
  (providerId "gerbil-scheme-harness")
  (methods ("search/prime"
            "search/owner"
-           "search/fzf"
+           "search/lexical"
            "search/ingest"
            "search/pattern"
            "search/runtime-source"

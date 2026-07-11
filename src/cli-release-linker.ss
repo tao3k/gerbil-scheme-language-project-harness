@@ -1,13 +1,14 @@
 ;;; -*- Gerbil -*-
 ;;; Release-only static linker root for the native gslph executable.
 
-(import (rename-in :cli-launcher (main cli-main))
-        (only-in :commands/agent agent-main)
-        (only-in :commands/evidence evidence-main)
-        (only-in :commands/guide guide-main)
-        (only-in :commands/info info-main)
-        (only-in :commands/query query-main)
-        (only-in :commands/search search-main))
+(import (rename-in :gslph/src/cli-launcher (main cli-main))
+        (only-in :gslph/src/commands/agent agent-main)
+        (only-in :gslph/src/commands/evidence evidence-main)
+        (only-in :gslph/src/commands/fmt fmt-main)
+        (only-in :gslph/src/commands/guide guide-main)
+        (only-in :gslph/src/commands/info info-main)
+        (only-in :gslph/src/commands/query query-main)
+        (only-in :gslph/src/commands/search search-main))
 (export main
         release-command-dispatch
         release-command-mains)
@@ -21,6 +22,7 @@
   [["search" search-main]
    ["query" query-main]
    ["evidence" evidence-main]
+   ["fmt" fmt-main]
    ["agent" agent-main]
    ["guide" guide-main]
    ["info" info-main]])
@@ -30,6 +32,7 @@
   [search-main
    query-main
    evidence-main
+   fmt-main
    agent-main
    guide-main
    info-main])

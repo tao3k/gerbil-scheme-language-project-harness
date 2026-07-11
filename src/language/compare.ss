@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Stable compare facts for active Gerbil runtime evidence.
 
-(import :language/evidence
+(import :gslph/src/language/evidence
         (only-in :std/srfi/13 string-contains string-prefix? string-split)
         (only-in :std/sugar cut filter ormap))
 

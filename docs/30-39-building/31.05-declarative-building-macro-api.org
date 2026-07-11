@@ -1,0 +1,77 @@
+#+TITLE: 31.05 Declarative Building Macro API
+#+STARTUP: overview
+
+* Purpose
+
+The Building Framework is a library, not a project-specific shell recipe.
+Downstream =build.ss= files declare a build plan with hygienic Gerbil macros;
+the framework executes ordinary =BuildProfile= and =BuildRequest= values.
+
+The declaration layer never detects a host platform, changes =SDKROOT=, selects
+a compiler, or writes environment variables.  The caller owns its environment,
+=std/make= options, stages, freshness predicate, context, and Testing gates.
+
+* Dependency Boundary
+
+#+begin_mermaid
+flowchart LR
+  Script["Downstream build.ss"] --> Decl["building/declarative"]
+  Decl --> Build["building/facade"]
+  Build --> Make["std/make"]
+  TestDecl["testing/building"] --> TestModel["testing/model"]
+  TestDecl --> Build
+  Script --> TestDecl
+#+end_mermaid
+
+=building/= has no import of =testing/=.  The Testing-side adapter owns the
+projection from a BuildRequest into a performance project, so the edge is
+strictly =Testing -> Building=.
+
+* Downstream Form
+
+#+begin_src scheme
+(import :gslph/src/building/declarative
+        :gslph/src/testing/building)
+
+(define-std-build project-build
+  label: "project-build"
+  source: "src"
+  make-options: [parallelize: 4]
+  label-of: car
+  after: (lambda (_stage _context _result) #!void)
+  stage-specs: [["core.ss"] ["workflow.ss"]]
+  current?: source-current?
+  context: '((environment . caller-owned)))
+
+(define-build-performance-project project-build-matrix
+  request: project-build
+  fixture-path: "t"
+  name: "project-build"
+  suite-name: "default"
+  suite-names: ["warm" "cold"]
+  case-names: ["core" "workflow"]
+  roots: ["t"]
+  gates: [])
+#+end_src
+
+The macros expand to the same functional values exposed by =building/facade=.
+The expression forms =std-build= and =build-performance-project= support local
+composition when a named binding is not appropriate.
+
+* Guarantees
+
+- A BuildRequest is inspectable before execution and can be projected into a
+  receipt without running a compiler.
+- Process configuration is inherited by default.  Any explicit compiler or SDK
+  choice remains a downstream concern, expressed through normal invocation or
+  the caller's =std/make= options.
+- The Testing projection produces plan-only runners.  Stage execution remains
+  an explicit Building operation.
+- Multiple suite and case names are mapped functionally, so matrix coverage is
+  data-driven rather than an accumulating set of project-specific branches.
+
+* Verification
+
+=t/building-declarative-test.ss= compiles against the public library routes
+and verifies named declarations, expression declarations, Testing projection,
+and the suite/case matrix with direct GxTest.

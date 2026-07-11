@@ -1,13 +1,13 @@
 ;;; -*- Gerbil -*-
 ;;; POO loop-performance policy checks.
 
-(import :parser/facade
-        :policy/agent-poo-callees
-        :policy/agent-poo-object-literal
-        :policy/agent-support
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-poo-callees
+        :gslph/src/policy/agent-poo-object-literal
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/model
         (only-in :std/sugar filter-map hash ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export poo-clone-override-loop-performance-findings
         poo-clone-override-loop-performance-finding

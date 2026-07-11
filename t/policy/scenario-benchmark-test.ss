@@ -3,10 +3,10 @@
 
 (import :gerbil/gambit
         :std/test
-        :scenario/benchmark-contract
+        :gslph/src/scenario/benchmark-contract
         (only-in :std/sort sort)
         (only-in :std/sugar filter-map)
-        (only-in :support/time duration-literal->nanos))
+        (only-in :gslph/src/support/time duration-literal->nanos))
 (export scenario-benchmark-policy-test)
 
 (def +scenario-benchmark-include-dirs+

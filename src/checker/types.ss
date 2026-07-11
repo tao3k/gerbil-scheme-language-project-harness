@@ -4,16 +4,16 @@
 (import (only-in :std/srfi/1 append-map)
         (only-in :std/srfi/13 string-contains)
         (only-in :std/sugar cut filter-map find iota)
-        :checker/model
-        :parser/model
-        (only-in :parser/selectors
+        :gslph/src/checker/model
+        :gslph/src/parser/model
+        (only-in :gslph/src/parser/selectors
                  call-fact-selector
                  project-calls)
-        :types/env
-        :types/findings
-        :types/model
-        :types/signatures
-        (only-in :types/validation type-compatible?))
+        :gslph/src/types/env
+        :gslph/src/types/findings
+        :gslph/src/types/model
+        :gslph/src/types/signatures
+        (only-in :gslph/src/types/validation type-compatible?))
 
 (export run-type-mismatch-checks
         call-type-mismatch-findings)

@@ -10,6 +10,8 @@
         :gerbil/gambit)
 (export gslph-build-module-source-file
         gslph-build-module-output-file
+        gslph-build-module-artifact-files
+        gslph-build-module-artifact-file
         gslph-cli-launcher-build-current?
         gslph-cli-launcher-build-receipt-status
         gslph-ensure-cli-launcher-inputs!
@@ -44,8 +46,36 @@
 ;; : (-> Path ModulePath Path)
 (def (gslph-build-module-output-file output-root module)
   (path-expand
-   (string-append (gslph-module-path-stem module) ".ssi")
+   (string-append (gslph-module-path-stem module) ".scm")
    output-root))
+
+;; : (-> Path ModulePath [Path])
+(def (gslph-build-module-artifact-files output-root module)
+  (let (scm-file (gslph-build-module-output-file output-root module))
+    (let (stem (substring scm-file 0 (- (string-length scm-file) 4)))
+      [(string-append stem ".ssi")
+       (string-append stem "~0.scm")
+       scm-file])))
+
+;;; gslph-build-module-artifact-file
+;; : (-> Path ModulePath Path)
+;;; | doc m%
+;;; Selects the first existing compiled artifact for a module while preserving
+;;; the canonical output path as the deterministic fallback.
+;;; # Examples
+;;; ```scheme
+;;; (gslph-build-module-artifact-file output-root "parser/core.ss")
+;;; ;; => an existing artifact path or the canonical module output path
+;;; ```
+(def (gslph-build-module-artifact-file output-root module)
+  (let loop ((candidates (gslph-build-module-artifact-files output-root module)))
+    (cond
+     ((null? candidates)
+      (gslph-build-module-output-file output-root module))
+     ((file-exists? (car candidates))
+      (car candidates))
+     (else
+      (loop (cdr candidates))))))
 
 ;; : (-> Path Void)
 (def (ensure-directory! path)
@@ -168,22 +198,21 @@
     (write-datum-file-if-changed! path datum)
     path))
 
-;; : (-> Path Path (List ModulePath) (List Path))
+;; : (-> Path Path [ModulePath] [Path])
 (def (launcher-build-source-files source-root inputs-path source-modules)
   (cons inputs-path
         (map (lambda (module)
                (gslph-build-module-source-file source-root module))
              source-modules)))
 
-;; : (-> Path Path (List ModulePath) (List Path))
+;; : (-> Path Path [ModulePath] [Path])
 (def (launcher-build-output-files output-root binpath output-modules)
   (cons binpath
         (map (lambda (module)
-               (gslph-build-module-output-file output-root module))
+               (gslph-build-module-artifact-file output-root module))
              output-modules)))
 
-;; : (-> Path Path Path Path (List ModulePath) (List ModulePath)
-;;       BuildReceiptStatus)
+;; : (-> Path Path Path Path Path [ModulePath] [ModulePath] BuildReceiptStatus)
 (def (gslph-install-launcher-build-receipt-status
       package-root
       source-root
@@ -200,7 +229,7 @@
    expected-outputs: (launcher-build-output-files
                       output-root binpath output-modules)))
 
-;; : (-> Path Path Path Path (List ModulePath) (List ModulePath) Void)
+;; : (-> Path Path Path Path Path [ModulePath] [ModulePath] Void)
 (def (gslph-write-install-launcher-build-receipt!
       package-root
       source-root
@@ -217,8 +246,7 @@
      (launcher-build-output-files output-root binpath output-modules)
      version: +install-launcher-build-receipt-version+)))
 
-;; : (-> Path Path Path Boolean Path Path (List ModulePath) (List ModulePath)
-;;       BuildReceiptStatus)
+;; : (-> Path Path Path Boolean Path Path [ModulePath] [ModulePath] BuildReceiptStatus)
 (def (gslph-cli-launcher-build-receipt-status
       package-root
       source-root
@@ -236,8 +264,7 @@
    expected-outputs: (launcher-build-output-files
                       output-root binpath output-modules)))
 
-;; : (-> Path Path Path Boolean Path Path (List ModulePath) (List ModulePath)
-;;       Void)
+;; : (-> Path Path Path Boolean Path Path [ModulePath] [ModulePath] Void)
 (def (gslph-write-cli-launcher-build-receipt!
       package-root
       source-root

@@ -2,8 +2,8 @@
 ;;; gerbil-utils quality reference policy tests.
 
 (import :std/test
-        :policy/detection
-        :policy/gerbil-utils-source)
+        :gslph/src/policy/detection
+        :gslph/src/policy/gerbil-utils-source)
 
 (export gerbil-utils-source-policy-test)
 

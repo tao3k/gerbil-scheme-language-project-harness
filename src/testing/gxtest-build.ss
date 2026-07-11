@@ -2,6 +2,12 @@
 ;;; Gxtest package build lifecycle helpers.
 
 (import (only-in :std/misc/path path-directory path-expand path-strip-directory)
+        (rename-in "../build-api/native-build"
+                   (configure-build-root! configure-native-build-root!)
+                   (compile-package-api-if-stale
+                    native-compile-package-api-if-stale))
+        (only-in "../build-api/native-build"
+                 compile-selected-gxtest-target)
         (only-in "../build-api/package-receipt"
                  gslph-package-build-receipt-status
                  gslph-package-build-receipt-status-ref
@@ -15,14 +21,11 @@
                  gxtest-selected-source-module-files
                  gxtest-selected-test-files)
         (only-in "./gxtest-receipts"
-                 display-package-api-build-receipt-status
-                 ensure-directory!
-                 package-api-build-current?
-                 package-api-build-receipt-status
-                 selected-gxtest-build-current?
-                 selected-gxtest-build-receipt-status
-                 write-package-api-build-receipt!
-                 write-selected-gxtest-build-receipt!)
+                  display-package-api-build-receipt-status
+                  ensure-directory!
+                  selected-gxtest-build-current?
+                  selected-gxtest-build-receipt-status
+                  write-selected-gxtest-build-receipt!)
         :gerbil/gambit)
 
 (export clean-target
@@ -31,22 +34,7 @@
         compile-selected-gxtest-if-stale
         compile-spec
         dev-launcher-binpath
-        install-launcher-binpath)
-
-;; : (-> Path)
-(def (package-build-api-path)
-  (path-expand "src/build-api/package-build.ss" package-root))
-
-;; : (-> Void)
-(def (load-package-build-api!)
-  (let (root package-root)
-    (load (package-build-api-path))
-    (eval `(gslph-package-configure-build-root! ,root))))
-
-;; : (-> Void)
-(def (compile-package-api!)
-  (load-package-build-api!)
-  (eval '(gslph-package-compile-target #f #f #t #f #f)))
+         install-launcher-binpath)
 
 ;; : (-> (List String))
 (def cli-bootstrap-modules
@@ -80,25 +68,17 @@
    (else (gslph-package-api-spec))))
 
 ;; : (-> Integer Integer)
-(def (compile-package-api-if-stale worker-count (compile-thunk #f))
-  (let (status (package-api-build-receipt-status))
-    (display-package-api-build-receipt-status status)
-    (if (package-api-build-current? status)
-      status
-      (begin
-        (if compile-thunk
-          (compile-thunk)
-          (compile-package-api!))
-        (write-package-api-build-receipt!)
-        (package-api-build-receipt-status)))))
+(def (compile-package-api-if-stale worker-count)
+  (configure-native-build-root! package-root)
+  (native-compile-package-api-if-stale worker-count))
 
-;; : (-> (List Path) Integer Void)
+;; : (-> (List Path) Integer Alist)
 (def (compile-selected-gxtest! files worker-count)
-  (load-package-build-api!)
-  (eval `(gslph-package-compile-gxtest-target
-          ',(gxtest-selected-source-module-files files)
-          ',(gxtest-selected-test-files files)
-          ,worker-count)))
+  (configure-native-build-root! package-root)
+  (compile-selected-gxtest-target
+   (gxtest-selected-source-module-files files)
+   (gxtest-selected-test-files files)
+   worker-count))
 
 ;; : (-> (List Path) Integer BuildReceiptStatus)
 (def (compile-selected-gxtest-if-stale files worker-count)
@@ -106,10 +86,10 @@
     (display-package-api-build-receipt-status status)
     (if (selected-gxtest-build-current? status)
       status
-      (begin
-        (compile-package-api-if-stale worker-count)
-        (compile-selected-gxtest! files worker-count)
-        (write-selected-gxtest-build-receipt! files)
+      (let (metadata (begin
+                       (compile-package-api-if-stale worker-count)
+                       (compile-selected-gxtest! files worker-count)))
+        (write-selected-gxtest-build-receipt! files metadata)
         (selected-gxtest-build-receipt-status files)))))
 
 (def +scoped-policy-engine-build-receipt-version+

@@ -7,10 +7,10 @@
         :std/misc/process
         (only-in :std/text/json read-json)
         :commands/check
-        :parser/facade
-        :policy/facade
-        :policy/gxtest
-        :types/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
+        :gslph/src/policy/gxtest
+        :gslph/src/types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (export agent-basic-control-policy-test)

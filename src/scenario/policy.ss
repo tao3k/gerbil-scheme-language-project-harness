@@ -2,13 +2,13 @@
 ;;; Policy scenario runner shared by tests and future agent-facing fixtures.
 
 (import :gerbil/gambit
-        :parser/facade
-        :policy/facade
-        :scenario/benchmark-contract
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
+        :gslph/src/scenario/benchmark-contract
         (only-in :std/srfi/1 find iota)
         (only-in :std/sugar foldl hash)
-        :support/time
-        :types/facade)
+        :gslph/src/support/time
+        :gslph/src/types/facade)
 
 (export make-policy-scenario
         policy-scenario-id

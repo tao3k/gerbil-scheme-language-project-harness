@@ -1,6 +1,6 @@
 ;;; -*- Gerbil -*-
-(import :parser/facade
-        :protocol/json
+(import :gslph/src/parser/facade
+        :gslph/src/protocol/json
         :std/test)
 (export check-search-prime-required-envelope
         check-search-prime-semantic-fact-graph)

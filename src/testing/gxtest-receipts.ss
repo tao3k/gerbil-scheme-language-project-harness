@@ -182,11 +182,12 @@
      (package-api-build-source-files)
      (package-api-build-output-files))))
 
-;; : (-> (List Path) Void)
-(def (write-selected-gxtest-build-receipt! files)
+;; : (-> (List Path) [Maybe Alist] Void)
+(def (write-selected-gxtest-build-receipt! files (metadata []))
   (let (stamp (selected-gxtest-build-receipt-path files))
     (ensure-directory! (path-directory stamp))
     (gslph-package-build-receipt-write
      stamp
      (selected-gxtest-build-source-files files)
-     (selected-gxtest-build-output-files files))))
+     (selected-gxtest-build-output-files files)
+     metadata: metadata)))

@@ -1,13 +1,13 @@
 ;;; -*- Gerbil -*-
 ;;; Forbidden form checks over parser-owned top-level forms.
 
-(import :checker/model
-        :parser/model
-        :parser/package
-        (only-in :parser/selectors top-form-selector)
+(import :gslph/src/checker/model
+        :gslph/src/parser/model
+        :gslph/src/parser/package
+        (only-in :gslph/src/parser/selectors top-form-selector)
         (only-in :std/srfi/13 string-contains string-prefix? string-trim)
         (only-in :std/sugar filter-map)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export +macro-governance-form-heads+
         +forbidden-form-heads+

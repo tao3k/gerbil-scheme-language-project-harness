@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 (import :std/test
-        :extensions/facade
-        :parser/facade
-        :protocol/json
+        :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        :gslph/src/protocol/json
         :std/srfi/13)
 (export parser-test-part-7)
 

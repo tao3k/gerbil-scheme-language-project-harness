@@ -3,11 +3,11 @@
 
 (import :gerbil/gambit
         :std/test
-        :parser/facade
-        :policy/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
         :policy/fixtures
-        :policy/gxtest
-        :types/facade)
+        :gslph/src/policy/gxtest
+        :gslph/src/types/facade)
 
 (export agent-source-scope-policy-test)
 
@@ -48,7 +48,7 @@
                     "(package: sample/policy-scope)\n")
         (write-text
          (string-append source-dir "/good.ss")
-         ";;; -*- Gerbil -*-\n(import :parser/facade)\n(def (policy-file? path)\n  (not (equal? (source-path-class path) \"policy-scenario\")))\n")
+         ";;; -*- Gerbil -*-\n(import :gslph/src/parser/facade)\n(def (policy-file? path)\n  (not (equal? (source-path-class path) \"policy-scenario\")))\n")
         (let* ((index (collect-project root))
                (findings (run-agent-policy index))
                (matching (filter-rule "GERBIL-SCHEME-AGENT-POLICY-021" findings)))

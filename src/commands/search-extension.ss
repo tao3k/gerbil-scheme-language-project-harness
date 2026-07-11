@@ -1,10 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Extension search renderer for registered package capability facts.
 
-(import :constants
-        :extensions/facade
-        :protocol/json
-        :support/args
+(import :gslph/src/constants
+        :gslph/src/extensions/facade
+        :gslph/src/protocol/json
+        :gslph/src/support/args
         (only-in :std/srfi/13 string-contains string-join)
         (only-in :std/sugar cut ormap when))
 

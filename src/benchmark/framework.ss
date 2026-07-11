@@ -3,7 +3,7 @@
 
 (import :gerbil/gambit
         (only-in :std/sort sort)
-        :benchmark/gate)
+        :gslph/src/benchmark/gate)
 
 (export #t)
 

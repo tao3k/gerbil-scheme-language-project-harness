@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; Owner-items rendering over definitions plus parser-owned owner facts.
 
-(import :parser/owner-items
-        :protocol/json
-        :support/args
+(import :gslph/src/parser/owner-items
+        :gslph/src/protocol/json
+        :gslph/src/support/args
         (only-in :std/srfi/1 take)
         (only-in :std/srfi/13 string-contains string-empty?)
         (only-in :std/sugar cut filter filter-map hash ormap))

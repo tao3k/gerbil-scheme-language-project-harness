@@ -1,6 +1,6 @@
 ;;; -*- Gerbil -*-
 (import :std/test
-        :support/time)
+        :gslph/src/support/time)
 
 (export support-test)
 ;; SupportTest

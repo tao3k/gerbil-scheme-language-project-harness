@@ -2,14 +2,14 @@
 ;;; Agent macro/protocol witness and facade export conflict checks.
 
 (import :gerbil/gambit
-        :parser/facade
-        :policy/agent-support
-        :policy/gerbil-utils-source
-        :policy/model
-        :policy/modularity
+        :gslph/src/parser/facade
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/gerbil-utils-source
+        :gslph/src/policy/model
+        :gslph/src/policy/modularity
         (only-in :std/srfi/13 string-contains string-trim)
         (only-in :std/sugar filter-map hash ormap while)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export macro-runtime-source-witness-findings
         macro-runtime-source-witness-finding

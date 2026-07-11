@@ -40,79 +40,15 @@
         serial-gxtest-files
         gxtest-batches)
 
-(def +runtime-benchmark-gate-symbols+
-  '(benchmark-run
-    benchmark-contract-run
-    benchmark-contract-run/root
-    policy-scenario-run/timed))
-
-(def (datum-contains-symbol? datum symbol)
-  (cond
-   ((eq? datum symbol) #t)
-   ((pair? datum)
-    (or (datum-contains-symbol? (car datum) symbol)
-        (datum-contains-symbol? (cdr datum) symbol)))
-   (else #f)))
-
-(def (datum-contains-any-symbol? datum symbols)
-  (if (any (lambda (symbol)
-             (datum-contains-symbol? datum symbol))
-           symbols)
-    #t
-    #f))
-
-(def (gxtest-any? proc values)
-  (if (any proc values) #t #f))
-
-(def (gxtest-runtime-benchmark-import-gate? file seen form)
-  (gxtest-any?
-   (lambda (imported-file)
-     (and (string-prefix? "t/" imported-file)
-          (gxtest-source-file-runtime-benchmark-gate?
-           imported-file
-           (cons file seen))))
-   (gxtest-import-files form)))
-
-(def (gxtest-runtime-benchmark-form? file seen form)
-  (or (datum-contains-any-symbol?
-       form
-       +runtime-benchmark-gate-symbols+)
-      (gxtest-runtime-benchmark-import-gate? file seen form)))
-
-(def (gxtest-source-file-runtime-benchmark-gate? file seen)
-  (with-catch
-   (lambda (_) #f)
-   (lambda ()
-     (and (not (member file seen))
-          (file-exists? (gxtest-file-forms-path file))
-          (gxtest-any?
-           (lambda (form)
-             (gxtest-runtime-benchmark-form? file seen form))
-           (gxtest-file-forms file))))))
-
-;; : (-> Path Boolean)
-(def +gxtest-runtime-benchmark-gate-cache+
-  (make-hash-table))
-
-(def (gxtest-file-runtime-benchmark-gate? file)
-  (if (hash-key? +gxtest-runtime-benchmark-gate-cache+ file)
-    (hash-get +gxtest-runtime-benchmark-gate-cache+ file)
-    (let (result (gxtest-source-file-runtime-benchmark-gate? file []))
-      (hash-put! +gxtest-runtime-benchmark-gate-cache+ file result)
-      result)))
+(import :gslph/src/testing/memory-profile)
 
 ;; : (-> Path Boolean)
 (def (timing-sensitive-gxtest-file? file)
-  (let (name (path-strip-directory file))
-    (or (string-prefix? "bench" name)
-        (string-prefix? "benchmark" name)
-        (string=? name "gxtest-runner-contract-test.ss")
-        (gxtest-file-runtime-benchmark-gate? file))))
+  (gxtest-file-memory-exception? file))
 
 ;; : (-> Path Boolean)
 (def (source-isolated-gxtest-file? file)
-  (string=? (path-strip-directory file)
-            "gxtest-runner-contract-test.ss"))
+  (gxtest-file-memory-exception? file))
 
 ;; : (-> Path Boolean)
 (def (parallel-gxtest-file? file)

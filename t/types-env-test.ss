@@ -1,14 +1,14 @@
 ;;; -*- Gerbil -*-
 (import :gerbil/gambit
         :std/test
-        :parser/model
-        :parser/runtime-contract
-        :parser/typed-contract-scheme
-        :types/env
-        :types/findings
-        :types/model
-        :types/signatures
-        :types/source-findings)
+        :gslph/src/parser/model
+        :gslph/src/parser/runtime-contract
+        :gslph/src/parser/typed-contract-scheme
+        :gslph/src/types/env
+        :gslph/src/types/findings
+        :gslph/src/types/model
+        :gslph/src/types/signatures
+        :gslph/src/types/source-findings)
 (export types-env-test)
 
 (def types-fixture-index-cache #f)

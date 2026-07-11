@@ -4,7 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
-        (only-in :commands/agent agent-main))
+        (only-in :gslph/src/commands/agent agent-main))
 (export cli-agent-test)
 
 ;; : TestSuite

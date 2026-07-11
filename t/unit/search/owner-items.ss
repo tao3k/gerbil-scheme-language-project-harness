@@ -3,9 +3,9 @@
 ;;; These tests guard launcher shape and parser-owned owner item limits.
 
 (import :gerbil/gambit
-        :commands/guide-sections
-        :commands/search-owner-items
-        :parser/owner-items
+        :gslph/src/commands/guide-sections
+        :gslph/src/commands/search-owner-items
+        :gslph/src/parser/owner-items
         (only-in :std/misc/ports read-all-as-string)
         (only-in :std/srfi/1 find)
         (only-in :std/srfi/13 string-contains string-index string-prefix?)
@@ -82,27 +82,27 @@
         (call-with-input-file
             "src/search-fast/gerbil-scheme-search-owner-items.ss"
           read-all-as-string))
-    (check (source-contains? source ":commands/search-owner-items") => #t)
-    (check (source-contains? source ":parser/owner-items") => #f)
-    (check (source-contains? source ":parser/facade") => #f)
-    (check (source-contains? source ":commands/search\n") => #f)
-    (check (source-contains? source ":commands/search ") => #f)
-    (check (source-contains? source ":commands/search)") => #f)
-    (check (source-contains? source ":cli") => #f)))
+    (check (source-contains? source ":gslph/src/commands/search-owner-items") => #t)
+    (check (source-contains? source ":gslph/src/parser/owner-items") => #f)
+    (check (source-contains? source ":gslph/src/parser/facade") => #f)
+    (check (source-contains? source ":gslph/src/commands/search\n") => #f)
+    (check (source-contains? source ":gslph/src/commands/search ") => #f)
+    (check (source-contains? source ":gslph/src/commands/search)") => #f)
+    (check (source-contains? source ":gslph/src/cli") => #f)))
 
 ;; : (-> Unit )
 (def (check-cli-launcher-search-fast-path-stays-canonical)
   (let (source
         (call-with-input-file "src/cli-launcher.ss" read-all-as-string))
-    (check (source-contains? source ":search-light-launcher") => #t)
-    (check (source-contains? source "(only-in :cli") => #f)
+    (check (source-contains? source ":gslph/src/search-light-launcher") => #t)
+    (check (source-contains? source "(only-in :gslph/src/cli") => #f)
     (check (source-contains? source "try-search-light-main") => #t)
     (check (source-contains? source "(def (command-line-args argv)") => #t)
     (check (source-contains? source "\"search\"") => #t)
     (check (source-contains? source "dispatch-native-command") => #t)
     (check (source-contains? source "emit-missing-command-binary") => #t)
     (check (source-contains? source "try-sibling-command-binary") => #t)
-    (check (source-contains? source ":commands/search-owner-items") => #f)
+    (check (source-contains? source ":gslph/src/commands/search-owner-items") => #f)
     (check (source-contains? source "native-search-owner-items-argv?") => #f)
     (check (source-contains? source "gslph search requires sibling binary") => #f)
     (check (source-contains? source "src/cli.ss") => #f)
@@ -143,10 +143,10 @@
     (check (source-contains? source "collect-source-files-preview") => #t)
     (check (source-contains? source "workspace-scope-preview-files-light") => #t)
     (check (source-contains? source "filePreview=") => #t)
-    (check (source-contains? source ":parser/package") => #f)
-    (check (source-contains? source ":parser/source-scope") => #f)
-    (check (source-contains? source ":parser/source-class") => #f)
-    (check (source-contains? source ":support/args") => #f)
+    (check (source-contains? source ":gslph/src/parser/package") => #f)
+    (check (source-contains? source ":gslph/src/parser/source-scope") => #f)
+    (check (source-contains? source ":gslph/src/parser/source-class") => #f)
+    (check (source-contains? source ":gslph/src/support/args") => #f)
     (check (source-contains? source ":std/sugar") => #f)
     (check (source-contains? source "(hash") => #f)))
 
@@ -192,11 +192,11 @@
         (call-with-input-file
             "src/search-fast/gerbil-scheme-search-guide.ss"
           read-all-as-string))
-    (check (source-contains? source ":commands/guide-sections") => #t)
-    (check (source-contains? source ":commands/search\n") => #f)
-    (check (source-contains? source ":commands/search ") => #f)
-    (check (source-contains? source ":commands/search)") => #f)
-    (check (source-contains? source ":cli") => #f)))
+    (check (source-contains? source ":gslph/src/commands/guide-sections") => #t)
+    (check (source-contains? source ":gslph/src/commands/search\n") => #f)
+    (check (source-contains? source ":gslph/src/commands/search ") => #f)
+    (check (source-contains? source ":gslph/src/commands/search)") => #f)
+    (check (source-contains? source ":gslph/src/cli") => #f)))
 
 ;; : (-> Unit )
 (def (check-guide-sections-static-data-loads)

@@ -2,11 +2,11 @@
 ;;; Gerbil Scheme source formatter.
 
 (import :gerbil/gambit
-        :format/facade
-        :protocol/json
+        :gslph/src/format/facade
+        :gslph/src/protocol/json
         (only-in :std/misc/path path-normalize)
-        :support/args
-        :support/io)
+        :gslph/src/support/args
+        :gslph/src/support/io)
 
 (export fmt-main)
 

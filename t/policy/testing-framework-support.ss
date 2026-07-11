@@ -10,8 +10,8 @@
 (import :gerbil/gambit
         (only-in :std/srfi/1 find)
         (only-in :clan/poo/object .o)
-        :testing/model
-        :testing/framework)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework)
 
 (export +testing-fixture-root+
         fixture-path

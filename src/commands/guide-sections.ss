@@ -4,7 +4,7 @@
 ;;; - Keep default guide output small.
 ;;; - Heavy policy, extension, POO, and exemplar rows require explicit flags.
 
-(import :policy/catalog
+(import :gslph/src/policy/catalog
         (only-in :std/misc/list unique))
 
 (export guide-section-lines-for)
@@ -51,7 +51,6 @@
    "|cmd evidence-graph=asp gerbil-scheme evidence graph --json ."
    "|cmd evidence-analyze=asp gerbil-scheme evidence analyze --json ."
    "|cmd info=asp gerbil-scheme info --json ."
-    "|cmd bench=asp gerbil-scheme bench --json --iterations 1 --max-interface-ms 50 ."
     "|more guide-detail=asp gerbil-scheme guide --downstream | --policy | --extensions | --poo | --exemplars | --all"]))
 
 ;; GuideSection

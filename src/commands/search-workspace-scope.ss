@@ -1,11 +1,11 @@
 ;;; -*- Gerbil -*-
 ;;; Lightweight parser-owned workspace scope renderer.
 
-(import (only-in :commands/search-render join-or-dash)
-        :parser/facade
-        :protocol/json
-        :protocol/workspace-scope
-        :support/io
+(import (only-in :gslph/src/commands/search-render join-or-dash)
+        :gslph/src/parser/facade
+        :gslph/src/protocol/json
+        :gslph/src/protocol/workspace-scope
+        :gslph/src/support/io
         (only-in :std/sort sort)
         (only-in :std/srfi/1 take))
 

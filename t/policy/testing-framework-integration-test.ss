@@ -3,12 +3,12 @@
 
 (import :gerbil/gambit
         :std/test
-        :testing/model
-        :testing/framework
-        :testing/build
-        :testing/build-runner
-        :testing/gxtest-smoke
-        :benchmark/framework
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/build
+        :gslph/src/testing/build-runner
+        :gslph/src/testing/gxtest-smoke
+        :gslph/src/benchmark/framework
         :policy/testing-framework-support
         :policy/testing-framework-integration-support)
 

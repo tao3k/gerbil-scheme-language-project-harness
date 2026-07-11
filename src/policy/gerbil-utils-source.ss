@@ -3,9 +3,9 @@
 ;;; This module keeps research corpus references structured without turning
 ;;; gerbil-utils, gerbil-poo, or gerbil:// references into runtime dependencies.
 
-(import :parser/facade
-        :policy/detection
-        :policy/prototype
+(import :gslph/src/parser/facade
+        :gslph/src/policy/detection
+        :gslph/src/policy/prototype
         (only-in :std/srfi/1 find)
         (only-in :std/sugar ormap))
 

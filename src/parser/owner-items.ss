@@ -3,9 +3,9 @@
 
 (import :gerbil/expander
         :gerbil/gambit
-        :parser/exports
-        :parser/model
-        (only-in :parser/package
+        :gslph/src/parser/exports
+        :gslph/src/parser/model
+        (only-in :gslph/src/parser/package
                  agent-policy-disabled-rules
                  package-agent-policy
                  package-dependencies
@@ -18,9 +18,9 @@
                  source-scope-policy-roots
                  source-scope-policy-runtime-roots
                  test-directory-policy-allowed-directories)
-        :parser/selectors
-        :parser/support
-        :parser/syntax
+        :gslph/src/parser/selectors
+        :gslph/src/parser/support
+        :gslph/src/parser/syntax
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports open-output-string read-file-lines)
         (only-in :std/sort sort)

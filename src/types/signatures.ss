@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Signature loading for native type facts.
 
-(import :types/model)
+(import :gslph/src/types/model)
 
 (export load-type-signatures
         parse-type-signature

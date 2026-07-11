@@ -1,3 +1,12 @@
+(max_total . 140ms)
+(observed_total . 20ms)
+(target_total . 110ms)
+(targetRationale
+  .
+  "CLI error-boundary scenario enforces command boundary without leaking raw argv handling.")
+(maxRssMb . 512)
+(rule . "GERBIL-SCHEME-AGENT-POLICY-013")
+(purpose . "R013 structured CLI error boundary keeps argv parsing, validation, and error display inside explicit typed boundaries.")
 (regression_budget
   (parseMs 20)
   (policyMs 40)

@@ -4,7 +4,7 @@
 ;;; - Keep individual policy test files under modularity limits.
 
 (import :std/test
-        :policy/gxtest
+        :gslph/src/policy/gxtest
         :policy/modularity-test
         :policy/agent-basic-test
         :policy/agent-list-growth-test

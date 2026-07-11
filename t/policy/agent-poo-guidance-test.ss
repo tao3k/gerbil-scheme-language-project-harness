@@ -3,7 +3,7 @@
 
 (import :gerbil/gambit
         :std/test
-        :types/facade
+        :gslph/src/types/facade
         :unit/policy/poo-scenarios)
 (import :policy/agent-poo-guidance-support)
 (export agent-poo-guidance-policy-test)

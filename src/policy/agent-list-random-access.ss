@@ -1,10 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing loop policy for random access over lists.
 
-(import :parser/facade
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/model
         (only-in :std/sugar filter-map hash ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export list-random-access-loop-performance-findings
         list-random-access-loop-performance-finding)

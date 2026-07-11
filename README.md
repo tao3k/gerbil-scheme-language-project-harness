@@ -21,6 +21,10 @@ Build the repository-local provider wrapper from the harness root:
 ./.bin/gslph guide --downstream
 ```
 After the native build, the provider entrypoint is `gslph`.
+## Building Framework
+The harness building framework is documented in `docs/30-39-building/31.01-building-framework.org`.
+It keeps Gerbil `std/make` as the compile executor while adding explicit build stages,
+receipts, package stage ordering, and performance gates.
 ## Downstream gxtest Quickstart
 Install this harness from its checkout into the global Gerbil package store:
 ```sh

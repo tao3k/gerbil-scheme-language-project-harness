@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Structural JSON projection for parser-owned function quality profiles.
 
-(import :parser/facade
-        :protocol/support
+(import :gslph/src/parser/facade
+        :gslph/src/protocol/support
         (only-in :std/misc/list unique))
 
 (export function-quality-profile-structural-fact-json)

@@ -1,10 +1,10 @@
 ;;; -*- Gerbil -*-
 ;;; Parser-owned quality facet aggregation for typed-combinator style policy.
 
-(import :parser/facade
-        :policy/agent-style-gerbil-signals
-        :policy/agent-style-destructuring-signals
-        :policy/agent-style-performance-signals
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-style-gerbil-signals
+        :gslph/src/policy/agent-style-destructuring-signals
+        :gslph/src/policy/agent-style-performance-signals
         (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-prefix?)
         (only-in :std/sugar cut filter ormap))
@@ -148,6 +148,8 @@
                                ["higher-order-used"
                                 "combinator-backed"
                                 "base-style-combinator-composition"]))
+      (and (quality-facet-present? facets "macro-family-boundary")
+           (quality-facet-present? facets "typed-doc-block"))
       (quality-facet-any? facets
                           ["native-performance-evidence"
                            "optimizer-visible-hot-loop"

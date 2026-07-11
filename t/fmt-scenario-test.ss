@@ -1,7 +1,7 @@
 (import :std/test
-        :benchmark/framework
-        :format/facade
-        :support/io)
+        :gslph/src/benchmark/framework
+        :gslph/src/format/facade
+        :gslph/src/support/io)
 
 (export fmt-scenario-test)
 

@@ -2,18 +2,18 @@
 ;;; JSON projections for Gerbil parser-owned facts.
 
 (import :gerbil/gambit
-        :constants
-        :extensions/facade
-        :parser/facade
-        :parser/query
-        :policy/repair
-        :protocol/structural-index
-        :protocol/structural-facts
+        :gslph/src/constants
+        :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        :gslph/src/parser/query
+        :gslph/src/policy/repair
+        :gslph/src/protocol/structural-index
+        :gslph/src/protocol/structural-facts
         (only-in :std/sort sort)
         (only-in :std/srfi/1 iota take)
         (only-in :std/sugar hash hash-key? hash-put!)
         (only-in :std/text/json write-json)
-        :types/facade)
+        :gslph/src/types/facade)
 
 (export source-file-json
         project-package-json
@@ -286,10 +286,10 @@
            (hits (map owner-hit-json owners owner-ranks))
            (findings '())
            (nextActions (list (hash (kind "search")
-                                    (target "fzf")
+                                    (target "lexical")
                                     (scope (project-index-root index))
                                     (fields (hash (command
-                                                   "gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds"))))))
+                                                   "gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds"))))))
            (notes (list (hash (kind "parser")
                               (message "core-read-module native Scheme reader facts")))))))
     (when package

@@ -5,8 +5,8 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/misc/process run-process)
-        :commands/query
-        :support/time)
+        :gslph/src/commands/query
+        :gslph/src/support/time)
 (export query-test)
 
 ;;; Boundary:
@@ -238,7 +238,7 @@
                    (string-contains message
                                     "\"installHint\":\"gxpkg install git.cons.io/mighty-gerbils/gerbil-poo\"")))
                  => #t))))
-    (test-case "ownerless names-only term points to fzf route"
+    (test-case "ownerless names-only term points to lexical route"
       (let (result (query-output ["--term"
                                   "ownerless_names_only_term"
                                   "--workspace"
@@ -253,7 +253,7 @@
                 (not
                  (string-contains
                   message
-                  "search fzf '<term>' owner --workspace <workspace-root> --view seeds")))
+                  "search lexical '<term>' owner --workspace <workspace-root> --view seeds")))
                => #t))))
     (test-case "owner query rejects paths outside explicit workspace before indexing"
       (let (result (query-output ["src/types/facade.ss"

@@ -3,8 +3,8 @@
 
 (import :std/test
         :policy/agent-style-support
-        :scenario/policy
-        :parser/facade)
+        :gslph/src/scenario/policy
+        :gslph/src/parser/facade)
 (export agent-style-scenario-control-higher-order-policy-test)
 
 ;; PolicyTest

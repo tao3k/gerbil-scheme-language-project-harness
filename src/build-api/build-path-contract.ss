@@ -5,6 +5,7 @@
         :gerbil/gambit)
 (export clean-target
         configure-build-root!
+        configure-build-path-root!
         dev-launcher-binpath
         install-launcher-binpath)
 
@@ -15,6 +16,11 @@
   (set! package-root (path-normalize root))
   (current-directory package-root)
   (setenv "GERBIL_PATH" (path-expand ".gerbil" package-root)))
+
+;; : (-> Path Void)
+;; Configure only the shared path contract for a native build owner.
+(def (configure-build-path-root! root)
+  (configure-build-root! root))
 
 ;; : (-> Void)
 (def (ensure-build-root!)

@@ -3,11 +3,11 @@
 
 (import :gerbil/gambit
         :std/test
-        :parser/facade
-        :policy/facade
+        :gslph/src/parser/facade
+        :gslph/src/policy/facade
         :policy/fixtures
-        :scenario/policy
-        :types/facade)
+        :gslph/src/scenario/policy
+        :gslph/src/types/facade)
 
 (export agent-list-random-access-policy-test)
 

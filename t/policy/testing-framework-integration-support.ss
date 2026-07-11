@@ -2,9 +2,9 @@
 ;;; Higher-cost fixtures for testing-framework integration and benchmark tests.
 
 (import :gerbil/gambit
-        :testing/model
-        :testing/framework
-        :testing/build
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/build
         :policy/testing-framework-support)
 
 (export +testing-benchmark-root+

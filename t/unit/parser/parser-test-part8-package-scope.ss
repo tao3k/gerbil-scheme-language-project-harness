@@ -2,11 +2,11 @@
 ;;; gerbil scheme harness parser part 8 package scope.
 
 (import :std/test
-        :extensions/facade
-        :parser/facade
-        :parser/typed-contract-scheme
-        :protocol/json
-        :protocol/structural-facts
+        :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        :gslph/src/parser/typed-contract-scheme
+        :gslph/src/protocol/json
+        :gslph/src/protocol/structural-facts
         :std/srfi/13)
 (import :unit/parser/parser-test-part8-support)
 (export parser-test-part-8-package-scope)

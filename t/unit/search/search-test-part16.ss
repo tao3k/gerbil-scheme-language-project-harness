@@ -3,10 +3,10 @@
 ;;; - test owner records policy expectations.
 ;;; - Keep typed contracts and fixture intent explicit.
 (import :std/test
-        :commands/guide
-        :commands/info
-        :commands/search
-        :support/args
+        :gslph/src/commands/guide
+        :gslph/src/commands/info
+        :gslph/src/commands/search
+        :gslph/src/support/args
         :std/misc/ports
         (only-in :std/text/json read-json)
         :unit/poo/runtime-witness

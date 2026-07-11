@@ -2,9 +2,9 @@
 ;;; Typed contract signature diagnostics and token projection helpers.
 
 (import :gerbil/gambit
-        :parser/model
-        :parser/typed-comment-metadata
-        :parser/typed-contract-scheme
+        :gslph/src/parser/model
+        :gslph/src/parser/typed-comment-metadata
+        :gslph/src/parser/typed-contract-scheme
         (only-in :std/misc/list unique)
         (only-in :std/srfi/13
                  string-contains
@@ -228,6 +228,7 @@
 (def (typed-contract-arity-alignment definition arrow-count contract-input-count)
   (cond
    ((= arrow-count 0) "declaration")
+   ((equal? (definition-kind definition) "defrules") "macro-syntax")
    ((= (definition-arity definition) contract-input-count) "aligned")
    (else "input-count-mismatch")))
 

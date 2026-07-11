@@ -2,8 +2,8 @@
 ;;; Parser-owned import facts for Gerbil module forms.
 
 (import :gerbil/expander
-        :parser/model
-        :parser/support
+        :gslph/src/parser/model
+        :gslph/src/parser/support
         (only-in :std/misc/list unique)
         (only-in :std/srfi/13 string-prefix?))
 

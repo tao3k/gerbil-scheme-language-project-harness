@@ -3,31 +3,31 @@
 
 (import :gerbil/expander
         :gerbil/gambit
-        :parser/comment-quality
-        :parser/control-flow
-        :parser/dependency-adapter-quality
-        :parser/exports
-        :parser/function-quality
-        :parser/higher-order
-        :parser/model
-        :parser/package
-        :parser/parse-workers
-        :parser/profile
-        :parser/poo
-        :parser/quality-shape
-        :parser/reader
-        :parser/selectors
-        :parser/source-file
-        :parser/source-scope
-        :parser/test-source-scope
-        :parser/support
-        :parser/syntax
-        :parser/typed-contract
-        :support/time
+        :gslph/src/parser/comment-quality
+        :gslph/src/parser/control-flow
+        :gslph/src/parser/dependency-adapter-quality
+        :gslph/src/parser/exports
+        :gslph/src/parser/function-quality
+        :gslph/src/parser/higher-order
+        :gslph/src/parser/model
+        :gslph/src/parser/package
+        :gslph/src/parser/parse-workers
+        :gslph/src/parser/profile
+        :gslph/src/parser/poo
+        :gslph/src/parser/quality-shape
+        :gslph/src/parser/reader
+        :gslph/src/parser/selectors
+        :gslph/src/parser/source-file
+        :gslph/src/parser/source-scope
+        :gslph/src/parser/test-source-scope
+        :gslph/src/parser/support
+        :gslph/src/parser/syntax
+        :gslph/src/parser/typed-contract
+        :gslph/src/support/time
         (only-in :std/misc/list unique)
         (only-in :std/misc/ports open-output-string read-file-lines)
         (only-in :std/sort sort)
-        (only-in :std/srfi/1 iota take)
+        (only-in :std/srfi/1 foldl iota take)
         (only-in :std/srfi/13
                  string-contains
                  string-index-right
@@ -401,6 +401,19 @@
                         (parse-source-files root files)
                         package)))
 
+;; project-definition-count
+;;   : (-> ProjectIndex Integer)
+;;   | doc m%
+;;       `project-definition-count` sums parser-owned source-file counts
+;;       without materializing the aggregate definition collection.
+;;     %
+(def (project-definition-count index)
+  (foldl
+   (lambda (source-file count)
+     (+ count (length (source-file-definitions source-file))))
+   0
+   (project-index-files index)))
+
 ;;; Profile packet boundary: each timed thunk owns exactly one phase, so the
 ;;; final packet can report phase latency without changing the ProjectIndex
 ;;; construction path.
@@ -421,29 +434,37 @@
 ;; : (-> String ProjectIndex)
 (def (collect-project/profile root)
   (let* ((root (path-normalize root))
-         (total-start (monotonic-ms)))
-    (call-with-values
-     (lambda ()
-       (timed-profile-value
-        "read-project-package"
-        (lambda () (read-project-package root))))
-     (lambda (package package-phase)
-       (call-with-values
-        (lambda ()
-          (timed-profile-value
+         (total-start (monotonic-ms))
+         (package-packet
+          (timed-profile-packet
+           "read-project-package"
+           (lambda () (read-project-package root))))
+         (package (hash-get package-packet 'value))
+         (package-phase (hash-get package-packet 'phase))
+         (source-scope-packet
+          (timed-profile-packet
            "collect-source-files"
            (lambda () (sort (collect-source-files root package) string<?))))
-        (lambda (files source-scope-phase)
-          (call-with-values
-           (lambda () (parse-source-files/profile root files))
-           (lambda (source-files parse-phase slowest-files)
-             (let* ((index (make-project-index root source-files package))
-                    (total-ms (duration-ms total-start (monotonic-ms)))
-                    (profile
-                     (hash (totalMs total-ms)
-                           (fileCount (length files))
-                           (definitionCount (length (project-definitions index)))
-                           (phases [package-phase source-scope-phase parse-phase])
-                           (slowestFiles slowest-files))))
-               (hash (index index)
-                     (profile profile)))))))))))
+         (files (hash-get source-scope-packet 'value))
+         (source-scope-phase (hash-get source-scope-packet 'phase)))
+    (set! package-packet #f)
+    (set! source-scope-packet #f)
+    (let (parse-packet (parse-source-files/profile root files))
+      (let* ((source-files (hash-get parse-packet 'sourceFiles))
+             (parse-phase (hash-get parse-packet 'parsePhase))
+             (slowest-files (hash-get parse-packet 'slowestFiles)))
+        ;; `source-files` is the only parse payload needed by index materialization.
+        (set! parse-packet #f)
+        ;; The profile parser has finished; reclaim worker messages and parser
+        ;; intermediates before the index builds its own aggregate structures.
+        (##gc)
+        (let* ((index (make-project-index root source-files package))
+               (total-ms (duration-ms total-start (monotonic-ms)))
+               (profile
+                (hash (totalMs total-ms)
+                      (fileCount (length files))
+                      (definitionCount (project-definition-count index))
+                      (phases [package-phase source-scope-phase parse-phase])
+                      (slowestFiles slowest-files))))
+          (hash (index index)
+                (profile profile)))))))

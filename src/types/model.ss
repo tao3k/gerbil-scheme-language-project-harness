@@ -6,18 +6,18 @@
 
 (import :gerbil/gambit
         (only-in :std/srfi/1 drop-right every last lset=)
-        :utilities/functional
+        :gslph/src/utilities/functional
         (only-in :std/sugar cut filter-map ormap)
-        (only-in :utilities/contracts
+        (only-in :gslph/src/utilities/contracts
                  make-object-type-contract
                  make-slot-contract
                  object-contract-issues
                  object-contract-valid?
                  require-object-contract!)
-        (only-in :utilities/projection
+        (only-in :gslph/src/utilities/projection
                  object-contract-report-rows
                  object-type-contract->alist)
-        :utilities/contract-syntax)
+        :gslph/src/utilities/contract-syntax)
 
 (export make-type-unknown
         make-type-any

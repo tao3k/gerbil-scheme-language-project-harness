@@ -2,12 +2,12 @@
 ;;; Comment-quality policy findings over parser-owned comment facts.
 ;;; The gate rejects absence, contract-only rationale, and compressed multi-clause comments while leaving wording flexible.
 
-(import :parser/facade
-        :policy/agent-support
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/model
         (only-in :std/srfi/1 take)
         (only-in :std/sugar cut filter filter-map hash ormap)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export comment-quality-findings
         comment-quality-finding)

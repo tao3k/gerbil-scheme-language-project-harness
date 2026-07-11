@@ -4,23 +4,23 @@
 ;;; - Evidence packet rendering lives in :commands/search-evidence.
 ;;; Search command adapter.
 
-(import :constants
-        :commands/guide
-        :commands/search-evidence
-        :commands/search-extension
-        :commands/search-owner-items
-        (only-in :commands/search-prime-light
+(import :gslph/src/constants
+        :gslph/src/commands/guide
+        :gslph/src/commands/search-evidence
+        :gslph/src/commands/search-extension
+        :gslph/src/commands/search-owner-items
+        (only-in :gslph/src/commands/search-prime-light
                  emit-prime-light
                  source-path-class)
-        :commands/search-proof
-        :commands/search-structural
-        :commands/search-workspace-scope
-        :extensions/facade
-        :parser/facade
-        :parser/query
-        :protocol/json
-        :support/args
-        :support/io
+        :gslph/src/commands/search-proof
+        :gslph/src/commands/search-structural
+        :gslph/src/commands/search-workspace-scope
+        :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        :gslph/src/parser/query
+        :gslph/src/protocol/json
+        :gslph/src/support/args
+        :gslph/src/support/io
         (only-in :std/srfi/1 take)
         (only-in :std/srfi/13 string-contains string-join)
         (only-in :std/sugar cut filter match ormap))
@@ -102,8 +102,8 @@
    ((equal? view "proof") (emit-type-proof-search args json?))
    ((language-evidence-view? view)
     (emit-language-evidence-search index view args json?))
-   ((or (equal? view "fzf") (equal? view "pipe"))
-    (emit-fzf-search index args json?))
+   ((or (equal? view "lexical") (equal? view "pipe"))
+    (emit-lexical-search index args json?))
    ((equal? view "ingest") (emit-ingest index json?))
    (else (error "unsupported search view" view))))
 ;; : (-> String (List String) ProjectIndex )
@@ -195,8 +195,8 @@
                     " imports=" (length (source-file-imports file))))
        (let (files (ranked-files index))
          (take files (min 12 (length files)))))
-      (displayln "recommendedNext=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")
-      (displayln "nextCommand=gerbil-scheme-harness search fzf '<term>' owner tests --workspace . --view seeds")))
+      (displayln "recommendedNext=gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds")
+      (displayln "nextCommand=gerbil-scheme-harness search lexical '<term>' owner tests --workspace . --view seeds")))
   0)
 
 ;; : (-> ProjectIndex String )
@@ -350,7 +350,7 @@
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (emit-import-search index '(":parser/support") #f)
+;;       (emit-import-search index '(":gslph/src/parser/support") #f)
 ;;       ;; => 0
 ;;       ```
 ;;     %
@@ -373,28 +373,28 @@
              (displayln "|owner path=" (source-file-path file)))
            (take matches (min 40 (length matches)))))))
     0))
-;; emit-fzf-search
+;; emit-lexical-search
 ;;   : (-> ProjectIndex (List String) Boolean Integer)
 ;;   | doc m%
-;;       `emit-fzf-search index args json?` ranks owners for a fuzzy query and
+;;       `emit-lexical-search index args json?` ranks owners for a fuzzy query and
 ;;       emits JSON or compact owner rows with a follow-up command.
 ;;
 ;;       # Examples
 ;;
 ;;       ```scheme
-;;       (emit-fzf-search index '("typed doc") #f)
+;;       (emit-lexical-search index '("typed doc") #f)
 ;;       ;; => 0
 ;;       ```
 ;;     %
-(def (emit-fzf-search index args json?)
+(def (emit-lexical-search index args json?)
   (let* ((positionals (positional-args args))
          (query (and (pair? positionals) (car positionals))))
-    (unless query (error "search fzf requires a query"))
+    (unless query (error "search lexical requires a query"))
     (let (matches (ranked-query-files index query))
       (if json?
         (write-json-line (hash (query query) (matches (map source-file-json matches))))
         (begin
-          (displayln "[gerbil-search-fzf] query=" query " matches=" (length matches))
+          (displayln "[gerbil-search-lexical] query=" query " matches=" (length matches))
           (for-each
            (lambda (file)
              (displayln "|owner path=" (source-file-path file)

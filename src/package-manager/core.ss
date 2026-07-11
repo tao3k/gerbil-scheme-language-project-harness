@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Gerbil package-manager facts derived from gerbil.pkg.
 
-(import :parser/facade)
+(import :gslph/src/parser/facade)
 
 (export +gerbil-package-manager-id+
         +gerbil-local-package-root-hint+

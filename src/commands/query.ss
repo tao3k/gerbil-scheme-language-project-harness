@@ -4,18 +4,18 @@
 ;;; - Keep contracts, evidence, and failure semantics explicit.
 ;;; Query command adapter.
 
-(import :extensions/facade
-        :parser/facade
-        (only-in :parser/owner-items
+(import :gslph/src/extensions/facade
+        :gslph/src/parser/facade
+        (only-in :gslph/src/parser/owner-items
                  owner-items-source-path?
                  parse-owner-items-source-file)
-        :parser/query
-        :protocol/json
+        :gslph/src/parser/query
+        :gslph/src/protocol/json
         (only-in :std/srfi/1 find)
         (only-in :std/sugar unless)
         (only-in :std/srfi/13 string-contains string-index string-join string-prefix?)
-        :support/args
-        :support/io)
+        :gslph/src/support/args
+        :gslph/src/support/io)
 
 (export query-main)
 ;; query-main
@@ -135,7 +135,7 @@
       (emit-registered-poo-query-route terms json?)
       0)
      ((and (not owner) names-only? (pair? terms))
-      (displayln "query --names-only requires an owner selector; workspace term discovery is `search fzf '<term>' owner --workspace <workspace-root> --view seeds`")
+      (displayln "query --names-only requires an owner selector; workspace term discovery is `search lexical '<term>' owner --workspace <workspace-root> --view seeds`")
       2)
      ((not owner)
       (error "query requires an owner path"))

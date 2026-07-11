@@ -1,11 +1,11 @@
 ;;; -*- Gerbil -*-
 ;;; Agent-facing import precision policy.
 
-(import :parser/facade
-        :policy/agent-support
-        :policy/model
+(import :gslph/src/parser/facade
+        :gslph/src/policy/agent-support
+        :gslph/src/policy/model
         (only-in :std/srfi/13 string-prefix?)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export explicit-precise-import-findings
         explicit-precise-import-finding)

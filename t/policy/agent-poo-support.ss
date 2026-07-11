@@ -2,10 +2,10 @@
 ;;; Gerbil scheme harness agent POO policy support.
 
 (import :gerbil/gambit
-        :parser/facade
-        :scenario/policy
-        (only-in :support/time duration-literal->nanos)
-        :types/facade)
+        :gslph/src/parser/facade
+        :gslph/src/scenario/policy
+        (only-in :gslph/src/support/time duration-literal->nanos)
+        :gslph/src/types/facade)
 (export #t)
 
 

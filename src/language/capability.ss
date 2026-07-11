@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 ;;; Project-local Gerbil capability posture facts for agent steering.
 
-(import :language/evidence
-        :parser/facade
-        :policy/catalog
+(import :gslph/src/language/evidence
+        :gslph/src/parser/facade
+        :gslph/src/policy/catalog
         (only-in :std/srfi/1 append-map take)
         (only-in :std/srfi/13 string-contains)
         (only-in :std/sugar cut filter ormap))

@@ -2,8 +2,8 @@
 ;;; Gerbil contract projection metadata extraction.
 
 (import :gerbil/gambit
-        :parser/runtime-contract
-        :parser/typed-contract-scheme
+        :gslph/src/parser/runtime-contract
+        :gslph/src/parser/typed-contract-scheme
         (only-in :std/srfi/13
                  string-contains
                  string-join

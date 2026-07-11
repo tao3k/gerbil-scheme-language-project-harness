@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Extension aggregation for provider-owned Gerbil package capabilities.
 
-(import :extensions/model
-        :extensions/poo)
+(import :gslph/src/extensions/model
+        :gslph/src/extensions/poo)
 
 (export project-extension-facts
         project-extension-search-lines

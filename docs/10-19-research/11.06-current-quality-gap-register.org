@@ -140,7 +140,7 @@ Current state:
 
 - =search capability configurable interface agent-steering engineering-quality=
   reaches configurable interface posture and points to =info --json .=.
-- =search fzf 'configurable interface'= reaches =src/language/capability.ss=
+- =search lexical 'configurable interface'= reaches =src/language/capability.ss=
   and =src/commands/info.ss=.
 - Structural output explicitly names typed contract and comment quality facts in
   projection vocabulary.

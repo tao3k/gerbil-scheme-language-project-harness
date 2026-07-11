@@ -1,6 +1,6 @@
 ;;; -*- Gerbil -*-
-(import :parser/facade
-        :protocol/json
+(import :gslph/src/parser/facade
+        :gslph/src/protocol/json
         :std/misc/process
         :std/sort
         :std/test)

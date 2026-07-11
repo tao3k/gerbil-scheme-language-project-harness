@@ -22,9 +22,9 @@
         gxtest-file-module-symbol
         gxtest-normalize-module-path)
 
-(def package-root #f)
-(def source-root #f)
-(def test-root #f)
+(def package-root (current-directory))
+(def source-root (path-expand "src" package-root))
+(def test-root (path-expand "t" package-root))
 (def package-name #f)
 
 ;; : (-> String Void)

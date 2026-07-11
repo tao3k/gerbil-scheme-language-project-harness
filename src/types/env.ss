@@ -1,15 +1,15 @@
 ;;; -*- Gerbil -*-
 ;;; Type environment facts derived from parser-owned definitions.
 
-(import :parser/model
-        (only-in :parser/selectors
+(import :gslph/src/parser/model
+        (only-in :gslph/src/parser/selectors
                  definition-selector
                  project-definitions
                  project-typed-contract-facts)
         (only-in :std/srfi/1 append-map)
         (only-in :std/sugar cut filter-map foldl foldr)
-        :types/model
-        :types/signatures)
+        :gslph/src/types/model
+        :gslph/src/types/signatures)
 
 (export make-type-binding
         type-binding-name

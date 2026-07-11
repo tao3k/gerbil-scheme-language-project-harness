@@ -2,8 +2,8 @@
 ;;; Direct tests for policy detection combinators.
 
 (import :std/test
-        :policy/detection
-        :policy/prototype)
+        :gslph/src/policy/detection
+        :gslph/src/policy/prototype)
 
 (export detection-policy-test)
 

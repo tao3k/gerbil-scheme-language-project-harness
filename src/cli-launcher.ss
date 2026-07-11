@@ -2,12 +2,12 @@
 ;;; Native launcher for per-command Gerbil Scheme harness executables.
 
 (import :gerbil/gambit
-(only-in :commands/bench-light bench-light-main)
-        (only-in :constants +help+)
-        (only-in :search-light-launcher try-search-light-main)
+        (only-in :gslph/src/constants +help+)
+        (only-in :gslph/src/search-light-launcher try-search-light-main)
         (only-in :std/misc/path path-expand)
-        (only-in :std/misc/ports read-all-as-string)
-        (only-in :std/srfi/13 string-contains string-index string-index-right string-prefix?))
+        (only-in :std/misc/ports read-all-as-string read-file-lines)
+        (only-in :std/srfi/13 string-contains string-index string-index-right string-prefix?)
+        (only-in :std/sugar foldl))
 (export main
         command-line-args
         provider-command-line-args
@@ -19,7 +19,7 @@
 
 ;; : (List String)
 (def +commands+
-  '("search" "query" "fmt" "bench" "evidence" "agent" "guide" "info"
+  '("search" "query" "fmt" "evidence" "agent" "guide" "info"
     "help" "-h" "--help"))
 
 ;; : (List String)
@@ -128,7 +128,7 @@
 
 ;;; Direct query boundary:
 ;;; - Hook selector reads must be a native launcher fast path.
-;;; - Do not import `:cli`; that pulls in parser/checker
+;;; - Do not import `:gslph/src/cli`; that pulls in parser/checker
 ;;;   modules before reading a small line range.
 ;; : (-> String (List String) (U Integer #f))
 (def (try-native-direct-source-query command rest)
@@ -233,25 +233,21 @@
 ;;       ```
 ;;     %
 (def (launcher-read-line-range path start end)
-  (call-with-input-file path
-    (lambda (port)
-      (call-with-output-string
-       []
-       (lambda (out)
-         (let loop ((line 1))
-           (unless (> line end)
-             (let (text (read-line port))
-               (unless (eof-object? text)
-                 (when (and (>= line start) (<= line end))
-                   (display text out)
-                   (newline out))
-                 (loop (fx1+ line)))))))))))
+  (cdr
+   (foldl
+    (lambda (text state)
+      (let ((line (car state))
+            (out (cdr state)))
+        (cons (fx1+ line)
+              (if (and (>= line start) (<= line end))
+                (string-append out text "\n")
+                out))))
+    (cons 1 "")
+    (read-file-lines path))))
 
 ;; : (-> String (List String) Integer)
 (def (dispatch-native-command command rest)
-  (match command
-    ("bench" (bench-light-main rest))
-    (else (dispatch-dynamic-command command rest))))
+  (dispatch-dynamic-command command rest))
 
 ;;; Dynamic dispatch boundary:
 ;;; - Hot commands stay in the launcher.

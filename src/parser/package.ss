@@ -2,7 +2,7 @@
 ;;; Parser-owned package metadata facts.
 
 (import :gerbil/gambit
-        (only-in :parser/support datum-list-items safe-cadr)
+        (only-in :gslph/src/parser/support datum-list-items safe-cadr)
         (only-in :std/misc/list unique))
 
 (export read-project-package

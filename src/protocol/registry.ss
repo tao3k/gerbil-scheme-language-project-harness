@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Provider registry projection.
 
-(import :constants
-        :parser/facade
+(import :gslph/src/constants
+        :gslph/src/parser/facade
         (only-in :std/sugar hash))
 
 (export language-registry)
@@ -25,7 +25,7 @@
       (namespace "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness")
       (displayName +display-name+)
       (packageRoots [root])
-      (methods ["search/prime" "search/owner" "search/fzf" "search/ingest"
+      (methods ["search/prime" "search/owner" "search/lexical" "search/ingest"
                 "search/pattern" "search/runtime-source" "search/compare"
                 "search/proof" "search/compiler-evidence"
                 "index/structural" "index/native-syntax-owner-facts"

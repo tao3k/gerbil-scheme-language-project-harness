@@ -4,7 +4,7 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
-        (rename-in :cli-dev-linker (main dev-linker-main)))
+        (rename-in :gslph/src/cli-dev-linker (main dev-linker-main)))
 (export cli-dev-linker-test)
 
 ;; : TestSuite

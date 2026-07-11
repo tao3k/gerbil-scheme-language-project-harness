@@ -3,14 +3,16 @@
 
 (import :std/test
         (only-in :clan/poo/object object? .ref .slot?)
-        :testing/model
-        :testing/framework
-        :testing/performance
-        :testing/build
-        :testing/build-runner
-        :testing/build-process
-        :testing/build-support
-        :testing/build-runtime)
+        :gslph/src/testing/model
+        :gslph/src/testing/framework
+        :gslph/src/testing/performance
+        :gslph/src/testing/build
+        :gslph/src/testing/build-runner
+        :gslph/src/testing/build-process
+        :gslph/src/testing/build-support
+        :gslph/src/testing/build-runtime
+        :gslph/src/building/facade
+        :gslph/src/building/testing)
 
 (export testing-framework-test
         performance-smoke-work)
@@ -38,6 +40,32 @@
    "t/scenarios/policy/poo-object-construction-loop-performance/benchmark.ss"
    read))
 
+(def +building-stage-benchmark+
+  "t/scenarios/building/std-builder-stage-boundary/benchmark.ss")
+
+(def +building-stage-make-calls+ (vector 0))
+
+(def +building-stage-plan-request+
+  (let* ((builder
+          (make-std-builder
+           "testing-scenario-adapter"
+           (lambda args
+             (vector-set! +building-stage-make-calls+
+                          0
+                          (+ 1 (vector-ref +building-stage-make-calls+ 0)))
+             'made)
+           'std-builder
+           "testing scenario adapter builder"
+           #f
+           []))
+         (profile (make-std-builder-profile builder)))
+    (make-std-builder-request
+     "testing-scenario-adapter"
+     profile
+     [["alpha.ss"] ["beta.ss"]]
+     (lambda (spec context) #t)
+     'testing-scenario-adapter)))
+
 (def (performance-smoke-work)
   (let loop ((index 0) (sum 0))
     (if (= index 10)
@@ -60,13 +88,17 @@
    cases: [(performance-case
             name: "poo-smoke"
             fixture: +performance-fixture+
-            runner: performance-smoke-work)]))
+            runner: performance-smoke-work)
+           (make-build-request-performance-case
+            +building-stage-plan-request+
+            +building-stage-benchmark+
+            name: "building-stage-plan")]))
 
 (def +performance-project+
   (testing-project
    name: "poo-flow-like-performance"
    suites: [+performance-suite+]
-   roots: ["t/scenarios/policy"]))
+   roots: ["t/scenarios/policy" "t/scenarios/building"]))
 
 (def testing-framework-test
   (test-suite "gerbil scheme POO-shaped testing framework smoke"
@@ -259,6 +291,25 @@
         (check (testing-receipt-detail body-phase 'phase) => 'benchmark-body)
         (check (testing-receipt-elapsed-micros body-phase) ? number?)
         (check (performance-case-benchmark-status case-receipt) => 'pass)))
+
+    (test-case "performance project selects the shared building scenario"
+      (let* ((receipt
+              (testing-run-project
+               +performance-project+
+               ["building-stage-plan"]
+               fake-run-files))
+             (suite-receipt (car (testing-receipt-children receipt)))
+             (case-receipt (car (testing-receipt-children suite-receipt))))
+        (check (build-request-stage-plan-valid?
+                (build-request-stage-plan +building-stage-plan-request+))
+               => #t)
+        (check (testing-receipt-ok? receipt) => #t)
+        (check (testing-object-ref suite-receipt 'receiptKind)
+               => 'performance-suite)
+        (check (testing-object-ref case-receipt 'receiptKind)
+               => 'performance-case)
+        (check (performance-case-benchmark-status case-receipt) => 'pass)
+        (check (vector-ref +building-stage-make-calls+ 0) => 0)))
 
     (test-case "testing benchmark helper exposes body timing to gxtest-style tests"
       (let-values (((receipt result body-phase)

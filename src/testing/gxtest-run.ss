@@ -11,7 +11,7 @@
 
 (import (only-in "../build-api/worker-count"
                  gxtest-worker-count)
-        (only-in :std/srfi/1 partition)
+        (only-in :std/srfi/1 partition any)
         (only-in "../support/time" monotonic-micros duration-micros)
         (only-in "./gxtest-build"
                  compile-selected-gxtest-if-stale)
@@ -29,6 +29,8 @@
                  gxtest-runner-mode-label)
         (only-in "./gxtest-receipts"
                  selected-gxtest-build-current?)
+        (only-in "./memory-profile"
+                 gxtest-file-memory-exception?)
         :gerbil/gambit)
 
 (export run-gxtest-files
@@ -116,7 +118,8 @@
          (worker-count (test-runner-worker-count (length parallel-files)))
          (source-in-process?
           (and (= worker-count 1)
-               (gxtest-files-local-suite? files))))
+               (gxtest-files-local-suite? files)
+               (not (any gxtest-file-memory-exception? files)))))
     (let-values (((source-safe-files source-only-files)
                   (if source-in-process?
                     (split-in-process-gxtest-files files)

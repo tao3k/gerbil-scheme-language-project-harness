@@ -2,7 +2,7 @@
 ;;; Source-range transport helpers.
 
 (import :gerbil/gambit
-        (only-in :parser/model
+        (only-in :gslph/src/parser/model
                  definition-path
                  definition-start
                  definition-end)
@@ -181,6 +181,8 @@
 ;;; - Callers own projection values; this helper owns emission mechanics.
 ;;; - Keeping display/newline here lets command renderers stay field-list driven.
 ;; : (forall (A) (-> String (List (Pair String A)) Unit))
+;; emit-field-line
+;; : (-> String Alist Unit)
 (def (emit-field-line prefix fields)
   (display prefix)
   (for-each

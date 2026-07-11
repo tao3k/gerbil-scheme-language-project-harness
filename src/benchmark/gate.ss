@@ -1,7 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Boundary: reusable benchmark fixtures and performance gate receipts.
 
-(import :support/time
+(import :gslph/src/support/time
         (only-in :std/sugar andmap ormap foldl))
 
 (export benchmark-default-max-total
@@ -241,6 +241,8 @@
 ;;   | doc m%
 ;;       Return required benchmark fixture keys that are absent from an alist.
 ;;     %
+;; : (forall (k v) (-> [(Pair k v)] [k]))
+;; : (-> Alist (List Symbol))
 (def (benchmark-fixture-missing-keys fixture)
   (filter (lambda (key) (not (assoc key fixture)))
           benchmark-fixture-required-keys))
@@ -260,6 +262,8 @@
 ;;       ;; => #t
 ;;       ```
 ;;     %
+;; : (forall (a) (-> [a] a Boolean))
+;; : (-> (List Value) Symbol Boolean)
 (def (benchmark-fixture-phase-present? phases phase)
   (ormap (lambda (candidate) (member candidate phases))
          [phase (symbol->string phase)]))
@@ -280,17 +284,20 @@
 (def (benchmark-fixture-duration-field-nanos fixture key)
   (duration-literal->nanos (benchmark-fixture-ref fixture key)))
 
+;; : (forall (v) (-> (-> v Boolean) Alist [Symbol] Boolean))
 ;; : (-> Procedure Alist (List Symbol) Boolean)
 (def (benchmark-fixture-fields-pass? predicate fixture keys)
   (andmap (lambda (key)
             (predicate (benchmark-fixture-ref fixture key)))
           keys))
 
+;; : (forall (n) (-> (-> n Boolean) Alist Symbol Boolean))
 ;; : (-> Procedure Alist Symbol Boolean)
 (def (benchmark-fixture-duration-field-pass? nanos-pass? fixture key)
   (let (nanos (benchmark-fixture-duration-field-nanos fixture key))
     (and nanos (nanos-pass? nanos))))
 
+;; : (forall (n) (-> (-> n Boolean) Alist [Symbol] Boolean))
 ;; : (-> Procedure Alist (List Symbol) Boolean)
 (def (benchmark-fixture-duration-fields-pass? nanos-pass? fixture keys)
   (andmap (lambda (key)
@@ -300,62 +307,9 @@
              key))
           keys))
 
-;; : (-> Alist Boolean)
-(def (benchmark-fixture-positive-duration-fields-pass? fixture)
-  (benchmark-fixture-duration-fields-pass?
-   benchmark-positive-number?
-   fixture
-   +benchmark-positive-duration-fields+))
-
-;; : (-> Alist Boolean)
-(def (benchmark-fixture-non-negative-duration-fields-pass? fixture)
-  (benchmark-fixture-duration-fields-pass?
-   benchmark-non-negative-number?
-   fixture
-   +benchmark-non-negative-duration-fields+))
-
-;; : (-> Alist Boolean)
-(def (benchmark-fixture-positive-number-fields-pass? fixture)
-  (benchmark-fixture-fields-pass?
-   benchmark-positive-number?
-   fixture
-   +benchmark-positive-number-fields+))
-
 ;; : (-> Alist Symbol Boolean)
 (def (benchmark-fixture-non-negative-number-field-pass? fixture key)
   (benchmark-non-negative-number? (benchmark-fixture-ref fixture key)))
-
-;; : (-> Alist Boolean)
-(def (benchmark-fixture-non-negative-number-fields-pass? fixture)
-  (benchmark-fixture-fields-pass?
-   benchmark-non-negative-number?
-   fixture
-   +benchmark-non-negative-number-fields+))
-
-;; : (-> Alist Symbol Symbol Boolean)
-(def (benchmark-fixture-observed-under-max? fixture observed-key max-key)
-  (let ((observed (benchmark-fixture-ref fixture observed-key))
-        (max-value (benchmark-fixture-ref fixture max-key)))
-    (and (number? observed)
-         (number? max-value)
-         (<= observed max-value))))
-
-;; : (-> Alist Pair Boolean)
-(def (benchmark-fixture-observed-max-pair-pass? fixture pair)
-  (benchmark-fixture-observed-under-max? fixture (car pair) (cdr pair)))
-
-;; : (-> Alist Boolean)
-(def (benchmark-fixture-max-observed-pairs-pass? fixture)
-  (andmap (lambda (pair)
-            (benchmark-fixture-observed-max-pair-pass? fixture pair))
-          +benchmark-observed-max-field-pairs+))
-
-;; : (-> Alist Boolean)
-(def (benchmark-fixture-positive-integer-fields-pass? fixture)
-  (benchmark-fixture-fields-pass?
-   benchmark-positive-integer?
-   fixture
-   +benchmark-positive-integer-fields+))
 
 ;; : (-> Alist Boolean)
 (def (benchmark-fixture-unit-contract-pass? fixture)
@@ -391,6 +345,9 @@
 ;;   | doc m%
 ;;       Validate observed timing baseline fields carried by benchmark fixtures.
 ;;     %
+;; : (forall (v) (-> [(Pair Symbol v)] Boolean))
+;; benchmark-fixture-observed-timings-contract-pass?
+;; : (-> Alist Boolean)
 (def (benchmark-fixture-observed-timings-contract-pass? fixture)
   (let ((observed-total-entry (assoc 'observed_total fixture))
         (target-total-entry (assoc 'target_total fixture))
@@ -568,6 +525,9 @@
          (benchmark-fixture-ref fixture 'tags)))
 
 ;; : (-> Alist Boolean)
+;; : (forall (v) (-> [(Pair Symbol v)] Boolean))
+;; benchmark-fixture-integration-scope?
+;; : (-> Alist Boolean)
 (def (benchmark-fixture-integration-scope? fixture)
   (ormap (lambda (tag)
            (benchmark-fixture-tag? fixture tag))
@@ -625,14 +585,39 @@
 ;;   | doc m%
 ;;       Validate the shared fixture contract without running the benchmark.
 ;;     %
+;; : (forall (v) (-> [(Pair Symbol v)] Boolean))
+;; benchmark-fixture-contract-pass?
+;; : (-> Alist Boolean)
 (def (benchmark-fixture-contract-pass? fixture)
   (and (null? (benchmark-fixture-missing-keys fixture))
-       (benchmark-fixture-positive-duration-fields-pass? fixture)
-       (benchmark-fixture-non-negative-duration-fields-pass? fixture)
-       (benchmark-fixture-positive-number-fields-pass? fixture)
-       (benchmark-fixture-non-negative-number-fields-pass? fixture)
-       (benchmark-fixture-max-observed-pairs-pass? fixture)
-       (benchmark-fixture-positive-integer-fields-pass? fixture)
+       (benchmark-fixture-duration-fields-pass?
+        benchmark-positive-number?
+        fixture
+        +benchmark-positive-duration-fields+)
+       (benchmark-fixture-duration-fields-pass?
+        benchmark-non-negative-number?
+        fixture
+        +benchmark-non-negative-duration-fields+)
+       (benchmark-fixture-fields-pass?
+        benchmark-positive-number?
+        fixture
+        +benchmark-positive-number-fields+)
+       (benchmark-fixture-fields-pass?
+        benchmark-non-negative-number?
+        fixture
+        +benchmark-non-negative-number-fields+)
+       (andmap
+        (lambda (pair)
+          (let ((observed (benchmark-fixture-ref fixture (car pair)))
+                (max-value (benchmark-fixture-ref fixture (cdr pair))))
+            (and (number? observed)
+                 (number? max-value)
+                 (<= observed max-value))))
+        +benchmark-observed-max-field-pairs+)
+       (benchmark-fixture-fields-pass?
+        benchmark-positive-integer?
+        fixture
+        +benchmark-positive-integer-fields+)
        (benchmark-fixture-unit-contract-pass? fixture)
        (benchmark-fixture-observed-timings-contract-pass? fixture)
        (benchmark-fixture-input-expected-comparison-pass? fixture)
@@ -674,6 +659,9 @@
 ;;   | doc m%
 ;;       Return the best elapsed microseconds across positive attempts.
 ;;     %
+;; : (forall (r) (-> Integer (-> r) (Maybe Number)))
+;; benchmark-best-elapsed-micros
+;; : (-> Integer Procedure (Maybe Number))
 (def (benchmark-best-elapsed-micros attempts thunk)
   (if (<= attempts 0)
     (error "benchmark attempts must be positive" attempts)
@@ -702,6 +690,9 @@
    ((< (car attempt) (car best)) attempt)
    (else best)))
 
+;; : (forall (r) (-> Integer (-> r) (Values Number r)))
+;; benchmark-best-elapsed-micros/result
+;; : (-> Integer Procedure Values)
 (def (benchmark-best-elapsed-micros/result attempts thunk)
   (if (<= attempts 0)
     (error "benchmark attempts must be positive" attempts)
@@ -738,6 +729,9 @@
          (benchmark-fixture-projection-field fixture key))
        keys))
 
+;; : (forall (v) (-> [(Pair Symbol v)] Number [(Pair Symbol v)]))
+;; benchmark-receipt
+;; : (-> Alist Number Alist)
 (def (benchmark-receipt fixture elapsed-micros)
   (let* ((elapsed-nanos (micros->nanos elapsed-micros))
          (elapsed-ms (/ elapsed-micros 1000.0))

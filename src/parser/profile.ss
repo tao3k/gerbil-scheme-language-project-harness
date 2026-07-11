@@ -2,12 +2,12 @@
 ;;; Parser profile helpers.
 
 (import :gerbil/gambit
-        :support/time
+        :gslph/src/support/time
         (only-in :std/sort sort)
         (only-in :std/srfi/1 take))
 
 (export profile-row
-        timed-profile-value
+        timed-profile-packet
         slowest-profile-rows
         optional-environment-variable
         collect-project-worker-count)
@@ -33,11 +33,11 @@
 ;;       `timed-profile-value name thunk` returns values for the thunk result
 ;;       and timing row, keeping profiling tuples out of anonymous vectors.
 ;;     %
-(def (timed-profile-value name thunk)
+(def (timed-profile-packet name thunk)
   (let (start (monotonic-ms))
     (let (value (thunk))
-      (values value
-              (profile-row name (duration-ms start (monotonic-ms)))))))
+      (hash (value value)
+            (phase (profile-row name (duration-ms start (monotonic-ms))))))))
 
 ;;; Profile ranking boundary: timing rows are JSON-facing hash packets, so the
 ;;; comparator uses only `durationMs` and leaves later row fields out of the

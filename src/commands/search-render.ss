@@ -1,8 +1,8 @@
 ;;; -*- Gerbil -*-
 ;;; Compact search renderer helpers for agent-facing source evidence.
 
-(import :parser/source-class
-        :utilities/functional)
+(import :gslph/src/parser/source-class
+        :gslph/src/utilities/functional)
 
 (export emit-selector-resolver-line
         emit-source-example-line

@@ -3,7 +3,7 @@
 ;;; - test owner records explicit owner-path parsing expectations.
 ;;; - Keep fixture ownership outside indexed roots.
 (import :std/test
-        :commands/search
+        :gslph/src/commands/search
         (only-in :std/srfi/13 string-contains))
 (export search-test-part-23)
 ;; : (-> (List String) String )

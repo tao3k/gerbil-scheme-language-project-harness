@@ -1,16 +1,16 @@
 ;;; -*- Gerbil -*-
 ;;; Native call whitelist checks over parser-owned call facts.
 
-(import :checker/model
-        :parser/model
-        (only-in :parser/selectors
+(import :gslph/src/checker/model
+        :gslph/src/parser/model
+        (only-in :gslph/src/parser/selectors
                  call-fact-selector
                  project-calls
                  project-definitions)
         (only-in :std/misc/ports read-file-lines)
         (only-in :std/srfi/13 string-empty? string-prefix? string-trim)
         (only-in :std/sugar filter-map)
-        :types/findings)
+        :gslph/src/types/findings)
 
 (export load-call-whitelist
         run-whitelist-checks

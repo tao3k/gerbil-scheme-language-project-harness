@@ -410,7 +410,7 @@ Finding shape:
 
 - id: =GERBIL-SCHEME-ENG-R002=
 - trigger: documented/info/guide terms are not searchable through compact
-  =search fzf= or owner queries
+  =search lexical= or owner queries
 - repair: add query keys to structural/search projection
 
 Initial terms:
@@ -532,9 +532,9 @@ Add query keys for current weak vocabulary:
 
 Validation:
 
-- =search fzf configurable interface= reaches =info= and =gerbil.pkg= policy.
-- =search fzf gxi version runtime-source= reaches runtime witness facts.
-- =search fzf defrules macro witness= reaches macro parser and policy facts.
+- =search lexical configurable interface= reaches =info= and =gerbil.pkg= policy.
+- =search lexical gxi version runtime-source= reaches runtime witness facts.
+- =search lexical defrules macro witness= reaches macro parser and policy facts.
 
 ** P1: Add production-vs-test capability classification
 
@@ -623,9 +623,9 @@ gxi build.ss test
 ./bin/gerbil-scheme-harness check --full .
 ./bin/gerbil-scheme-harness bench --iterations 1 --max-total-ms 60000 .
 asp gerbil-scheme search structural --workspace . --view seeds
-asp gerbil-scheme search fzf 'configurable interface' owner tests --workspace . --view seeds
-asp gerbil-scheme search fzf 'gxi version runtime-source' owner tests --workspace . --view seeds
-asp gerbil-scheme search fzf 'defrules macro witness' owner tests --workspace . --view seeds
+asp gerbil-scheme search lexical 'configurable interface' owner tests --workspace . --view seeds
+asp gerbil-scheme search lexical 'gxi version runtime-source' owner tests --workspace . --view seeds
+asp gerbil-scheme search lexical 'defrules macro witness' owner tests --workspace . --view seeds
 #+end_src
 
 * Bottom Line
