@@ -158,12 +158,12 @@
   (cli-exe-spec optimized? "cli-release-linker"))
 
 ;; : (-> Boolean (List BuildSpec))
-(def (cli-install-spec _optimized?)
-  (cli-exe-spec #f "cli-install-linker"))
+(def (cli-install-spec optimized?)
+  (cli-exe-spec optimized? "cli-release-linker"))
 
 ;; : (-> (List ModulePath))
 (def (cli-install-module-spec)
-  '("cli-install-linker.ss"))
+  (cli-launcher-source-modules #t))
 
 ;; : (List ModulePath)
 (def cli-bootstrap-modules
