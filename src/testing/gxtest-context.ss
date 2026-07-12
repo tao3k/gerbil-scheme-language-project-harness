@@ -39,7 +39,7 @@
 
 ;; : (-> Void)
 (def (ensure-build-root!)
-  (unless package-root
+  (unless (and package-root package-name)
     (configure-build-root! (current-directory))))
 
 ;; : (-> Path MaybeString)

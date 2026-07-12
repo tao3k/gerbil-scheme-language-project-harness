@@ -49,8 +49,10 @@
 ;;;   for the same flattened fact families many times.
 ;;; - Cache projections by ProjectIndex object identity without changing the
 ;;;   public ProjectIndex struct shape used by downstream code.
+;; Weak keys are required: a projection cache must not become the owner of an
+;; otherwise unreachable full-project index across repeated queries.
 ;; : HashTable
-(def +project-projection-cache+ (make-hash-table))
+(def +project-projection-cache+ (make-table weak-keys: #t))
 
 ;; : (-> ProjectIndex HashTable)
 (def (project-projection-cache index)

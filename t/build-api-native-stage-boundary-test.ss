@@ -1,7 +1,11 @@
 (export build-api-native-stage-boundary-test)
 
 (import :std/test
+        (only-in :gslph/src/testing/execution-profile
+                 declare-gxtest-serial)
         :gslph/src/build-api/native-build)
+
+(declare-gxtest-serial shared-package-artifacts)
 
 (def package-api-build-receipt-path ".gerbil/build/package-api.receipt")
 

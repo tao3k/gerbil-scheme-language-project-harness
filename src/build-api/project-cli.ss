@@ -2,9 +2,10 @@
 
 (import :gerbil/tools/env
         :std/cli/getopt
-        :std/cli/multicall
-        :gslph/src/build-api/project-build
-        :gslph/src/build-api/source-coverage)
+ :std/cli/multicall
+ :gslph/src/build-api/project-build
+ :gslph/src/testing/project-build
+ :gslph/src/build-api/source-coverage)
 
 (def +package-root+ (current-directory))
 

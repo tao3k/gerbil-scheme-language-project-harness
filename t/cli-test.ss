@@ -38,12 +38,4 @@
       (check (provider-command-line-args
               ["gslph" "fmt" "--check" "."])
              => ["fmt" "--check" "."]))
-    (test-case "check full is removed from CLI surface"
-      (let (status #f)
-        (let (output
-              (with-output-to-string
-                (lambda ()
-                  (set! status (main "check" "--full" ".")))))
-          (check status => 2)
-          (check (and (string-contains output "removed-cli-full") #t)
-                 => #t))))))
+    ))

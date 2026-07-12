@@ -14,6 +14,7 @@
 (export check-owner-items-limit-budget
         check-owner-items-limit-zero-skips-call-collection
         check-owner-items-query-ignores-selected-owner-path
+        check-owner-items-limited-parser-skips-recursive-call-projection
         check-owner-items-gerbil-package-facts
         check-owner-items-fast-entrypoint-stays-light
         check-cli-launcher-search-fast-path-stays-canonical
@@ -36,7 +37,9 @@
     (check (> (length all) 3) => #t)
     (check (length limited) => 3)
     (check (owner-item-query-terms "projection|chain receipt")
-           => ["projection" "chain" "receipt"])))
+           => ["projection" "chain" "receipt"])
+    (check (owner-item-query-terms "one|two|three|four|five|six|seven")
+           => ["one" "two" "three" "four" "five" "six"])))
 
 ;; : (-> Unit )
 (def (check-owner-items-limit-zero-skips-call-collection)
@@ -54,6 +57,20 @@
                                               (path-expand +owner-items-fixture+ ".")))
          (facts (matching-owner-syntax-facts file ["complex-syntax"] 20)))
     (check facts => [])))
+
+;; : (-> Unit )
+(def (check-owner-items-limited-parser-skips-recursive-call-projection)
+  (let* ((file (parse-owner-items-source-file
+                "."
+                (path-expand "src/parser/selectors.ss" ".")
+                4
+                ["selector-from"]))
+         (definition
+          (find (lambda (defn)
+                  (equal? (definition-name defn) "selector-from"))
+                (source-file-definitions file))))
+    (check (source-file-calls file) => [])
+    (check (not (not definition)) => #t)))
 
 ;;; Regression: gerbil.pkg is a package owner, not an empty config blob.
 ;;; Owner-items should expose package metadata through parser-owned facts so
@@ -162,12 +179,19 @@
                 (emit-owner-items file [] facts 4))))))
         (check (> (length facts) 0) => #t)
         (check (source-contains? output " languageKind=call") => #t)
+        (check (source-contains? output " evidenceSelector=gerbil-scheme://") => #t)
+        (check (source-contains? output " graphOnly=true") => #t)
+        (check (source-contains? output " selector=gerbil-scheme://") => #f)
+        (check (source-contains? output " enclosingReadSelector=") => #f)
+        (check (source-contains? output " nextCommand=\"asp gerbil-scheme query --selector ") => #f)
         (check (source-contains? output " role=") => #f)))
 
 ;; : (-> Unit )
 (def (check-owner-items-definition-next-command-uses-structural-selector)
   (let* ((file (parse-owner-items-source-file "."
-                                              (path-expand "src/parser/selectors.ss" ".")))
+                                              (path-expand "src/parser/selectors.ss" ".")
+                                              4
+                                              ["selector-from"]))
          (definitions [(find (lambda (defn)
                                (equal? (definition-name defn) "selector-from"))
                              (source-file-definitions file))])
@@ -178,7 +202,7 @@
                 (emit-owner-items file definitions [] 4))))))
     (check (source-contains?
             output
-            "selector=gerbil-scheme://src/parser/selectors.ss#item/def/selector-from")
+            "readSelector=gerbil-scheme://src/parser/selectors.ss#item/def/selector-from")
            => #t)
     (check (source-contains?
             output

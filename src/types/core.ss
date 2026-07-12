@@ -1,8 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Type-check dispatch for Gerbil source projects.
 
-(import :gslph/src/checker/core
-        :gslph/src/parser/model
+(import :gslph/src/parser/model
         (only-in :std/sugar hash ormap)
         :gslph/src/types/env
         :gslph/src/types/findings
@@ -33,10 +32,10 @@
 ;;; - Keep data-flow evidence visible.
 ;; : (-> ProjectIndex NativeSignatures Whitelist (List TypeFinding) )
 (def (run-type-checks/whitelist index signatures whitelist)
+  (void whitelist)
   (append
    (apply append (map source-file-type-findings (project-index-files index)))
-   (type-env-findings (build-type-env/signatures index signatures))
-   (run-checker-checks/whitelist index signatures whitelist)))
+   (type-env-findings (build-type-env/signatures index signatures))))
 ;;; Boundary:
 ;;; - type-env-findings composes first-class procedures.
 ;;; - Keep data-flow evidence visible.

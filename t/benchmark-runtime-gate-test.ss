@@ -3,7 +3,6 @@
 
 (import :gerbil/gambit
         :std/test
-        (only-in :gslph/src/build-api/worker-count build-worker-count)
         (only-in :gslph/src/support/time monotonic-ms duration-ms)
         (only-in :gslph/src/testing/gxtest-build compile-package-api-if-stale)
         (only-in :gslph/src/testing/gxtest-context configure-build-root!)
@@ -67,7 +66,7 @@
      (run-scoped-policy-if-stale
       files
       (lambda ()
-        (compile-package-api-if-stale (build-worker-count))))
+        (compile-package-api-if-stale)))
      0)))
 
 ;; : (-> (List Path) Alist)

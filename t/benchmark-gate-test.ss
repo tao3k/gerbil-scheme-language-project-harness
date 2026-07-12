@@ -6,9 +6,13 @@
         (only-in :gslph/src/support/time
                  duration-literal->nanos)
         :gslph/src/benchmark/gate
-        :gslph/src/benchmark/framework)
+        :gslph/src/benchmark/framework
+        :gslph/src/testing/memory-profile)
 
 (export benchmark-gate-test)
+
+(declare-gxtest-memory-exception
+ '((maxHeapMiB . 512)))
 
 ;; : Alist
 (def benchmark-gate-fixture

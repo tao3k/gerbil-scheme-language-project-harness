@@ -14,21 +14,25 @@ The policy layer should therefore prefer facts over string guesses, scenarios ov
 The full policy direction is documented in `docs/50-59-policy/51.00-policy-philosophy.org`.
 The macro/module research root is `docs/10-19-research/11.12-gerbil-macro-module-system-research.org`; use it before turning advanced Gerbil macro or module features into parser facts, policy warnings, or scenarios.
 The broader advanced-feature backlog is `docs/10-19-research/11.13-gerbil-advanced-feature-exploration.org`.
-## Commands
-Build the repository-local provider wrapper from the harness root:
+## Package Workflow
+Build the declared library modules through Gerbil's upstream build script:
 ```sh
-./build-native.ss
-./.bin/gslph guide --downstream
+gxi build.ss compile
 ```
-After the native build, the provider entrypoint is `gslph`.
+When a Nix SDK is inherited into a Homebrew Gerbil process, use the same command
+with a process-local SDK override: `env SDKROOT= gxi build.ss compile`.
+Run package tests through upstream `gxtest`:
+```sh
+gxtest t/...
+```
 ## Building Framework
 The harness building framework is documented in `docs/30-39-building/31.01-building-framework.org`.
 It keeps Gerbil `std/make` as the compile executor while adding explicit build stages,
 receipts, package stage ordering, and performance gates.
 ## Downstream gxtest Quickstart
-Install this harness from its checkout into the global Gerbil package store:
+Build this harness from its checkout into the global Gerbil package store:
 ```sh
-gxpkg build
+gxi build.ss compile
 ```
 Downstream packages should depend on the installed harness package in `gerbil.pkg`:
 ```scheme
@@ -55,8 +59,7 @@ This first native version aligns the common provider surface:
 - `agent doctor --json` provider metadata for protocol consumers
 - `search workspace`, `prime`, `owner`, `owner items`, `symbol`, `import`, `lexical`, and `ingest`
 - parser-owned `query --term`, `query --names-only`, and `query --code`
-- source-preserved `query --from-hook direct-source-read --selector ... --code`
-- `check --changed` and `check --full`
+- parser-owned exact-item `query --selector ... --code`
 - `agent doctor --json`
 - `agent guide`
 The next implementation layer should enrich this with expanded module exports, phase-aware import/export facts, and compiler/type facts from Gerbil's expander and compiler modules.

@@ -24,6 +24,7 @@
         build-stage-receipt-elapsed-jiffies
         build-stage-receipt->alist
         build-plan-receipts->alist
+        build-plan-receipts-summary
         build-stage-status
         build-stage-run!
         build-plan-run!
@@ -39,5 +40,27 @@
         default-std-builder
         std-builder-effective-options
         std-builder-run-spec!
+        std-builder-clean-spec!
         std-builder-stage
+        build-request-clean!
+        build-requests-run!
+        build-requests-clean!
+        package-source-stage
+        package-source-stage?
+        make-package-source-stage
+        package-source-stage-label
+        package-source-stage-source
+        package-source-stage-prefix
+        package-source-stage-specs
+        package-source-stage-batched?
+        package-source-stage-current?
+        source-topology-layers
+        source-topology-affected
+        package-source-stage-dependencies
+        package-source-stage-topology-layers
+        package-source-stage->request
+        package-source-stages->requests
+        package-source-stages-spec
+        package-source-stages-run!
+        package-source-stages-clean!
         (import: :gslph/src/building/commands))

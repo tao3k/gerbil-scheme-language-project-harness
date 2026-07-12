@@ -12,7 +12,7 @@
         :gslph/src/testing/build-support
         :gslph/src/testing/build-runtime
         :gslph/src/building/facade
-        :gslph/src/building/testing)
+        :gslph/src/testing/building)
 
 (export testing-framework-test
         performance-smoke-work)
@@ -57,7 +57,8 @@
            'std-builder
            "testing scenario adapter builder"
            #f
-           []))
+           []
+           (native-toolchain-default)))
          (profile (make-std-builder-profile builder)))
     (make-std-builder-request
      "testing-scenario-adapter"
@@ -189,6 +190,15 @@
         (check (map testing-suite-name
                     (testing-selection-suites named-selection))
                => ["unit"])))
+
+    (test-case "project selection preserves explicit unowned gxtest files"
+      (let* ((file "t/testing-framework-test.ss")
+             (selection (testing-select-project +testing-project+ [file]))
+             (suites (testing-selection-suites selection)))
+        (check (testing-selection-ok? selection) => #t)
+        (check (length suites) => 1)
+        (check (testing-suite-name (car suites)) => file)
+        (check (testing-suite-files (car suites)) => [file])))
 
     (test-case "project selection assigns explicit files to one owner suite"
       (let* ((project
@@ -349,8 +359,8 @@
                         name: "lazy-poo-smoke"
                         fixture-path:
                         "t/scenarios/policy/poo-object-construction-loop-performance/benchmark.ss"
-                        runner-module: ':gslph/t/testing-framework-test
-                        runner-symbol: 'performance-smoke-work)]))
+                        runner-module: ':gslph/src/building/native-toolchain
+                        runner-symbol: 'native-toolchain-default)]))
              (project
               (testing-project
                name: "lazy-performance-project"

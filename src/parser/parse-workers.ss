@@ -13,6 +13,12 @@
         parse-source-files
         parse-source-files/profile)
 
+(def (parse-worker-trace event path)
+  (when (getenv "GSLPH_PARSE_TRACE" #f)
+    (display (string-append "[gslph-parse-worker] event=" event
+                            " path=" path "\n"))
+    (force-output)))
+
 ;;; Profile row boundary:
 ;;; - Worker details become one JSON-ready row before crossing back into the
 ;;;   foreground scheduler.
@@ -49,7 +55,9 @@
      #f)
    (lambda ()
      (let* ((file-start (monotonic-ms))
-            (source-file (parse-source-file root path)))
+            (source-file (parse-source-file root path))
+            (continue? #f))
+       (parse-worker-trace "complete" path)
        (thread-send foreground-thread
                     (vector 'ok
                             (current-thread)
@@ -57,7 +65,9 @@
                             source-file
                             (duration-ms file-start (monotonic-ms))
                             #f))
-       #t))))
+       (set! continue? (eq? (thread-receive) 'continue))
+       (set! source-file #f)
+       continue?))))
 
 ;;; Worker reuse boundary:
 ;;; - A collection creates one thread per worker, never one thread per source
@@ -74,6 +84,7 @@
   (let loop ((index start-index))
     (when (< index (vector-length file-vector))
       (let (path (vector-ref file-vector index))
+        (parse-worker-trace "start" path)
         (when (parse-source-worker! foreground-thread root path index)
           (loop (+ index stride)))))))
 
@@ -111,11 +122,15 @@
     (let (status (vector-ref message 0))
       (case status
         ((ok)
-         (values 1
-                 (record-parse-worker-success! file-vector
-                                               source-vector
-                                               timing?
-                                               message)))
+         (let (profile-row
+               (record-parse-worker-success! file-vector
+                                             source-vector
+                                             timing?
+                                             message))
+           ;; Acknowledge only after the foreground has projected or retained
+           ;; the SourceFile. This bounds queued AST payloads by worker count.
+           (thread-send (vector-ref message 1) 'continue)
+           (cons 1 profile-row)))
         ((error)
          (raise (vector-ref message 3)))
         (else
@@ -182,6 +197,7 @@
          (file-vector (list->vector files))
          (source-vector (and retain-source? (make-vector file-count #f)))
          (profile-frontier '())
+         (definition-count 0)
          (foreground-thread (current-thread))
          (workers
           (map (lambda (start-index)
@@ -192,25 +208,33 @@
                                       worker-count))
                (iota worker-count)))
          (start (monotonic-ms)))
-    (let loop ((completed 0))
+    (let receive-loop ((completed 0))
       (if (= completed file-count)
-        (for-each thread-join! workers)
-        (call-with-values
-         (lambda ()
-           (receive-parse-worker! file-vector source-vector timing?))
-         (lambda (count profile-row)
-           (when profile-row
-             (set! profile-frontier
-               (slowest-profile-rows
-                (cons profile-row profile-frontier)
-                10)))
-           (loop (+ completed count))))))
+        #!void
+        (let* ((result (receive-parse-worker! file-vector
+                                              source-vector
+                                              timing?))
+               (count (car result))
+               (profile-row (cdr result)))
+          (when profile-row
+            (set! definition-count
+              (+ definition-count
+                 (or (hash-get profile-row 'definitions) 0)))
+            (set! profile-frontier
+              (slowest-profile-rows
+               (cons profile-row profile-frontier)
+               10)))
+          (set! result #f)
+          (set! profile-row #f)
+          (receive-loop (+ completed count)))))
+    (for-each thread-join! workers)
     (let* ((source-files (and retain-source? (vector->list source-vector)))
            (parse-phase (parse-worker-phase-row start worker-count)))
       (if timing?
         (values source-files
                 parse-phase
-                profile-frontier)
+                profile-frontier
+                definition-count)
         source-files))))
 
 ;; `profile?` preserves the public parser contract.  The implementation keeps
@@ -236,13 +260,49 @@
 ;;       `parse-source-files/profile root files` materializes the project once
 ;;       and returns a packet with its parse phase and bounded timing frontier.
 ;;     %
+;; parse-source-files/profile
+;; : (-> String [String] Hash)
+;; | doc m%
+;;   Build one parser profile for a source-file set rooted at `root`.
+;;   The result records phase timing, slow files, and definition coverage for
+;;   callers that need a compact performance receipt.
+;;   # Examples
+;;   ```scheme
+;;   (parse-source-files/profile "." ["src/example.ss"])
+;;   ;; => #hash((parsePhase . ...) (slowestFiles . ...) (definitionCount . ...))
+;;   ```
 (def (parse-source-files/profile root files)
-  ;; Full-project profiling is evidence collection, not a second parser pass.
-  ;; A caller that needs stage timing can profile an already selected owner.
-  (call-with-values
-   (lambda ()
-     (parse-source-files/concurrent* root files #t #t))
-   (lambda (source-files parse-phase profile-frontier)
-     (hash (sourceFiles source-files)
-           (parsePhase parse-phase)
-           (slowestFiles profile-frontier)))))
+  ;; Diagnostic profiling must not create a second green-thread pool whose
+  ;; completed stacks outlive the sampled project. Normal index collection
+  ;; remains concurrent; this path projects and releases one SourceFile at a
+  ;; time so repeated profiles have a bounded heap.
+  (let ((start (monotonic-ms)))
+    (let profile-loop ((remaining files)
+                       (profile-frontier '())
+                       (definition-count 0))
+      (if (null? remaining)
+        (hash (parsePhase (parse-worker-phase-row start 1))
+              (slowestFiles profile-frontier)
+              (definitionCount definition-count))
+        (let* ((path (car remaining))
+               (file-start (monotonic-ms)))
+          (parse-worker-trace "profile-start" path)
+          (let* ((source-file (parse-source-file root path))
+               (profile-row
+                (parse-profile-row path
+                                   (duration-ms file-start (monotonic-ms))
+                                   source-file))
+               (next-definition-count
+                (+ definition-count
+                   (or (hash-get profile-row 'definitions) 0)))
+               (next-profile-frontier
+                (slowest-profile-rows
+                 (cons profile-row profile-frontier)
+                 10)))
+          (parse-worker-trace "profile-complete" path)
+          (set! source-file #f)
+          (set! profile-row #f)
+          (##gc)
+          (profile-loop (cdr remaining)
+                        next-profile-frontier
+                        next-definition-count)))))))

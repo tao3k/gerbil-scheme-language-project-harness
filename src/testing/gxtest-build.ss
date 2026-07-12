@@ -67,28 +67,27 @@
    (binary? cli-bootstrap-modules)
    (else (gslph-package-api-spec))))
 
-;; : (-> Integer Integer)
-(def (compile-package-api-if-stale worker-count)
+;; : (-> BuildReceiptStatus)
+(def (compile-package-api-if-stale)
   (configure-native-build-root! package-root)
-  (native-compile-package-api-if-stale worker-count))
+  (native-compile-package-api-if-stale))
 
-;; : (-> (List Path) Integer Alist)
-(def (compile-selected-gxtest! files worker-count)
+;; : (-> (List Path) Alist)
+(def (compile-selected-gxtest! files)
   (configure-native-build-root! package-root)
   (compile-selected-gxtest-target
    (gxtest-selected-source-module-files files)
-   (gxtest-selected-test-files files)
-   worker-count))
+   (gxtest-selected-test-files files)))
 
-;; : (-> (List Path) Integer BuildReceiptStatus)
-(def (compile-selected-gxtest-if-stale files worker-count)
+;; : (-> (List Path) BuildReceiptStatus)
+(def (compile-selected-gxtest-if-stale files)
   (let (status (selected-gxtest-build-receipt-status files))
     (display-package-api-build-receipt-status status)
     (if (selected-gxtest-build-current? status)
       status
       (let (metadata (begin
-                       (compile-package-api-if-stale worker-count)
-                       (compile-selected-gxtest! files worker-count)))
+                       (compile-package-api-if-stale)
+                       (compile-selected-gxtest! files)))
         (write-selected-gxtest-build-receipt! files metadata)
         (selected-gxtest-build-receipt-status files)))))
 
@@ -110,7 +109,7 @@
    expected-sources: source-files
    expected-outputs: output-files))
 
-(def (compile-scoped-policy-engine-if-stale source-files output-files receipt-path worker-count)
+(def (compile-scoped-policy-engine-if-stale source-files output-files receipt-path)
   (let (status (scoped-policy-engine-build-receipt-status
                 receipt-path
                 source-files
@@ -119,7 +118,7 @@
     (if (eq? (gslph-package-build-receipt-status-ref status 'status #f) 'current)
       status
       (begin
-        (compile-package-api-if-stale worker-count)
+        (compile-package-api-if-stale)
         (write-scoped-policy-engine-build-receipt! receipt-path source-files output-files)
         (scoped-policy-engine-build-receipt-status
          receipt-path

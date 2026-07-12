@@ -450,21 +450,13 @@
     (set! package-packet #f)
     (set! source-scope-packet #f)
     (let (parse-packet (parse-source-files/profile root files))
-      (let* ((source-files (hash-get parse-packet 'sourceFiles))
-             (parse-phase (hash-get parse-packet 'parsePhase))
+      (let* ((parse-phase (hash-get parse-packet 'parsePhase))
              (slowest-files (hash-get parse-packet 'slowestFiles)))
-        ;; `source-files` is the only parse payload needed by index materialization.
-        (set! parse-packet #f)
-        ;; The profile parser has finished; reclaim worker messages and parser
-        ;; intermediates before the index builds its own aggregate structures.
-        (##gc)
-        (let* ((index (make-project-index root source-files package))
-               (total-ms (duration-ms total-start (monotonic-ms)))
-               (profile
-                (hash (totalMs total-ms)
-                      (fileCount (length files))
-                      (definitionCount (project-definition-count index))
-                      (phases [package-phase source-scope-phase parse-phase])
-                      (slowestFiles slowest-files))))
-          (hash (index index)
-                (profile profile)))))))
+        (hash
+         (profile
+          (hash (totalMs (duration-ms total-start (monotonic-ms)))
+                (fileCount (length files))
+                (definitionCount
+                 (or (hash-get parse-packet 'definitionCount) 0))
+                (phases [package-phase source-scope-phase parse-phase])
+                (slowestFiles slowest-files))))))))

@@ -98,7 +98,7 @@ Search frontiers used for qualitative audit:
   - =src/parser/poo.ss= owns =defprotocol= parsing.
 
 - Macro evidence:
-  - =src/checker/forms.ss= owns =defrules= governance checks.
+  - =src/parser/syntax.ss= owns =defrules= structural facts; =src/policy/agent-style-gerbil-signals.ss= owns their governance policy.
   - =src/parser/syntax.ss= owns =defsyntax= parser facts.
   - =src/language/evidence.ss= exposes =syntax-case= evidence surfaces.
   - Runtime-source snapshots exist for macro and writeenv acquisition.

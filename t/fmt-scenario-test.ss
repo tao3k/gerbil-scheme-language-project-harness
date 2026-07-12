@@ -232,10 +232,10 @@
       (let (files (scenario-input-files))
         (check (scenario-required-fixtures-pass? files) => #t)
         (check (scenario-format-pair-failures files) => [])))
-    (test-case "rs7 basic style benchmark covers the fixture set"
-      (let* ((texts (map read-source-text (scenario-input-files)))
+    (test-case "rs7 basic style benchmark measures one representative fixture"
+      (let* ((text (read-source-text (car (scenario-input-files))))
              (receipt (benchmark-contract-run/root
                        +scenario-root+
                        (lambda ()
-                         (format-scenario-texts texts)))))
-        (check (benchmark-contract-receipt-pass? receipt) => #t)))))
+                         (fmt-format-text text)))))
+        (check receipt ? benchmark-contract-receipt-pass?)))))

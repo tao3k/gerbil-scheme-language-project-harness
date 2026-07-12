@@ -6,16 +6,19 @@
         :std/misc/ports
         :std/misc/process
         (only-in :std/text/json read-json)
-        :commands/check
         :gslph/src/parser/facade
         :gslph/src/policy/facade
         :gslph/src/policy/gxtest
         :gslph/src/scenario/policy
+        :gslph/src/testing/memory-profile
         :gslph/src/types/facade
         :unit/policy/poo-scenarios
         :policy/fixtures)
 (import :policy/agent-poo-support)
 (export agent-poo-hot-loop-type-policy-test)
+
+(declare-gxtest-memory-exception
+ '((maxHeapMiB . 512)))
 
 ;; PolicyTest
 (def agent-poo-hot-loop-type-policy-test

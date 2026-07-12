@@ -4,8 +4,12 @@
 (import :gerbil/gambit
         :std/test
         (only-in :std/srfi/13 string-contains)
-        (rename-in :gslph/src/cli-dev-linker (main dev-linker-main)))
+        (only-in :gslph/src/testing/execution-profile
+                 declare-gxtest-serial)
+        (only-in :gslph/src/cli-dev-linker dev-linker-run))
 (export cli-dev-linker-test)
+
+(declare-gxtest-serial shared-cli-runtime)
 
 ;; : TestSuite
 (def cli-dev-linker-test
@@ -16,13 +20,13 @@
               (with-output-to-string
                 (lambda ()
                   (set! status
-                    (dev-linker-main
-                     "query"
-                     "--selector"
-                     "gerbil-scheme://src/parser/selectors.ss#item/function/selector-from"
-                     "--workspace"
-                     "."
-                     "--code")))))
+                    (dev-linker-run
+                     ["query"
+                      "--selector"
+                      "gerbil-scheme://src/parser/selectors.ss#item/function/selector-from"
+                      "--workspace"
+                      "."
+                      "--code"])))))
           (check status => 0)
           (check (and (string-contains
                        output

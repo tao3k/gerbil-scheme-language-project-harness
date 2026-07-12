@@ -64,7 +64,17 @@
 ;;; - A scenario must carry benchmark.ss beside input/ and expected/.
 ;;; - The file is data, not code: an alist such as ((max_total . 1s)).
 ;;; - This module avoids loading parser and policy facades for metadata sweeps.
-;; : (-> Id Path BenchmarkContract )
+;; scenario-benchmark-contract/path
+;;   : (-> Id Path BenchmarkContract)
+;;   | doc m%
+;;       Reads the scenario-owned benchmark datum and normalizes it before a
+;;       policy runner can use the timing contract.
+;; # Examples
+;; ```scheme
+;; (scenario-benchmark-contract/path 'scenario "benchmark.ss")
+;; => normalized benchmark contract or a missing-fixture error
+;; ```
+;;     %
 (def (scenario-benchmark-contract/path scenario-id path)
   (if (file-exists? path)
     (scenario-benchmark-datum->contract
@@ -77,7 +87,17 @@
 ;;;   depend on alist shape.
 ;;; - Baseline, target, and regression budget are required so performance
 ;;;   guidance exposes optimization headroom instead of only a loose timeout.
-;; : (-> BenchmarkContractDatum BenchmarkContract )
+;; scenario-benchmark-datum->contract
+;;   : (-> BenchmarkContractDatum BenchmarkContract)
+;;   | doc m%
+;;       Converts fixture alist data into a schema-versioned hash with required
+;;       gates validated and optional fields defaulted.
+;; # Examples
+;; ```scheme
+;; (scenario-benchmark-datum->contract '((max_total . 25ms) ...))
+;; => schema-versioned benchmark contract hash
+;; ```
+;;     %
 (def (scenario-benchmark-datum->contract datum)
   (let (contract
         (hash (schemaId "agent.semantic-protocols.gerbil-scheme-policy-scenario-benchmark")
@@ -105,18 +125,38 @@
      +scenario-benchmark-default-fields+)
     contract))
 
-;; : (-> BenchmarkContract BenchmarkContractDatum (List BenchmarkContractKey)
-;;        (-> BenchmarkContractDatum BenchmarkContractKey BenchmarkContractValue)
-;;        BenchmarkContract)
+;; scenario-benchmark-put-fields!
+;;   : (-> BenchmarkContract BenchmarkContractDatum (List BenchmarkContractKey)
+;;          Procedure
+;;          BenchmarkContract)
+;;   | doc m%
+;;       Projects required fixture keys into the runtime contract through the
+;;       supplied validator, so malformed timing fields fail at normalization.
+;; # Examples
+;; ```scheme
+;; (scenario-benchmark-put-fields! contract datum '(max_total) value-ref)
+;; => contract includes a validated max_total field
+;; ```
+;;     %
 (def (scenario-benchmark-put-fields! contract datum keys value-ref)
   (for-each (lambda (key)
               (hash-put! contract key (value-ref datum key)))
             keys)
   contract)
 
-;; : (-> BenchmarkContract BenchmarkContractDatum
-;;        (List (Cons BenchmarkContractKey BenchmarkContractValue))
-;;        BenchmarkContract)
+;; scenario-benchmark-put-defaults!
+;;   : (-> BenchmarkContract BenchmarkContractDatum
+;;          Alist
+;;          BenchmarkContract)
+;;   | doc m%
+;;       Adds optional fixture fields without weakening required benchmark
+;;       gates, preserving a stable contract for older scenario receipts.
+;; # Examples
+;; ```scheme
+;; (scenario-benchmark-put-defaults! contract datum defaults)
+;; => contract receives each absent optional default
+;; ```
+;;     %
 (def (scenario-benchmark-put-defaults! contract datum defaults)
   (for-each (lambda (entry)
               (let (key (car entry))
@@ -155,6 +195,16 @@
 ;;; Performance gate boundary:
 ;;; - #f means the scenario records timing without enforcing a ceiling.
 ;;; - benchmark.ss remains the owner for configured time budgets.
-;; : (-> BenchmarkContract (U Integer False) )
+;; scenario-benchmark-max-total
+;;   : (-> BenchmarkContract (U Integer False))
+;;   | doc m%
+;;       Returns the normalized wall-clock ceiling selected by the scenario
+;;       receipt without re-reading benchmark fixture data.
+;; # Examples
+;; ```scheme
+;; (scenario-benchmark-max-total contract)
+;; => contract max_total duration literal
+;; ```
+;;     %
 (def (scenario-benchmark-max-total contract)
   (hash-get contract 'max_total))

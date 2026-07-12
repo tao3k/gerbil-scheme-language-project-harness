@@ -6,13 +6,6 @@
         (only-in :std/srfi/13 string-prefix? string-suffix?)
         (only-in "../build-api/package-receipt"
                  gslph-package-build-receipt-status-ref)
-        (only-in "../build-api/worker-count"
-                 build-worker-count
-                 gxtest-worker-count/cores
-                 machine-efficiency-core-count
-                 machine-logical-core-count
-                 machine-performance-core-count
-                 sync-build-worker-count!)
         (only-in "./gxtest-smoke"
                  gslph-default-gxtest-smoke-files)
         (only-in "./gxtest-context"
@@ -38,8 +31,7 @@
                  gxtest-selected-test-files
                  source-isolated-gxtest-file?
                  parallel-gxtest-files
-                 serial-gxtest-files
-                 gxtest-batches)
+                 serial-gxtest-files)
         (only-in "./gxtest-execution"
                  test-phase-receipt-line
                  run-test-phase
@@ -47,10 +39,11 @@
                  gxtest-source-load-batch-expression
                  gxtest-batch-label
                  gxtest-summary-line
-                 gxtest-top-line)
+                 gxtest-top-line
+                 gxtest-failure-line)
         (only-in "./gxtest-run"
                  run-gxtest-files
-                 test-runner-worker-count)
+                 gxtest-suite-process-isolated?)
         (only-in "./gxtest-receipts"
                  display-package-api-build-receipt-status
                  package-api-build-current?
@@ -89,8 +82,6 @@
         gxtest-test-spec
         gxtest-test-files
         gxtest-batch-label
-        gxtest-batches
-        gxtest-worker-count/cores
         gxtest-compiled-batch-expression
         gxtest-delegate-contract
         gxtest-delegate-contract-filter
@@ -104,6 +95,7 @@
         gxtest-selected-test-files
         gxtest-summary-line
         gxtest-top-line
+        gxtest-failure-line
         install-launcher-binpath
         gslph-package-build-receipt-status-ref
         package-api-build-current?
@@ -113,16 +105,11 @@
         package-api-build-source-files
         parallel-gxtest-files
         serial-gxtest-files
-        build-worker-count
-        machine-efficiency-core-count
-        machine-logical-core-count
-        machine-performance-core-count
         compile-package-api-if-stale
         scoped-policy-phase-line
         scoped-policy-receipt-path
         scoped-policy-status-line
         scoped-policy-source-files
-        sync-build-worker-count!
         test-file-target
         test-full-target
         test-phase-receipt-line
@@ -133,7 +120,7 @@
         selected-gxtest-build-receipt-status
         selected-gxtest-build-source-files
         source-isolated-gxtest-file?
-        test-runner-worker-count
+        gxtest-suite-process-isolated?
         write-package-api-build-receipt!)
 
 ;; : (-> (List Path))
@@ -201,7 +188,6 @@
   (current-directory package-root)
   (when (null? tests)
     (error "no top-level Gerbil test files found"))
-  (sync-build-worker-count!)
   (run-test-phase
    "run-scoped-policy"
    (lambda ()
@@ -211,8 +197,7 @@
         (compile-scoped-policy-engine-if-stale
          (scoped-policy-engine-source-files)
          (scoped-policy-engine-output-files)
-         (scoped-policy-engine-receipt-path)
-         (build-worker-count))))))
+         (scoped-policy-engine-receipt-path))))))
   (run-test-phase
    "run-gxtest"
    (lambda ()

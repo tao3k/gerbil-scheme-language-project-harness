@@ -1,0 +1,26 @@
+;;; -*- Gerbil -*-
+;;; Query-free parser projection command for ASP lifecycle import.
+
+(import :gerbil/gambit
+        :gslph/src/parser/language-projection
+        :gslph/src/protocol/json
+        (only-in :std/misc/path path-normalize)
+        :gslph/src/support/args)
+
+(export projection-main)
+
+;;; This command is a native parser capability, not a search or index command.
+;;; It owns neither cache nor lifecycle state and requires machine JSON output.
+;; : (-> (List ProjectionCommandArgument) Integer)
+(def (projection-main args)
+  (cond
+   ((not (flag? "--json" args))
+    (error "projection requires --json"))
+   (else
+    (let ((owners (positional-args args)))
+      (if (and (pair? owners) (null? (cdr owners)))
+        (let ((workspace (path-normalize (or (option "--workspace" args) "."))))
+          (write-json-line
+           (parse-owner-language-projection workspace (car owners)))
+          0)
+        (error "projection requires exactly one owner path"))))))

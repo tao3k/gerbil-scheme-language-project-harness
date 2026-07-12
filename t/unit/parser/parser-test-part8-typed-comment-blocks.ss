@@ -147,10 +147,16 @@
                       (car (hash-get typed-comment 'requiresDetailed)))
                      (doc (car (hash-get typed-comment 'docs)))
                      (doc-example (car (hash-get doc 'examples))))
-                (check (hash-get typed-comment 'syntax) => "scheme-native")
+                (check (hash-get typed-comment 'syntax)
+                       => "gerbil-contract-projection")
                 (check (hash-get typed-comment 'fullForm) => #t)
                 (check (hash-get typed-comment 'leadingName) => "generate")
                 (check (hash-get signature-type 'valid) => #t)
+                (check (typed-contract-fact-reasons generate-contract) => [])
+                (check (hash-get
+                        (car (hash-get typed-comment 'signatureTypes))
+                        'valid)
+                       => #t)
                 (check (hash-get signature-type 'forall) => ["a"])
                 (check (hash-get signature-arrow 'inputCount) => 2)
                 (check (hash-get signature-output 'kind) => "container")
@@ -228,8 +234,9 @@
                                     'typeSpec)
                           'display)
                          => "(function ((function (Number) a) Number) (vector a))"))
-                (check (member "doc-marker-invalid:100%"
-                               (typed-contract-fact-reasons bad-doc-contract))
+                (check (not (not (member
+                                  "doc-marker-invalid:100%"
+                                  (typed-contract-fact-reasons bad-doc-contract))))
                        => #t)
                 (let* ((bad-hash
                         (scheme-type-expression-text-json "(Hash String)"))
@@ -249,6 +256,5 @@
                          => "shape"))
                 (check (hash-get (scheme-type-signature-json "(-> Output)")
                                  'diagnostics)
-                       => ["signature-arrow-too-short"
-                           "arrow-requires-input-and-output"])))))
+                       => [])))))
   ))

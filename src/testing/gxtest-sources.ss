@@ -101,7 +101,11 @@
     (lambda () (gxtest-source-queue-pop queue))
     (lambda (file queue)
       (cond
-       ((not file) (reverse out))
+       ;; Imports enter the queue after their consumer.  The accumulated
+       ;; reverse discovery order therefore places every DAG dependency before
+       ;; the source that imports it, which is the order required by cold gxc
+       ;; builds without pre-existing library artifacts.
+       ((not file) out)
        ((gxtest-path-seen? seen-table file)
         (gxtest-source-closure-walk seen-table queue out))
        (else

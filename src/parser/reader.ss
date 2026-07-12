@@ -33,6 +33,16 @@
          (list parser-reader-state-in-string
                parser-reader-state-in-symbol)))
 
+;; parser-reader-scan-line/indent
+;; : (-> String ParserReaderState (List Datum))
+;; | doc m%
+;;   Scan one source line while preserving lexical state and reporting the
+;;   parenthesis-depth delta for the caller's indentation model.
+;;   # Examples
+;;   ```scheme
+;;   (parser-reader-scan-line/indent "(form)" state)
+;;   ;; => (list state 0)
+;;   ```
 (def (parser-reader-scan-line/indent line state)
   (let ((len (string-length line)))
     (let scan ((index 0)
@@ -85,6 +95,16 @@
        (else
         (values (+ index 1) state delta)))))))
 
+;; parser-reader-scan-line-state
+;; : (-> String ParserReaderState ParserReaderState)
+;; | doc m%
+;;   Advance lexical reader state across one source line without computing
+;;   indentation, so callers can carry state into the next line.
+;;   # Examples
+;;   ```scheme
+;;   (parser-reader-scan-line-state "(form)" state)
+;;   ;; => state
+;;   ```
 (def (parser-reader-scan-line-state line state)
   (let ((len (string-length line)))
     (let scan ((index 0)
@@ -169,6 +189,15 @@
      (else
       (values (+ index 1) state)))))
 
+;; parser-reader-leading-close-count
+;; : (-> String Fixnum)
+;; | doc m%
+;;   Count leading close parentheses after whitespace for indentation recovery.
+;;   # Examples
+;;   ```scheme
+;;   (parser-reader-leading-close-count "  )) form")
+;;   ;; => 2
+;;   ```
 (def (parser-reader-leading-close-count line)
   (let ((len (string-length line)))
     (let loop ((index 0)
@@ -185,6 +214,15 @@
             (loop (+ index 1) (+ count 1) #t))
            (else count))))))))
 
+;; parser-reader-leading-whitespace-count
+;; : (-> String Fixnum)
+;; | doc m%
+;;   Count leading whitespace before the first source character on a line.
+;;   # Examples
+;;   ```scheme
+;;   (parser-reader-leading-whitespace-count "  form")
+;;   ;; => 2
+;;   ```
 (def (parser-reader-leading-whitespace-count line)
   (let ((len (string-length line)))
     (let loop ((index 0))

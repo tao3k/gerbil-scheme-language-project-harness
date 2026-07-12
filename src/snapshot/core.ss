@@ -1,8 +1,7 @@
 ;;; -*- Gerbil -*-
 ;;; Stable snapshot projections for provider facts and command packets.
 
-(import :gslph/src/checker/facade
-        :gslph/src/constants
+(import :gslph/src/constants
         :gslph/src/extensions/facade
         :gslph/src/parser/facade
         :gslph/src/snapshot/support

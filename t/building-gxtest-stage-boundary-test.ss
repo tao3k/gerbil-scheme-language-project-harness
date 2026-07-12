@@ -1,11 +1,15 @@
 (export building-gxtest-stage-boundary-test)
 
 (import :std/test
+        (only-in :gslph/src/testing/execution-profile
+                 declare-gxtest-serial)
         (only-in :gslph/src/testing/gxtest-context configure-build-root!)
         (only-in :gslph/src/testing/gxtest-build
                  compile-selected-gxtest-if-stale)
         (only-in :gslph/src/testing/gxtest-receipts
                  selected-gxtest-build-receipt-path))
+
+(declare-gxtest-serial shared-package-artifacts)
 
 (def (read-selected-gxtest-build-receipt files)
   (call-with-input-file (selected-gxtest-build-receipt-path files) read))
@@ -19,7 +23,7 @@
     (test-case "selected target projects Building stages into its receipt"
       (let (files '("t/building-gxtest-stage-boundary-test.ss"))
         (configure-build-root! ".")
-        (compile-selected-gxtest-if-stale files 1)
+        (compile-selected-gxtest-if-stale files)
         (let* ((receipt (read-selected-gxtest-build-receipt files))
                (plan (alist-value receipt 'buildPlan))
                (stages (alist-value plan 'stages)))

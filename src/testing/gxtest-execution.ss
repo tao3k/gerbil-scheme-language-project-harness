@@ -1,15 +1,18 @@
 ;;; -*- Gerbil -*-
-;;; Gxtest execution and worker helpers.
+;;; Gxtest execution and native scheduling helpers.
 
 (import (only-in :std/misc/path path-expand)
         (only-in :std/misc/process run-process)
-        (only-in :std/srfi/1 iota partition)
+        (only-in :std/misc/channel
+                 make-channel
+                 channel-close
+                 channel-put)
+        (only-in :std/iter for)
+        (only-in :std/srfi/1 concatenate iota partition)
+        (only-in :std/sugar spawn/name)
         (only-in "../support/time" monotonic-micros duration-micros)
         (only-in "./gxtest-context"
                  package-root)
-        (only-in "./gxtest-discovery"
-                 source-isolated-gxtest-file?
-                 gxtest-batches)
         (only-in "./gxtest-expression"
                  gxtest-compiled-batch-expression
                  gxtest-source-load-batch-expression
@@ -26,11 +29,15 @@
                  gxtest-result-elapsed-micros
                  gxtest-summary-line
                  gxtest-top-line
+                 gxtest-failure-line
+                 display-gxtest-failures
                  display-gxtest-timing-summary
                  first-failure-status
                  gxtest-runner-mode-label)
         (only-in "./memory-profile"
                  gxtest-file-memory-runtime-options)
+        (only-in "./execution-profile"
+                 gxtest-file-serial-resource)
         :gerbil/gambit)
 
 (export test-phase-receipt-line
@@ -41,6 +48,8 @@
         gxtest-batch-label
         gxtest-summary-line
         gxtest-top-line
+        gxtest-failure-line
+        display-gxtest-failures
         run-gxtest-parallel-phase
         run-gxtest-serial-phase
         display-gxtest-timing-summary
@@ -48,7 +57,20 @@
         first-failure-status
         gxtest-runner-mode-label
         gxtest-result-status
+        gxtest-native-parallelism
+        gxtest-serial-resource-groups
         run-gxtest-file/subprocess)
+
+;; Keep test execution aligned with std/make without introducing a second
+;; public concurrency policy. Gerbil treats an unset value as one active lane.
+(def (gxtest-native-parallelism (file-count #f))
+  (let* ((configured
+          (let (value (string->number (getenv "GERBIL_BUILD_CORES" "0")))
+            (if (integer? value) value 0)))
+         (active (max 1 configured)))
+    (if file-count
+      (min active (max 1 file-count))
+      active)))
 
 ;; : (-> Integer Integer)
 (def (normalized-exit-status status)
@@ -164,77 +186,81 @@
 (def (run-gxtest-file/subprocess file)
   (run-gxtest-batch/subprocess [file]))
 
-;; spawn-test-workers
-;;   : (-> Integer (-> Void) (List Value))
-;;   | doc m%
-;;       `spawn-test-workers` owns the runner's worker creation boundary; the
-;;       caller controls scheduling and joins every returned thread.
-;;
-;;       # Examples
-;;
-;;       ```scheme
-;;       (length (spawn-test-workers 0 thunk))
-;;       ;; => 0
-;;       ```
-;;     %
-(def (spawn-test-workers count thunk)
-  (map (lambda (_) (spawn thunk))
-       (iota (max 0 count))))
-
 ;; : (-> (List Path) (List GxTestResult))
 (def (serial-gxtest-results files)
-  (let-values (((isolated-files groupable-files)
-                (partition source-isolated-gxtest-file? files)))
-    (append
-     (if (null? groupable-files)
-       []
-       [(record-gxtest-result
-         (run-gxtest-batch/subprocess groupable-files))])
-     (map (lambda (file)
-            (record-gxtest-result (run-gxtest-file/subprocess file)))
-          isolated-files))))
+  (map (lambda (file)
+         (record-gxtest-result (run-gxtest-file/subprocess file)))
+       files))
 
-;; : (-> (List Path) Integer (List GxTestResult))
-(def (make-gxtest-work-index-taker count)
-  (let ((next-index 0)
-        (index-mx (make-mutex 'gxtest-runner-index)))
-    (lambda ()
-      (with-lock index-mx
-        (lambda ()
-          (and (< next-index count)
-               (let (index next-index)
-                 (set! next-index (+ next-index 1))
-                 index)))))))
+;; : (-> (List Path) (List (List Path)))
+(def (gxtest-serial-resource-groups files)
+  (if (null? files)
+    []
+    (let (resource (gxtest-file-serial-resource (car files)))
+      (let-values (((matching remaining)
+                    (partition
+                     (lambda (file)
+                       (eq? (gxtest-file-serial-resource file) resource))
+                     files)))
+        (cons matching (gxtest-serial-resource-groups remaining))))))
 
-;; : (-> Vector Vector Integer Void)
-(def (run-gxtest-worker-item! items results index)
-  (vector-set! results
-               index
-               (record-gxtest-result
-                (run-gxtest-batch/subprocess
-                 (vector-ref items index)))))
+;; Each resource group owns one lane. Files in a group remain strictly ordered;
+;; independent resources can progress without serializing the whole suite.
+;; : (-> (List (List Path)) (List GxTestResult))
+(def (resource-group-gxtest-results groups)
+  (if (null? groups)
+    []
+    (let* ((tasks (make-channel))
+           (results (make-vector (length groups) #f))
+           (run-task
+            (lambda (task)
+              (vector-set! results
+                           (car task)
+                           (serial-gxtest-results (cdr task)))))
+           (run-lane
+            (lambda ()
+              (for (task tasks)
+                (run-task task))))
+           (lanes
+            (map (lambda (index)
+                   (spawn/name `(gxtest-resource-lane ,index) run-lane))
+                 (iota (gxtest-native-parallelism (length groups))))))
+      (let enqueue ((rest groups) (index 0))
+        (unless (null? rest)
+          (channel-put tasks (cons index (car rest)))
+          (enqueue (cdr rest) (+ index 1))))
+      (channel-close tasks)
+      (for-each thread-join! lanes)
+      (concatenate (vector->list results)))))
 
-;; : (-> (-> MaybeInteger) Vector Vector Void)
-(def (run-gxtest-worker-loop! take-index items results)
-  (let loop ()
-    (let (index (take-index))
-      (when index
-        (run-gxtest-worker-item! items results index)
-        (loop)))))
-
-;; : (-> (List Path) Integer (List GxTestResult))
-(def (parallel-gxtest-results files worker-count)
-  (let* ((items (list->vector (gxtest-batches files worker-count)))
-         (count (vector-length items))
-         (results (make-vector count #f))
-         (take-index (make-gxtest-work-index-taker count)))
-    (let (threads
-          (spawn-test-workers
-           worker-count
-           (lambda ()
-             (run-gxtest-worker-loop! take-index items results))))
-      (for-each thread-join! threads)
-      (vector->list results))))
+;; Each file owns one native gxtest process. Gerbil channels and named threads
+;; provide the same scheduling primitives used by std/make, while process exit
+;; reclaims module state after every file.
+(def (isolated-gxtest-results files)
+  (if (null? files)
+    []
+    (let* ((tasks (make-channel))
+           (results (make-vector (length files) #f))
+           (run-task
+            (lambda (task)
+              (vector-set! results
+                           (car task)
+                           (run-gxtest-file/subprocess (cdr task)))))
+           (run-lane
+            (lambda ()
+              (for (task tasks)
+                (run-task task))))
+           (lanes
+            (map (lambda (index)
+                   (spawn/name `(gxtest-native-lane ,index) run-lane))
+                 (iota (gxtest-native-parallelism (length files))))))
+      (let enqueue ((rest files) (index 0))
+        (unless (null? rest)
+          (channel-put tasks (cons index (car rest)))
+          (enqueue (cdr rest) (+ index 1))))
+      (channel-close tasks)
+      (for-each thread-join! lanes)
+      (map record-gxtest-result (vector->list results)))))
 
 ;; : (-> (List Path) Boolean GxTestResult)
 (def (run-gxtest-in-process-batch files compiled-in-process?)
@@ -242,16 +268,21 @@
     (run-gxtest-batch/compiled-in-process files)
     (run-gxtest-batch/source-in-process files)))
 
-;; : (-> (List Path) (List Path) Integer Boolean Boolean (List GxTestResult))
-(def (run-gxtest-parallel-phase files parallel-files worker-count
+;; : (-> (List Path) (List Path) Boolean Boolean (List GxTestResult))
+(def (run-gxtest-parallel-phase files parallel-files
                                 source-in-process? compiled-in-process?)
   (if source-in-process?
     (list (record-gxtest-result
            (run-gxtest-in-process-batch files compiled-in-process?)))
-    (parallel-gxtest-results parallel-files worker-count)))
+    (isolated-gxtest-results parallel-files)))
 
 ;; : (-> (List Path) Boolean (List GxTestResult))
 (def (run-gxtest-serial-phase serial-files source-in-process?)
   (if source-in-process?
     []
-    (serial-gxtest-results serial-files)))
+    (let-values (((resource-files benchmark-files)
+                  (partition gxtest-file-serial-resource serial-files)))
+      (append
+       (resource-group-gxtest-results
+        (gxtest-serial-resource-groups resource-files))
+       (serial-gxtest-results benchmark-files)))))

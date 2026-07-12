@@ -12,8 +12,15 @@
         (only-in "../src/policy/gxtest"
                  make-gxtest-policy-test)
         "../src/testing/model"
-        "../src/testing/gxtest-runner")
+        "../src/testing/gxtest-runner"
+        (only-in "../src/testing/gxtest-execution"
+                 gxtest-native-parallelism
+                 gxtest-serial-resource-groups)
+        :gslph/src/testing/memory-profile)
 (export gxtest-runner-contract-test)
+
+(declare-gxtest-memory-exception
+ '((maxHeapMiB . 512)))
 
 ;; : (-> (List (List Path)) Path MaybeInteger)
 (def (stage-index-containing stages file)
@@ -42,15 +49,17 @@
     (test-case "default gxtest files stay on the smoke gate"
       (configure-build-root! (current-directory))
       (let (files (default-gxtest-test-files))
-        (check (length files) => 5)
+        (check (length files) => 7)
         (check (member "t/agent-poo-scenario-contract-test.ss" files) ? true)
         (check (member "t/build-install-test.ss" files) ? true)
+        (check (member "t/parser-memory-stability-test.ss" files) ? true)
         (check (member "t/self-apply-full-gate.ss" files) => #f)
         (check (member "t/package-build-receipt-test.ss" files) => #f)
         (check (member "t/extensions-test.ss" files) => #f)
         (check (member "t/gxtest-runner-contract-test.ss" files) => #f)
         (check (member "t/source-coverage-test.ss" files) => #f)
         (check (member "t/support-test.ss" files) ? true)
+        (check (member "t/testing-memory-profile-test.ss" files) ? true)
         (check (member "t/testing-framework-smoke-test.ss" files) ? true)
         (check (member "t/testing-framework-test.ss" files) => #f)
         (check (member "t/testing-framework-downstream-test.ss" files) => #f)
@@ -80,30 +89,48 @@
         (check (member "policy/agent-build-test.ss" stage) => #f)
         (check (member "unit/schema/conformance.ss" stage) => #f)
         (check (member "snapshot/policy.ss" stage) => #f)))
-    (test-case "timing-sensitive gxtest files run outside parallel workers"
-      (let (files ["t/bench-test.ss"
-                   "t/benchmark-gate-test.ss"
+    (test-case "timing-sensitive gxtest files run outside the native parallel lane"
+      (let (files ["t/benchmark-gate-test.ss"
                    "t/agent-poo-scenario-contract-test.ss"
+                   "t/build-api-native-stage-boundary-test.ss"
+                   "t/building-gxtest-stage-boundary-test.ss"
+                   "t/cli-dev-linker-test.ss"
+                   "t/fmt-scenario-test.ss"
                    "t/gxtest-runner-contract-test.ss"
                    "t/policy/agent-poo-hot-loop-type-test.ss"
-                   "t/policy-test.ss"])
+                   "t/policy-test.ss"
+                   "t/query-test.ss"])
         (check (serial-gxtest-files files)
-               => ["t/bench-test.ss"
-                   "t/benchmark-gate-test.ss"
+               => ["t/benchmark-gate-test.ss"
+                   "t/build-api-native-stage-boundary-test.ss"
+                   "t/building-gxtest-stage-boundary-test.ss"
+                   "t/cli-dev-linker-test.ss"
+                   "t/fmt-scenario-test.ss"
+                   "t/query-test.ss"])
+        (check (parallel-gxtest-files files)
+               => ["t/agent-poo-scenario-contract-test.ss"
                    "t/gxtest-runner-contract-test.ss"
                    "t/policy/agent-poo-hot-loop-type-test.ss"
-                   "t/policy-test.ss"])
-        (check (parallel-gxtest-files files)
-               => ["t/agent-poo-scenario-contract-test.ss"])))
-    (test-case "state-polluting files isolate while runtime benchmarks batch serially"
+                   "t/policy-test.ss"])))
+    (test-case "declared memory-profile files isolate from the shared runner"
       (check (source-isolated-gxtest-file?
               "t/gxtest-runner-contract-test.ss")
              => #t)
-      (check (source-isolated-gxtest-file? "t/bench-test.ss")
-             => #f)
+      (check (source-isolated-gxtest-file? "t/benchmark-gate-test.ss")
+             => #t)
       (check (source-isolated-gxtest-file?
               "t/policy/agent-poo-hot-loop-type-test.ss")
-             => #f))
+             => #t))
+    (test-case "shared resources form independent ordered execution groups"
+      (check (gxtest-serial-resource-groups
+              ["t/build-api-native-stage-boundary-test.ss"
+               "t/cli-dev-linker-test.ss"
+               "t/building-gxtest-stage-boundary-test.ss"
+               "t/query-test.ss"])
+             => [["t/build-api-native-stage-boundary-test.ss"
+                  "t/building-gxtest-stage-boundary-test.ss"]
+                 ["t/cli-dev-linker-test.ss"]
+                 ["t/query-test.ss"]]))
     (test-case "test phase receipts are machine parseable"
       (check (test-phase-receipt-line "run-gxtest" 1234)
              => "[gslph-test-phase] name=run-gxtest elapsedMicros=1234 elapsedMs=1\n"))
@@ -122,6 +149,9 @@
              => "[gslph-test-summary] kind=serial count=13 sumMs=29643 wallMs=3624\n")
       (check (gxtest-top-line 1 "t/policy-test.ss" 3397000)
              => "[gslph-test-top] rank=1 name=t/policy-test.ss elapsedMs=3397\n"))
+    (test-case "gxtest failures are visible before verbose output"
+      (check (gxtest-failure-line "t/failing-test.ss" 42)
+             => "[gslph-test-failure] name=t/failing-test.ss status=42\n"))
     (test-case "gxtest batch expression leaves policy to runner phase"
       (configure-build-root! (current-directory))
       (check (gxtest-source-load-batch-expression ["t/build-install-test.ss"])
@@ -235,6 +265,25 @@
                ? true)
         (check (member "src/policy/agent-style.ss" files)
                => #f)))
+    (test-case "selected gxtest closure orders imported support before consumer"
+      (configure-build-root! (current-directory))
+      (let* ((support
+              (path-expand "t/policy/agent-poo-support.ss"
+                           (current-directory)))
+             (consumer
+              (path-expand "t/policy/agent-poo-generated-boundary-test.ss"
+                           (current-directory)))
+             (sources
+              (selected-gxtest-build-source-files
+               ["t/policy/agent-poo-generated-boundary-test.ss"]))
+             (support-tail (member support sources))
+             (consumer-tail (member consumer sources)))
+        (check support-tail ? true)
+        (check consumer-tail ? true)
+        (check (and support-tail
+                    consumer-tail
+                    (> (length support-tail) (length consumer-tail)))
+               ? true)))
     (test-case "selected gxtest receipt includes imported source modules"
       (configure-build-root! (current-directory))
       (let (sources (selected-gxtest-build-source-files
@@ -251,50 +300,34 @@
                                     (current-directory))
                        sources)
                ? true)))
-    (test-case "parallel gxtest worker count is bounded by file count"
-      (let (workers (test-runner-worker-count 2))
-        (check (>= workers 1) => #t)
-        (check (<= workers 2) => #t)))
-    (test-case "parallel gxtest worker count is loader-bound by cores"
-      (check (gxtest-worker-count/cores 7 8) => 1)
-      (check (gxtest-worker-count/cores 10 8) => 4)
-      (check (gxtest-worker-count/cores 2 8) => 1))
-    (test-case "machine core topology is discoverable"
-      (check (>= (machine-logical-core-count) 1) => #t)
-      (check (>= (machine-performance-core-count) 1) => #t)
-      (check (>= (machine-efficiency-core-count) 0) => #t))
-    (test-case "parallel gxtest batches only merge files beyond worker count"
+    (test-case "multi-file gxtest suites require process isolation"
+      (check (gxtest-suite-process-isolated? ["t/a-test.ss"])
+             => #f)
+      (check (gxtest-suite-process-isolated? ["t/a-test.ss"
+                                              "t/b-test.ss"])
+             => #t))
+    (test-case "native gxtest parallelism follows Gerbil build cores"
+      (setenv "GERBIL_BUILD_CORES" "4")
+      (check (gxtest-native-parallelism) => 4)
+      (check (gxtest-native-parallelism 2) => 2)
+      (setenv "GERBIL_BUILD_CORES" "0")
+      (check (gxtest-native-parallelism 8) => 1)
+      (setenv "GERBIL_BUILD_CORES" "invalid")
+      (check (gxtest-native-parallelism 8) => 1)
+      (setenv "GERBIL_BUILD_CORES" ""))
+    (test-case "gxtest labels summarize explicit native invocations"
       (check (gxtest-batch-label ["t/a-test.ss"
                                   "t/b-test.ss"
                                   "t/c-test.ss"])
              => "t/a-test.ss,+2")
-      (check (gxtest-batches ["t/a-test.ss" "t/b-test.ss"] 4)
-             => [["t/a-test.ss"] ["t/b-test.ss"]])
-      (check (gxtest-batches ["t/a-test.ss"
-                              "t/b-test.ss"
-                              "t/c-test.ss"
-                              "t/d-test.ss"
-                              "t/e-test.ss"]
-                             2)
-             => [["t/a-test.ss" "t/b-test.ss" "t/c-test.ss"]
-                 ["t/d-test.ss" "t/e-test.ss"]]))
-    (test-case "build worker sync exports the effective worker count"
-      (let (saved (getenv "GERBIL_BUILD_CORES" #f))
-        (setenv "GERBIL_BUILD_CORES" "")
-        (let (workers (sync-build-worker-count!))
-          (check (integer? workers) => #t)
-          (check (> workers 0) => #t)
-          (check (getenv "GERBIL_BUILD_CORES" #f)
-                 => (number->string workers)))
-        (if saved
-          (setenv "GERBIL_BUILD_CORES" saved)
-          #!void)))
+      (check (gxtest-batch-label ["t/a-test.ss"])
+             => "t/a-test.ss"))
     (test-case "default package spec exposes downstream gxtest support"
       (configure-build-root! (current-directory))
       (let (stage (compile-spec #f #f #f))
         (check (member "build-api/source-coverage.ss" stage) ? true)
         (check (member "build-api/package-receipt.ss" stage) ? true)
-        (check (member "build-api/worker-count.ss" stage) ? true)
+        (check (member "build-api/worker-count.ss" stage) => #f)
         (check (member "build-api/build-path-contract.ss" stage) ? true)
         (check (member "benchmark/framework.ss" stage) ? true)
         (check (member "benchmark/gate.ss" stage) ? true)

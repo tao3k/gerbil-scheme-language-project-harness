@@ -5,7 +5,11 @@
         :gslph/src/protocol/json
         :gslph/src/support/args
         (only-in :std/srfi/1 take)
-        (only-in :std/srfi/13 string-contains string-empty?)
+        (only-in :std/srfi/13
+                 string-contains
+                 string-empty?
+                 string-prefix?
+                 string-suffix?)
         (only-in :std/sugar cut filter filter-map hash ormap))
 
 (export emit-owner-items
@@ -41,9 +45,7 @@
              (file (parse-explicit-owner-items-file root owner limit terms))
              (definition-matches
               (matching-definitions (source-file-definitions file) terms))
-             (syntax-limit (max 0 (- limit (length definition-matches))))
-             (syntax-matches
-              (matching-owner-syntax-facts file terms syntax-limit root)))
+             (syntax-matches []))
         (if json?
           (write-json-line
            (owner-items-evidence-packet file
@@ -54,9 +56,7 @@
           (begin
             (for-each (lambda (defn) (displayln (definition-name defn)))
                       (take definition-matches
-                            (min limit (length definition-matches))))
-            (for-each (lambda (fact) (displayln (hash-get fact 'name)))
-                      syntax-matches))
+                            (min limit (length definition-matches)))))
           (emit-owner-items file definition-matches syntax-matches limit))))
       0)))
 
@@ -65,8 +65,11 @@
 ;;; - The parser owner builds the source file; command code only validates path shape.
 ;; : (-> Root OwnerPath SourceFile )
 (def (parse-explicit-owner-items-file root owner . maybe-limit/terms)
-  (let (path (path-expand owner root))
-    (unless (and (owner-items-source-path? path) (file-exists? path))
+  (let* ((root (path-normalize root))
+         (path (path-normalize (path-expand owner root))))
+    (unless (and (owner-items-path-within-root? root path)
+                 (owner-items-source-path? path)
+                 (file-exists? path))
       (error "owner not found" owner))
     (if (and (pair? maybe-limit/terms)
              (pair? (cdr maybe-limit/terms)))
@@ -74,6 +77,15 @@
                                      (car maybe-limit/terms)
                                      (cadr maybe-limit/terms))
       (parse-owner-items-source-file root path))))
+
+(def (owner-items-path-within-root? root path)
+  (let* ((root (path-normalize (path-expand root)))
+         (path (path-normalize (path-expand path root)))
+         (prefix (if (string-suffix? "/" root)
+                   root
+                   (string-append root "/"))))
+    (or (equal? path root)
+        (string-prefix? prefix path))))
 
 ;;; Limit boundary:
 ;;; - Missing limits use the public default.
@@ -110,8 +122,7 @@
 (def (definition-matches-term? defn term)
   (ormap (cut string-contains <> term)
          [(definition-name defn)
-          (definition-kind defn)
-          (definition-selector defn)]))
+          (definition-kind defn)]))
 
 ;;; Boundary:
 ;;; - Render definition matches before syntax facts so exact owner symbols stay first.
@@ -137,7 +148,9 @@
    (lambda (defn)
      (emit-owner-definition-item defn))
    shown-definitions)
-  (for-each emit-owner-syntax-item shown-syntax)))
+  (for-each (lambda (fact)
+              (emit-owner-syntax-item fact))
+            shown-syntax)))
 
 ;; : (-> Definition Unit)
 (def (emit-owner-definition-item defn)
@@ -147,7 +160,7 @@
                                              (definition-end defn))))
     (displayln "|item kind=" (definition-kind defn)
                " name=" (definition-name defn)
-               " selector=" selector
+               " readSelector=" selector
                " proofSpan=" proof-span
                " source=native-parser"
                " nextCommand=\"asp gerbil-scheme query --selector "
@@ -169,7 +182,8 @@
          (name (hash-get fact 'name)))
   (displayln "|item kind=" kind
              " name=" name
-             " selector=" (owner-item-structural-selector path kind name)
+             " evidenceSelector=" (owner-item-structural-selector path kind name)
+             " graphOnly=true"
              " proofSpan=" path ":" line-range
              " source=" (hash-get fact 'source)
              " languageKind=" (hash-get fact 'languageKind)
@@ -191,7 +205,8 @@
          (syntax-budget (max 0 (- limit (length shown-definitions))))
          (shown-syntax
           (take syntax-matches (min syntax-budget (length syntax-matches)))))
-    (hash (schemaId "semantic-owner-item-evidence.v1")
+    (hash (schemaId "semantic-owner-item-evidence.v2")
+          (schemaVersion "2")
           (language "gerbil-scheme")
           (owner (hash (path (source-file-path file))))
           (limit limit)
@@ -209,7 +224,7 @@
 (def (owner-definition-evidence-json defn)
   (hash (kind (definition-kind defn))
         (name (definition-name defn))
-        (selector (definition-selector defn))
+        (readSelector (definition-selector defn))
         (proof (hash (source "native-parser")
                      (span (owner-item-source-span (definition-path defn)
                                                    (definition-start defn)
@@ -236,7 +251,8 @@
          (name (hash-get fact 'name)))
     (hash (kind kind)
           (name name)
-          (selector (owner-item-structural-selector path kind name))
+          (evidenceSelector (owner-item-structural-selector path kind name))
+          (graphOnly #t)
           (proof (hash (source (hash-get fact 'source))
                        (span (string-append path ":" line-range))))
           (languageKind (hash-get fact 'languageKind))
@@ -253,7 +269,7 @@
          (line-range (hash-get location 'lineRange))
          (name (hash-get fact 'name)))
     (hash (callee name)
-          (selector (owner-item-structural-selector path "call" name))
+          (evidenceSelector (owner-item-structural-selector path "call" name))
           (proof (hash (source (hash-get fact 'source))
                        (span (string-append path ":" line-range)))))))
 
@@ -365,13 +381,23 @@
 ;; : (-> MaybeString (List String) )
 (def (owner-item-query-terms query)
   (if query
-    (filter owner-item-query-term? (split-owner-item-query query))
+    (owner-item-query-terms/limit
+     (filter owner-item-query-term? (split-owner-item-query query))
+     6)
     '()))
+
+(def (owner-item-query-terms/limit terms remaining)
+  (cond
+   ((or (null? terms) (<= remaining 0)) '())
+   (else
+    (cons (car terms)
+          (owner-item-query-terms/limit (cdr terms) (- remaining 1))))))
 
 ;; : (-> String Boolean )
 (def (owner-item-query-term? value)
   (and (string? value)
-       (not (string-empty? value))))
+       (not (string-empty? value))
+       (<= (string-length value) 128)))
 
 ;;; Boundary:
 ;;; - Split only the owner-items query grammar, not global search parsing.

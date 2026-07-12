@@ -2,7 +2,7 @@
 ;;; Gxtest result and timing report helpers.
 
 (import (only-in :std/sort sort)
-        (only-in :std/srfi/1 find iota)
+        (only-in :std/srfi/1 filter find iota)
         (only-in :std/sugar foldl)
         (only-in "../support/time" monotonic-micros duration-micros)
         :gerbil/gambit)
@@ -18,6 +18,8 @@
         gxtest-result-elapsed-micros
         gxtest-summary-line
         gxtest-top-line
+        gxtest-failure-line
+        display-gxtest-failures
         display-gxtest-timing-summary
         first-failure-status
         gxtest-runner-mode-label)
@@ -147,6 +149,21 @@
                  " elapsedMs="
                  (number->string (gxtest-micros->ms elapsed-micros))
                  "\n"))
+
+;; : (-> String Integer String)
+(def (gxtest-failure-line name status)
+  (string-append "[gslph-test-failure] name=" name
+                 " status=" (number->string status)
+                 "\n"))
+
+;; : (-> (List GxTestResult) Void)
+(def (display-gxtest-failures results)
+  (for-each
+   (lambda (result)
+     (display (gxtest-failure-line
+               (gxtest-result-file result)
+               (gxtest-result-status result))))
+   (filter failed-gxtest-result? results)))
 
 ;; : (-> (List GxTestResult) Void)
 (def (display-gxtest-top-results results)

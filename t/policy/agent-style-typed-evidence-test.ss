@@ -6,9 +6,9 @@
         :std/misc/ports
         :std/misc/process
         :std/sort
-        :commands/check
         :gslph/src/parser/facade
         :gslph/src/policy/agent-style
+        :gslph/src/policy/agent-style-performance-signals
         :gslph/src/policy/facade
         :gslph/src/policy/gxtest
         :gslph/src/scenario/policy
@@ -101,6 +101,31 @@
                       "replace-manual-loop-with-higher-order-combinator-when-no-state-witness"
                       (hash-get repair-evidence 'allowedMoves))
                      => #t))))
+(test-case "numeric hot-loop evidence does not cross caller boundaries"
+          (let* ((root ".run/policy-typed-combinator-style-numeric-caller-scope")
+                 (src (string-append root "/src"))
+                 (owner (string-append src "/orders")))
+            (ensure-dir ".run")
+            (ensure-dir root)
+            (ensure-dir src)
+            (ensure-dir owner)
+            (write-text (string-append root "/gerbil.pkg")
+                        "(package: sample/orders)\n")
+            (write-text (string-append owner "/core.ss")
+                        ";;; -*- Gerbil -*-\n(package: sample/orders)\n;; : (-> (List Number) Integer)\n(def (walk-orders xs)\n  (let loop ((rest xs))\n    (if (null? rest) 0 (loop (cdr rest)))))\n;; : (-> Number Number Number)\n(def (add-tax left right) (+ left right))\n;; : (-> Number Number Number)\n(def (remove-tax left right) (- left right))\n")
+            (let* ((index (collect-project root))
+                   (source (car (project-index-files index)))
+                   (facets
+                    (typed-combinator-style-upstream-performance-quality-facets
+                     source)))
+              (check (agent-style-member?
+                      "generic-numeric-hot-loop"
+                      facets)
+                     => #f)
+              (check (agent-style-member?
+                      "numeric-domain-contract-missing"
+                      facets)
+                     => #f))))
 (test-case "typed-combinator-style policy preserves Gambit primitive evidence without warning"
           (let* ((root ".run/policy-typed-combinator-style-gambit-hot-loop")
                  (src (string-append root "/src"))

@@ -9,15 +9,7 @@
 ;; cli-release-linker.ss. The closure test rejects missing and surplus modules.
 ;; : (List ModulePath)
 (def cli-release-modules
-  '("benchmark/report.ss"
-    "checker/arity.ss"
-    "checker/core.ss"
-    "checker/facade.ss"
-    "checker/forms.ss"
-    "checker/model.ss"
-    "checker/types.ss"
-    "checker/whitelist.ss"
-    "cli-launcher.ss"
+  '("cli-launcher.ss"
     "commands/agent.ss"
     "commands/evidence.ss"
     "commands/fmt.ss"

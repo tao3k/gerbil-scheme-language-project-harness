@@ -29,7 +29,7 @@
       (configure-build-root! (current-directory))
       (check (dev-launcher-binpath)
              => (path-expand ".bin/gslph" (current-directory))))
-    (test-case "launcher build closures and help exclude bench"
+    (test-case "bootstrap and release module closures exclude linker roots"
       (let* ((development-modules (cli-binary-module-spec #f))
              (release-modules (cli-binary-module-spec #t)))
         (for-each
@@ -38,11 +38,23 @@
             (check (member module release-modules) => #f))
           '("commands/bench.ss" "commands/bench-light.ss"))
         (check (member "cli-dev-linker.ss" development-modules)
-               => '("cli-dev-linker.ss"))
+               => #f)
+        (check (member "cli-release-linker.ss" development-modules)
+               => #f)
         (check (member "cli-release-linker.ss" release-modules)
-               => '("cli-release-linker.ss"))
+               => #f)
+        (for-each
+         (lambda (module)
+           (check (member module release-modules) => #f))
+         '("checker/arity.ss"
+           "checker/core.ss"
+           "checker/facade.ss"
+           "checker/forms.ss"
+           "checker/model.ss"
+           "checker/types.ss"
+           "checker/whitelist.ss"))
         (check (not (not (ormap (lambda (path)
-                                  (string-contains path "commands/guide-sections.scm"))
+                                  (string-contains path "commands/guide-sections.ssi"))
                                 (package-api-build-output-files))))
                => #t)
         (check (string-contains +help+ "bench") => #f)
@@ -80,3 +92,4 @@
            "building/std-builder.ss"
            "building/facade.ss"
            "building/declarative.ss"))))
+  ))

@@ -4,7 +4,9 @@
 ;;; - Keep contracts, evidence, and failure semantics explicit.
 ;;; Query command adapter.
 
-(import :gslph/src/extensions/facade
+(import (only-in :gerbil/gambit hash?)
+        :gslph/src/extensions/facade
+        :gslph/src/package-manager/core
         :gslph/src/parser/facade
         (only-in :gslph/src/parser/owner-items
                  owner-items-source-path?
@@ -48,10 +50,23 @@
 
 ;; : (-> ProjectRoot Selector Boolean Integer)
 (def (emit-query-selector workspace selector json?)
-  (let (code (read-query-selector workspace selector))
-    (if json?
-      (write-json-line (hash (selector selector) (code code)))
-      (display code)))
+  (let (result (read-query-selector workspace selector))
+    (if (and (pair? result)
+             (equal? (car result) 'structural-not-found))
+      (let (not-found-selector (cadr result))
+        (if json?
+          (write-json-line
+           (hash (resolution "not-found")
+                 (selector not-found-selector)
+                 (matches [])
+                 (selectorAliases [])))
+          (displayln
+           (string-append
+            "[gerbil-query-no-hit] resolution=not-found selector="
+            not-found-selector))))
+      (if json?
+        (write-json-line (hash (selector selector) (code result)))
+        (display result))))
   0)
 
 ;; : (-> ProjectRoot Selector ParsedData)
@@ -76,9 +91,29 @@
 
 ;; : (-> ProjectRoot Selector ParsedData)
 (def (read-symbol-item-selector workspace selector)
-  (let (defn (find (lambda (defn)
-                    (equal? (definition-name defn) selector))
-                  (project-definitions (collect-project workspace))))
+  (let* ((files (collect-source-files workspace))
+         (defn
+          (let find-definition ((remaining files))
+            (if (null? remaining)
+              #f
+              (let* ((path (car remaining))
+                     (source-text (read-source-text path))
+                     (candidate? (string-contains source-text selector)))
+                (set! source-text #f)
+                (if candidate?
+                  (let* ((source-file
+                          (parse-owner-items-source-file workspace path 0 []))
+                         (match
+                          (find (lambda (candidate)
+                                  (equal? (definition-name candidate) selector))
+                                (source-file-definitions source-file))))
+                    (if match
+                      match
+                      (begin
+                        (set! source-file #f)
+                        (##gc)
+                        (find-definition (cdr remaining)))))
+                  (find-definition (cdr remaining))))))))
     (unless defn
       (error "selector item not found" selector))
     (read-definition-code workspace defn)))
@@ -90,14 +125,25 @@
          (kind (cadr parts))
          (name (caddr parts))
          (file (query-owner-source-file workspace owner))
+         (export-fact
+          (and (equal? kind "export")
+               (find (lambda (fact)
+                       (equal? (module-export-fact-name fact) name))
+                     (source-file-module-exports file))))
          (defn (find (lambda (defn)
-                       (and (structural-item-kind-matches? kind
-                                                           (definition-kind defn))
+                       (and (or (structural-item-kind-matches? kind
+                                                               (definition-kind defn))
+                                (and export-fact
+                                     (equal? (definition-name defn) name)))
                             (equal? (definition-name defn) name)))
                      (source-file-definitions file))))
-    (unless defn
-      (error "selector item not found" selector))
-    (read-definition-code workspace defn)))
+    (if defn
+      (read-definition-code workspace defn)
+      (begin
+        ;; Do not retain a parsed owner snapshot through the error continuation.
+        ;; Repeated invalid structural selectors must remain GC-eligible.
+        (set! file #f)
+        (list 'structural-not-found selector)))))
 
 ;; : (-> Selector (List String))
 (def (split-structural-item-selector selector)

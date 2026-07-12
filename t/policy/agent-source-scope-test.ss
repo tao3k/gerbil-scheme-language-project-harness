@@ -79,6 +79,34 @@
           (check (source-scope-policy-roots scope) => ["src"])
           (check (source-scope-policy-runtime-roots scope)
                  => ["src"]))))
+    (test-case "test source scope re-expands a module reached later at a shallower depth"
+      (let* ((root ".run/policy-source-scope-depth-order")
+             (src-dir (string-append root "/src"))
+             (test-dir (string-append root "/t")))
+        (reset-fixture-root root)
+        (ensure-dir ".run")
+        (ensure-dir root)
+        (ensure-dir src-dir)
+        (ensure-dir test-dir)
+        (write-text (string-append root "/gerbil.pkg")
+                    "(package: sample/depth-order)\n")
+        (write-text (string-append test-dir "/deep-test.ss")
+                    ";;; -*- Gerbil -*-\n(import :sample/depth-order/a)\n")
+        (write-text (string-append test-dir "/shallow-test.ss")
+                    ";;; -*- Gerbil -*-\n(import :sample/depth-order/core)\n")
+        (write-text (string-append src-dir "/a.ss")
+                    ";;; -*- Gerbil -*-\n(import :sample/depth-order/core)\n")
+        (write-text (string-append src-dir "/core.ss")
+                    ";;; -*- Gerbil -*-\n(import :sample/depth-order/reader)\n")
+        (write-text (string-append src-dir "/reader.ss")
+                    ";;; -*- Gerbil -*-\n(def reader-value 1)\n")
+        (let (paths
+              (map source-file-path
+                   (project-index-files
+                    (collect-test-source-scope
+                     root
+                     ["t/deep-test.ss" "t/shallow-test.ss"]))))
+          (check (not (not (member "src/reader.ss" paths))) => #t))))
     (test-case "gxtest scoped policy intersects test files with source coverage"
       (let* ((root ".run/policy-source-scope-gxtest-files")
              (src-dir (string-append root "/src")))

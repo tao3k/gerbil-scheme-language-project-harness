@@ -12,7 +12,7 @@
         gslph-package-api-stage-specs)
 
 ;; : (List (List Path))
-;;; Package API prologue stages keep native parser, checker, type, and policy
+;;; Package API prologue stages keep native parser, type, and policy
 ;;; owners materialized before report modules so cold CI cannot build a report
 ;;; facade without the transitive library graph it imports.
 (def +gslph-package-api-prologue-stages+
@@ -23,7 +23,6 @@
      "build-api/cli-gsc-options.ss"
      "build-api/launcher-receipt.ss"
      "build-api/release-modules.ss"
-     "build-api/worker-count.ss"
      "build-api/build-path-contract.ss"
      "build-api/package-spec.ss"
      "support/time.ss")
@@ -41,16 +40,9 @@
     ("utilities/contract-syntax.ss")
     ("types/core.ss"
      "types/env.ss"
-        "checker/model.ss"
-        "checker/types.ss"
-        "checker/arity.ss"
-        "checker/whitelist.ss"
-        "checker/forms.ss"
-        "checker/core.ss"
-        "checker/facade.ss"
-        "types/findings.ss"
-        "types/source-findings.ss"
-        "types/model.ss"
+     "types/findings.ss"
+     "types/source-findings.ss"
+     "types/model.ss"
      "types/signatures.ss"
      "types/subtyping.ss"
      "types/validation.ss"
@@ -152,7 +144,8 @@
      "testing/gxtest-report.ss")
     ("testing/build-process.ss")
     ("testing/gxtest-syntax.ss")
-    ("testing/memory-profile.ss")
+    ("testing/memory-profile.ss"
+     "testing/execution-profile.ss")
     ("testing/gxtest-imports.ss")
     ("testing/gxtest-sources.ss")
     ("testing/gxtest-discovery.ss")
@@ -189,7 +182,7 @@
     ("build-api/framework.ss")))
 
 (def +gslph-package-api-directories+
-  '("utilities" "types" "parser" "checker" "policy" "extensions" "language" "format" "commands"))
+  '("utilities" "types" "parser" "policy" "extensions" "language" "format" "commands"))
 
 ;; : (List (List Path))
 (def +gslph-package-api-launcher-stages+

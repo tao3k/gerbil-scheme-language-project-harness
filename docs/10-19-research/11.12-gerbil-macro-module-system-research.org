@@ -337,3 +337,154 @@ Gerbil, not toy syntax:
 These scenarios should be added before expanding policy further.  Otherwise the
 harness will keep producing surface-level "advanced syntax" rules instead of
 teaching agents the real Gerbil macro and module system.
+
+** 11.12.11 Scheme Optimization Refactor Plan
+
+*** 11.12.11.1 Decision And Current Baseline
+
+The refactor treats Gerbil macro optimization as a parser and module-graph
+problem, not as a larger collection of style rules. =src/policy/agent-style-gerbil-signals.ss=
+is a governance consumer over parser/package facts; it is not the owner of
+syntax-object, phase, or module-context semantics. It must remain a consumer
+after the refactor.
+
+The current scenario baseline is asymmetric:
+
+- =macro-hygiene-context-preservation= has a scenario owner.
+- =phase-aware-helper-split= and =module-context-import-export= do not yet have
+  parser-owned scenario identities.
+- =single-instantiation-build-boundary= is only a weak performance-policy
+  association, not an executable scenario contract.
+- no distinct macro/module performance-gate owner currently proves cold versus
+  warm module-context behavior.
+
+The first implementation goal is therefore to make the missing semantic facts
+and scenarios real before widening policy coverage.
+
+*** 11.12.11.2 Target Topology
+
+#+begin_src mermaid
+flowchart LR
+  Source["Gerbil source"] --> Syntax["syntax-object facts"]
+  Syntax --> Phase["phase-aware macro facts"]
+  Phase --> Module["module-context graph"]
+  Module --> Compiled["compiled macro boundary"]
+  Compiled --> Facts["macro/module fact facade"]
+  Facts --> Policy["checker and policy consumers"]
+  Facts --> Scenarios["gxtest scenarios and receipts"]
+  Scenarios --> Gates["latency and heap gates"]
+  Gates --> Facts
+#+end_src
+
+The proposed parser-owned module family is:
+
+- =src/parser/macro-model.ss=: language-neutral fact records and identities.
+- =src/parser/macro-syntax.ss=: =quote-syntax=, datum conversion, hygiene, and
+  =syntax-case= complexity facts.
+- =src/parser/macro-phase.ss=: syntax owners, =begin-syntax=, phase edges, and
+  compile-time versus runtime helper boundaries.
+- =src/parser/macro-module-context.ss=: namespace, prelude, import/export,
+  weak-import, and cached module-context facts.
+- =src/parser/macro-compiled.ss=: runtime/meta/phase output and compiled-macro
+  boundary facts.
+- =src/parser/macro-facade.ss=: the only parser API consumed by checker, policy,
+  scenario, and search layers.
+
+=checker/forms= and =policy/*= consume this facade. They must not add another
+source collector, list walker, phase classifier, or module cache.
+
+*** 11.12.11.3 Refactor Stages
+
+1. Establish the fact contract.
+   Define parser-owned identities, phase-edge records, syntax-operation records,
+   module-context records, compiled-boundary records, and receipt shape. Keep
+   source and compiled evidence distinct. This stage is Scheme-native and does
+   not add a JSON schema or search-packet field. A versioned provider schema is
+   only considered later if a stable cross-provider search contract is actually
+   required. No policy behavior changes in this stage.
+
+2. Extract macro syntax and phase facts.
+   Move macro-head recognition from generic form handling into the macro parser
+   family. Model hygiene-sensitive datum conversion, literal identifiers,
+   fenders, ellipsis depth, and syntax helper/runtime helper separation.
+
+3. Build the module-context graph.
+   Replace ad hoc import/export collection with module-context facts. Preserve
+   prelude, namespace, import phase, export phase, and weak-import state. Cache
+   by the native module identity so repeated analysis does not rescan the same
+   module graph.
+
+4. Connect compiled macro boundaries.
+   Relate expanded source owners to runtime, syntax-time, meta, phase, and SSXI
+   output facts. The compiler path may consume these facts, but this project
+   must not reimplement the Gerbil expander or compiler.
+
+5. Rewire consumers and delete duplicated logic.
+   Make =checker/forms=, macro policies, search receipts, and scenario helpers
+   consume =macro-facade=. Remove datum-only duplicate scanners, package-wide
+   rescans, and policy-private module collectors once equivalent facts exist.
+
+6. Optimize only after fact and scenario convergence.
+   Use the module graph to remove duplicate expansion and collection work,
+   reduce allocation in warm paths, and isolate compiler-heavy owners. Do not
+   use a universal heap limit, an external RSS poller, or a new product CLI as
+   an optimization substitute.
+
+*** 11.12.11.4 Scenario And Gate Plan
+
+Each scenario is a normal =gxtest= module. A resource-sensitive scenario opts
+in with its own literal profile:
+
+#+begin_src scheme
+(declare-gxtest-memory-exception
+ '((maxHeapMiB . <scenario-budget>)))
+#+end_src
+
+=gxi= enforces the declared managed-heap ceiling. A heap overflow exits the
+child nonzero and the outer =gxtest= assertion fails. No scenario polls =ps= or
+uses an outer timeout wrapper. Scenario construction stays on the existing
+testing/build-support macro surface; it does not create a benchmark or build
+subcommand.
+
+Required scenario sequence:
+
+1. Upgrade =macro-hygiene-context-preservation= to assert parser facts for the
+   syntax-to-datum boundary and context-preserving identifier repair.
+2. Add =phase-aware-helper-split= to assert separate syntax and runtime helper
+   ownership with no duplicate full-project collection.
+3. Add =module-context-import-export= to assert phase-aware import/export,
+   namespace, prelude, and warm-context reuse.
+4. Add =single-instantiation-build-boundary= to assert one native module graph
+   import/expansion per repeated target.
+5. Add a compiled-macro boundary scenario only after the first four facts are
+   queryable through =macro-facade=.
+
+Every scenario records cold and warm elapsed time with explicit =ms= units,
+selected module count, repeated-expansion count, and its declared managed-heap
+ceiling. Establish budgets from baseline data first; the only existing research
+constraint is subsecond repeated hygiene parse/check behavior. A performance
+gate fails only against the scenario's own declared budget.
+
+*** 11.12.11.5 Migration And Deletion Rules
+
+- No compatibility facade for datum-only macro semantics survives after the
+  parser facts are available.
+- No policy may infer phase or module ownership from a printed identifier or
+  path substring when a parser fact exists.
+- No build/test helper may import/evaluate a module outside the native registry
+  path merely to obtain metadata.
+- No global memory threshold is introduced; each exceptional scenario owns its
+  own literal =maxHeapMiB= configuration.
+- No =gslph= benchmark or build passthrough command is added. Build stays on
+  the upstream =gxi= / =gxtest= foundation.
+
+*** 11.12.11.6 Implementation Order And Exit Criteria
+
+Implement one semantic slice at a time in this order: syntax facts, phase facts,
+module-context graph, compiled boundary, consumer migration, then optimization.
+For every slice, the exit criterion is a parser receipt, one focused scenario,
+cold/warm latency evidence in =ms=, and a declared heap profile where allocation
+risk exists. Only after the scenario passes may the older collector or policy
+branch be deleted. The refactor is complete when all macro policy findings and
+search receipts originate from =macro-facade= and repeated targets reuse one
+module-context graph without a project-wide rescan.

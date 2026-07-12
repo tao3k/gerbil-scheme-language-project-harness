@@ -107,6 +107,15 @@
   (map (lambda (path) [path 0])
        (changed-source-files root package paths)))
 
+;;; Scope traversal keeps the shallowest route to each path. A module first
+;;; reached at the depth limit must be re-expanded if a later test reaches it
+;;; from a shallower owner; otherwise policy findings depend on test order.
+;; : (-> (List (Pair Path Integer)) Path Integer Boolean)
+(def (test-source-scope-seen-at-or-shallower-depth? seen-paths path depth)
+  (let (entry (assoc path seen-paths))
+    (and entry
+         (<= (cdr entry) depth))))
+
 ;; : (-> Root MaybePackage (List Path) (List Path) (List SourceFile) (List ScopeEntry) (List SourceFile))
 (def (test-source-scope-source-files/walk root package seen-paths seen-relpaths
                                          source-files queue)
@@ -120,25 +129,28 @@
 ;; : (-> Root MaybePackage (List Path) (List Path) (List SourceFile) Path Integer (List ScopeEntry) (List SourceFile))
 (def (test-source-scope-source-files/entry root package seen-paths seen-relpaths
                                           source-files path depth rest)
-  (if (member path seen-paths)
+  (if (test-source-scope-seen-at-or-shallower-depth?
+       seen-paths path depth)
     (test-source-scope-source-files/walk
      root package seen-paths seen-relpaths source-files rest)
     (let* ((file (parse-source-file root path))
            (relpath (source-file-path file))
-           (seen-paths (cons path seen-paths)))
-      (if (member relpath seen-relpaths)
-        (test-source-scope-source-files/walk
-         root package seen-paths seen-relpaths source-files rest)
-        (test-source-scope-source-files/walk
-         root package
-         seen-paths
-         (cons relpath seen-relpaths)
-         (cons file source-files)
-         (foldr cons
-                rest
-                (test-source-scope-import-entries
-                 root package relpath depth
-                 (source-file-imports file))))))))
+           (seen-paths (cons (cons path depth) seen-paths))
+           (already-collected? (member relpath seen-relpaths))
+           (imports
+            (test-source-scope-import-entries
+             root package relpath depth
+             (source-file-imports file))))
+      (test-source-scope-source-files/walk
+       root package
+       seen-paths
+       (if already-collected?
+         seen-relpaths
+         (cons relpath seen-relpaths))
+       (if already-collected?
+         source-files
+         (cons file source-files))
+       (foldr cons rest imports)))))
 
 ;; : (-> SourceFile SourceFile Boolean)
 (def (source-file-path<? left right)

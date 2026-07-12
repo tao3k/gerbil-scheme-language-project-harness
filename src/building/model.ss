@@ -21,6 +21,7 @@
         build-stage-receipt-elapsed-jiffies
         build-stage-receipt->alist
         build-plan-receipts->alist
+        build-plan-receipts-summary
         build-stage-status
         build-stage-run!
         build-plan-run!
@@ -77,6 +78,23 @@
 (def (build-plan-receipts->alist receipts)
   `((version . 1)
     (stages . ,(map build-stage-receipt->alist receipts))))
+
+(def (build-plan-receipts-summary receipts)
+  (let ((compiled
+         (filter (lambda (receipt)
+                   (eq? (build-stage-receipt-status receipt) 'compiled))
+                 receipts))
+        (skipped
+         (filter (lambda (receipt)
+                   (eq? (build-stage-receipt-status receipt) 'skipped))
+                 receipts)))
+    `((version . 1)
+      (stage-count . ,(length receipts))
+      (compiled . ,(length compiled))
+      (skipped . ,(length skipped))
+      (elapsed-jiffies
+       . ,(apply + (map build-stage-receipt-elapsed-jiffies receipts)))
+      (active-stages . ,(map build-stage-receipt->alist compiled)))))
 
 (def (build-stage-run! stage context)
   (let (start-jiffy (current-jiffy))

@@ -13,6 +13,17 @@
          gslph-package-build-lock-path
          gslph-package-build-with-lock)
 
+;; package-root
+;;   : (Maybe Path)
+;;   | doc m%
+;;       Holds the configured package root for lock and artifact operations;
+;;       callers set it only through the package-build configuration boundary.
+;; # Examples
+;; ```scheme
+;; package-root
+;; => #f before package-build configuration
+;; ```
+;;     %
 (def package-root #f)
 
 ;; : Real
@@ -34,6 +45,17 @@
        (> (string-length value) 0)))
 
 ;; : (-> Path (Maybe String))
+;; gslph-package-build-package-name
+;;   : (-> Path (Maybe String))
+;;   | doc m%
+;;       Reads the package name declared by the package-local `gerbil.pkg` file.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (gslph-package-build-package-name ".")
+;;       ;; => "gslph"
+;;       ```
+;;     %
 (def (gslph-package-build-package-name root)
   (let* ((package-file (path-expand "gerbil.pkg" root))
          (plist (with-catch
@@ -162,43 +184,68 @@
    (lambda ()
      (gslph-package-build-reclaim-lock! lock-path))))
 
-;; : (-> Path Void)
+;; gslph-package-build-wait-for-lock!
+;;   : (-> Path (Maybe Integer) (Maybe Integer) Void)
+;;   | doc m%
+;;       Performs one effectful lock retry cycle, preserving stale-owner and
+;;       progress-report state between sleeps.
+;; # Examples
+;; ```scheme
+;; (gslph-package-build-wait-for-lock! lock-path #f #f)
+;; => lock acquired or the next bounded retry cycle
+;; ```
+;;     %
+(def (gslph-package-build-wait-for-lock!
+      lock-path missing-owner-since last-report-jiffy)
+  (if (gslph-package-build-try-acquire-lock! lock-path)
+    (gslph-package-build-write-lock-owner! lock-path)
+    (let* ((now-jiffy (current-jiffy))
+           (owner (gslph-package-build-read-lock-owner lock-path))
+           (owner-pid (gslph-package-build-lock-owner-pid owner))
+           (owner-live? (and owner-pid
+                             (gslph-package-build-process-live? owner-pid)))
+           (owner-grace-expired?
+            (and (not owner-pid)
+                 missing-owner-since
+                 (>= (- now-jiffy missing-owner-since)
+                     (* +gslph-package-build-lock-owner-grace-seconds+
+                        (jiffies-per-second)))))
+           (owner-reclaimable?
+            (or (and owner-pid (not owner-live?))
+                owner-grace-expired?))
+           (report-due?
+            (or (not last-report-jiffy)
+                (>= (- now-jiffy last-report-jiffy)
+                    (* +gslph-package-build-lock-report-seconds+
+                       (jiffies-per-second))))))
+      (when owner-reclaimable?
+        (when (gslph-package-build-reclaim-lock! lock-path)
+          (gslph-package-build-display-lock-state
+           'reclaimed lock-path owner-pid)))
+      (when (and (not owner-reclaimable?) report-due?)
+        (gslph-package-build-display-lock-state 'waiting lock-path owner-pid))
+      (thread-sleep! +gslph-package-build-lock-sleep-seconds+)
+      (gslph-package-build-wait-for-lock!
+       lock-path
+       (and (not owner-reclaimable?)
+            (not owner-pid)
+            (or missing-owner-since now-jiffy))
+       (or (and (or owner-reclaimable? report-due?) now-jiffy)
+           last-report-jiffy)))))
+
+;; gslph-package-build-acquire-lock!
+;;   : (-> Path Void)
+;;   | doc m%
+;;       Acquires the package-build lock through the bounded effectful retry
+;;       cycle so concurrent compilers leave one observable owner receipt.
+;; # Examples
+;; ```scheme
+;; (gslph-package-build-acquire-lock! lock-path)
+;; => package-build lock owned by this process
+;; ```
+;;     %
 (def (gslph-package-build-acquire-lock! lock-path)
-  (let loop ((missing-owner-since #f)
-             (last-report-jiffy #f))
-    (if (gslph-package-build-try-acquire-lock! lock-path)
-      (gslph-package-build-write-lock-owner! lock-path)
-      (let* ((now-jiffy (current-jiffy))
-             (owner (gslph-package-build-read-lock-owner lock-path))
-             (owner-pid (gslph-package-build-lock-owner-pid owner))
-             (owner-live? (and owner-pid
-                               (gslph-package-build-process-live? owner-pid)))
-             (owner-grace-expired?
-              (and (not owner-pid)
-                   missing-owner-since
-                   (>= (- now-jiffy missing-owner-since)
-                       (* +gslph-package-build-lock-owner-grace-seconds+
-                          (jiffies-per-second)))))
-             (report-due?
-              (or (not last-report-jiffy)
-                  (>= (- now-jiffy last-report-jiffy)
-                      (* +gslph-package-build-lock-report-seconds+
-                         (jiffies-per-second))))))
-        (cond
-         ((and owner-pid (not owner-live?))
-          (when (gslph-package-build-reclaim-lock! lock-path)
-            (gslph-package-build-display-lock-state 'reclaimed lock-path owner-pid))
-          (loop #f now-jiffy))
-         (owner-grace-expired?
-          (when (gslph-package-build-reclaim-lock! lock-path)
-            (gslph-package-build-display-lock-state 'reclaimed lock-path #f))
-          (loop #f now-jiffy))
-         (else
-          (when report-due?
-            (gslph-package-build-display-lock-state 'waiting lock-path owner-pid))
-          (thread-sleep! +gslph-package-build-lock-sleep-seconds+)
-          (loop (if owner-pid #f (or missing-owner-since now-jiffy))
-                (if report-due? now-jiffy last-report-jiffy))))))))
+  (gslph-package-build-wait-for-lock! lock-path #f #f))
 
 ;; : (-> Procedure Datum)
 (def (gslph-package-build-with-lock thunk)
@@ -222,6 +269,17 @@
      (add-load-path! (path-expand "lib" active-gerbil-path))))
 
 ;; : (-> Void)
+;; ensure-package-build-root!
+;;   : (-> Unit)
+;;   | doc m%
+;;       Configures the package-local build root when no package context is active.
+;;
+;;       # Examples
+;;       ```scheme
+;;       (ensure-package-build-root!)
+;;       => (void)
+;;       ```
+;;     %
 (def (ensure-package-build-root!)
   (unless package-root
     (gslph-package-configure-build-root! (current-directory))))

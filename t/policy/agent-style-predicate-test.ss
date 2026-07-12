@@ -6,7 +6,6 @@
         :std/misc/ports
         :std/misc/process
         :std/sort
-        :commands/check
         :gslph/src/parser/facade
         :gslph/src/policy/agent-style
         :gslph/src/policy/facade

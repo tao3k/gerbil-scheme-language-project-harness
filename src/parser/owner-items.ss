@@ -84,8 +84,7 @@
          (initial-package (vector-ref read-result 2))
          (initial-prelude (vector-ref read-result 3))
          (initial-namespace (vector-ref read-result 4))
-         (call-budget (and (pair? maybe-limit/terms)
-                           (car maybe-limit/terms)))
+         (call-budget (if (pair? maybe-limit/terms) 0 #f))
          (call-terms (if (and (pair? maybe-limit/terms)
                               (pair? (cdr maybe-limit/terms)))
                        (cadr maybe-limit/terms)
@@ -512,20 +511,7 @@
      (if (member (path-extension path) +owner-items-source-extensions+)
        (if (owner-file-starts-with-lang? path)
          (owner-read-lang-syntax-forms path)
-         (if (owner-file-has-non-core-prelude? path)
-           (owner-read-syntax-forms path)
-           (with-catch
-            (lambda (_)
-              (owner-read-syntax-forms path))
-            (lambda ()
-              (parameterize ((current-output-port (open-output-string))
-                             (current-error-port (open-output-string)))
-                (let (((values prelude module-id namespace body)
-                       (core-read-module path)))
-                  (vector body #f
-                          (datum->string module-id)
-                          (datum->string prelude)
-                          (datum->string namespace))))))))
+         (owner-read-syntax-forms path))
        (owner-read-syntax-forms path)))))
 
 ;;; Syntax fallback:

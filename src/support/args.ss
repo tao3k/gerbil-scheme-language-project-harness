@@ -12,9 +12,17 @@
         option
         options
         positional-args
+        executable-argv
         project-root
         drop-project-root
         file-directory?)
+
+;; : (-> (List String) (List String))
+(def (executable-argv explicit-args)
+  (if (pair? explicit-args)
+    explicit-args
+    (let (argv (command-line))
+      (if (pair? argv) (cdr argv) []))))
 ;; ConfigConstant
 (def +boolean-flags+
   '("--json" "--code" "--names-only" "--changed" "--full" "--check" "--more"

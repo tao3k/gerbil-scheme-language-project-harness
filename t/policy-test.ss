@@ -5,6 +5,7 @@
 
 (import :std/test
         :gslph/src/policy/gxtest
+        :gslph/src/testing/memory-profile
         :policy/modularity-test
         :policy/agent-basic-test
         :policy/agent-list-growth-test
@@ -25,6 +26,9 @@
         :policy/detection-test
         :policy/gerbil-utils-source-test)
 (export policy-test)
+
+(declare-gxtest-memory-exception
+ '((maxHeapMiB . 512)))
 
 ;; : TestSuite
 (def policy-test

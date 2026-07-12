@@ -103,6 +103,9 @@
 ;;       ;; => b
 ;;       ```
 ;;     %
+;; list-safe-cadr
+;; : (forall (a) (-> [a] (Maybe a)))
+;; : (-> List (Maybe Datum))
 (def (list-safe-cadr items)
   (match items
     ([_ second . _] second)
@@ -120,6 +123,9 @@
 ;;       ;; => c
 ;;       ```
 ;;     %
+;; list-safe-caddr
+;; : (forall (a) (-> [a] (Maybe a)))
+;; : (-> List (Maybe Datum))
 (def (list-safe-caddr items)
   (match items
     ([_ _ third . _] third)

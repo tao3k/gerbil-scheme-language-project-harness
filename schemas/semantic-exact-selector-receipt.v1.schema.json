@@ -48,6 +48,31 @@
       "type": "string",
       "minLength": 1
     },
+    "resolution": {
+      "enum": [
+        "exact",
+        "alias",
+        "identity-drift",
+        "not-found"
+      ]
+    },
+    "canonicalIdentity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "indexGeneration": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selectorAliases": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "identity": {
       "type": "object",
       "additionalProperties": false,

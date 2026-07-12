@@ -9,9 +9,7 @@
 ;;; - Keeping this layer separate prevents the public runner facade from
 ;;;   mixing test target parsing with performance-sensitive scheduling.
 
-(import (only-in "../build-api/worker-count"
-                 gxtest-worker-count)
-        (only-in :std/srfi/1 partition any)
+(import (only-in :std/srfi/1 partition any)
         (only-in "../support/time" monotonic-micros duration-micros)
         (only-in "./gxtest-build"
                  compile-selected-gxtest-if-stale)
@@ -23,10 +21,12 @@
         (only-in "./gxtest-execution"
                  run-gxtest-parallel-phase
                  run-gxtest-serial-phase
+                 display-gxtest-failures
                  display-gxtest-timing-summary
                  display-gxtest-result
                  first-failure-status
-                 gxtest-runner-mode-label)
+                 gxtest-runner-mode-label
+                 gxtest-native-parallelism)
         (only-in "./gxtest-receipts"
                  selected-gxtest-build-current?)
         (only-in "./memory-profile"
@@ -34,11 +34,12 @@
         :gerbil/gambit)
 
 (export run-gxtest-files
-        test-runner-worker-count)
+        gxtest-suite-process-isolated?)
 
-;; : (-> Integer Integer)
-(def (test-runner-worker-count file-count)
-  (gxtest-worker-count file-count))
+;; A multi-file suite must cross a process boundary between files so loaded
+;; modules and test state cannot accumulate for the lifetime of the full run.
+(def (gxtest-suite-process-isolated? files)
+  (> (length files) 1))
 
 ;; split-in-process-gxtest-files
 ;;   : (-> (List Path) (Values (List Path) (List Path)))
@@ -55,19 +56,18 @@
 (def (run-source-safe-in-process-gxtest-files files)
   (if (null? files)
     []
-    (run-gxtest-parallel-phase files files 1 #t #f)))
+    (run-gxtest-parallel-phase files files #t #f)))
 
-;; : (-> (List Path) Integer (List GxTestResult))
-(def (run-compiled-in-process-gxtest-files files worker-count)
+;; : (-> (List Path) (List GxTestResult))
+(def (run-compiled-in-process-gxtest-files files)
   (if (null? files)
     []
     (let* ((selected-status
-            (compile-selected-gxtest-if-stale files worker-count))
+            (compile-selected-gxtest-if-stale files))
            (compiled-in-process?
             (selected-gxtest-build-current? selected-status)))
       (run-gxtest-parallel-phase files
                                  files
-                                 worker-count
                                  #t
                                  compiled-in-process?))))
 
@@ -75,7 +75,7 @@
 (def (run-source-only-in-process-gxtest-files files)
   (if (null? files)
     []
-    (run-gxtest-parallel-phase files files 1 #t #f)))
+    (run-gxtest-parallel-phase files files #t #f)))
 
 ;; : (-> (List Path) (List GxTestResult))
 (def (run-split-source-in-process-gxtest-files source-safe-files
@@ -85,15 +85,14 @@
           (run-source-only-in-process-gxtest-files
            source-only-files)))
 
-;; : (-> (List Path) Integer (List Path) (List Path) (List GxTestResult))
+;; : (-> (List Path) (List Path) (List Path) (List GxTestResult))
 (def (run-in-process-gxtest-files files
-                                  worker-count
                                   source-safe-files
                                   source-only-files)
   (if (pair? source-only-files)
     (run-split-source-in-process-gxtest-files source-safe-files
                                                source-only-files)
-    (run-compiled-in-process-gxtest-files files worker-count)))
+    (run-compiled-in-process-gxtest-files files)))
 
 ;; : (-> Boolean Boolean Boolean String)
 (def (gxtest-runner-effective-mode source-in-process?
@@ -115,9 +114,8 @@
 (def (run-gxtest-files files)
   (let* ((parallel-files (parallel-gxtest-files files))
          (serial-files (serial-gxtest-files files))
-         (worker-count (test-runner-worker-count (length parallel-files)))
          (source-in-process?
-          (and (= worker-count 1)
+          (and (not (gxtest-suite-process-isolated? files))
                (gxtest-files-local-suite? files)
                (not (any gxtest-file-memory-exception? files)))))
     (let-values (((source-safe-files source-only-files)
@@ -136,12 +134,10 @@
              (parallel-results
               (if source-in-process?
                 (run-in-process-gxtest-files files
-                                             worker-count
                                              source-safe-files
                                              source-only-files)
                 (run-gxtest-parallel-phase files
                                            parallel-files
-                                           worker-count
                                            #f
                                            #f)))
              (parallel-wall-micros
@@ -155,8 +151,11 @@
              (status (first-failure-status results)))
         (display (string-append "[gslph-test-runner] files="
                                 (number->string (length files))
-                                " jobs="
-                                (number->string worker-count)
+                                " process-isolation=per-file"
+                                " native-parallelism="
+                                (number->string
+                                 (gxtest-native-parallelism
+                                  (length parallel-files)))
                                 " serial="
                                 (number->string (length serial-files))
                                 " mode="
@@ -170,6 +169,7 @@
                                        serial-results
                                        parallel-wall-micros
                                        serial-wall-micros)
+        (display-gxtest-failures results)
         (for-each display-gxtest-result results)
         (if (zero? status)
           (begin

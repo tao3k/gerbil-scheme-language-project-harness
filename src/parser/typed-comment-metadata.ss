@@ -163,23 +163,53 @@
 ;;; Signature type projection:
 ;;; - Layered comments may carry a polymorphic generic signature and a readable
 ;;;   domain summary.
-;;; - Validate each `;; :` line independently so a valid summary cannot hide a
-;;;   bogus forall line.
+;;; - The definition-facing final signature may span continuation lines, while
+;;;   earlier layered signatures remain independent.
 ;; : (-> (List TypedCommentLine) (List Json))
 (def (typed-comment-signature-types block)
-  (map typed-comment-signature-line-type
-       (filter typed-comment-signature-start? block)))
+  (typed-comment-signature-types/starts
+   block
+   (filter typed-comment-signature-start? block)))
 
 ;; : (-> (List TypedCommentLine) (List Json))
 (def (typed-comment-polymorphic-signature-types block)
-  (map typed-comment-signature-line-type
-       (filter typed-comment-polymorphic-signature-start? block)))
+  (typed-comment-signature-types/starts
+   block
+   (filter typed-comment-polymorphic-signature-start? block)))
 
-;; : (-> TypedCommentLine Json)
-(def (typed-comment-signature-line-type entry)
+;; : (-> (List TypedCommentLine) (List TypedCommentLine) (List Json))
+(def (typed-comment-signature-types/starts block signature-starts)
+  (if (null? signature-starts)
+    []
+    (let (final-signature-start
+          (last (filter typed-comment-signature-start? block)))
+      (map (lambda (entry)
+             (typed-comment-signature-line-type
+              block final-signature-start entry))
+           signature-starts))))
+
+;; : (-> (List TypedCommentLine) TypedCommentLine TypedCommentLine Json)
+(def (typed-comment-signature-line-type block final-signature-start entry)
   (scheme-type-signature-json
-   (typed-comment-strip-signature-marker
-    (string-trim (cadr entry)))))
+   (if (equal? entry final-signature-start)
+     (typed-comment-final-signature-text block entry)
+     (typed-comment-strip-signature-marker
+      (string-trim (cadr entry))))))
+
+;; : (-> (List TypedCommentLine) TypedCommentLine SignatureContract)
+(def (typed-comment-final-signature-text block signature-start)
+  (let* ((remaining (cdr (member signature-start block)))
+         (continuation
+          (take-while (lambda (entry)
+                        (not (typed-comment-section-start? entry)))
+                      remaining)))
+    (string-join
+     (cons (typed-comment-strip-signature-marker
+            (string-trim (cadr signature-start)))
+           (map (lambda (entry)
+                  (string-trim (cadr entry)))
+                continuation))
+     " ")))
 
 ;; : (-> TypedCommentLine Boolean)
 (def (typed-comment-polymorphic-signature-start? entry)

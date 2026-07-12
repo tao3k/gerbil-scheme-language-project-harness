@@ -130,13 +130,25 @@
     selected
     (cons suite selected)))
 
+(def (testing-direct-file-suite file)
+  (gxtest-suite
+   name: file
+   default-root: file
+   files: [file]
+   batch-size: 1
+   max-selected-files: 1))
+
 ;; : (-> List List List)
 (def (testing-selected-file-owner-suites suites args)
   (foldl (lambda (arg selected)
            (let (owner (testing-owner-suite-for-file suites arg))
              (if owner
                (testing-add-file-to-selected-suite selected owner arg)
-               selected)))
+               (if (file-exists? arg)
+                 (testing-cons-suite-unique
+                  selected
+                  (testing-direct-file-suite arg))
+                 selected))))
          []
          args))
 

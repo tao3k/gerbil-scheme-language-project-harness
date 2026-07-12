@@ -2,7 +2,7 @@
 ;;; Gxtest discovery facade and batch planning.
 
 (import (only-in :std/misc/path path-strip-directory)
-        (only-in :std/srfi/1 any iota split-at)
+        (only-in :std/srfi/1 any)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
         (only-in :std/sugar foldl hash-get hash-key? hash-put!)
         (only-in "./gxtest-syntax"
@@ -37,14 +37,30 @@
         gxtest-selected-test-files
         source-isolated-gxtest-file?
         parallel-gxtest-files
-        serial-gxtest-files
-        gxtest-batches)
+        serial-gxtest-files)
 
 (import :gslph/src/testing/memory-profile)
+(import :gslph/src/testing/execution-profile)
+
+;; : (-> Form Boolean)
+(def (gxtest-benchmark-form? form)
+  (and (pair? form)
+       (or (memq (car form)
+                 '(benchmark-contract-run
+                   benchmark-contract-run/root
+                   benchmark-run
+                   benchmark-run/result))
+           (gxtest-benchmark-form? (car form))
+           (gxtest-benchmark-form? (cdr form)))))
+
+;; : (-> Path Boolean)
+(def (gxtest-file-benchmark? file)
+  (any gxtest-benchmark-form? (gxtest-file-forms file)))
 
 ;; : (-> Path Boolean)
 (def (timing-sensitive-gxtest-file? file)
-  (gxtest-file-memory-exception? file))
+  (or (gxtest-file-benchmark? file)
+      (gxtest-file-serial? file)))
 
 ;; : (-> Path Boolean)
 (def (source-isolated-gxtest-file? file)
@@ -61,40 +77,3 @@
 ;; : (-> (List Path) (List Path))
 (def (serial-gxtest-files files)
   (filter timing-sensitive-gxtest-file? files))
-
-(def (gxtest-next-batch-size remaining-files remaining-batches)
-  (max 1
-       (quotient (+ remaining-files remaining-batches -1)
-                 remaining-batches)))
-
-(def (gxtest-batch-size-step _ state)
-  (let ((remaining-files (car state))
-        (remaining-batches (cadr state))
-        (sizes (caddr state)))
-    (if (<= remaining-files 0)
-      (list 0 (- remaining-batches 1) sizes)
-      (let (batch-size
-            (gxtest-next-batch-size remaining-files remaining-batches))
-        (list (- remaining-files batch-size)
-              (- remaining-batches 1)
-              (cons batch-size sizes))))))
-
-(def (gxtest-batch-sizes file-count worker-count)
-  (reverse
-   (caddr
-    (foldl gxtest-batch-size-step
-           (list file-count (max 1 worker-count) [])
-           (iota (max 1 worker-count))))))
-
-(def (gxtest-batch-split-step size state)
-  (call-with-values
-    (lambda () (split-at (car state) size))
-    (lambda (batch rest)
-      (list rest (cons batch (cadr state))))))
-
-(def (gxtest-batches files worker-count)
-  (reverse
-   (cadr
-    (foldl gxtest-batch-split-step
-           (list files [])
-           (gxtest-batch-sizes (length files) worker-count)))))

@@ -19,7 +19,7 @@
 
 ;; : (List String)
 (def +commands+
-  '("search" "query" "fmt" "evidence" "agent" "guide" "info"
+  '("search" "query" "projection" "fmt" "evidence" "agent" "guide" "info"
     "help" "-h" "--help"))
 
 ;; : (List String)
@@ -30,6 +30,7 @@
 (def +dynamic-command-dispatch+
   '(("search" "gslph/src/commands/search" gslph/src/commands/search#search-main)
     ("query" "gslph/src/commands/query" gslph/src/commands/query#query-main)
+    ("projection" "gslph/src/commands/projection" gslph/src/commands/projection#projection-main)
     ("fmt" "gslph/src/commands/fmt" gslph/src/commands/fmt#fmt-main)
     ("evidence" "gslph/src/commands/evidence" gslph/src/commands/evidence#evidence-main)
     ("agent" "gslph/src/commands/agent" gslph/src/commands/agent#agent-main)

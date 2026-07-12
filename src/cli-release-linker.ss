@@ -8,7 +8,8 @@
         (only-in :gslph/src/commands/guide guide-main)
         (only-in :gslph/src/commands/info info-main)
         (only-in :gslph/src/commands/query query-main)
-        (only-in :gslph/src/commands/search search-main))
+        (only-in :gslph/src/commands/search search-main)
+        (only-in :gslph/src/support/args executable-argv))
 (export main
         release-command-dispatch
         release-command-mains)
@@ -45,8 +46,3 @@
   (exit (apply cli-main (executable-argv args))))
 
 ;; : (-> Args Args)
-(def (executable-argv fallback)
-  (let (argv (command-line))
-    (if (pair? argv)
-      (cdr argv)
-      fallback)))

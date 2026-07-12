@@ -6,7 +6,6 @@
         :std/misc/ports
         :std/misc/process
         (only-in :std/text/json read-json)
-        :commands/check
         :gslph/src/parser/facade
         :gslph/src/policy/facade
         :gslph/src/policy/gxtest

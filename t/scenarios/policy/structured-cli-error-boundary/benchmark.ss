@@ -1,38 +1,30 @@
-(max_total . 140ms)
-(observed_total . 20ms)
-(target_total . 110ms)
-(targetRationale
-  .
-  "CLI error-boundary scenario enforces command boundary without leaking raw argv handling.")
-(maxRssMb . 512)
-(rule . "GERBIL-SCHEME-AGENT-POLICY-013")
-(purpose . "R013 structured CLI error boundary keeps argv parsing, validation, and error display inside explicit typed boundaries.")
-(regression_budget
-  (parseMs 20)
-  (policyMs 40)
-  (scenarioMs 120)
-  (maxFindings 4))
-
-(observedTimings
-  (collectProjectMs 9)
-  (policyFindingsMs 6)
-  (scenarioContextMs 4)
-  (scenarioLearningMs 3))
-
-(scenarioIntent
-  (id structured-cli-error-boundary)
-  (policy R013)
-  (mode reasoning-first)
-  (source gerbil-v0.19-staging std/cli/getopt std/error)
-  (goal "Replace hand-written argv/error/display plumbing with a typed CLI and error boundary."))
-
-(scenarioQualityAxes
-  (structuredCliBoundary
-   (positive std-cli-getopt command option current-getopt-parser)
-   (negative raw-argv-case repeated-usage-strings))
-  (typedErrorBoundary
-   (positive deferror-class raise/context report-errors with-exit-on-error)
-   (negative scattered-error-display-exit))
-  (agentReasoning
-   (positive "choose the boundary before writing command code")
-   (negative "post-write rewrite catalog")))
+((max_total . 90ms)
+ (observed_total . 9ms)
+ (target_total . 20ms)
+ (regression_budget . 25ms)
+ (observedTimings
+  ((name . collect-before) (durationMs . 2))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 3))
+  ((name . policy-after) (durationMs . 2)))
+ (targetRationale . "The structured CLI error boundary is a small policy fixture; preserve a sub-20ms target and a sub-100ms hot-path regression ceiling.")
+ (maxCollectMs . 25)
+ (observedCollectMs . 2)
+ (maxParseMs . 35)
+ (observedParseMs . 0)
+ (maxFileMs . 20)
+ (observedFileMs . 0)
+ (maxPhaseMs . 25)
+ (observedPhaseMs . 3)
+ (maxRssMb . 512)
+ (memoryMetric . resident-set-size)
+ (memoryUnit . "MB")
+ (iterations . 1)
+ (unit . "ms")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-CLI-ERROR-BOUNDARY")
+ (feature . "structured-cli-error-boundary")
+ (optimizationFocus . "typed command errors, exit handling, and parser error recovery")
+ (inputShape . "one CLI command module mixes raw option failures, exit handling, and user-facing command errors")
+ (expectedOutcome . "introduce a typed command error boundary and preserve structured error propagation through the CLI facade")
+ (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (tags "style" "gerbil-native" "cli" "error" "boundary"))

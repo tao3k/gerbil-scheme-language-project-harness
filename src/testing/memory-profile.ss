@@ -9,13 +9,35 @@
         (only-in :std/srfi/1 find)
         (only-in ./gxtest-syntax gxtest-file-forms))
 
+(def +gxtest-default-max-heap-mib+ 1024)
+
 ;;; This module is the sole translation boundary from test-source metadata to
 ;;; Gambit runtime arguments.  It keeps resource policy out of product CLI code.
+;; +gxtest-memory-exception-declaration+
+;;   : Symbol
+;;   | doc m%
+;;       Names the literal test-source declaration consumed by the isolated
+;;       gxtest memory-profile runner.
+;; # Examples
+;; ```scheme
+;; +gxtest-memory-exception-declaration+
+;; => declare-gxtest-memory-exception
+;; ```
+;;     %
 (def +gxtest-memory-exception-declaration+
   'declare-gxtest-memory-exception)
 
-;;; An exceptional memory budget is explicit in test source, so ordinary
-;;; gxtest files retain their normal execution mode.
+;; declare-gxtest-memory-exception
+;;   : Macro
+;;   | doc m%
+;;       Marks one test module for an isolated Gambit heap profile while
+;;       expanding to no runtime test-body code.
+;; # Examples
+;; ```scheme
+;; (declare-gxtest-memory-exception '((maxHeapMiB . 512)))
+;; => the runner starts this test with a 512 MiB managed-heap cap
+;; ```
+;;     %
 (defrules declare-gxtest-memory-exception ()
   ((_ profile)
    (begin)))
@@ -36,8 +58,17 @@
               (eq? (car value) 'quote)
               (pair? (cdr value))))))
 
-;;; Intent: only a recognized declaration reaches this projection, keeping
-;;; malformed top-level forms from being interpreted as resource policy.
+;; gxtest-memory-profile-value
+;;   : (-> Form MemoryProfile)
+;;   | doc m%
+;;       Extracts the literal profile datum only after the declaration shape
+;;       has been recognized by the structural reader.
+;; # Examples
+;; ```scheme
+;; (gxtest-memory-profile-value '(declare-gxtest-memory-exception '((maxHeapMiB . 512))))
+;; => ((maxHeapMiB . 512))
+;; ```
+;;     %
 (def (gxtest-memory-profile-value form)
   (cadr (cadr form)))
 
@@ -82,9 +113,9 @@
 ;;; source loading and cannot be affected by the test body's allocation order.
 ;; : (-> Path (List String))
 (def (gxtest-file-memory-runtime-options file)
-  (let (max-heap-mib (gxtest-file-memory-max-heap-mib file))
-    (if max-heap-mib
-      [(string-append "-:max-heap="
-                      (number->string max-heap-mib)
-                      "M")]
-      [])))
+  (let (max-heap-mib
+        (or (gxtest-file-memory-max-heap-mib file)
+            +gxtest-default-max-heap-mib+))
+    [(string-append "-:max-heap="
+                    (number->string max-heap-mib)
+                    "M")]))

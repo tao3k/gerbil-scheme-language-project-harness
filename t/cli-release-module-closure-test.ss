@@ -8,8 +8,10 @@
         (only-in :std/misc/path path-directory path-expand path-normalize)
         (only-in :std/srfi/1 filter-map)
         (only-in :std/srfi/13 string-prefix? string-suffix?)
-        (only-in :std/sugar ormap)
+        (only-in :std/sugar foldr ormap)
         "../src/build-api/release-modules")
+(import ../src/build-api/install-static-modules)
+
 (export cli-release-module-closure-test)
 
 ;; : String
@@ -93,7 +95,7 @@
       ([module-path . rest]
        (if (member module-path seen)
          (loop rest seen result)
-         (loop (append (release-module-local-imports module-path) rest)
+         (loop (foldr cons rest (release-module-local-imports module-path))
                (cons module-path seen)
                (cons module-path result)))))))
 
@@ -112,6 +114,13 @@
                     string<?)))
         (check (length actual) => cli-release-closure-count)
         (check actual => declared)))
+    (test-case "install static projection retains the launcher root"
+      (check (member "cli-launcher.ss" cli-install-static-modules) ? true))
+    (test-case "install static projection covers the release module projection"
+      (for-each
+       (lambda (module-path)
+         (check (member module-path cli-install-static-modules) ? true))
+       cli-release-modules))
     (test-case "dynamic command targets are represented statically"
       (for-each
        (lambda (module-path)

@@ -53,7 +53,6 @@
                  gslph-package-api-spec
                  gslph-package-api-stage-specs)
         (only-in "./release-modules" cli-release-modules)
-        (only-in "./worker-count" build-worker-count sync-build-worker-count!)
         (only-in :gerbil/gambit current-jiffy jiffies-per-second))
 (export clean-target
         compile-target
@@ -69,11 +68,9 @@
         package-api-build-receipt-path
         package-api-build-receipt-status
         package-api-build-source-files
-         build-worker-count
          compile-package-api-if-stale
          run-package-api-build-request!
          compile-selected-gxtest-target
-         sync-build-worker-count!
         write-package-api-build-receipt!
         package-build-spec)
 
@@ -406,15 +403,14 @@
                  `((buildPlan . ,(build-plan-receipts->alist receipts)))
                  []))))
 
-;; : (forall (s) (-> String Path String [s] Integer (-> s Symbol Boolean) Symbol BuildRequest))
-;; : (-> String Path String List Integer Procedure Symbol BuildRequest)
-(def (make-package-build-request label srcdir prefix stage-specs worker-count
+;; : (forall (s) (-> String Path String [s] (-> s Symbol Boolean) Symbol BuildRequest))
+;; : (-> String Path String List Procedure Symbol BuildRequest)
+(def (make-package-build-request label srcdir prefix stage-specs
                                  current-pred context)
   (std-build
    label: label
    source: srcdir
    make-options: [optimize: #f
-                  parallelize: worker-count
                   prefix: prefix]
    label-of: (lambda (stage)
                (if (and (pair? stage) (string? (car stage)))
@@ -426,8 +422,8 @@
    current?: current-pred
    context: context))
 
-;; : (-> Boolean Integer Boolean BuildReceiptStatus)
-(def (compile-package-api-with-receipt verbose worker-count force?)
+;; : (-> Boolean Boolean BuildReceiptStatus)
+(def (compile-package-api-with-receipt verbose force?)
   (ensure-build-root!)
   (current-directory package-root)
   (let (started-jiffy (current-jiffy))
@@ -445,7 +441,6 @@
                         source-root
                         (source-output-prefix)
                         (gslph-package-api-stage-specs)
-                        worker-count
                         (lambda (_spec _context)
                           (and (not force?)
                                (package-api-stage-current? _spec)))
@@ -456,13 +451,13 @@
       (display-build-progress verbose "package-api/complete" started-jiffy)
       result)))
 
-;; : (-> Integer BuildReceiptStatus)
-(def (compile-package-api-if-stale worker-count)
-  (compile-package-api-with-receipt #f worker-count #f))
+;; : (-> BuildReceiptStatus)
+(def (compile-package-api-if-stale)
+  (compile-package-api-with-receipt #f #f))
 
-;; : (-> Integer BuildReceiptStatus)
-(def (run-package-api-build-request! worker-count)
-  (compile-package-api-if-stale worker-count))
+;; : (-> BuildReceiptStatus)
+(def (run-package-api-build-request!)
+  (compile-package-api-if-stale))
 
 ;; : (-> Path ModulePath)
 (def (gxtest-test-module-path path)
@@ -476,9 +471,9 @@
     (substring path 4 (string-length path))
     path))
 
-;; : (forall (m p) (-> (List m) (List p) Integer Alist))
-;; : (-> (List ModulePath) (List Path) Integer Alist)
-(def (compile-selected-gxtest-target source-modules files worker-count)
+;; : (forall (m p) (-> (List m) (List p) Alist))
+;; : (-> (List ModulePath) (List Path) Alist)
+(def (compile-selected-gxtest-target source-modules files)
   (ensure-build-root!)
   (current-directory package-root)
   (gslph-package-build-with-lock
@@ -489,7 +484,6 @@
               source-root
               (source-output-prefix)
               (map gxtest-source-module-path source-modules)
-              worker-count
               (lambda (_spec _context) #f)
               'selected-gxtest))
             (test-request
@@ -498,7 +492,6 @@
               (path-expand "t" package-root)
               (test-output-prefix)
               (map gxtest-test-module-path files)
-              worker-count
               (lambda (_spec _context) #f)
               'selected-gxtest)))
        (let (receipts
@@ -538,27 +531,24 @@
   (current-directory package-root)
   (let* ((build-optimize? (and optimized (not no-optimize)))
          (effective-release? release)
-         (effective-optimized? optimized)
-         (worker-count (sync-build-worker-count!)))
+         (effective-optimized? optimized))
     (if (and (not full) (or release binary))
       (begin
-        (compile-package-api-with-receipt verbose worker-count force?)
+        (compile-package-api-with-receipt verbose force?)
         (compile-cli-binary-if-stale (dev-launcher-binpath)
                                      verbose debug build-optimize?
-                                     release effective-release? effective-optimized?
-                                     worker-count))
+                                     release effective-release? effective-optimized?))
       (if (and (not full) (not release) (not binary))
-        (compile-package-api-with-receipt verbose worker-count force?)
+        (compile-package-api-with-receipt verbose force?)
         (make-target (compile-spec full release binary)
                      verbose debug build-optimize?
-                     effective-release? effective-optimized?
-                     worker-count)))
+                     effective-release? effective-optimized?)))
      #!void))
 
-;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Integer BuildReceiptStatus)
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean BuildReceiptStatus)
 (def (compile-cli-binary-if-stale binpath verbose debug build-optimize?
                                   release? effective-release?
-                                  effective-optimized? worker-count)
+                                  effective-optimized?)
   (let* ((inputs-path
           (gslph-ensure-cli-launcher-inputs!
            package-root
@@ -585,7 +575,7 @@
         (compile-cli-binary binpath
                             verbose debug build-optimize?
                             release? effective-release?
-                            effective-optimized? worker-count)
+                            effective-optimized?)
         (gslph-write-cli-launcher-build-receipt!
          package-root
          source-root
@@ -620,18 +610,16 @@
 (def (install-target verbose debug _no-optimize _optimized _release full)
   (ensure-build-root!)
   (current-directory package-root)
-  (let (worker-count (sync-build-worker-count!))
-    (compile-package-api-with-receipt verbose worker-count full)
-    (compile-install-binary-with-receipt (install-launcher-binpath)
-                                         verbose debug #f
-                                         #f #f
-                                         worker-count full)
-    #!void))
+  (compile-package-api-with-receipt verbose full)
+  (compile-install-binary-with-receipt (install-launcher-binpath)
+                                       verbose debug #f
+                                       #f #f full)
+  #!void)
 
-;; : (-> Path Boolean Boolean Boolean Boolean Boolean Integer Boolean BuildReceiptStatus)
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean BuildReceiptStatus)
 (def (compile-install-binary-with-receipt binpath verbose debug build-optimize?
                                           effective-release? effective-optimized?
-                                          worker-count force?)
+                                          force?)
   (let* ((inputs-path
           (gslph-ensure-install-launcher-inputs!
            package-root
@@ -656,8 +644,7 @@
       (begin (cleanup-launcher-binary-artifacts! binpath)
         (compile-install-binary binpath
                                 verbose debug build-optimize?
-                                effective-release? effective-optimized?
-                                worker-count)
+                                effective-release? effective-optimized?)
         (gslph-write-install-launcher-build-receipt!
          package-root
          source-root
@@ -675,46 +662,39 @@
          '()
          (install-launcher-source-modules))))))
 
-;; : (-> Path Boolean Boolean Boolean Boolean Boolean Integer Path)
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Path)
 (def (compile-install-binary binpath verbose debug build-optimize?
-                             effective-release? effective-optimized?
-                             worker-count)
+                             effective-release? effective-optimized?)
   (compile-binary-artifact
     binpath
     (cli-install-module-spec)
     (cli-install-spec build-optimize?)
     verbose debug build-optimize?
-    effective-release? effective-optimized?
-    worker-count))
+    effective-release? effective-optimized?))
 
-;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Integer Path)
+;; : (-> Path Boolean Boolean Boolean Boolean Boolean Boolean Path)
 (def (compile-cli-binary binpath verbose debug build-optimize?
-                         release? effective-release? effective-optimized?
-                         worker-count)
+                         release? effective-release? effective-optimized?)
   (compile-binary-artifact
     binpath
     (cli-binary-module-spec release?)
     (cli-binary-exe-spec release? build-optimize?)
     verbose debug build-optimize?
-    effective-release? effective-optimized?
-    worker-count))
+    effective-release? effective-optimized?))
 
-;; : (-> Path (List BuildSpec) (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Path)
+;; : (-> Path (List BuildSpec) (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Path)
 (def (compile-binary-artifact binpath module-spec exe-spec
                               verbose debug build-optimize?
-                              effective-release? effective-optimized?
-                              worker-count)
+                              effective-release? effective-optimized?)
   (let (started-jiffy (current-jiffy))
     (display-build-progress verbose "launcher/build" started-jiffy)
     (make-target module-spec
                  verbose debug build-optimize?
-                 effective-release? effective-optimized?
-                 worker-count)
+                 effective-release? effective-optimized?)
     (cleanup-compile-exe-artifacts! binpath)
     (make-target/bindir exe-spec
                         verbose debug build-optimize?
                         effective-release? effective-optimized?
-                        1
                         (path-directory binpath))
     (cleanup-compile-exe-artifacts! binpath)
     (display-build-progress verbose "launcher/complete" started-jiffy)
@@ -740,11 +720,11 @@
         (ensure-directory! parent))
       (create-directory path))))
 
-;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Void)
-;; : (-> String List Boolean Boolean Boolean Boolean Boolean Integer (Maybe Path) List)
+;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Void)
+;; : (-> String List Boolean Boolean Boolean Boolean Boolean (Maybe Path) List)
 (def (run-target-build! label spec verbose debug build-optimize?
                         effective-release? effective-optimized?
-                        worker-count (bindir #f))
+                        (bindir #f))
   (let* ((builder
           (default-std-builder
            source-root
@@ -753,7 +733,6 @@
                     optimize: build-optimize?
                     build-release: effective-release?
                     build-optimized: effective-optimized?
-                    parallelize: (and (> worker-count 1) worker-count)
                     prefix: (source-output-prefix)]
                    (if bindir [bindir: bindir] []))))
          (profile
@@ -770,22 +749,19 @@
     (build-request-run! request)))
 
 (def (make-target spec verbose debug build-optimize?
-                  effective-release? effective-optimized?
-                  worker-count)
+                  effective-release? effective-optimized?)
   (run-target-build! "native-target"
                      spec
                      verbose debug build-optimize?
-                     effective-release? effective-optimized?
-                     worker-count))
+                     effective-release? effective-optimized?))
 
-;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Integer Path Void)
+;; : (-> (List BuildSpec) Boolean Boolean Boolean Boolean Boolean Path Void)
 (def (make-target/bindir spec verbose debug build-optimize?
                          effective-release? effective-optimized?
-                         worker-count bindir)
+                         bindir)
   (ensure-directory! bindir)
   (run-target-build! "native-target/bindir"
                      spec
                      verbose debug build-optimize?
                      effective-release? effective-optimized?
-                     worker-count
                      bindir))

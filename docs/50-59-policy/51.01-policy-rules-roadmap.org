@@ -44,8 +44,7 @@ least 40 native definitions.
 Facade detection is structural: a file such as =src/foo/facade.ss= is a facade
 when the project also contains owner files below =src/foo/=. This matches the
 current Gerbil harness layout where =src/parser/facade.ss=,
-=src/types/facade.ss=, =src/checker/facade.ss=, and =src/policy/facade.ss= act
-as stable facades.
+=src/types/facade.ss=, and =src/policy/facade.ss= act as stable facades.
 
 Executable entrypoints follow the same thin-adapter policy. A file such as
 =bin/run.ss= may import and dispatch to owned modules, but implementation

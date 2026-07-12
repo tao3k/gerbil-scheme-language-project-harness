@@ -60,9 +60,10 @@
 
 ;; : (-> SourceFile Boolean )
 (def (typed-combinator-style-macro-generated-dynamic-apply-hot-loop? file)
-  (and (pair? (source-file-macros file))
-       (pair? (source-file-loop-driver-facts file))
-       (> (typed-combinator-style-call-count file '("apply")) 0)))
+  (let (callers (typed-combinator-style-loop-driver-callers file))
+    (and (pair? (source-file-macros file))
+         (pair? callers)
+         (> (typed-combinator-style-call-count file callers '("apply")) 0))))
 
 (def (typed-combinator-style-macro-direct-hot-loop? file)
   (and (pair? (source-file-macros file))
@@ -71,31 +72,41 @@
 
 ;; : (-> SourceFile Boolean )
 (def (typed-combinator-style-generic-numeric-hot-loop? file)
-  (and (pair? (source-file-loop-driver-facts file))
-       (>= (typed-combinator-style-call-count
-            file
-            +typed-combinator-style-generic-numeric-callees+)
-           2)
-       (= (typed-combinator-style-call-count
-           file
-           +typed-combinator-style-gambit-numeric-callees+)
-          0)))
+  (let (callers (typed-combinator-style-loop-driver-callers file))
+    (and (pair? callers)
+         (>= (typed-combinator-style-call-count
+              file callers +typed-combinator-style-generic-numeric-callees+)
+             2)
+         (= (typed-combinator-style-call-count
+             file callers +typed-combinator-style-gambit-numeric-callees+)
+            0))))
 
 (def (typed-combinator-style-gambit-numeric-hot-loop? file)
-  (and (pair? (source-file-loop-driver-facts file))
-       (> (typed-combinator-style-call-count
-           file
-           +typed-combinator-style-gambit-numeric-callees+)
-          0)))
+  (let (callers (typed-combinator-style-loop-driver-callers file))
+    (and (pair? callers)
+         (> (typed-combinator-style-call-count
+             file callers +typed-combinator-style-gambit-numeric-callees+)
+            0))))
 
 ;; : (-> SourceFile Boolean )
 (def (typed-combinator-style-dynamic-apply-hot-loop? file)
-  (and (pair? (source-file-loop-driver-facts file))
-       (>= (typed-combinator-style-call-count file '("apply")) 2)))
+  (let (callers (typed-combinator-style-loop-driver-callers file))
+    (and (pair? callers)
+         (>= (typed-combinator-style-call-count file callers '("apply")) 2))))
 
-;; : (-> SourceFile (List String) Nat )
-(def (typed-combinator-style-call-count file callees)
+;;; Numeric call evidence belongs to the same parser-classified loop driver.
+;;; This prevents unrelated helpers in one source file from manufacturing a
+;;; false hot-loop specialization recommendation.
+;; : (-> SourceFile (List DefinitionName))
+(def (typed-combinator-style-loop-driver-callers file)
+  (filter (lambda (caller) (and caller #t))
+          (map loop-driver-fact-caller
+               (source-file-loop-driver-facts file))))
+
+;; : (-> SourceFile (List DefinitionName) (List String) Nat )
+(def (typed-combinator-style-call-count file callers callees)
   (length
    (filter (lambda (call)
-             (member (call-fact-callee call) callees))
+             (and (member (call-fact-caller call) callers)
+                  (member (call-fact-callee call) callees)))
            (source-file-calls file))))

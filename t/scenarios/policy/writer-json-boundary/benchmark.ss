@@ -1,38 +1,30 @@
-(max_total . 150ms)
-(observed_total . 30ms)
-(target_total . 120ms)
-(targetRationale
-  .
-  "Writer/json boundary scenario uses typed writer contracts while keeping output behavior readable under failure.")
-(maxRssMb . 512)
-(rule . "GERBIL-SCHEME-AGENT-POLICY-013")
-(purpose . "R013 writer-json boundary replaces manual JSON string assembly with explicit writer extension contracts.")
-(regression_budget
-  (parseMs 20)
-  (policyMs 40)
-  (scenarioMs 120)
-  (maxFindings 4))
-
-(observedTimings
-  (collectProjectMs 8)
-  (policyFindingsMs 6)
-  (scenarioContextMs 4)
-  (scenarioLearningMs 3))
-
-(scenarioIntent
-  (id writer-json-boundary)
-  (policy R013)
-  (mode reasoning-first)
-  (source gerbil-v0.19-staging std/format/writer std/encoding/json/writer)
-  (goal "Replace manual string JSON assembly with a writer/serializer boundary."))
-
-(scenarioQualityAxes
-  (writerExtensionBoundary
-   (positive defwriter-ext writer.serialize writer.write-json-field)
-   (negative string-append display scattered-separators))
-  (jsonWriterBoundary
-   (positive defjson-writer write-json-object write-json-slot)
-   (negative manual-braces manual-commas manual-quotes))
-  (performanceBoundary
-   (positive buffered-writer typed-output)
-   (negative repeated-intermediate-strings)))
+((max_total . 90ms)
+ (observed_total . 10ms)
+ (target_total . 25ms)
+ (regression_budget . 30ms)
+ (observedTimings
+  ((name . collect-before) (durationMs . 3))
+  ((name . collect-after) (durationMs . 2))
+  ((name . policy-before) (durationMs . 3))
+  ((name . policy-after) (durationMs . 2)))
+ (targetRationale . "The JSON writer boundary is a small policy fixture; retain a sub-25ms target and a sub-100ms hot-path regression ceiling.")
+ (maxCollectMs . 25)
+ (observedCollectMs . 3)
+ (maxParseMs . 35)
+ (observedParseMs . 0)
+ (maxFileMs . 20)
+ (observedFileMs . 0)
+ (maxPhaseMs . 25)
+ (observedPhaseMs . 3)
+ (maxRssMb . 512)
+ (memoryMetric . resident-set-size)
+ (memoryUnit . "MB")
+ (iterations . 1)
+ (unit . "ms")
+ (rule . "GERBIL-SCHEME-AGENT-POLICY-WRITER-JSON-BOUNDARY")
+ (feature . "writer-json-boundary")
+ (optimizationFocus . "JSON writer field ownership and object lifecycle boundaries")
+ (inputShape . "one report writer mixes object lifecycle, field emission, and JSON serialization responsibilities")
+ (expectedOutcome . "separate JSON object lifecycle from field serialization and keep writer ownership explicit")
+ (measurementPhases "collect-before" "collect-after" "policy-before" "policy-after" "assert-time-gate" "assert-memory-gate")
+ (tags "style" "gerbil-native" "writer" "json" "boundary"))

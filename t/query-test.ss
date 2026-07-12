@@ -6,8 +6,12 @@
         :std/test
         (only-in :std/misc/process run-process)
         :gslph/src/commands/query
+        (only-in :gslph/src/testing/execution-profile
+                 declare-gxtest-serial)
         :gslph/src/support/time)
 (export query-test)
+
+(declare-gxtest-serial shared-native-provider)
 
 ;;; Boundary:
 ;;; - This budget measures Gerbil test-process spawning and capture overhead.
@@ -59,6 +63,44 @@
                   (query-result-output result)
                   "(def (selector-from path-accessor start-accessor end-accessor fact)")))
                => #t)))
+    (test-case "selector query round-trips structural export selectors"
+      (let (result (query-output ["--selector"
+                                  "gerbil-scheme://src/parser/selectors.ss#item/export/definition-selector"
+                                  "--workspace"
+                                  "."
+                                  "--code"]))
+        (check (query-result-exit-code result) => 0)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "(def (definition-selector defn)")))
+               => #t)))
+    (test-case "selector query emits a v1 no-hit receipt for absent structural items"
+      (let (result (query-output ["--selector"
+                                  "gerbil-scheme://src/build-api/framework.ss#item/export/package-source-stage-parallelize"
+                                  "--workspace"
+                                  "."
+                                  "--json"]))
+        (check (query-result-exit-code result) => 0)
+        (let (message (query-result-output result))
+          (check (not
+                  (not
+                   (string-contains message "\"resolution\":\"not-found\"")))
+                 => #t)
+          (check (not
+                  (not
+                   (string-contains
+                    message
+                    "\"selector\":\"gerbil-scheme://src/build-api/framework.ss#item/export/package-source-stage-parallelize\"")))
+                 => #t)
+          (check (not
+                  (not (string-contains message "\"matches\":[]")))
+                 => #t)
+          (check (not
+                  (not (string-contains message "\"selectorAliases\":[]")))
+                 => #t)
+          (check (string-contains message "\"code\"") => #f))))
     (test-case "selector query accepts parser item symbol selectors"
       (let (result (query-output ["--selector"
                                   "selector-from"
