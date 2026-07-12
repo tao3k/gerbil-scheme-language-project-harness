@@ -1,8 +1,13 @@
-(package: gslph
- depend: ("git.cons.io/mighty-gerbils/gerbil-poo")
- policy: ((macro-governance
-           allow-generated: #t
-           explanation: "Harness macro edits must cite runtime-source and macro-expansion evidence before changing transformers."
-          witness: "search runtime-source macro sugar module-sugar")
-          (modularity-policy
-           config: "policy/modularity.ss")))
+(package:
+ gslph
+ depend:
+ ("github.com/mighty-gerbils/gerbil-poo")
+ policy:
+ ((macro-governance
+   allow-generated:
+   #t
+   explanation:
+   "Harness macro edits must cite runtime-source and macro-expansion evidence before changing transformers."
+   witness:
+   "search runtime-source macro sugar module-sugar")
+  (modularity-policy config: "policy/modularity.ss")))
