@@ -176,6 +176,48 @@
         ("native-child-cpu-included" #f)
         ("stages" (map build-stage-observation->json-object observations))))
 
+(export build-topology-execution-windows->json-object
+        build-topology-execution-windows->json-string
+        package-source-stage-topology-execution-windows->json-object
+        package-source-stage-topology-execution-windows->json-string)
+
+(def (build-topology-execution-windows-flatten groups)
+  (apply append groups))
+
+(def (build-topology-execution-windows->json-object topology-groups execution-windows)
+  (let* ((topology-specs
+          (build-topology-execution-windows-flatten topology-groups))
+         (window-specs
+          (build-topology-execution-windows-flatten execution-windows))
+         (topology-group-count (length topology-groups))
+         (upstream-session-count (length execution-windows)))
+    (hash
+     ("schema" "gslph.build-topology-execution-windows.v1")
+     ("version" 1)
+     ("metric-scope" "build-topology-execution-windows")
+     ("upstream-executor" "std/make")
+     ("topology-group-count" topology-group-count)
+     ("upstream-session-count" upstream-session-count)
+     ("eliminated-barrier-count"
+      (max 0 (- topology-group-count upstream-session-count)))
+     ("spec-count" (length topology-specs))
+     ("dependency-order-preserved" (equal? topology-specs window-specs)))))
+
+(def (build-topology-execution-windows->json-string topology-groups execution-windows)
+  (json-object->canonical-string
+   (build-topology-execution-windows->json-object
+    topology-groups
+    execution-windows)))
+
+(def (package-source-stage-topology-execution-windows->json-object stage)
+  (build-topology-execution-windows->json-object
+   (package-source-stage-topology-request-spec-groups stage)
+   (package-source-stage-topology-request-specs stage)))
+
+(def (package-source-stage-topology-execution-windows->json-string stage)
+  (json-object->canonical-string
+   (package-source-stage-topology-execution-windows->json-object stage)))
+
 (def (build-plan-observations-summary->json-object observations)
   (let* ((wall-seconds
           (sum-observation-field build-stage-observation-wall-seconds

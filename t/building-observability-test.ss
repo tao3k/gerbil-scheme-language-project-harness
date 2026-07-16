@@ -6,6 +6,66 @@
   (unless value
     (error "building observability assertion failed" label value)))
 
+(import :std/text/json)
+
+(def (exercise-build-topology-execution-windows-observability)
+  (let* ((topology-groups '((prepare) (compile) (link)))
+         (execution-windows '((prepare compile link)))
+         (json-string
+          (build-topology-execution-windows->json-string
+           topology-groups
+           execution-windows))
+         (object (string->json-object json-string)))
+    (assert-true
+     "topology execution windows schema is stable"
+     (equal?
+      (hash-get object "schema")
+      "gslph.build-topology-execution-windows.v1"))
+    (assert-true
+     "topology execution windows version is stable"
+     (= (hash-get object "version") 1))
+    (assert-true
+     "topology execution windows metric scope is stable"
+     (equal?
+      (hash-get object "metric-scope")
+      "build-topology-execution-windows"))
+    (assert-true
+     "topology execution windows executor is std/make"
+     (equal? (hash-get object "upstream-executor") "std/make"))
+    (assert-true
+     "three topology groups form one upstream session"
+     (and (= (hash-get object "topology-group-count") 3)
+          (= (hash-get object "upstream-session-count") 1)))
+    (assert-true
+     "three to one eliminates two barriers"
+     (= (hash-get object "eliminated-barrier-count") 2))
+    (assert-true
+     "topology execution windows count flattened specs"
+     (= (hash-get object "spec-count") 3))
+    (assert-true
+     "topology execution windows preserve dependency order"
+     (hash-get object "dependency-order-preserved"))
+    (assert-true
+     "topology execution windows JSON round-trips canonically"
+     (equal?
+      (parameterize ((write-json-sort-keys? #t))
+        (json-object->string object))
+      json-string)))
+
+  (let (object
+        (build-topology-execution-windows->json-object '() '()))
+    (assert-true
+     "empty topology execution windows have zero counts"
+     (and (= (hash-get object "topology-group-count") 0)
+          (= (hash-get object "upstream-session-count") 0)
+          (= (hash-get object "eliminated-barrier-count") 0)
+          (= (hash-get object "spec-count") 0)))
+    (assert-true
+     "empty topology execution windows preserve dependency order"
+     (hash-get object "dependency-order-preserved"))))
+
+(exercise-build-topology-execution-windows-observability)
+
 (def (exercise-control-plane)
   (let loop ((remaining 2000000) (sum 0))
     (if (zero? remaining)

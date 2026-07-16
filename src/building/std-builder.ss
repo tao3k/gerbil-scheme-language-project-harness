@@ -434,8 +434,24 @@
      (lambda (module)
        (package-source-stage-dependencies stage module)))))
 
+(export topology-groups->upstream-execution-windows
+        package-source-stage-topology-request-spec-groups
+        package-source-stage-topology-request-specs)
+
+;; : (-> [[ModulePath]] [[ModulePath]])
+(def (topology-groups->upstream-execution-windows groups)
+  (let (specs (apply append groups))
+    (if (null? specs)
+        []
+        (list specs))))
+
 ;; : (-> PackageSourceStage [[ModulePath]])
 (def (package-source-stage-topology-request-specs stage)
+  (topology-groups->upstream-execution-windows
+   (package-source-stage-topology-request-spec-groups stage)))
+
+;; : (-> PackageSourceStage [[ModulePath]])
+(def (package-source-stage-topology-request-spec-groups stage)
   (let* ((specs (package-source-stage-specs stage))
          (modules (map package-source-spec-module specs))
          (specs-by-module
