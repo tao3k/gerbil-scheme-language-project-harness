@@ -95,3 +95,5 @@
         package-source-stages-run!
         package-source-stages-clean!)
 ;; Building facade owns public stage plans and receipt projections; native policy remains upstream.
+(import ./observability)
+(export (import: ./observability))
