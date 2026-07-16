@@ -179,7 +179,9 @@
 (export build-topology-execution-windows->json-object
         build-topology-execution-windows->json-string
         package-source-stage-topology-execution-windows->json-object
-        package-source-stage-topology-execution-windows->json-string)
+        package-source-stage-topology-execution-windows->json-string
+        build-adaptive-execution-windows->json-object
+        build-adaptive-execution-windows->json-string)
 
 (def (build-topology-execution-windows-flatten groups)
   (apply append groups))
@@ -217,6 +219,84 @@
 (def (package-source-stage-topology-execution-windows->json-string stage)
   (json-object->canonical-string
    (package-source-stage-topology-execution-windows->json-object stage)))
+
+(def (build-adaptive-execution-window-spec->json-value spec)
+  (cond
+   ((symbol? spec) (symbol->string spec))
+   ((pair? spec)
+    (map build-adaptive-execution-window-spec->json-value spec))
+   ((null? spec) [])
+   (else spec)))
+
+(def (build-adaptive-execution-window->json-object
+      window observation index)
+  (hash
+   ("index" index)
+   ("spec-count" (length window))
+   ("specs"
+    (map build-adaptive-execution-window-spec->json-value window))
+   ("outcome"
+    (json-name (execution-window-observation-outcome observation)))
+   ("baseline-rss-bytes"
+    (execution-window-observation-baseline-rss-bytes observation))
+   ("peak-rss-bytes"
+    (execution-window-observation-peak-rss-bytes observation))
+   ("max-rss-bytes"
+    (execution-window-observation-max-rss-bytes observation))
+   ("elapsed-ms"
+    (execution-window-observation-elapsed-ms observation))))
+
+(def (build-adaptive-execution-window-json-objects
+      windows observations (index 0))
+  (if (null? windows)
+    []
+    (cons
+     (build-adaptive-execution-window->json-object
+      (car windows) (car observations) index)
+     (build-adaptive-execution-window-json-objects
+      (cdr windows) (cdr observations) (+ index 1)))))
+
+(def (build-adaptive-execution-windows->json-object result)
+  (unless (adaptive-execution-window-result? result)
+    (error "adaptive execution-window JSON requires an adaptive result" result))
+  (let* ((topology-groups
+          (adaptive-execution-window-result-topology-groups result))
+         (execution-windows
+          (adaptive-execution-window-result-execution-windows result))
+         (observations
+          (adaptive-execution-window-result-window-observations result))
+         (controller
+          (adaptive-execution-window-result-controller result))
+         (topology-specs
+          (build-topology-execution-windows-flatten topology-groups))
+         (attempted-specs
+          (build-topology-execution-windows-flatten execution-windows)))
+    (unless (= (length execution-windows) (length observations))
+      (error
+       "adaptive execution-window result has mismatched observations"
+       (length execution-windows)
+       (length observations)))
+    (hash
+     ("schema" "gslph.build-adaptive-execution-windows.v1")
+     ("version" 1)
+     ("metric-scope" "build-adaptive-execution-windows")
+     ("upstream-executor" "std/make")
+     ("topology-group-count" (length topology-groups))
+     ("attempted-window-count" (length execution-windows))
+     ("spec-count" (length attempted-specs))
+     ("dependency-order-preserved"
+      (equal? topology-specs attempted-specs))
+     ("worker-count"
+      (execution-window-controller-worker-count controller))
+     ("hard-max-rss-bytes"
+      (execution-window-controller-hard-max-rss-bytes controller))
+     ("windows"
+      (build-adaptive-execution-window-json-objects
+       execution-windows observations)))))
+
+(def (build-adaptive-execution-windows->json-string result)
+  (json-object->canonical-string
+   (build-adaptive-execution-windows->json-object result)))
 
 (def (build-plan-observations-summary->json-object observations)
   (let* ((wall-seconds

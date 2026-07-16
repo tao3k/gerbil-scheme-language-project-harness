@@ -1,12 +1,13 @@
 (import :std/text/json
-        :gslph/src/building/model
-        :gslph/src/building/observability)
+        (only-in :clan/poo/object object<-alist)
+        ../src/building/model
+        ../src/building/native-toolchain
+        ../src/building/std-builder
+        ../src/building/observability)
 
 (def (assert-true label value)
   (unless value
     (error "building observability assertion failed" label value)))
-
-(import :std/text/json)
 
 (def (exercise-build-topology-execution-windows-observability)
   (let* ((topology-groups '((prepare) (compile) (link)))
@@ -65,6 +66,81 @@
      (hash-get object "dependency-order-preserved"))))
 
 (exercise-build-topology-execution-windows-observability)
+
+(def (make-observability-test-execution-window-controller)
+  (letrec
+      ((controller
+        (object<-alist
+         `((kind . gslph.execution-window-controller.v1)
+           (worker-count . 2)
+           (hard-max-rss-bytes . 4096)
+           (headroom-bytes . 256)
+           (window-size . 2)
+           (.observe-run! .
+            ,(lambda (label thunk)
+               (make-execution-window-observation
+                (thunk) 'completed 512 1024 4096 3)))
+           (.next-state .
+            ,(lambda (observation spec-count) controller))))))
+    controller))
+
+(def (exercise-build-adaptive-execution-windows-observability)
+  (let* ((calls 0)
+         (builder
+          (make-std-builder
+           "fake-std/make"
+           (lambda args
+             (set! calls (+ calls 1))
+             args)
+           'compile
+           "fake upstream make"
+           #f
+           []
+           (native-toolchain-default)))
+         (plan
+          (make-adaptive-execution-window-plan
+           '((prepare compile) (link package publish))
+           (make-observability-test-execution-window-controller)))
+         (result (std-builder-run-spec! builder plan []))
+         (json-string
+          (build-adaptive-execution-windows->json-string result))
+         (object (string->json-object json-string))
+         (windows (hash-get object "windows")))
+    (assert-true
+     "adaptive execution windows schema is distinct"
+     (equal? (hash-get object "schema")
+             "gslph.build-adaptive-execution-windows.v1"))
+    (assert-true
+     "adaptive execution reports only attempted windows"
+     (and (= (hash-get object "attempted-window-count") 3)
+          (= (length windows) 3)
+          (= calls 3)))
+    (assert-true
+     "adaptive execution reports exact spec counts"
+     (and (= (hash-get object "spec-count") 5)
+          (equal? (map (lambda (window) (hash-get window "spec-count"))
+                       windows)
+                  '(2 2 1))))
+    (assert-true
+     "adaptive execution preserves dependency order"
+     (hash-get object "dependency-order-preserved"))
+    (assert-true
+     "adaptive execution reports controller policy"
+     (and (= (hash-get object "worker-count") 2)
+          (= (hash-get object "hard-max-rss-bytes") 4096)))
+    (assert-true
+     "adaptive window observations expose canonical measurements"
+     (and (equal? (hash-get (car windows) "outcome") "completed")
+          (= (hash-get (car windows) "peak-rss-bytes") 1024)
+          (= (hash-get (car windows) "elapsed-ms") 3)))
+    (assert-true
+     "adaptive execution JSON round-trips canonically"
+     (equal?
+      (parameterize ((write-json-sort-keys? #t))
+        (json-object->string object))
+      json-string))))
+
+(exercise-build-adaptive-execution-windows-observability)
 
 (def (exercise-control-plane)
   (let loop ((remaining 2000000) (sum 0))
