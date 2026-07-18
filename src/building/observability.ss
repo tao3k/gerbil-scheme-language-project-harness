@@ -294,6 +294,109 @@
       (build-adaptive-execution-window-json-objects
        execution-windows observations)))))
 
+(export build-adaptive-execution-window-diagnostics->json-object
+        build-adaptive-execution-window-diagnostics->json-string)
+
+(def (build-adaptive-execution-window-diagnostic-limit window-count)
+  (if (<= window-count 0)
+    0
+    (let loop ((remaining window-count)
+               (levels 0))
+      (if (<= remaining 1)
+        (max 1 levels)
+        (loop (quotient (+ remaining 1) 2)
+              (+ levels 1))))))
+
+(def (build-adaptive-execution-window-ranked-json-objects
+      windows
+      observations
+      (index 0))
+  (if (null? windows)
+    '()
+    (cons
+     (cons
+      (execution-window-observation-elapsed-ms (car observations))
+      (build-adaptive-execution-window->json-object
+       (car windows)
+       (car observations)
+       index))
+     (build-adaptive-execution-window-ranked-json-objects
+      (cdr windows)
+      (cdr observations)
+      (+ index 1)))))
+
+(def (build-adaptive-execution-window-ranked-take ranked limit)
+  (if (or (<= limit 0) (null? ranked))
+    '()
+    (cons (car ranked)
+          (build-adaptive-execution-window-ranked-take
+           (cdr ranked)
+           (- limit 1)))))
+
+(def (build-adaptive-execution-window-ranked-insert candidate selected limit)
+  (cond
+   ((<= limit 0) '())
+   ((null? selected) (list candidate))
+   ((> (car candidate) (caar selected))
+    (cons candidate
+          (build-adaptive-execution-window-ranked-take
+           selected
+           (- limit 1))))
+   (else
+    (cons (car selected)
+          (build-adaptive-execution-window-ranked-insert
+           candidate
+           (cdr selected)
+           (- limit 1))))))
+
+(def (build-adaptive-execution-window-select-slowest ranked limit)
+  (let loop ((remaining ranked)
+             (selected '()))
+    (if (null? remaining)
+      selected
+      (loop
+       (cdr remaining)
+       (build-adaptive-execution-window-ranked-insert
+        (car remaining)
+        selected
+        limit)))))
+
+(def (build-adaptive-execution-window-diagnostics->json-object result)
+  (unless (adaptive-execution-window-result? result)
+    (error "adaptive execution-window diagnostics require an adaptive result"
+           result))
+  (let* ((windows
+          (adaptive-execution-window-result-execution-windows result))
+         (observations
+          (adaptive-execution-window-result-window-observations result))
+         (window-count (length windows))
+         (selection-limit
+          (build-adaptive-execution-window-diagnostic-limit window-count)))
+    (unless (= window-count (length observations))
+      (error "adaptive execution-window diagnostics have mismatched observations"
+             window-count
+             (length observations)))
+    (let* ((ranked
+            (build-adaptive-execution-window-ranked-json-objects
+             windows
+             observations))
+           (slowest
+            (build-adaptive-execution-window-select-slowest
+             ranked
+             selection-limit)))
+      (hash
+       ("schema" "gslph.build-adaptive-execution-window-diagnostics.v1")
+       ("version" 1)
+       ("metric-scope" "build-adaptive-execution-window-diagnostics")
+       ("selection-policy" "ceil-log2-window-count")
+       ("attempted-window-count" window-count)
+       ("selected-window-count" (length slowest))
+       ("slowest-windows" (map cdr slowest))))))
+
+(def (build-adaptive-execution-window-diagnostics->json-string result)
+  (json-object->canonical-string
+   (build-adaptive-execution-window-diagnostics->json-object result)))
+
 (def (build-adaptive-execution-windows->json-string result)
   (json-object->canonical-string
    (build-adaptive-execution-windows->json-object result)))

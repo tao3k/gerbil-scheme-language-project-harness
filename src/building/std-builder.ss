@@ -50,8 +50,9 @@
         make-adaptive-execution-window-plan
         adaptive-execution-window-plan?
         adaptive-execution-window-plan-topology-groups
-        adaptive-execution-window-plan-controller
-        adaptive-execution-window-result?
+  adaptive-execution-window-plan-controller
+  make-adaptive-execution-window-result
+  adaptive-execution-window-result?
         adaptive-execution-window-result-topology-groups
         adaptive-execution-window-result-execution-windows
         adaptive-execution-window-result-window-observations

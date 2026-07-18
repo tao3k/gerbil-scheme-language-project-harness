@@ -140,7 +140,56 @@
         (json-object->string object))
       json-string))))
 
+(def (exercise-build-adaptive-execution-window-diagnostics)
+  (let* ((controller
+          (make-observability-test-execution-window-controller))
+         (windows
+          '(("fast-a.ss" "fast-b.ss")
+            ("slow-a.ss" "slow-b.ss")
+            ("middle.ss")))
+         (observations
+          (@list
+           (make-execution-window-observation
+            'fast 'completed 512 768 4096 3)
+           (make-execution-window-observation
+            'slow 'completed 512 2048 4096 12)
+           (make-execution-window-observation
+            'middle 'completed 512 1024 4096 7)))
+         (result
+          (make-adaptive-execution-window-result
+           windows
+           windows
+           observations
+           controller))
+         (object
+          (build-adaptive-execution-window-diagnostics->json-object result))
+         (slowest (hash-get object "slowest-windows")))
+    (assert-true
+     "adaptive diagnostics schema is distinct"
+     (equal?
+      (hash-get object "schema")
+      "gslph.build-adaptive-execution-window-diagnostics.v1"))
+    (assert-true
+     "adaptive diagnostics select a logarithmic candidate frontier"
+     (and
+      (equal? (hash-get object "selection-policy")
+              "ceil-log2-window-count")
+      (= (hash-get object "attempted-window-count") 3)
+      (= (hash-get object "selected-window-count") 2)
+      (= (length slowest) 2)))
+    (assert-true
+     "adaptive diagnostics rank slowest windows by elapsed time"
+     (equal?
+      (map (lambda (window) (hash-get window "elapsed-ms")) slowest)
+      '(12 7)))
+    (assert-true
+     "adaptive diagnostics preserve slow-window source identities"
+     (equal?
+      (hash-get (car slowest) "specs")
+      '("slow-a.ss" "slow-b.ss")))))
+
 (exercise-build-adaptive-execution-windows-observability)
+(exercise-build-adaptive-execution-window-diagnostics)
 
 (def (exercise-control-plane)
   (let loop ((remaining 2000000) (sum 0))
