@@ -14,4 +14,4 @@
              "src/cli-dev-linker.ss"
              "src/cli-release-linker.ss"
              "src/cli-install-linker.ss"))
- parallelize: 0)
+  parallelize: #t)
