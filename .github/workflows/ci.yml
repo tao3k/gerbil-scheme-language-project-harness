@@ -232,7 +232,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          .bin/gslph search prime --json . \
+          .bin/gslph search prime --view seeds --json --workspace . \
             | jq -e '
             .projectPackage.fields.packageManager == "gxpkg" and
             .extensions[0].name == "poo" and

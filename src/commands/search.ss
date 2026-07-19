@@ -75,10 +75,15 @@
     (emit-pattern-search (collect-project-package-only root) args json?))
    ((equal? view "workspace-scope")
     (emit-workspace-scope root json?))
-   ((and (equal? view "prime")
-         (prime-seeds-view? args)
-         (not json?))
-    (emit-prime-light root))
+    ((and (equal? view "prime")
+          (prime-seeds-view? args))
+     (if json?
+       (begin
+         (write-json-line
+          (search-prime-packet-json
+           (collect-project-package-only root)))
+         0)
+       (emit-prime-light root)))
    ((equal? view "extension")
     (emit-extension-search (collect-project-package-only root) args json?))
    (else #f)))
