@@ -1,7 +1,11 @@
+;;; Component closures are GSLPH-owned build metadata: declared public entry
+;;; modules expand to a deterministic, checked internal import/include graph.
+;;; Downstream build systems consume the receipt and never reimplement parsing.
+
 (import :gerbil/expander
         (only-in :std/misc/path path-directory path-expand path-normalize)
         (only-in :std/sort sort)
-        (only-in :std/srfi/1 filter-map)
+        (only-in :std/srfi/1 filter-map fold)
         (only-in :std/srfi/13 string-index string-prefix? string-suffix?)
         (only-in :std/sugar
                  hash
@@ -31,32 +35,38 @@
      "src/building/std-builder.ss"
      "src/policy/gxtest.ss")))
 
+;; : (-> (U Symbol String) ComponentName)
 (def (component-name->symbol name)
   (cond
    ((symbol? name) name)
    ((string? name) (string->symbol name))
    (else (error "invalid GSLPH component name" name))))
 
+;; : (-> (List ComponentName))
 (def (gslph-component-names)
   (map car +gslph-component-entry-files+))
 
+;; : (-> ComponentName (List SourcePath))
 (def (gslph-component-entry-files name)
   (let* ((component (component-name->symbol name))
          (entry (assq component +gslph-component-entry-files+)))
     (or (and entry (cdr entry))
         (error "unknown GSLPH component" component))))
 
+;; : (-> ModuleReference ModuleReference)
 (def (module-ref-without-fragment module-ref)
   (let (fragment-index (string-index module-ref #\#))
     (if fragment-index
       (substring module-ref 0 fragment-index)
       module-ref)))
 
+;; : (-> SourcePath SourcePath)
 (def (source-path-with-extension path)
   (if (string-suffix? ".ss" path)
     path
     (string-append path ".ss")))
 
+;; : (-> PackageRoot AbsolutePath SourcePath)
 (def (root-relative-path root path)
   (let* ((absolute-root (path-normalize root))
          (absolute-path (path-normalize path))
@@ -70,6 +80,7 @@
       (error "GSLPH component dependency escapes the package root"
              absolute-path absolute-root))))
 
+;; : (-> PackageRoot SourcePath ModuleReference Boolean SourcePath)
 (def (relative-source-path root importer module-ref
                            add-extension?: (add-extension? #t))
   (let* ((module-path (module-ref-without-fragment module-ref))
@@ -80,6 +91,9 @@
                        (path-directory (path-expand importer root)))))
     (root-relative-path root resolved-path)))
 
+;;; Boundary: package-qualified GSLPH and relative imports enter the component
+;;; graph; external modules remain declared Gerbil package dependencies.
+;; : (-> PackageRoot SourcePath ModuleReference (Maybe SourcePath))
 (def (gslph-internal-module-source-file root importer module-ref)
   (let (module-path (module-ref-without-fragment module-ref))
     (cond
@@ -91,6 +105,8 @@
      ((string-prefix? ":" module-path) #f)
      (else (relative-source-path root importer module-path)))))
 
+;; : (forall (form) (-> PackageRoot SourcePath form (List SourcePath)))
+;; : (-> PackageRoot SourcePath Syntax (List SourcePath))
 (def (include-source-files root importer form)
   (let (datum (syntax->datum form))
     (if (and (pair? datum) (eq? (car datum) 'include))
@@ -101,6 +117,8 @@
            (cdr datum))
       '())))
 
+;; : (forall (form) (-> PackageRoot SourcePath form (List SourcePath)))
+;; : (-> PackageRoot SourcePath Syntax (List SourcePath))
 (def (source-form-dependencies root source form)
   (cond
    ((and (stx-pair? form) (eq? (stx-e (stx-car form)) 'import))
@@ -113,6 +131,7 @@
     (include-source-files root source form))
    (else '())))
 
+;; : (-> PackageRoot SourcePath (List SourcePath))
 (def (source-dependencies root source)
   (call-with-input-file
    (path-expand source root)
@@ -120,10 +139,17 @@
      (let loop ((dependencies '()))
        (let (form (read-syntax port))
          (if (eof-object? form)
-           (reverse dependencies)
-           (loop (append (reverse (source-form-dependencies root source form))
-                         dependencies))))))))
+           dependencies
+           (loop (fold cons dependencies
+                       (source-form-dependencies root source form)))))))))
 
+;;; Invariant: a source is emitted once, every dependency is visited first, and
+;;; a back-edge is rejected with its cycle path instead of being silently cut.
+;;; Optimization boundary: traversal-local tables preserve a value-oriented
+;;; public API while making closure discovery O(V+E) and reading shared imports
+;;; only once.
+;; : (forall (path) (-> path (List path) (List path)))
+;; : (-> PackageRoot (List SourcePath) (List SourcePath))
 (def (gslph-component-closure root entries)
   (let ((visited (make-hash-table))
         (visiting (make-hash-table))
@@ -154,10 +180,14 @@
     (for-each (lambda (entry) (visit entry '())) entries)
     (reverse ordered)))
 
+;; : (-> ComponentName PackageRoot (List SourcePath))
 (def (gslph-component-source-files name root: (root (current-directory)))
   (sort (gslph-component-closure root (gslph-component-entry-files name))
         string<?))
 
+;;; Intent: the sorted receipt is the deterministic analysis boundary consumed
+;;; by downstream build systems; declared entry roots remain separately visible.
+;; : (-> ComponentName PackageRoot ComponentClosureReceipt)
 (def (gslph-component-receipt name root: (root (current-directory)))
   (let* ((component (component-name->symbol name))
          (entries (gslph-component-entry-files component))
@@ -180,6 +210,7 @@
      (strictSubset strict-subset?)
      (supportFiles +gslph-component-support-files+))))
 
+;; : (-> ComponentName PackageRoot Void)
 (def (write-gslph-component-receipt name root: (root (current-directory)))
   (write-json (gslph-component-receipt name root: root))
   (newline))

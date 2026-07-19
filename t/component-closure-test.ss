@@ -1,5 +1,6 @@
 (import :std/test
         (only-in :std/sugar hash-get with-catch)
+        (only-in :std/text/json read-json)
         :gslph/src/build-api/component-closure)
 
 (export component-closure-test)
@@ -29,4 +30,14 @@
              (lambda ()
                (gslph-component-entry-files 'missing-component)
                #f))
-            => #t))))
+            => #t))
+
+   (test-case "checked poo-flow manifest matches the generated closure"
+     (let ((generated (gslph-component-receipt 'poo-flow))
+           (checked (call-with-input-file "components/poo-flow.json" read-json)))
+       (for-each
+        (lambda (field)
+          (check (hash-get checked (symbol->string field))
+                 => (hash-get generated field)))
+        '(schema outcome component entryFiles supportFiles sourceFiles
+                 sourceCount fullSourceCount strictSubset))))))
