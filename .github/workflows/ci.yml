@@ -179,7 +179,7 @@ jobs:
           key: gerbil-pkg-${{ runner.os }}-${{ runner.arch }}-${{ matrix.gerbil-label }}-${{ matrix.gerbil-ref }}-${{ hashFiles('gerbil.pkg') }}
 
       - name: Run Gerbil test suites
-        run: gxpkg env ./build.ss test
+        run: gxpkg env gxi ./src/build-api/project-cli.ss test
 
       - name: Build canonical gslph binary
         if: runner.os == 'Linux'
