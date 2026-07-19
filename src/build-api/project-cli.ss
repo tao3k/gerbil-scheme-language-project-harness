@@ -50,13 +50,13 @@
   [(rest-arguments 'components
                    help: "Named component")])
 
-(define-entry-point (compile (verbose #f)
-                             (debug #f)
-                             (no-optimize #f)
-                             (optimized #f)
-                             (release #f)
-                             (binary #f)
-                             (full #f))
+(define-entry-point (compile verbose: (verbose #f)
+                             debug: (debug #f)
+                             no-optimize: (no-optimize #f)
+                             optimized: (optimized #f)
+                             release: (release #f)
+                             binary: (binary #f)
+                             full: (full #f))
   (help: "Compile the package"
    getopt: compile-getopt)
   (project-compile-target
