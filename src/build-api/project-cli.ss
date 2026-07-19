@@ -3,9 +3,11 @@
 (import :gerbil/tools/env
         :std/cli/getopt
  :std/cli/multicall
- :gslph/src/build-api/project-build
- :gslph/src/testing/project-build
- :gslph/src/build-api/source-coverage)
+  :gslph/src/build-api/project-build
+  :gslph/src/testing/project-build
+  :gslph/src/build-api/source-coverage)
+
+(import :gslph/src/build-api/component-closure)
 
 (def +package-root+ (current-directory))
 
@@ -43,6 +45,10 @@
 (def test-file-getopt
   [(rest-arguments 'files
                    help: "Selected gxtest files")])
+
+(def component-spec-getopt
+  [(rest-arguments 'components
+                   help: "Named component")])
 
 (define-entry-point (compile (verbose #f)
                              (debug #f)
@@ -91,5 +97,12 @@
   (help: "Run every top-level gxtest file"
    getopt: [])
   (project-test-full-target))
+
+(define-entry-point (component-spec . components)
+  (help: "Write a checked component source-closure receipt"
+   getopt: component-spec-getopt)
+  (match components
+    ([component] (write-gslph-component-receipt component))
+    (else (error "component-spec requires exactly one component" components))))
 
 (define-multicall-main)

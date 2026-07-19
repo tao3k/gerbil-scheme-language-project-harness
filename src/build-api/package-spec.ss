@@ -177,7 +177,8 @@
 ;; Native build interfaces must precede directory-wide parallel compilation.
 ;; : (List (List Path))
 (def +gslph-package-api-build-api-stages+
-  '(("build-api/artifact-cleanup.ss")
+  '(("build-api/artifact-cleanup.ss"
+     "build-api/component-closure.ss")
     ("build-api/native-build.ss")
     ("build-api/framework.ss")))
 
