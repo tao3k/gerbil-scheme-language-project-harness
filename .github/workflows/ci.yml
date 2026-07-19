@@ -186,12 +186,16 @@ jobs:
       - name: Build canonical gslph binary
         if: runner.os == 'Linux'
         shell: bash
+        env:
+          GERBIL_LOADPATH: ${{ github.workspace }}/.gerbil/pkg
         run: |
           set -euo pipefail
           build_cores() {
             nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2
           }
-          GERBIL_BUILD_CORES="$(build_cores)" gxpkg env ./build.ss compile --release --optimized
+          GERBIL_BUILD_CORES="$(build_cores)" \
+            gxpkg env gxi ./src/build-api/project-cli.ss \
+              compile --release --optimized --binary
           test -x .bin/gslph
 
       - name: Smoke canonical search subcommands
