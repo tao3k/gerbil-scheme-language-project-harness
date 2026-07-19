@@ -33,6 +33,7 @@
      "src/build-api/source-coverage.ss"
      "src/building/observability.ss"
      "src/building/std-builder.ss"
+     "src/extensions/poo-object-validation.ss"
      "src/policy/gxtest.ss"
      "src/testing/build.ss")))
 

@@ -7,6 +7,7 @@
     "src/build-api/source-coverage.ss",
     "src/building/observability.ss",
     "src/building/std-builder.ss",
+    "src/extensions/poo-object-validation.ss",
     "src/policy/gxtest.ss",
     "src/testing/build.ss"
   ],
@@ -22,9 +23,11 @@
     "src/building/observability.ss",
     "src/building/std-builder.ss",
     "src/constants.ss",
+    "src/extensions/poo-object-validation.ss",
     "src/extensions/poo-pattern-support.ss",
     "src/extensions/poo-pattern-typeclass.ss",
     "src/extensions/poo-patterns.ss",
+    "src/extensions/poo-source-ref-validation.ss",
     "src/parser/comment-quality-classifier.ss",
     "src/parser/comment-quality.ss",
     "src/parser/control-flow.ss",
@@ -134,7 +137,7 @@
     "build.ss",
     "gerbil.pkg"
   ],
-  "sourceCount": 118,
+  "sourceCount": 120,
   "fullSourceCount": 227,
   "strictSubset": true
 }

@@ -16,7 +16,8 @@
     (check (gslph-component-source-files "poo-flow") => sources)
     (check (andmap (lambda (entry) (member entry sources)) entries) => #t)
     (check (andmap (lambda (required) (member required entries))
-                   '("src/testing/build.ss"))
+                   '("src/extensions/poo-object-validation.ss"
+                     "src/testing/build.ss"))
            => #t)
     (check (hash-get receipt 'schema)
               => "gslph.component-source-closure.v1")
