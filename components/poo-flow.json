@@ -7,9 +7,12 @@
     "src/build-api/source-coverage.ss",
     "src/building/observability.ss",
     "src/building/std-builder.ss",
-    "src/policy/gxtest.ss"
+    "src/policy/gxtest.ss",
+    "src/testing/build.ss"
   ],
   "sourceFiles": [
+    "src/benchmark/framework.ss",
+    "src/benchmark/gate.ss",
     "src/build-api/framework.ss",
     "src/build-api/source-coverage.ss",
     "src/building/commands.ss",
@@ -103,6 +106,16 @@
     "src/policy/prototype.ss",
     "src/policy/repair.ss",
     "src/support/time.ss",
+    "src/testing/batch.ss",
+    "src/testing/build-paths.ss",
+    "src/testing/build.ss",
+    "src/testing/commands.ss",
+    "src/testing/framework.ss",
+    "src/testing/model.ss",
+    "src/testing/performance.ss",
+    "src/testing/scenario.ss",
+    "src/testing/scope.ss",
+    "src/testing/selection.ss",
     "src/types/core.ss",
     "src/types/env.ss",
     "src/types/facade.ss",
@@ -121,7 +134,7 @@
     "build.ss",
     "gerbil.pkg"
   ],
-  "sourceCount": 106,
+  "sourceCount": 118,
   "fullSourceCount": 227,
   "strictSubset": true
 }

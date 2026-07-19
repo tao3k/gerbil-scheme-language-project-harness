@@ -2,6 +2,8 @@
 
 # Generated from poo-flow.json. The JSON manifest remains the semantic owner.
 POO_FLOW_COMPONENT_SOURCES = [
+    "src/benchmark/framework.ss",
+    "src/benchmark/gate.ss",
     "src/build-api/framework.ss",
     "src/build-api/source-coverage.ss",
     "src/building/commands.ss",
@@ -95,6 +97,16 @@ POO_FLOW_COMPONENT_SOURCES = [
     "src/policy/prototype.ss",
     "src/policy/repair.ss",
     "src/support/time.ss",
+    "src/testing/batch.ss",
+    "src/testing/build-paths.ss",
+    "src/testing/build.ss",
+    "src/testing/commands.ss",
+    "src/testing/framework.ss",
+    "src/testing/model.ss",
+    "src/testing/performance.ss",
+    "src/testing/scenario.ss",
+    "src/testing/scope.ss",
+    "src/testing/selection.ss",
     "src/types/core.ss",
     "src/types/env.ss",
     "src/types/facade.ss",

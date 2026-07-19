@@ -33,7 +33,8 @@
      "src/build-api/source-coverage.ss"
      "src/building/observability.ss"
      "src/building/std-builder.ss"
-     "src/policy/gxtest.ss")))
+     "src/policy/gxtest.ss"
+     "src/testing/build.ss")))
 
 ;; : (-> (U Symbol String) ComponentName)
 (def (component-name->symbol name)
