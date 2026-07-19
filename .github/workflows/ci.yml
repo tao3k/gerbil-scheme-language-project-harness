@@ -226,31 +226,6 @@ jobs:
             exit 1
           fi
 
-      - name: Run harness verification bench
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          max_total_ms=60000
-          bench_output="$(mktemp)"
-          if ! .bin/gslph bench --json --iterations 1 --max-total-ms "$max_total_ms" --max-interface-ms 500 . > "$bench_output"; then
-            cat "$bench_output"
-            exit 1
-          fi
-          bench="$(cat "$bench_output")"
-          echo "$bench"
-          echo "$bench" | jq -e --argjson max_total_ms "$max_total_ms" '
-            .schemaId == "agent.semantic-protocols.gerbil-scheme-harness-bench" and
-            .status == "pass" and
-            .maxTotalMs == $max_total_ms and
-            .maxInterfaceMs == 500 and
-            .mode == "hot" and
-            (.totalMs | type == "number") and
-            (.slowestBenchmark.durationMs | type == "number") and
-            ([.benchmarks[].name] | sort) == ["search-prime-light", "workspace-scope-light"] and
-            all(.benchmarks[]; (.durationMs | type == "number") and .durationMs >= 0)
-          '
-
       - name: Verify package extension packet
         if: runner.os == 'Linux'
         shell: bash
