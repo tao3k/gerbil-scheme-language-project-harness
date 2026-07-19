@@ -1,15 +1,7 @@
-{
-  "schema": "gslph.component-source-closure.v1",
-  "component": "poo-flow",
-  "outcome": "valid",
-  "entryFiles": [
-    "src/build-api/framework.ss",
-    "src/build-api/source-coverage.ss",
-    "src/building/observability.ss",
-    "src/building/std-builder.ss",
-    "src/policy/gxtest.ss"
-  ],
-  "sourceFiles": [
+"""Bazel projection of the checked POO Flow component source closure."""
+
+# Generated from poo-flow.json. The JSON manifest remains the semantic owner.
+POO_FLOW_COMPONENT_SOURCES = [
     "src/build-api/framework.ss",
     "src/build-api/source-coverage.ss",
     "src/building/commands.ss",
@@ -115,13 +107,5 @@
     "src/utilities/contract-syntax.ss",
     "src/utilities/contracts.ss",
     "src/utilities/functional.ss",
-    "src/utilities/projection.ss"
-  ],
-  "supportFiles": [
-    "build.ss",
-    "gerbil.pkg"
-  ],
-  "sourceCount": 106,
-  "fullSourceCount": 227,
-  "strictSubset": true
-}
+    "src/utilities/projection.ss",
+]

@@ -54,7 +54,10 @@
 
 ;; : (-> Symbol Boolean )
 (def (module-ref-symbol? symbol)
-  (string-prefix? ":" (symbol->string symbol)))
+  (let (module-ref (symbol->string symbol))
+    (or (string-prefix? ":" module-ref)
+        (string-prefix? "./" module-ref)
+        (string-prefix? "../" module-ref))))
 
 ;; : (-> Datum ImportModifier )
 (def (import-modifier datum)
