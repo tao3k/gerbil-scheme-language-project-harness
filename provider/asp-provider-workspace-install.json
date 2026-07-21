@@ -1,0 +1,40 @@
+{
+  "schemaId": "agent.semantic-protocols.provider-workspace-install",
+  "schemaVersion": "1",
+  "schemaAuthority": "https://tao3k.github.io/agent-semantic-protocols/schemas/",
+  "providerId": "gerbil-scheme-harness",
+  "binary": "gslph",
+  "workspaceArtifact": {
+    "root": "languages/gerbil-scheme-language-project-harness/build/workspace-provider",
+    "entrypoint": "bin/gslph",
+    "launch": {
+      "program": "bin/gslph",
+      "args": [],
+      "programRelativeToArtifact": true,
+      "argsRelativeToArtifact": true
+    }
+  },
+  "workspaceBuild": {
+    "program": "gxi",
+    "args": [
+      "provider/workspace-build.ss"
+    ],
+    "workingDirectory": "languages/gerbil-scheme-language-project-harness",
+    "derivedPaths": [
+      "languages/gerbil-scheme-language-project-harness/build/workspace-provider"
+    ],
+    "env": {
+      "CC": "/usr/bin/clang",
+      "CFLAGS": "",
+      "CPATH": "",
+      "CPPFLAGS": "",
+      "CPLUS_INCLUDE_PATH": "",
+      "C_INCLUDE_PATH": "",
+      "DEVELOPER_DIR": "",
+      "GERBIL_BUILD_CORES": "1",
+      "GERBIL_LOADPATH": "",
+      "GERBIL_PATH": "build/workspace-provider",
+      "SDKROOT": ""
+    }
+  }
+}

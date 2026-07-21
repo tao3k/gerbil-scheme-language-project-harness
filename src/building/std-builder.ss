@@ -511,8 +511,8 @@
 (def (package-source-stage-request-specs/default stage)
   (let (specs (package-source-stage-specs stage))
     (cond
-     ((eq? (package-source-stage-batched? stage) 'topology)
-      (package-source-stage-topology-request-specs stage))
+      ((eq? (package-source-stage-batched? stage) 'topology)
+       (package-source-stage-topology-request-spec-groups stage))
      ((package-source-stage-batched? stage)
       (list specs))
      (else
@@ -660,7 +660,9 @@
    ((and (string? reference) (string-prefix? "." reference))
     (let* ((root (path-normalize (package-source-stage-source stage)))
            (directory (path-expand (path-directory owner) root))
-           (absolute (path-normalize (path-expand reference directory))))
+             (absolute (path-normalize
+                         (path-expand (package-source-module-path reference)
+                                      directory))))
       (package-source-module-path
        (substring absolute
                   (+ (string-length root)

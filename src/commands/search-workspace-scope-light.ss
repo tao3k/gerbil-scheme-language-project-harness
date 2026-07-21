@@ -21,7 +21,8 @@
         (only-in :std/srfi/1 filter)
         (only-in :std/srfi/13 string-join))
 
-(export search-workspace-scope-light-main)
+(export search-workspace-scope-light-main
+        workspace-scope-preview-files-light)
 
 ;; ConfigConstant
 (def +workspace-scope-source-extensions+ '(".ss" ".ssi" ".scm" ".sld"))

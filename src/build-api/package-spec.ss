@@ -183,7 +183,7 @@
     ("build-api/framework.ss")))
 
 (def +gslph-package-api-directories+
-  '("utilities" "types" "parser" "policy" "extensions" "language" "format" "commands"))
+  '("utilities" "types" "parser" "policy" "protocol" "extensions" "language" "format" "commands"))
 
 ;; : (List (List Path))
 (def +gslph-package-api-launcher-stages+

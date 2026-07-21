@@ -101,18 +101,24 @@
                   (not (string-contains message "\"selectorAliases\":[]")))
                  => #t)
           (check (string-contains message "\"code\"") => #f))))
-    (test-case "selector query accepts parser item symbol selectors"
+    (test-case "selector query rejects ownerless symbols before workspace collection"
       (let (result (query-output ["--selector"
                                   "selector-from"
                                   "--workspace"
                                   "."
                                   "--code"]))
-        (check (query-result-exit-code result) => 0)
+        (check (query-result-exit-code result) => 2)
         (check (not
                 (not
                  (string-contains
                   (query-result-output result)
-                  "(def (selector-from path-accessor start-accessor end-accessor fact)")))
+                  "reason=ownerless-symbol-selector")))
+               => #t)
+        (check (not
+                (not
+                 (string-contains
+                  (query-result-output result)
+                  "asp gerbil-scheme search symbol <symbol>")))
                => #t)))
     (test-case "native provider selector content returns without Gerbil runtime cold path"
       (if (native-provider-binary-available?)
