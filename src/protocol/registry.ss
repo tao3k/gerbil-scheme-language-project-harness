@@ -3,6 +3,7 @@
 
 (import :gslph/src/constants
         :gslph/src/parser/facade
+        (only-in :gslph/src/protocol/command-catalog provider-registry-methods)
         (only-in :std/sugar hash))
 
 (export language-registry)
@@ -25,12 +26,7 @@
       (namespace "agent.semantic-protocols.languages.gerbil-scheme.gerbil-scheme-harness")
       (displayName +display-name+)
       (packageRoots [root])
-      (methods ["search/prime" "search/owner" "search/lexical" "search/ingest"
-                "search/pattern" "search/runtime-source" "search/compare"
-                "search/proof" "search/compiler-evidence"
-                "index/structural" "index/native-syntax-owner-facts"
-                "query/selector" "check/changed" "guide" "info"
-                "evidence/graph" "evidence/analyze"])
+      (methods (provider-registry-methods))
       (schemas [(hash (schemaId "agent.semantic-protocols.semantic-extension-pattern-mapping")
                       (schemaVersion "1")
                       (path "schemas/semantic-extension-pattern-mapping.v1.schema.json"))

@@ -433,21 +433,19 @@
            (lambda ()
              (let (status (package-api-build-receipt-status))
                (display-package-api-build-receipt-status status)
-               (if (and (not force?) (package-api-build-current? status))
-                 status
-                 (let (request
-                       (make-package-build-request
-                        "package-api"
-                        source-root
-                        (source-output-prefix)
-                        (gslph-package-api-stage-specs)
-                        (lambda (_spec _context)
-                          (and (not force?)
-                               (package-api-stage-current? _spec)))
-                        'package-api))
-                   (write-package-api-build-receipt!
-                    (build-request-run! request))
-                   (package-api-build-receipt-status)))))))
+               (let (request
+                     (make-package-build-request
+                      "package-api"
+                      source-root
+                      (source-output-prefix)
+                      (gslph-package-api-stage-specs)
+                      (lambda (_spec _context)
+                        (and (not force?)
+                             (package-api-stage-current? _spec)))
+                      'package-api))
+                 (write-package-api-build-receipt!
+                  (build-request-run! request))
+                 (package-api-build-receipt-status))))))
       (display-build-progress verbose "package-api/complete" started-jiffy)
       result)))
 

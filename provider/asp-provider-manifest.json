@@ -11,40 +11,72 @@
   "binary": "gslph",
   "execution": "external-process",
   "source": {
-    "defaultExtensions": [
-      ".ss",
-      ".ssi",
-      ".scm",
-      ".sld"
-    ],
-    "defaultConfigFiles": [
-      "gerbil.pkg",
-      "build.ss"
-    ],
-    "defaultSourceRoots": [
-      "src",
-      "test",
-      "tests",
-      "doc",
-      "docs",
-      "examples",
-      "tutorial"
-    ],
-    "defaultScopeIncludedDirs": [
-      "src",
-      "test",
-      "tests",
-      "doc",
-      "docs",
-      "examples",
-      "tutorial"
-    ],
+    "defaultExtensions": [".ss", ".ssi", ".scm", ".sld"],
+    "defaultConfigFiles": ["gerbil.pkg", "build.ss"],
+    "defaultSourceRoots": ["src", "test", "tests", "doc", "docs", "examples", "tutorial"],
     "defaultIgnoredPathPrefixes": [],
-    "defaultProjectMarkers": [
-      "gerbil.pkg"
-    ],
-    "defaultDependencyMarkers": [
-      "gerbil.pkg"
+    "defaultProjectMarkers": ["gerbil.pkg"],
+    "defaultDependencyMarkers": ["gerbil.pkg"]
+  },
+  "searchCapabilities": {
+    "ownerItems": true,
+    "semanticFacts": false,
+    "dependencyTopology": false,
+    "dependencyTopologyMetadata": false,
+    "workspaceScope": true,
+    "sourceSnapshot": {
+      "descriptorId": "gerbil-scheme.source-snapshot",
+      "descriptorVersion": "1",
+      "languageId": "gerbil-scheme",
+      "packetSchemaId": "asp.source-snapshot.v1",
+      "exactSourcePacketSchemaId": "asp.exact-source-query-result.v1",
+      "sourceSnapshotEnvelopeSchemaId": "asp.exact-source-snapshot-envelope.v1",
+      "derivedArtifactEvidenceSchemaId": "asp.derived-source-artifact-evidence.v1",
+      "algorithm": "blake3-merkle-v1",
+      "authority": "live-parser",
+      "exactSelectorResolution": "pinned-live-module-graph",
+      "overlayMode": "merkle-delta"
+    }
+  },
+  "queryPackDescriptor": {
+    "descriptorId": "gerbil-scheme.query-pack",
+    "descriptorVersion": "1",
+    "languageId": "gerbil-scheme",
+    "termRoleOverrides": [],
+    "recipes": [
+      {
+        "recipeId": "gerbil-fiber-runtime",
+        "trigger": {"terms": ["fiber", "thread", "scheduling"], "match": "any"},
+        "clauses": [
+          {
+            "terms": ["fiber", "thread", "scheduling"],
+            "roles": ["concept"],
+            "intentAxes": []
+          }
+        ]
+      },
+      {
+        "recipeId": "gerbil-dynamic-wind-lifecycle",
+        "trigger": {"terms": ["dynamic-wind", "resource", "lifecycle"], "match": "any"},
+        "clauses": [
+          {
+            "terms": ["dynamic-wind", "resource", "lifecycle"],
+            "roles": ["symbol", "concept"],
+            "intentAxes": []
+          }
+        ]
+      },
+      {
+        "recipeId": "gerbil-channel-stream",
+        "trigger": {"terms": ["channel", "stream", "backpressure"], "match": "any"},
+        "clauses": [
+          {
+            "terms": ["channel", "stream", "backpressure"],
+            "roles": ["concept"],
+            "intentAxes": []
+          }
+        ]
+      }
     ]
   },
   "policy": {
@@ -53,88 +85,13 @@
     "rawSourceSearch": "block",
     "agentSearchJson": "block"
   },
-  "searchCapabilities": {
-    "ownerItems": true
-  },
-  "routes": {
-    "guide": {
-      "argv": [
-        "gslph",
-        "agent",
-        "guide",
-        "."
-      ]
-    },
-    "prime": {
-      "argv": [
-        "gslph",
-        "search",
-        "prime",
-        "--workspace",
-        ".",
-        "--view",
-        "seeds"
-      ]
-    },
-    "owner": {
-      "argv": [
-        "gslph",
-        "search",
-        "owner",
-        "{path}",
-        "--workspace",
-        ".",
-        "--view",
-        "seeds"
-      ]
-    },
-    "query": {
-      "argv": [
-        "gslph",
-        "query",
-        "{path}",
-        "--term",
-        "{query}",
-        "--workspace",
-        ".",
-        "--names-only"
-      ]
-    },
-    "lexical": {
-      "argv": [
-        "gslph",
-        "search",
-        "lexical",
-        "{query}",
-        "owner",
-        "tests",
-        "--workspace",
-        ".",
-        "--view",
-        "seeds"
-      ]
-    },
-    "ingest": {
-      "argv": [
-        "gslph",
-        "search",
-        "ingest",
-        "owner",
-        "tests",
-        "--workspace",
-        ".",
-        "--view",
-        "seeds"
-      ],
-      "stdinMode": "pipe-candidates"
-    },
-    "checkChanged": {
-      "argv": [
-        "gslph",
-        "check",
-        "--changed",
-        "."
-      ]
-    }
+  "routeBindings": {
+    "prime": "search/prime",
+    "owner": "search/owner",
+    "lexical": "search/lexical",
+    "query": "query/direct-source-read",
+    "ingest": "search/ingest",
+    "checkChanged": "check/changed",
+    "guide": "guide"
   }
 }

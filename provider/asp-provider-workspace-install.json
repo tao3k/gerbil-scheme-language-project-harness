@@ -1,0 +1,32 @@
+{
+  "schemaId": "agent.semantic-protocols.provider-workspace-install",
+  "schemaVersion": "1",
+  "schemaAuthority": "https://tao3k.github.io/agent-semantic-protocols/schemas/",
+  "providerId": "gerbil-scheme-harness",
+  "binary": "gslph",
+  "workspaceArtifact": {
+    "root": "languages/gerbil-scheme-language-project-harness/target/asp-home/.local/bin/gslph",
+    "entrypoint": "."
+  },
+  "workspaceBuild": {
+    "program": "gxi",
+    "args": [
+      "-e",
+      "(import :gslph/src/build-api/native-build)",
+      "-e",
+      "(install-target #f #f #f #f #f #t)"
+    ],
+    "workingDirectory": "languages/gerbil-scheme-language-project-harness",
+    "sourceSnapshotAnchors": [
+      "languages/gerbil-scheme-language-project-harness/gerbil.pkg",
+      "languages/gerbil-scheme-language-project-harness/manifest.ss",
+      "languages/gerbil-scheme-language-project-harness/build.ss"
+    ],
+    "derivedPaths": [
+      "languages/gerbil-scheme-language-project-harness/target"
+    ],
+    "env": {
+      "HOME": "${ASP_WORKSPACE_ROOT}/languages/gerbil-scheme-language-project-harness/target/asp-home"
+    }
+  }
+}

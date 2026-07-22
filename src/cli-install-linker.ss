@@ -2,17 +2,27 @@
 ;;; Installed executable root for gslph.
 
 (import :gerbil/gambit
-        :std/misc/path)
+        (only-in :std/misc/path path-directory path-expand path-normalize))
 (export main)
 
 ;;; Install binary boundary:
 ;;; - The installed executable is the native command boundary.
 ;;; - Cold command implementations are dynamically loaded after argv selects
-;;;   them; launcher load paths provide Gerbil stdlib and package modules.
+;;;   them from the sibling library directory inside the CAS artifact.
+
+;; : (-> Path)
+(def (artifact-library-directory)
+  (let (argv (command-line))
+    (unless (pair? argv)
+      (error "missing executable path"))
+    (path-normalize
+     (path-expand "../lib"
+                  (path-directory
+                   (path-expand (car argv) (current-directory)))))))
 
 ;; : (-> Args Integer)
 (def (main . args)
-  (add-load-path! (path-expand ".gerbil/lib" (current-directory)))
+  (add-load-path! (artifact-library-directory))
   (##global-var-set! (##make-global-var 'load-module) load-module)
   (load-module "gslph/src/cli-launcher")
   (let (launcher-main (eval 'gslph/src/cli-launcher#main))

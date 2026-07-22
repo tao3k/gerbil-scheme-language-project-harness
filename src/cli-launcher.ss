@@ -2,10 +2,14 @@
 ;;; Native launcher for per-command Gerbil Scheme harness executables.
 
 (import :gerbil/gambit
+  :gslph/src/protocol/command-catalog
         (only-in :gslph/src/constants +help+)
+        (only-in :gslph/src/protocol/command-catalog
+                 provider-dynamic-command-dispatch
+                 provider-recognized-command-names)
         (only-in :gslph/src/search-light-launcher try-search-light-main)
         (only-in :std/misc/path path-expand)
-        (only-in :std/misc/ports read-all-as-string read-file-lines)
+        (only-in :std/misc/ports read-all-as-string)
         (only-in :std/srfi/13 string-contains string-index string-index-right string-prefix?)
         (only-in :std/sugar foldl))
 (export main
@@ -18,24 +22,12 @@
 ;;;   in-process so an installed harness is one native executable.
 
 ;; : (List String)
-(def +commands+
-  '("search" "query" "projection" "fmt" "evidence" "agent" "guide" "info"
-    "help" "-h" "--help"))
-
-;; : (List String)
 (def +launcher-names+
   '("gxi" "gslph"))
 
-;; : (List CommandDispatch)
-(def +dynamic-command-dispatch+
-  '(("search" "gslph/src/commands/search" gslph/src/commands/search#search-main)
-    ("query" "gslph/src/commands/query" gslph/src/commands/query#query-main)
-    ("projection" "gslph/src/commands/projection" gslph/src/commands/projection#projection-main)
-    ("fmt" "gslph/src/commands/fmt" gslph/src/commands/fmt#fmt-main)
-    ("evidence" "gslph/src/commands/evidence" gslph/src/commands/evidence#evidence-main)
-    ("agent" "gslph/src/commands/agent" gslph/src/commands/agent#agent-main)
-    ("guide" "gslph/src/commands/guide" gslph/src/commands/guide#guide-main)
-    ("info" "gslph/src/commands/info" gslph/src/commands/info#info-main)))
+;; Keep the executable boundary safe even when a stale parser artifact is
+;; accidentally selected during static linking.
+(def +native-owner-max-source-bytes+ (* 1024 1024))
 
 (def static-command-dispatch [])
 
@@ -62,7 +54,7 @@
   (match argv
     ([] #f)
     ([arg . rest]
-     (if (member arg +commands+)
+     (if (member arg provider-recognized-command-names)
        argv
        (command-line-command-tail rest)))))
 
@@ -125,7 +117,27 @@
 ;; : (-> String (List String) (U Integer #f))
 (def (try-native-search-command command rest)
   (and (equal? command "search")
-       (try-search-light-main rest)))
+       (begin
+         (guard-native-owner-search! rest)
+         (try-search-light-main rest))))
+
+;; : (-> Args Unit )
+(def (guard-native-owner-search! args)
+  (when (and (pair? args)
+             (equal? (car args) "owner")
+             (pair? (cdr args)))
+    (let* ((owner (cadr args))
+           (root (or (launcher-option "--workspace" args) "."))
+           (path (path-expand owner (path-expand root))))
+      (when (file-exists? path)
+        (guard-native-source-path! path)))))
+
+;; : (-> Path Unit )
+(def (guard-native-source-path! path)
+  (let (bytes (file-info-size (file-info path)))
+    (when (> bytes +native-owner-max-source-bytes+)
+      (error "source exceeds native Scheme read budget; use asp search/query"
+             path bytes))))
 
 ;;; Direct query boundary:
 ;;; - Hook selector reads must be a native launcher fast path.
@@ -194,6 +206,7 @@
          (start (cadr parts))
          (end (caddr parts))
          (source-path (path-expand path root)))
+    (guard-native-source-path! source-path)
     (if (and start end)
       (launcher-read-line-range source-path start end)
       (call-with-input-file source-path read-all-as-string))))
@@ -234,17 +247,18 @@
 ;;       ```
 ;;     %
 (def (launcher-read-line-range path start end)
-  (cdr
-   (foldl
-    (lambda (text state)
-      (let ((line (car state))
-            (out (cdr state)))
-        (cons (fx1+ line)
-              (if (and (>= line start) (<= line end))
-                (string-append out text "\n")
-                out))))
-    (cons 1 "")
-    (read-file-lines path))))
+  (call-with-input-file path
+    (lambda (port)
+      (call-with-output-string
+       (lambda (out)
+         (let loop ((line-number 1))
+           (when (<= line-number end)
+             (let (line (read-line port))
+               (unless (eof-object? line)
+                 (when (>= line-number start)
+                   (display line out)
+                   (newline out))
+                 (loop (fx1+ line-number)))))))))))
 
 ;; : (-> String (List String) Integer)
 (def (dispatch-native-command command rest)
@@ -259,7 +273,7 @@
   (let (static-entry (find-dynamic-command command static-command-dispatch))
     (if static-entry
       ((cadr static-entry) rest)
-      (let (entry (find-dynamic-command command +dynamic-command-dispatch+))
+      (let (entry (find-dynamic-command command provider-dynamic-command-dispatch))
         (if entry
           (let (command-main
                 (begin
@@ -307,7 +321,7 @@
    ((help-args? args)
     (emit-help 0))
    ((and (pair? args)
-         (member (car args) +commands+))
+         (member (car args) provider-recognized-command-names))
     (dispatch-command (car args) (cdr args)))
    (else
     (emit-help 2))))

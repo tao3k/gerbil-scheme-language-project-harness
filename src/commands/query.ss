@@ -14,7 +14,6 @@
         :gslph/src/parser/query
         :gslph/src/protocol/json
         (only-in :std/srfi/1 find)
-        (only-in :std/sugar unless)
         (only-in :std/srfi/13 string-contains string-index string-join string-prefix?)
         :gslph/src/support/args
         :gslph/src/support/io)
@@ -49,25 +48,51 @@
       (query-main/owner-route workspace json? code? names-only? args)))))
 
 ;; : (-> ProjectRoot Selector Boolean Integer)
+(def (emit-query-structural-not-found not-found-selector json?)
+  (if json?
+    (write-json-line
+     (hash (resolution "not-found")
+           (selector not-found-selector)
+           (matches [])
+           (selectorAliases [])))
+    (displayln
+     (string-append
+      "[gerbil-query-no-hit] resolution=not-found selector="
+      not-found-selector))))
+
+(def (emit-query-rust-owned-selector selector json?)
+  (if json?
+    (write-json-line
+     (hash (resolution "unsupported")
+           (selector selector)
+           (reason "ownerless-symbol-selector-rust-owned")
+           (nextCommand
+            "asp gerbil-scheme search symbol <symbol> --workspace <workspace-root> --view seeds")))
+    (displayln
+     (string-append
+      "[gerbil-query-rust-owned] reason=ownerless-symbol-selector selector="
+      selector
+      " nextCommand=\"asp gerbil-scheme search symbol <symbol> --workspace <workspace-root> --view seeds\""))))
+
+(def (emit-query-code selector result json?)
+  (if json?
+    (write-json-line (hash (selector selector) (code result)))
+    (display result)))
+
 (def (emit-query-selector workspace selector json?)
   (let (result (read-query-selector workspace selector))
-    (if (and (pair? result)
-             (equal? (car result) 'structural-not-found))
-      (let (not-found-selector (cadr result))
-        (if json?
-          (write-json-line
-           (hash (resolution "not-found")
-                 (selector not-found-selector)
-                 (matches [])
-                 (selectorAliases [])))
-          (displayln
-           (string-append
-            "[gerbil-query-no-hit] resolution=not-found selector="
-            not-found-selector))))
-      (if json?
-        (write-json-line (hash (selector selector) (code result)))
-        (display result))))
-  0)
+    (cond
+     ((and (pair? result)
+           (equal? (car result) 'structural-not-found))
+      (emit-query-structural-not-found (cadr result) json?)
+      0)
+     ((and (pair? result)
+           (equal? (car result) 'rust-owned-symbol-selector))
+      (emit-query-rust-owned-selector selector json?)
+      2)
+     (else
+      (emit-query-code selector result json?)
+      0))))
 
 ;; : (-> ProjectRoot Selector ParsedData)
 (def (read-query-selector workspace selector)
@@ -77,7 +102,7 @@
    ((source-range-or-file-selector? selector)
     (read-selector workspace selector))
    (else
-    (read-symbol-item-selector workspace selector))))
+    ['rust-owned-symbol-selector selector])))
 
 ;; : (-> Selector Boolean)
 (def (structural-item-selector? selector)
@@ -88,35 +113,6 @@
   (or (string-contains selector "/")
       (string-contains selector ".")
       (string-contains selector ":")))
-
-;; : (-> ProjectRoot Selector ParsedData)
-(def (read-symbol-item-selector workspace selector)
-  (let* ((files (collect-source-files workspace))
-         (defn
-          (let find-definition ((remaining files))
-            (if (null? remaining)
-              #f
-              (let* ((path (car remaining))
-                     (source-text (read-source-text path))
-                     (candidate? (string-contains source-text selector)))
-                (set! source-text #f)
-                (if candidate?
-                  (let* ((source-file
-                          (parse-owner-items-source-file workspace path 0 []))
-                         (match
-                          (find (lambda (candidate)
-                                  (equal? (definition-name candidate) selector))
-                                (source-file-definitions source-file))))
-                    (if match
-                      match
-                      (begin
-                        (set! source-file #f)
-                        (##gc)
-                        (find-definition (cdr remaining)))))
-                  (find-definition (cdr remaining))))))))
-    (unless defn
-      (error "selector item not found" selector))
-    (read-definition-code workspace defn)))
 
 ;; : (-> ProjectRoot Selector ParsedData)
 (def (read-structural-item-selector workspace selector)

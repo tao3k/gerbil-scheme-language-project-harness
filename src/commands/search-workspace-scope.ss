@@ -2,11 +2,12 @@
 ;;; Lightweight parser-owned workspace scope renderer.
 
 (import (only-in :gslph/src/commands/search-render join-or-dash)
+        (only-in :gslph/src/commands/search-workspace-scope-light
+                 workspace-scope-preview-files-light)
         :gslph/src/parser/facade
         :gslph/src/protocol/json
         :gslph/src/protocol/workspace-scope
         :gslph/src/support/io
-        (only-in :std/sort sort)
         (only-in :std/srfi/1 take))
 
 (export emit-workspace-scope)
@@ -16,16 +17,14 @@
 
 ;;; Boundary:
 ;;; - Workspace scope discovery belongs to the language provider.
-;;; - This path reads package policy and walks provider-owned source roots only.
-;;; - It intentionally avoids parsing source forms or building SQL/graph indexes.
+;;; - This path reads package policy and a fixed root-config preview only.
+;;; - Rust owns source enumeration, authoritative counts, and indexes.
 ;; : (-> Root Json Integer )
 (def (emit-workspace-scope root json?)
   (let* ((package-index (collect-project-package-only root))
          (root (project-index-root package-index))
          (package (project-index-package package-index))
-         (files (if package
-                  (sort (collect-source-files root package) string<?)
-                  '()))
+         (files (workspace-scope-preview-files-light root package))
          (packet (workspace-scope-packet-json root package files)))
     (if json?
       (write-json-line packet)
